@@ -34,6 +34,9 @@ def inspect_cdf_file(file_path: str) -> None:
     for var in variable_names:
         var_attrs_full = cdf_file.varattsget(var)
         vdr_info = cdf_file.varinq(var)
+        if vdr_info.Last_Rec < 0:
+            print(f"{var}: no records")
+            continue
         var_data = cdf_file.varget(var)
 
         var_shape = var_data.shape  # type: ignore[reportAttributeAccessIssue]
