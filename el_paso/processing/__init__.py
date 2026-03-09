@@ -16,7 +16,7 @@ from el_paso.processing.fold_pitch_angles_and_flux import fold_pitch_angles_and_
 from el_paso.processing.get_real_time_tipsod import get_real_time_tipsod
 from el_paso.processing.magnetic_field_utils import MagFieldVarTypes
 from el_paso.processing.clean_magnetometer_data import clean_magnetometer_variables
-from el_paso.processing.calculate_L_mlt_mlat_fce_eq import add_derived_params
+from el_paso.processing.compute_L_mlt_mlat_fce_eq import add_derived_params
 
 
 __all__ = [
