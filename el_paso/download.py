@@ -147,7 +147,9 @@ def _requests_download(
         if response_of_content is None:
             return
 
-        found_files = typing.cast("list[str]", re.findall(rf"{file_name_stem}", response_of_content.text))
+        found_files = typing.cast(
+            "list[str]", re.findall(rf"{file_name_stem}", response_of_content.text, flags=re.IGNORECASE)
+        )
         latest_file_name = get_file_by_version(found_files, version="latest")
 
         if latest_file_name is None:
