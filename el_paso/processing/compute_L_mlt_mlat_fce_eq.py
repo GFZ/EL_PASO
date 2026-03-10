@@ -6,11 +6,11 @@
 import numpy as np
 from astropy import units as u
 
-import el_paso as ep
+from el_paso.units import RE
 from el_paso.variable import Variable
 
 
-def add_derived_params(variables: dict, re: float = ep.units.RE) -> dict:
+def add_derived_params(variables: dict, re: float = RE) -> dict:
     """Compute derived magnetospheric parameters and add them to EL_PASO variables.
 
     The parameters are based on the following formulas:
