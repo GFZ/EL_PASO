@@ -34,7 +34,8 @@ dependencies = [
     "tqdm>=4.67.2",
     "wget>=3.2",
     "wheel==0.46.3",
-    "skyfield==1.54"
+    "skyfield==1.54",
+    "python-dotenv"
 ]
 license = "(Apache-2.0 OR CC0-1.0 OR CC-BY-NC-4.0 OR LGPL-3.0-only)"
 license-files = ["LICENSES/*"]
