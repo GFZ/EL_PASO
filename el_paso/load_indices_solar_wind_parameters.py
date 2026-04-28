@@ -116,8 +116,8 @@ def load_indices_solar_wind_parameters(  # noqa: C901, PLR0912, PLR0915
         match requested_output:
             case "Kp":
                 kp_model_order: list[swvo_io.kp.KpModel] = [
-                    swvo_io.kp.KpOMNI(base_data_path / "OMNI_low_res"),
-                    swvo_io.kp.KpNiemegk(base_data_path / "KpNiemegk"),
+                    swvo_io.kp.KpOMNI(base_data_path / "OMNI_low_res", prefer_env_var=True),
+                    swvo_io.kp.KpNiemegk(base_data_path / "KpNiemegk", prefer_env_var=True),
                 ]
                 output_df = swvo_io.kp.read_kp_from_multiple_models(
                     start_time, end_time, model_order=kp_model_order, download=True
@@ -130,7 +130,7 @@ def load_indices_solar_wind_parameters(  # noqa: C901, PLR0912, PLR0915
                 )
 
             case "Dst":
-                output_df = swvo_io.dst.DSTOMNI(base_data_path / "OMNI_low_res").read(
+                output_df = swvo_io.dst.DSTOMNI(base_data_path / "OMNI_low_res", prefer_env_var=True).read(
                     start_time, end_time, download=True
                 )
 
@@ -240,7 +240,7 @@ def _create_variables_from_data_frame(
 
 @lru_cache
 def _cache_omni_high_res(base_data_path: Path, start_time: datetime, end_time: datetime) -> pd.DataFrame:
-    output_df = swvo_io.solar_wind.SWOMNI(base_data_path / "OMNI_high_res").read(
+    output_df = swvo_io.solar_wind.SWOMNI(base_data_path / "OMNI_high_res", prefer_env_var=True).read(
         start_time - timedelta(hours=1),
         end_time + timedelta(hours=1),
         download=True,
