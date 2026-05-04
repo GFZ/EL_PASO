@@ -12,10 +12,10 @@ import matplotlib.dates as mdates
 import numpy as np
 import pytest
 from matplotlib import pyplot as plt
-from swvo.io import RBMDataSet
 from swvo.io.dst import DSTOMNI
 from swvo.io.kp import KpOMNI
 
+from el_paso import InstrumentEnum, MfmEnum, RBMDataSet
 from examples.VanAllenProbes.process_hope_electrons import process_hope_electrons
 
 sat_str_list = ["a", "b"]
@@ -45,26 +45,26 @@ def test_gfz_old(sat_str: Literal["a", "b"], mag_field: Literal["T89", "TS04"]):
 
     match mag_field:
         case "T89":
-            mfm_enum = RBMDataSet.MfmEnum.T89
+            mfm_enum = MfmEnum.T89
         case "TS04":
-            mfm_enum = RBMDataSet.MfmEnum.T04s
+            mfm_enum = MfmEnum.T04s
 
-    rbsp_data = RBMDataSet.RBMDataSet(
+    rbsp_data = RBMDataSet(
         start_time=start_time,
         end_time=end_time,
         folder_path=Path("tests/comparisons/processed_data/"),
         satellite="RBSPA",
-        instrument=RBMDataSet.InstrumentEnum.HOPE,
+        instrument=InstrumentEnum.HOPE,
         mfm=mfm_enum,
         verbose=True,
     )
 
-    rbsp_data_server = RBMDataSet.RBMDataSet(
+    rbsp_data_server = RBMDataSet(
         start_time=start_time,
         end_time=end_time,
         folder_path=Path("/export/rbm6/data/data-dev/"),
         satellite="RBSPA",
-        instrument=RBMDataSet.InstrumentEnum.HOPE,
+        instrument=InstrumentEnum.HOPE,
         mfm=mfm_enum,
         verbose=True,
     )

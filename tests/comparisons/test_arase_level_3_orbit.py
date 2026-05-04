@@ -11,9 +11,9 @@ from typing import Literal
 import numpy as np
 import pytest
 from matplotlib import pyplot as plt
-from swvo.io import RBMDataSet
 
 import el_paso as ep
+from el_paso import InstrumentEnum, MfmEnum, RBMDataSet
 from examples.Arase.arase_mepe import process_mepe_level_3
 from examples.Arase.get_arase_orbit_variables import get_arase_orbit_level_3_variables
 
@@ -21,7 +21,7 @@ from examples.Arase.get_arase_orbit_variables import get_arase_orbit_level_3_var
 @functools.cache
 def arase_orbit_el_paso(
     start_time: datetime, end_time: datetime, irbem_lib_path: str, mag_field: Literal["T89", "TS04", "OP77Q"]
-) -> RBMDataSet.RBMDataSet:
+) -> RBMDataSet:
     Path("tests/comparisons/raw_data").mkdir(exist_ok=True)
     Path("tests/comparisons/processed_data").mkdir(exist_ok=True)
 
@@ -39,24 +39,24 @@ def arase_orbit_el_paso(
 
     match mag_field:
         case "T89":
-            mfm_enum = RBMDataSet.MfmEnum.T89
+            mfm_enum = MfmEnum.T89
         case "TS04":
-            mfm_enum = RBMDataSet.MfmEnum.T04s
+            mfm_enum = MfmEnum.T04s
         case "OP77Q":
-            mfm_enum = RBMDataSet.MfmEnum.OP77
+            mfm_enum = MfmEnum.OP77
 
-    return RBMDataSet.RBMDataSet(
+    return RBMDataSet(
+        "ARASE",
+        InstrumentEnum.MEPE,
+        mfm_enum,
         start_time,
         end_time,
         Path("tests/comparisons/processed_data/"),
-        "ARASE",
-        RBMDataSet.InstrumentEnum.MEPE,
-        mfm_enum,
         verbose=True,
     )
 
 
-mag_field_list = ["TS04", "T89", "OP77"]
+mag_field_list = ["TS04", "T89", "OP77Q"]
 
 
 @pytest.mark.parametrize("mag_field", mag_field_list)

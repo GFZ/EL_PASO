@@ -7,8 +7,7 @@ import shutil
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from swvo.io.RBMDataSet import Instrument, RBMDataSet, Satellite
-
+from el_paso import Instrument, RBMDataSet, Satellite
 from examples.GOES.process_goes_realtime import process_goes_real_time
 
 

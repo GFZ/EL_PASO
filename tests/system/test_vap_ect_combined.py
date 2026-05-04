@@ -9,8 +9,8 @@ from pathlib import Path
 from typing import Literal
 
 import pytest
-from swvo.io.RBMDataSet import RBMDataSet
 
+from el_paso import RBMDataSet
 from examples.VanAllenProbes.process_ect_combined import process_ect_combined
 
 

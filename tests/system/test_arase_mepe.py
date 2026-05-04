@@ -9,8 +9,8 @@ from pathlib import Path
 from typing import Literal
 
 import pytest
-from swvo.io.RBMDataSet import RBMDataSet
 
+from el_paso import RBMDataSet
 from examples.Arase.arase_mepe import process_mepe_level_3
 
 
@@ -69,9 +69,21 @@ def test_arase_mepe_snapshot(
             if renew_solution:
                 shutil.copy(out_path, Path(__file__).parent / "data" / "processed" / "ARASE" / "arase")
 
-    arase_proc = RBMDataSet(start_time, end_time, tmpdir, "ARASE", "mepe", mag_field)
+    arase_proc = RBMDataSet(
+        start_time=start_time,
+        end_time=end_time,
+        folder_path=tmpdir,
+        satellite="ARASE",
+        instrument="mepe",
+        mfm=mag_field,
+    )
     arase_true = RBMDataSet(
-        start_time, end_time, Path(__file__).parent / "data" / "processed", "ARASE", "mepe", mag_field
+        start_time=start_time,
+        end_time=end_time,
+        folder_path=Path(__file__).parent / "data" / "processed",
+        satellite="ARASE",
+        instrument="mepe",
+        mfm=mag_field,
     )
 
     assert arase_proc == arase_true, f"Different variables: {arase_proc.get_different_variables(arase_true)}"
