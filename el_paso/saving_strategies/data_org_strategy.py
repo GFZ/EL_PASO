@@ -1,13 +1,16 @@
 # SPDX-FileCopyrightText: 2025 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
 
 import calendar
+import logging
 import pickle
 import typing
+import warnings
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
@@ -22,6 +25,8 @@ if typing.TYPE_CHECKING:
 
     from el_paso import Variable
 
+logger = logging.getLogger(__name__)
+
 
 class DataOrgStrategy(SavingStrategy):
     """A concrete saving strategy for saving data based on the satellite mission into separate monthly files.
@@ -31,6 +36,10 @@ class DataOrgStrategy(SavingStrategy):
     (e.g., `base_path/MISSION/SATELLITE/Processed_Mat_Files/`) and standardizes
     variables to specific units and dimensions before saving. The data is saved
     in either `.mat` or `.pickle` format, depending on user preference.
+
+    !!! warning "Deprecation"
+        The ``".pickle"`` file format is deprecated and will be removed in a future
+        release. Use ``".mat"`` instead.
 
     Attributes:
         output_files (list[OutputFile]): Pre-defined list of files to be saved,
@@ -73,7 +82,18 @@ class DataOrgStrategy(SavingStrategy):
             instrument (str): The instrument name.
             kext (str): The model extension type. "TS04" is remapped to "T04s".
             file_format (Literal[".mat", ".pickle"]): The desired format for the output files.
+            .. deprecated:: 1.0.3rc0
+                    Passing ``".pickle"`` is deprecated and will be removed in a future release.
+                    Use ``".mat"`` instead.
         """
+        if file_format == ".pickle":
+            warnings.warn(
+                "The '.pickle' file format for DataOrgStrategy is deprecated and will be removed "
+                "in a future release. Use '.mat' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         self.base_data_path = Path(base_data_path)
         self.mission = mission
         self.satellite = satellite
@@ -203,6 +223,10 @@ class DataOrgStrategy(SavingStrategy):
         new data based on time, and then returning the merged dictionary. It raises an error if
         the time values are not unique after concatenation.
 
+        .. deprecated:: 1.0.3rc0
+            Support for appending to ``.pickle`` files is deprecated alongside the ``.pickle``
+            format itself. This code path will be removed in a future release.
+
         Parameters:
             file_path (Path): The path to the existing file to append to.
             data_dict_to_save (dict[str, Any]): The dictionary with new data to be added.
@@ -213,7 +237,20 @@ class DataOrgStrategy(SavingStrategy):
         Raises:
             ValueError: If a key mismatch occurs between the dictionaries or if the concatenated
                 time array contains non-unique values.
+            NotImplementedError: If ``append`` is requested for a non-pickle file format.
         """
+        if file_path.suffix != ".pickle":
+            msg = f"Appending to '{file_path.suffix}' files is not supported by DataOrgStrategy. Only '.pickle' files support appending, but that format is deprecated. `append_data` method for '{file_path.suffix}' is not implemented and will be followed in future releases."  # noqa: E501
+            logger.exception(msg)
+            raise NotImplementedError(msg)
+
+        warnings.warn(
+            "Appending to '.pickle' files is deprecated alongside the '.pickle' format and will "
+            "be removed in a future release. Switch to '.mat' to avoid this warning.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         with file_path.open("rb") as file:
             data_dict_old = pickle.load(file)  # noqa: S301
 
