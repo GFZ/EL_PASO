@@ -133,7 +133,7 @@ def process_arase_xep_real_time(
         FEDU_var, variables_combined["Energy_FEDO"], particle_species="electron"
     )
 
-    if save_strategy == "dataorg":
+    if save_strategy in ("dataorg", "both"):
         variables_to_save = {
             "time": binned_time_var,
             "Flux": FEDU_var,
@@ -159,9 +159,17 @@ def process_arase_xep_real_time(
             kext="T89",
             file_format=".pickle",
         )
-        append = True
 
-    elif save_strategy == "netcdf":
+        ep.save(
+            variables_to_save,
+            saving_strategy,
+            start_time,
+            end_time,
+            time_var=binned_time_var,
+            append=True,
+        )
+
+    if save_strategy in ("netcdf", "both"):
         variables_to_save = {
             "time": binned_time_var,
             "flux/FEDU": FEDU_var,
@@ -185,9 +193,15 @@ def process_arase_xep_real_time(
             file_name_stem="arase_XEP",
             mag_field="T89",
         )
-        append = True
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=append)
+        ep.save(
+            variables_to_save,
+            saving_strategy,
+            start_time,
+            end_time,
+            time_var=binned_time_var,
+            append=True,
+        )
 
 
 def _get_xep_variables(
