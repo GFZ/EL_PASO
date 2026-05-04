@@ -225,88 +225,93 @@ class MonthlyNetCDFStrategy(MonthlyH5Strategy):
 
         return loaded_data
 
-    def _merge_and_sort_data(self, existing_data: dict[str, Any], new_data: dict[str, Any]) -> dict[str, Any]:  # noqa: C901, PLR0912
-        """Merge new data with existing data, sort by time, and remove duplicates.
+    def _merge_and_sort_data(  # noqa: C901
+        self,
+        existing_data: dict[str, Any],
+        new_data: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Merge using pickle-style logic with robust shape handling."""
 
-        Parameters:
-            existing_data (dict[str, Any]): The existing data loaded from the file.
-            new_data (dict[str, Any]): The new data to be inserted.
+        def _normalize_1d(arr: np.ndarray) -> np.ndarray:
+            """Convert (N,1) -> (N,) but leave all other shapes untouched."""
+            arr = np.asarray(arr)
+            if arr.ndim == 2 and arr.shape[1] == 1:  # noqa: PLR2004
+                return arr.reshape(-1)
+            return arr
 
-        Returns:
-            dict[str, Any]: The merged dictionary sorted by time with duplicates removed based on time values.
-                When duplicate time values are found, the newer data (from new_data) is kept.
-        """
         if "time" not in existing_data or existing_data["time"].size == 0:
             return new_data
 
         if "time" not in new_data or new_data["time"].size == 0:
             return existing_data
 
-        existing_time = existing_data["time"]
-        new_time = new_data["time"]
+        existing_time = _normalize_1d(existing_data["time"])
+        new_time = _normalize_1d(new_data["time"])
 
-        existing_time_flat = np.asarray(existing_time).flatten()
-        new_time_flat = np.asarray(new_time).flatten()
+        # remove overlapping timestamps from existing data
+        mask_keep_existing = ~np.isin(existing_time, new_time)
 
-        # Combine times and find sort indices
-        combined_time = np.concatenate([existing_time_flat, new_time_flat])
-        sort_indices = np.argsort(combined_time)
+        # insertion index (assumes sorted time, same as pickle version)
+        insert_idx = int(np.searchsorted(existing_time, new_time[0]))
 
-        sorted_combined_time = combined_time[sort_indices]
-
-        unique_time, unique_indices = np.unique(sorted_combined_time, return_index=True)
-
-        # get last occurrence indices for each unique time value to keep the newer data in case of duplicates
-        last_occurrence_indices = []
-        for i in range(len(unique_time)):
-            # Find the last occurrence of this unique time value
-            last_idx = np.where(sorted_combined_time == unique_time[i])[0][-1]
-            last_occurrence_indices.append(last_idx)
-
-        unique_indices = np.array(last_occurrence_indices)
-
-        merged_data: dict[str, Any] = {"metadata": existing_data.get("metadata", {})}
+        merged: dict[str, Any] = {"metadata": existing_data.get("metadata", {}).copy()}
 
         if "metadata" in new_data:
-            merged_data["metadata"].update(new_data["metadata"])
-
-        new_time_ndim = np.asarray(new_time).ndim
+            merged["metadata"].update(new_data["metadata"])
 
         all_keys = set(existing_data.keys()) | set(new_data.keys())
+
         for key in all_keys:
             if key == "metadata":
                 continue
 
             if key not in existing_data:
-                merged_data[key] = new_data[key]
-            elif key not in new_data:
-                merged_data[key] = existing_data[key]
-            else:
-                existing_array = existing_data[key]
-                new_array = new_data[key]
+                merged[key] = new_data[key]
+                continue
 
-                existing_flat = np.asarray(existing_array).reshape(existing_array.shape[0], -1)
-                new_flat = np.asarray(new_array).reshape(new_array.shape[0], -1)
+            if key not in new_data:
+                merged[key] = existing_data[key]
+                continue
 
-                # Concatenate along first dimension (time)
-                combined_array = np.concatenate([existing_flat, new_flat], axis=0)
+            v1 = np.asarray(existing_data[key])
+            v2 = np.asarray(new_data[key])
 
-                # Apply sorting along time axis
-                sorted_array = combined_array[sort_indices]
+            # normalize 1D inconsistencies
+            v1 = _normalize_1d(v1)
+            v2 = _normalize_1d(v2)
 
-                # Remove duplicates based on time (keep last occurrence)
-                deduplicated_array = sorted_array[unique_indices]
+            if not isinstance(v1, np.ndarray) or not isinstance(v2, np.ndarray):
+                merged[key] = v2
+                continue
 
-                if key == "time":
-                    if new_time_ndim == 2:  # noqa: PLR2004
-                        merged_data[key] = deduplicated_array
-                    else:
-                        merged_data[key] = deduplicated_array.flatten()
-                else:
-                    original_shape = (deduplicated_array.shape[0],) + new_array.shape[1:]  # noqa: RUF005
-                    merged_data[key] = deduplicated_array.reshape(original_shape)
+            # check dimensional compatibility (except time axis)
+            if v1.ndim != v2.ndim:
+                msg = f"{key}: ndim mismatch {v1.shape} vs {v2.shape}"
+                logger.error(msg)
+                raise ValueError(msg)
 
-        return merged_data
+            if v1.ndim > 1 and v1.shape[1:] != v2.shape[1:]:
+                msg = f"{key}: shape mismatch {v1.shape} vs {v2.shape}"
+                logger.error(msg)
+                raise ValueError(msg)
+
+            # remove overlapping timestamps from existing
+            v1_trunc = v1[mask_keep_existing]
+
+            # insert new block
+            merged_val = v2 if v1_trunc.size == 0 else np.insert(v1_trunc, insert_idx, v2, axis=0)
+
+            # enforce time uniqueness
+            if key == "time":
+                t = np.asarray(merged_val)
+                if len(np.unique(t)) != len(t):
+                    msg = f"Time values are not unique after merge for key '{key}'"
+                    logger.error(msg)
+                    raise ValueError(msg)
+
+            merged[key] = merged_val
+
+        return merged
 
     def _calculate_dimensions(self, data_dict: dict[str, Any]) -> dict[str, int]:
         """Calculate dimension sizes from the data dictionary.
