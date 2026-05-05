@@ -242,8 +242,15 @@ class DataOrgStrategy(SavingStrategy):
         time_1_in_2 = np.isin(time_1, time_2)
 
         for key, value_1 in data_dict_old.items():
-            if key.startswith("__") or key == "metadata":
+            if key.startswith("__"):
                 continue
+
+            if key == "metadata":
+                value_2 = data_dict_to_save.get(key)
+                if isinstance(value_1, dict) and isinstance(value_2, dict):
+                    data_dict_to_save[key] = {**value_1, **value_2}
+                elif key not in data_dict_to_save:
+                    data_dict_to_save[key] = value_1
 
             if key not in data_dict_to_save:
                 msg = "Key mismatch when concatenating data dicts!"
