@@ -392,9 +392,16 @@ class SingleFileStrategy(SavingStrategy):
                                 global_attrs[attr_name_str] = {int(k): v for k, v in attr_value.items()}
                             else:
                                 for sub_key, sub_val in attr_value.items():
+                                    if isinstance(sub_val, (list, tuple)) and len(sub_val) == 0:
+                                        logger.warning(f"Skipping empty global attribute {attr_name_str}_{sub_key}")
+                                        continue
                                     flat_name = f"{attr_name_str}_{sub_key}"
                                     global_attrs[flat_name] = {0: sub_val}
+
                         elif isinstance(attr_value, (list, tuple)):
+                            if len(attr_value) == 0:
+                                logger.warning(f"Skipping empty global attribute {attr_name_str}")
+                                continue
                             global_attrs[attr_name_str] = dict(enumerate(attr_value))
 
                         else:
@@ -408,7 +415,7 @@ class SingleFileStrategy(SavingStrategy):
                         continue
 
                     if getattr(var_data, "size", 0) == 0:
-                        logger.debug(f"Skipping empty variable {var_name}")
+                        logger.warning(f"Skipping empty variable {var_name}")
                         continue
 
                     var_data_array = np.asarray(var_data)
