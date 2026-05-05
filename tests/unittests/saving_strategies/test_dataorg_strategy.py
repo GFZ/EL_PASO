@@ -61,6 +61,7 @@ def test_basic_dataorg_strategy(tmp_path: Path, file_format: Literal[".mat", ".p
     assert save_path.exists()
 
 
+@pytest.mark.basic
 @pytest.mark.parametrize("file_format", [".mat", ".pickle"])
 def test_dataorg_append_data_merges_existing_file(tmp_path: Path, file_format: Literal[".mat", ".pickle"]) -> None:
     existing_data = {
