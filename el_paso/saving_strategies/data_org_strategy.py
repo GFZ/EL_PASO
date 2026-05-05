@@ -90,7 +90,7 @@ class DataOrgStrategy(SavingStrategy):
             warnings.warn(
                 "The '.pickle' file format for DataOrgStrategy is deprecated and will be removed "
                 "in a future release. Use '.mat' instead.",
-                DeprecationWarning,
+                FutureWarning,
                 stacklevel=2,
             )
 
