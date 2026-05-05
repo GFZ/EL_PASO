@@ -16,7 +16,6 @@ def _compute_pitch_angles_for_telescopes(
     tele_alpha_angles: NDArray[np.floating],
     tele_beta_angles: NDArray[np.floating],
 ) -> NDArray[np.floating]:
-
     if b_tele_aligned.shape[1] != 3:  # noqa: PLR2004
         msg = "Magnetic field input must be a vector with 3 components!"
         raise ValueError(msg)
@@ -26,7 +25,7 @@ def _compute_pitch_angles_for_telescopes(
     b_unit_vectors = b_tele_aligned / btot
 
     # convert to standard shperical coordinates
-    theta_zone = np.pi/2 - tele_alpha_angles
+    theta_zone = np.pi / 2 - tele_alpha_angles
     phi_zone = tele_beta_angles
 
     # velocity directions of particles: reverse telescope look direction
@@ -44,10 +43,11 @@ def _compute_pitch_angles_for_telescopes(
 
     return pitch_angles
 
+
 def compute_pitch_angles_for_telescopes(
-        b_tele_aligned: ep.Variable,
-        tele_alpha_angles: ep.Variable,
-        tele_beta_angles: ep.Variable,
+    b_tele_aligned: ep.Variable,
+    tele_alpha_angles: ep.Variable,
+    tele_beta_angles: ep.Variable,
 ) -> ep.Variable:
     """Calculates the particle pitch angles for specific telescope orientations.
 

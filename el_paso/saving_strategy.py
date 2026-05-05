@@ -3,23 +3,23 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+from __future__ import annotations
+
 import logging
-import pickle
-import typing
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from datetime import datetime
-from pathlib import Path
-from typing import Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
-import h5py  # type: ignore[reportMissingTypeStubs]
 import numpy as np
 from astropy import units as u  # type: ignore[reportMissingTypeStubs]
-from scipy.io import savemat  # type: ignore[reportMissingTypeStubs]
 
 from el_paso import Variable
 
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from datetime import datetime
+    from pathlib import Path
 
 
 class OutputFile(NamedTuple):
@@ -58,7 +58,7 @@ class SavingStrategy(ABC):
             Selects and prepares variables to be saved in the output file, optionally truncating them to a time range.
 
         save_single_file(file_path: Path, dict_to_save: dict[str, Any], *, append: bool = False):
-            Saves the provided dictionary to a file in the specified format (.mat, .pickle, .h5),
+            Saves the provided dictionary to a file in the specified format (.mat, .pickle, .h5, .nc),
             optionally appending data.
 
         append_data(file_path: Path, dict_to_save: dict[str, Any]) -> dict[str, Any]:
@@ -110,6 +110,17 @@ class SavingStrategy(ABC):
 
         Returns:
             Variable: The standardized variable instance.
+        """
+
+    @abstractmethod
+    def save_single_file(self, file_path: Path, dict_to_save: dict[str, Any], *, append: bool = False) -> None:
+        """Saves the provided dictionary to a single file in one of the supported formats (.mat, .pickle, .h5, .nc).
+
+        Parameters:
+            file_path (Path): The path where the file should be saved.
+            dict_to_save (dict[str, Any]): The dictionary containing variable data and metadata to be saved.
+            append (bool, optional): If True, data will be appended to existing files rather than overwriting them.
+                    Defaults to False.
         """
 
     def get_target_variables(
@@ -179,87 +190,3 @@ class SavingStrategy(ABC):
                     return None
 
         return target_variables
-
-    def save_single_file(self, file_path: Path, dict_to_save: dict[str, Any], *, append: bool = False) -> None:  # noqa: C901, PLR0912
-        """Saves variable data to a single file in one of the supported formats (.mat, .pickle, .h5).
-
-        Parameters:
-            file_path (Path): The path to the file where the dictionary will be saved.
-                              The file extension determines the format.
-            dict_to_save (dict[str, Any]): The dictionary containing variable data to save.
-            append (bool, optional): If True and the file exists, appends data to the existing file (if supported).
-                                     Defaults to False.
-
-        Raises:
-            NotImplementedError: If the file format specified by the file extension is not supported.
-
-        Supported formats:
-            - .mat: Saves using scipy.io.savemat.
-            - .pickle: Saves using pickle.dump.
-            - .h5: Saves using h5py, with each key as a dataset (excluding "metadata").
-        """
-        logger.info(f"Saving file {file_path.name}...")
-
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-        format_name = file_path.suffix.lower()
-
-        if file_path.exists() and append:
-            dict_to_save = self.append_data(file_path, dict_to_save)
-
-        if format_name == ".mat":
-            # Save the dictionary into a .mat file
-            savemat(str(file_path), dict_to_save)
-
-        elif format_name == ".pickle":
-            with file_path.open("wb") as file:
-                pickle.dump(dict_to_save, file)
-
-        elif format_name == ".h5":
-            with h5py.File(file_path, "w") as file:
-                for path, value in dict_to_save.items():
-                    if path == "metadata":
-                        continue
-
-                    path_parts = path.split("/")
-                    groups = path_parts[:-1]
-                    dataset_name = path_parts[-1]
-
-                    curr_hierachy = file
-                    for group in groups:
-                        if group not in curr_hierachy:
-                            curr_hierachy = curr_hierachy.create_group(group)  # type: ignore[reportUnknownVariableType]
-                        else:
-                            curr_hierachy = typing.cast("h5py.Group", curr_hierachy[group])
-
-                    data_set = curr_hierachy.create_dataset(dataset_name, data=value, compression="gzip", shuffle=True)  # type: ignore[reportUnknownMemberType]
-
-                    if path in dict_to_save["metadata"]:
-                        for key, metadata in dict_to_save["metadata"][path].items():
-                            data_set.attrs[key] = metadata
-
-        elif format_name == ".nc":
-            msg = (
-                "Encountered format netCDF (.nc). This format has to be implemented by "
-                "each subclass as no general writer exists for it!"
-            )
-            raise NotImplementedError(msg)
-
-        else:
-            msg = f"The '{format_name}' format is not implemented."
-            raise NotImplementedError(msg)
-
-    def append_data(self, file_path: Path, data_dict_to_save: dict[str, Any]) -> dict[str, Any]:
-        """Appends variable data from the specified file to the provided dictionary.
-
-        Args:
-            file_path (Path): The path to the file where data should be appended.
-            data_dict_to_save (dict[str, Any]): The dictionary containing data to append.
-
-        Returns:
-            dict[str, Any]: The updated dictionary after appending data.
-
-        Raises:
-            NotImplementedError: This method must be implemented by subclasses.
-        """
-        msg = "This has to be overwritten for each Strategy!"
-        raise NotImplementedError(msg)
