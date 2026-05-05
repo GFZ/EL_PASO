@@ -7,11 +7,10 @@ from __future__ import annotations
 
 import logging
 import typing
-from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable  # noqa: UP035
 
-import cdflib
+import cdflib  # type: ignore[reportMissingTypeStubs]
 import h5py
 import netCDF4 as nC
 import numpy as np
@@ -19,12 +18,18 @@ from scipy.io import savemat
 
 from el_paso.saving_strategy import OutputFile, SavingStrategy
 
-logger = logging.getLogger(__name__)
-
-
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from el_paso import Variable
+
+logger = logging.getLogger(__name__)
+
+
+FormatWriter = Callable[[Path, dict[str, Any]], None]
+
+
+if TYPE_CHECKING:
     from el_paso import Variable
 
 
@@ -33,32 +38,83 @@ class SingleFileStrategy(SavingStrategy):
 
     This strategy implements the `SavingStrategy` abstract methods to manage saving all variables
     for the entire time range into a single output file. It is a simple, non-partitioning approach.
+    Supports multiple file formats including MATLAB (.mat), HDF5 (.h5), NetCDF4 (.nc), and CDF (.cdf).
+    Users can also register custom format writers for additional file formats.
 
     Attributes:
         file_path (Path): The path to the single output file where all data will be saved.
+        map_standard_name (dict[str, str]): Mapping of standard names (unused in this strategy).
+        output_files (list[OutputFile]): List of output files to be managed.
 
     Methods:
-        __init__(file_path): Initializes the strategy with the file path.
+        __init__(file_path, format_writers): Initializes the strategy with file path and optional custom writers.
         get_time_intervals_to_save: Returns the entire time range as a single interval.
         get_file_path: Always returns the pre-defined single file path.
         standardize_variable: Passes the variable through without any standardization.
+        save_single_file: Saves data to a file in the specified format using the dispatch table.
+        register_writer: Registers a custom format writer for a file extension.
+
+    Supported Formats:
+        - .mat: MATLAB format using scipy.io.savemat
+        - .h5: HDF5 format using h5py with optional gzip compression
+        - .nc: NetCDF4 format using netCDF4 with optional compression
+        - .cdf: CDF (Common Data Format) using cdflib with gzip compression
+        - Custom: Any user-defined format via register_writer() or format_writers parameter
+
+    Example:
+        >>> def write_custom(file_path: Path, data_dict: dict[str, Any]) -> None:
+        ...     # Custom writer implementation
+        ...     pass
+        >>> strategy = SingleFileStrategy(
+        ...     "output.myformat",
+        ...     format_writers={".myformat": write_custom}
+        ... )
+        >>> ep.save(variables, saving_strategy=strategy, ...)
     """
 
     map_standard_name: dict[str, str]
     output_files: list[OutputFile]
-
     file_path: Path
+    _writers: dict[str, FormatWriter]
 
-    def __init__(self, file_path: str | Path) -> None:
-        """Initializes the SingleFileStrategy with the specified file path.
+    def __init__(
+        self,
+        file_path: str | Path,
+        format_writers: dict[str, FormatWriter] | None = None,
+    ) -> None:
+        """Initializes the SingleFileStrategy with the specified file path and optional custom format writers.
 
         Parameters:
-            file_path (str | Path): The full path to the output file.
+            file_path (str | Path): The full path to the output file. The file extension determines
+                the format unless a custom writer is registered.
+            format_writers (dict[str, FormatWriter] | None): Optional dictionary mapping file extensions
+                (including the dot, e.g., ".myformat") to custom writer functions. Custom writers override
+                built-in writers for the same extension. Defaults to None.
+
+        Example:
+            >>> def my_writer(path: Path, data: dict[str, Any]) -> None:
+            ...     # Custom implementation
+            ...     pass
+            >>> strategy = SingleFileStrategy(
+            ...     "output.myformat",
+            ...     format_writers={".myformat": my_writer}
+            ... )
         """
         self.file_path = Path(file_path)
         self.output_files = [OutputFile(self.file_path.name, [])]
-
         self.map_standard_name = {}
+
+        # Build the dispatch table with built-in writers
+        self._writers: dict[str, FormatWriter] = {
+            ".mat": self._write_mat_file,
+            ".h5": self._write_h5_file,
+            ".nc": self._write_netcdf_file,
+            ".cdf": self._write_cdf_file,
+        }
+
+        # Register custom writers (these override built-in writers if same extension)
+        if format_writers:
+            self._writers.update(format_writers)
 
     def get_time_intervals_to_save(self, start_time: datetime, end_time: datetime) -> list[tuple[datetime, datetime]]:
         """Returns the entire time range as a single interval.
@@ -115,6 +171,32 @@ class SingleFileStrategy(SavingStrategy):
         """
         return variable
 
+    def register_writer(self, extension: str, writer: FormatWriter) -> None:
+        """Register a custom format writer for a file extension.
+
+        This method allows you to register custom writers for file formats not natively supported,
+        or to override built-in writers. Custom writers are called when a file with the matching
+        extension is saved.
+
+        Parameters:
+            extension (str): The file extension (including the dot), e.g., ".myformat" or ".bin".
+            writer (FormatWriter): A callable with signature `(Path, dict[str, Any]) -> None` that
+                handles writing the data dictionary to the specified file path.
+
+        Example:
+            >>> def write_binary(path: Path, data: dict[str, Any]) -> None:
+            ...     import struct
+            ...     with open(path, 'wb') as f:
+            ...         for key, value in data.items():
+            ...             if key != "metadata":
+            ...                 f.write(value.tobytes())
+            >>> strategy = SingleFileStrategy("output.dat")
+            >>> strategy.register_writer(".dat", write_binary)
+        """
+        if not extension.startswith("."):
+            extension = "." + extension
+        self._writers[extension.lower()] = writer
+
     def _write_metadata_to_netcdf_variable(self, data_set: nC.Variable[Any], metadata: dict[str, Any]) -> None:
         """Attach metadata values that can be represented as NetCDF attributes."""
         for key, value in metadata.items():
@@ -127,7 +209,18 @@ class SingleFileStrategy(SavingStrategy):
             setattr(data_set, key, value)
 
     def _write_netcdf_file(self, file_path: Path, data_dict: dict[str, Any]) -> None:
-        """Write a generic output dictionary to NetCDF."""
+        """Write data dictionary to NetCDF4 (.nc) format.
+
+        Creates hierarchical groups based on paths (e.g., "group1/group2/dataset" becomes nested groups).
+        Applies zlib compression, shuffle filter, and creates dimension variables automatically.
+        Writes metadata as variable attributes.
+
+        Parameters:
+            file_path (Path): Path to save the .nc file.
+            data_dict (dict[str, Any]): Dictionary with variable data and metadata.
+                Keys are path strings (e.g., "var_name" or "group/subgroup/var_name").
+                The "metadata" key is skipped; metadata is stored as variable attributes.
+        """
         with nC.Dataset(file_path, "w", format="NETCDF4") as file:
             for path, value in data_dict.items():
                 if path == "metadata":
@@ -167,61 +260,85 @@ class SingleFileStrategy(SavingStrategy):
                     self._write_metadata_to_netcdf_variable(data_set, data_dict["metadata"][path])
 
     def save_single_file(self, file_path: Path, dict_to_save: dict[str, Any], *, append: bool = False) -> None:
-        """Saves variable data to a single file in one of the supported formats (.mat, .h5, .nc, .cdf).
+        """Saves variable data to a single file in one of the supported formats.
+
+        The file format is determined by the file extension. Built-in formats include .mat, .h5, .nc, and .cdf.
+        Custom format writers can be registered via the format_writers parameter during initialization or
+        via the register_writer() method.
+
+        It is primarily designed to be used with the `el_paso.save()` function, which handles the logic of determining
+        what data to save and when.
 
         Parameters:
             file_path (Path): The path to the file where the dictionary will be saved.
                               The file extension determines the format.
             dict_to_save (dict[str, Any]): The dictionary containing variable data to save.
-            append (bool, optional): If True and format is .cdf, attempts to append to existing file.
-                For other formats, raises NotImplementedError.
+                Keys are variable names (strings), values are NumPy arrays or other serializable data.
+                Should include a "metadata" key with metadata dictionary.
+            append (bool, optional): If True, attempts to append to an existing file.
+                Only supported for CDF format. For other formats, raises NotImplementedError.
+                Defaults to False.
 
         Raises:
-            NotImplementedError: If the file format specified by the file extension is not supported,
-                or if append is requested for non-CDF formats.
-            RuntimeError: If the .pickle format is attempted to be used.
+            NotImplementedError: If the file format is not registered or supported,
+                or if append is requested for formats that don't support it.
+            RuntimeError: If the .pickle format is attempted to be used (deprecated).
+            Any exception raised by the format writer function.
 
-        Supported formats:
-            - .mat: Saves using scipy.io.savemat.
-            - .h5: Saves using h5py, with each key as a dataset (excluding "metadata").
-            - .nc: Saves using netCDF4, with each key as a variable (excluding "metadata").
-            - .cdf: Saves using cdflib, with each key as a zVariable (excluding "metadata").
+        Supported Built-in Formats:
+            - .mat: MATLAB format using scipy.io.savemat
+            - .h5: HDF5 format using h5py with gzip compression
+            - .nc: NetCDF4 format using netCDF4 with compression
+            - .cdf: CDF (Common Data Format) using cdflib with gzip compression
         """
         logger.info(f"Saving file {file_path.name}...")
 
         file_path.parent.mkdir(parents=True, exist_ok=True)
         format_name = file_path.suffix.lower()
 
-        if append:
-            msg = "Appending to existing files is not supported by `SingleFileStrategy`."
-            logger.error(msg)
-            raise NotImplementedError(msg)
-
         if format_name == ".pickle":
             msg = (
-                "Pickle format has been removed from `SingleFileStrategy` and will be soon"
+                "Pickle format has been removed from `SingleFileStrategy` and will be soon "
                 "removed from `SavingStrategy` as well (already deprecated)."
             )
             logger.error(msg)
             raise RuntimeError(msg)
 
-        if format_name == ".mat":
-            savemat(str(file_path), dict_to_save)
+        # Look up the writer in the dispatch table
+        writer = self._writers.get(format_name)
 
-        elif format_name == ".h5":
-            self._write_h5_file(file_path, dict_to_save)
-
-        elif format_name == ".nc":
-            self._write_netcdf_file(file_path, dict_to_save)
-
-        elif format_name == ".cdf":
-            self._write_cdf_file(file_path, dict_to_save)
-
-        else:
-            msg = f"The '{format_name}' format is not implemented."
+        if writer is None:
+            msg = f"The '{format_name}' format is not implemented. Registered formats: {list(self._writers.keys())}"
+            logger.error(msg)
             raise NotImplementedError(msg)
 
+        if append:
+            msg = f"Appending to existing files is not supported for '{format_name}' format."
+            logger.error(msg)
+            raise NotImplementedError(msg)
+        writer(file_path, dict_to_save)
+
+    def _write_mat_file(self, file_path: Path, data_dict: dict[str, Any]) -> None:
+        """Write data dictionary to MATLAB .mat format.
+
+        Parameters:
+            file_path (Path): Path to save the .mat file.
+            data_dict (dict[str, Any]): Dictionary with variable data and metadata.
+        """
+        savemat(str(file_path), data_dict)
+
     def _write_h5_file(self, file_path: Path, data_dict: dict[str, Any]) -> None:
+        """Write data dictionary to HDF5 (.h5) format.
+
+        Creates hierarchical groups based on paths (e.g., "group1/group2/dataset" becomes nested groups).
+        Applies gzip compression and shuffling to all datasets. Writes metadata as dataset attributes.
+
+        Parameters:
+            file_path (Path): Path to save the .h5 file.
+            data_dict (dict[str, Any]): Dictionary with variable data and metadata.
+                Keys are path strings (e.g., "var_name" or "group/subgroup/var_name").
+                The "metadata" key is skipped; metadata is stored as dataset attributes.
+        """
         with h5py.File(file_path, "w") as file:
             for path, value in data_dict.items():
                 if path == "metadata":
@@ -245,7 +362,18 @@ class SingleFileStrategy(SavingStrategy):
                         data_set.attrs[key] = metadata
 
     def _write_cdf_file(self, file_path: Path, data_dict: dict[str, Any]) -> None:  # noqa: C901, PLR0912, PLR0915
-        """Write a data dictionary to a CDF file."""
+        """Write data dictionary to CDF (Common Data Format) format.
+
+        Converts NumPy arrays to appropriate CDF data types and writes them as zVariables.
+        Supports global attributes and per-variable attributes from the metadata dictionary.
+        Applies gzip compression (Compress=6) to all variables.
+
+        Parameters:
+            file_path (Path): Path to save the .cdf file.
+            data_dict (dict[str, Any]): Dictionary with variable data and metadata.
+                Keys are variable names. The "metadata" key contains global and variable attributes.
+                Metadata should follow the format: {var_name: {attr_name: attr_value, ...}, ...}
+        """
         try:
             cdf_file = cdflib.cdfwrite.CDF(str(file_path), delete=True)
 
