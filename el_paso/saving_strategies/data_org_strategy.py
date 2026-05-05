@@ -247,7 +247,7 @@ class DataOrgStrategy(SavingStrategy):
         warnings.warn(
             "Appending to '.pickle' files is deprecated alongside the '.pickle' format and will "
             "be removed in a future release. Switch to '.mat' to avoid this warning.",
-            DeprecationWarning,
+            FutureWarning,
             stacklevel=2,
         )
 
