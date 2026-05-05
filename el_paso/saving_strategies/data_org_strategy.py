@@ -241,7 +241,7 @@ class DataOrgStrategy(SavingStrategy):
         """
         if file_path.suffix != ".pickle":
             msg = f"Appending to '{file_path.suffix}' files is not supported by DataOrgStrategy. Only '.pickle' files support appending, but that format is deprecated. `append_data` method for '{file_path.suffix}' is not implemented and will be followed in future releases."  # noqa: E501
-            logger.exception(msg)
+            logger.error(msg)
             raise NotImplementedError(msg)
 
         warnings.warn(
