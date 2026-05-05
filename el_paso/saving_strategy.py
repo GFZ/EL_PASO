@@ -183,7 +183,7 @@ class SavingStrategy(ABC):
                 target_variables[name_to_save] = var_to_save
             else:
                 msg = f"Could not find target variable {name_to_save}!"
-                logger.info(msg, stacklevel=2)
+                logger.warning(msg, stacklevel=2)
                 if output_file.save_incomplete:
                     target_variables[name_to_save] = Variable(original_unit=u.dimensionless_unscaled, data=np.array([]))
                 else:
