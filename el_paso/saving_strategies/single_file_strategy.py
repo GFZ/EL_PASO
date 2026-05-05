@@ -192,8 +192,8 @@ class SingleFileStrategy(SavingStrategy):
         file_path.parent.mkdir(parents=True, exist_ok=True)
         format_name = file_path.suffix.lower()
 
-        if append and format_name != ".cdf":
-            msg = "Appending to existing files is not supported by `SingleFileStrategy` except for .cdf format."
+        if append:
+            msg = "Appending to existing files is not supported by `SingleFileStrategy`."
             logger.error(msg)
             raise NotImplementedError(msg)
 
