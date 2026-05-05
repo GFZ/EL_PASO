@@ -11,8 +11,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+import cdflib
 import h5py
 import netCDF4 as nC
+import numpy as np
 from scipy.io import savemat
 
 from el_paso.saving_strategy import OutputFile, SavingStrategy
@@ -165,30 +167,33 @@ class SingleFileStrategy(SavingStrategy):
                     self._write_metadata_to_netcdf_variable(data_set, data_dict["metadata"][path])
 
     def save_single_file(self, file_path: Path, dict_to_save: dict[str, Any], *, append: bool = False) -> None:
-        """Saves variable data to a single file in one of the supported formats (.mat, .h5, .nc).
+        """Saves variable data to a single file in one of the supported formats (.mat, .h5, .nc, .cdf).
 
         Parameters:
             file_path (Path): The path to the file where the dictionary will be saved.
                               The file extension determines the format.
             dict_to_save (dict[str, Any]): The dictionary containing variable data to save.
+            append (bool, optional): If True and format is .cdf, attempts to append to existing file.
+                For other formats, raises NotImplementedError.
 
         Raises:
-            NotImplementedError: If the file format specified by the file extension is not supported.
+            NotImplementedError: If the file format specified by the file extension is not supported,
+                or if append is requested for non-CDF formats.
             RuntimeError: If the .pickle format is attempted to be used.
-            NotImplementedError: If `append` is set to True, as appending is not supported by this strategy.
 
         Supported formats:
             - .mat: Saves using scipy.io.savemat.
             - .h5: Saves using h5py, with each key as a dataset (excluding "metadata").
             - .nc: Saves using netCDF4, with each key as a variable (excluding "metadata").
+            - .cdf: Saves using cdflib, with each key as a zVariable (excluding "metadata").
         """
         logger.info(f"Saving file {file_path.name}...")
 
         file_path.parent.mkdir(parents=True, exist_ok=True)
         format_name = file_path.suffix.lower()
 
-        if append:
-            msg = "Appending to existing files is not supported by `SingleFileStrategy`."
+        if append and format_name != ".cdf":
+            msg = "Appending to existing files is not supported by `SingleFileStrategy` except for .cdf format."
             logger.error(msg)
             raise NotImplementedError(msg)
 
@@ -209,6 +214,9 @@ class SingleFileStrategy(SavingStrategy):
         elif format_name == ".nc":
             self._write_netcdf_file(file_path, dict_to_save)
 
+        elif format_name == ".cdf":
+            self._write_cdf_file(file_path, dict_to_save)
+
         else:
             msg = f"The '{format_name}' format is not implemented."
             raise NotImplementedError(msg)
@@ -226,12 +234,98 @@ class SingleFileStrategy(SavingStrategy):
                 curr_hierachy = file
                 for group in groups:
                     if group not in curr_hierachy:
-                        curr_hierachy = curr_hierachy.create_group(group)  # type: ignore[reportUnknownVariableType]
+                        curr_hierachy = curr_hierachy.create_group(group)
                     else:
                         curr_hierachy = typing.cast("h5py.Group", curr_hierachy[group])
 
-                data_set = curr_hierachy.create_dataset(dataset_name, data=value, compression="gzip", shuffle=True)  # type: ignore[reportUnknownMemberType]
+                data_set = curr_hierachy.create_dataset(dataset_name, data=value, compression="gzip", shuffle=True)
 
                 if path in data_dict["metadata"]:
                     for key, metadata in data_dict["metadata"][path].items():
                         data_set.attrs[key] = metadata
+
+    def _write_cdf_file(self, file_path: Path, data_dict: dict[str, Any]) -> None:  # noqa: C901, PLR0912, PLR0915
+        """Write a data dictionary to a CDF file."""
+        try:
+            cdf_file = cdflib.cdfwrite.CDF(str(file_path), delete=True)
+
+            try:
+                metadata = data_dict.get("metadata")
+
+                if isinstance(metadata, dict):
+                    global_attrs: dict[str, dict[int, Any]] = {}
+
+                    for attr_name, attr_value in metadata.items():
+                        attr_name_str = str(attr_name)
+
+                        if isinstance(attr_value, dict):
+                            keys = list(attr_value.keys())
+                            if all(isinstance(k, (int, np.integer)) or str(k).isdigit() for k in keys):
+                                global_attrs[attr_name_str] = {int(k): v for k, v in attr_value.items()}
+                            else:
+                                for sub_key, sub_val in attr_value.items():
+                                    flat_name = f"{attr_name_str}_{sub_key}"
+                                    global_attrs[flat_name] = {0: sub_val}
+                        elif isinstance(attr_value, (list, tuple)):
+                            global_attrs[attr_name_str] = dict(enumerate(attr_value))
+
+                        else:
+                            global_attrs[attr_name_str] = {0: attr_value}
+
+                    if global_attrs:
+                        cdf_file.write_globalattrs(global_attrs)
+
+                for var_name, var_data in data_dict.items():
+                    if var_name == "metadata":
+                        continue
+
+                    if getattr(var_data, "size", 0) == 0:
+                        logger.debug(f"Skipping empty variable {var_name}")
+                        continue
+
+                    var_data_array = np.asarray(var_data)
+                    if np.issubdtype(var_data_array.dtype, np.integer):
+                        if var_data_array.dtype == np.int8:
+                            cdf_dtype = cdflib.cdfwrite.CDF.CDF_INT1
+                        elif var_data_array.dtype == np.int16:
+                            cdf_dtype = cdflib.cdfwrite.CDF.CDF_INT2
+                        elif var_data_array.dtype == np.int32:
+                            cdf_dtype = cdflib.cdfwrite.CDF.CDF_INT4
+                        else:
+                            cdf_dtype = cdflib.cdfwrite.CDF.CDF_INT8
+
+                    elif np.issubdtype(var_data_array.dtype, np.floating):
+                        if var_data_array.dtype == np.float32:
+                            cdf_dtype = cdflib.cdfwrite.CDF.CDF_FLOAT
+                        else:
+                            cdf_dtype = cdflib.cdfwrite.CDF.CDF_DOUBLE
+
+                    else:
+                        var_data_array = var_data_array.astype(np.float64)
+                        cdf_dtype = cdflib.cdfwrite.CDF.CDF_DOUBLE
+
+                    var_spec: dict[str, Any] = {
+                        "Variable": var_name,
+                        "Data_Type": cdf_dtype,
+                        "Num_Elements": 1,
+                        "Rec_Vary": True,
+                        "Dim_Sizes": (list(var_data_array.shape[1:]) if var_data_array.ndim > 1 else []),
+                    }
+
+                    var_attrs: dict[str, Any] = {
+                        "Compress": 6,
+                    }
+
+                    cdf_file.write_var(
+                        var_spec,
+                        var_attrs=var_attrs,
+                        var_data=var_data_array,
+                    )
+
+            finally:
+                cdf_file.close()
+
+        except Exception as e:
+            msg = f"Failed to write CDF file {file_path}: {e}"
+            logger.exception(msg)
+            raise RuntimeError(msg) from e
