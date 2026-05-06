@@ -40,7 +40,6 @@ class SingleFileStrategy(SavingStrategy):
 
     Attributes:
         file_path (Path): The path to the single output file where all data will be saved.
-        map_standard_name (dict[str, str]): Mapping of standard names (unused in this strategy).
         output_files (list[OutputFile]): List of output files to be managed.
 
     Methods:
@@ -69,7 +68,6 @@ class SingleFileStrategy(SavingStrategy):
         >>> ep.save(variables, saving_strategy=strategy, ...)
     """
 
-    map_standard_name: dict[str, str]
     output_files: list[OutputFile]
     file_path: Path
     _writers: dict[str, FormatWriter]
@@ -99,7 +97,6 @@ class SingleFileStrategy(SavingStrategy):
         """
         self.file_path = Path(file_path)
         self.output_files = [OutputFile(self.file_path.name, [])]
-        self.map_standard_name = {}
 
         # Build the dispatch table with built-in writers
         self._writers: dict[str, FormatWriter] = {
