@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: 2025 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -10,7 +11,7 @@ import typing
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable  # noqa: UP035
 
-import cdflib  # type: ignore[reportMissingTypeStubs]
+import cdflib
 import h5py
 import netCDF4 as nC
 import numpy as np
@@ -27,10 +28,6 @@ logger = logging.getLogger(__name__)
 
 
 FormatWriter = Callable[[Path, dict[str, Any]], None]
-
-
-if TYPE_CHECKING:
-    from el_paso import Variable
 
 
 class SingleFileStrategy(SavingStrategy):
