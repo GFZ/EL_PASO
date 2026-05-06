@@ -5,30 +5,26 @@
 
 from __future__ import annotations
 
-import logging
 import typing
-from pathlib import Path
-from typing import Any, Literal
+from typing import Literal
 
-import netCDF4 as nC
-
-import el_paso as ep
-from el_paso.saving_strategies.monthly_h5_strategy import MonthlyH5Strategy
+from el_paso.saving_strategies.monthly_strategy import MonthlyFileStrategy
 from el_paso.saving_strategy import OutputFile
 
 if typing.TYPE_CHECKING:
-    from datetime import datetime
+    from pathlib import Path
 
+    import numpy as np
+
+    import el_paso as ep
     from el_paso.data_standard import DataStandard
     from el_paso.processing.magnetic_field_utils import MagneticFieldLiteral
 
-logger = logging.getLogger(__name__)
 
-
-class DensityNetCDFStrategy(MonthlyH5Strategy):
+class DensityNetCDFStrategy(MonthlyFileStrategy):
     """Saving strategy for writing plasma density and related data to monthly NetCDF files.
 
-    This strategy extends `MonthlyH5Strategy` but implements saving to the NetCDF
+    This strategy extends `MonthlyFileStrategy` but implements saving to the NetCDF
     format (`.nc`), primarily targeting the time-series of density, position, and
     coordinate variables (e.g., L-star, MLT).
 
@@ -51,7 +47,7 @@ class DensityNetCDFStrategy(MonthlyH5Strategy):
         self,
         base_data_path: str | Path,
         file_name_stem: str,
-        mag_field: MagneticFieldLiteral | list[MagneticFieldLiteral],
+        mag_field: MagneticFieldLiteral,
         satellite: Literal["RBSP", "Other"] = "Other",
         data_standard: DataStandard | None = None,
     ) -> None:
@@ -60,8 +56,8 @@ class DensityNetCDFStrategy(MonthlyH5Strategy):
         Parameters:
             base_data_path (str | Path): The base directory where the output NetCDF files will be saved.
             file_name_stem (str): The base name for the output files (e.g., "my_data").
-            mag_field (MagneticFieldLiteral | list[MagneticFieldLiteral]):
-                A string or list of strings specifying the magnetic field models used.
+            mag_field (MagneticFieldLiteral):
+                A string specifying the magnetic field model used.
             satellite (Literal["RBSP", "Other"], optional):
                             Specifies the satellite associated with the data. This is often used to trigger
                             specific metadata or formatting conventions. Defaults to "Other".
@@ -70,16 +66,15 @@ class DensityNetCDFStrategy(MonthlyH5Strategy):
                 An optional `DataStandard` instance to use for standardizing variables.
                 If `None`, `ep.data_standards.PRBEMStandard` is used by default.
         """
-        if isinstance(mag_field, str):
-            mag_field = [mag_field]
+        self.mag_field = mag_field
 
-        if data_standard is None:
-            data_standard = ep.data_standards.PRBEMStandard()
-
-        self.base_data_path = Path(base_data_path)
-        self.file_name_stem = file_name_stem
-        self.mag_field_list = mag_field
-        self.standard = data_standard
+        super().__init__(
+            base_data_path=base_data_path,
+            file_name_stem=file_name_stem,
+            mag_field=self.mag_field,
+            file_format="nc",
+            data_standard=data_standard,
+        )
 
         output_file_entries = [
             "time",
@@ -130,31 +125,16 @@ class DensityNetCDFStrategy(MonthlyH5Strategy):
             OutputFile("full", output_file_entries, save_incomplete=True),
         ]
 
-    def get_file_path(self, interval_start: datetime, interval_end: datetime, output_file: OutputFile) -> Path:  # noqa: ARG002
-        """Generates the file path for a monthly NetCDF file.
+    def _calculate_dimensions(self, data_dict: dict[str, np.ndarray]) -> dict[str, int]:
+        """Calculate density NetCDF dimension sizes from the data dictionary."""
+        dimensions = {"time": data_dict["time"].shape[0]}
 
-        The file name is constructed from the `file_name_stem`, the date range of the interval,
-        and the specified magnetic field models, with a `.nc` extension.
+        has_local_position = "xGEO" in data_dict and data_dict["xGEO"].size > 0
+        has_equatorial_position = "xGEO_eq" in data_dict and data_dict["xGEO_eq"].size > 0
+        if has_local_position or has_equatorial_position:
+            dimensions["xGEO_components"] = 3
 
-        Parameters:
-            interval_start (datetime): The start of the time interval.
-            interval_end (datetime): The end of the time interval.
-            output_file (OutputFile): The configuration for the output file.
-
-        Returns:
-            Path: The full file path for the NetCDF file.
-        """
-        start_year_month_day = interval_start.strftime("%Y%m%d")
-        end_year_month_day = interval_end.strftime("%Y%m%d")
-
-        file_name = f"{self.file_name_stem}_{start_year_month_day}to{end_year_month_day}"
-
-        for mag_field in self.mag_field_list:
-            file_name += f"_{mag_field}"
-
-        file_name += ".nc"
-
-        return self.base_data_path / file_name
+        return dimensions
 
     def standardize_variable(
         self, variable: ep.Variable, name_in_file: str, *, first_call_of_interval: bool
@@ -176,59 +156,3 @@ class DensityNetCDFStrategy(MonthlyH5Strategy):
         return self.standard.standardize_variable(
             name_in_file, variable, reset_consistency_check=first_call_of_interval
         )
-
-    def save_single_file(self, file_path: Path, dict_to_save: dict[str, Any], *, append: bool = False) -> None:
-        """Saves a dictionary of variables to a single NetCDF file.
-
-        This method creates a new NetCDF4 file, defines dimensions based on the data,
-        and writes each variable as a dataset. It also attaches metadata as attributes
-        to the datasets.
-
-        Parameters:
-            file_path (Path): The path to the file where the data will be saved.
-            dict_to_save (dict[str, Any]): The dictionary containing variable data.
-            append (bool, optional): If `True`, attempts to append data to an existing file.
-                Currently, this functionality is not fully implemented for NetCDF,
-                so it defaults to creating a new file.
-
-        Note:
-            This method only supports creating new files (`append=False`) and does not
-            handle appending to an existing NetCDF file.
-        """
-        logger.info(f"Saving file {file_path.name}...")
-
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-
-        if file_path.exists() and append:
-            dict_to_save = self.append_data(file_path, dict_to_save)
-
-        # a NETCDF4_CLASSIC format allows for loading mulitple files via netCDF4.MFDataset
-        with nC.Dataset(file_path, "w", format="NETCDF4_CLASSIC") as file:
-            file.createDimension("time", size=None)  # time is unlimited
-
-            if ("xGEO" in dict_to_save and dict_to_save["xGEO"].size) > 0 or (
-                "xGEO_eq" in dict_to_save and dict_to_save["xGEO_eq"].size > 0
-            ):
-                file.createDimension("xGEO_components", 3)
-
-            for dataset_name, value in dict_to_save.items():
-                if dataset_name == "metadata":
-                    continue
-
-                if value.size == 0:
-                    continue
-
-                data_set = typing.cast(
-                    "nC.Variable[Any]",
-                    file.createVariable(  # type: ignore[reportUnknownMemberType]
-                        dataset_name, "f4", self.dependency_dict[dataset_name], zlib=True, complevel=5, shuffle=True
-                    ),
-                )
-
-                data_set[:, ...] = value
-
-                if dataset_name in dict_to_save["metadata"]:
-                    metadata = dict_to_save["metadata"][dataset_name]
-                    data_set.units = metadata["unit"]
-                    data_set.history = metadata["processing_notes"]
-                    data_set.description = metadata["description"]
