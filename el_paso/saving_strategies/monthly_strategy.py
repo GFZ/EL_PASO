@@ -56,7 +56,6 @@ class MonthlyFileStrategy(SavingStrategy):
         file_format: MFSFormats = "h5",
         data_standard: DataStandard | None = None,
         root_metadata: dict[str, str] | None = None,
-        format_writers: dict[str, FormatWriter] | None = None,
     ) -> None:
         """Initialize a monthly file saving strategy.
 
@@ -67,9 +66,14 @@ class MonthlyFileStrategy(SavingStrategy):
             file_format: One of ``"nc"``, ``"cdf"``, ``"h5"``, or ``"mat"``.
                 A leading dot is also accepted.
             data_standard: Standardization implementation. Defaults to
-                :class:`ep.data_standards.PRBEMStandard`.
+                [`el_paso.data_standards.PRBEMStandard`][]
             root_metadata: Optional global NetCDF attributes.
-            format_writers: Optional writer overrides keyed by extension.
+
+        Attributes:
+            output_files: List of output file configurations, with variable names
+                defined by ``_get_output_file_entries()``.
+            dependency_dict: Dictionary defining NetCDF dimension dependencies for
+                all variables in ``output_files``.
         """
         self.base_data_path = Path(base_data_path)
         self.file_name_stem = file_name_stem
@@ -99,10 +103,6 @@ class MonthlyFileStrategy(SavingStrategy):
             ".nc": self._load_netcdf_data,
             ".cdf": self._load_cdf_data,
         }
-
-        if format_writers:
-            for extension, writer in format_writers.items():
-                self.register_writer(extension, writer)
 
     def _normalize_file_format(self, file_format: str) -> str:
         """Return a normalized file extension for the requested monthly format."""
@@ -166,8 +166,11 @@ class MonthlyFileStrategy(SavingStrategy):
             f"density/{self.mag_field}/density_eq": ["time"],
         }
 
-    def register_writer(self, extension: str, writer: FormatWriter) -> None:
-        """Register or replace the writer used for a file extension."""
+    def _register_writer(self, extension: str, writer: FormatWriter) -> None:
+        """Register or replace the writer used for a file extension.
+
+        TODO: We may want to support user defined formats in the future, so this method could be extended to check.
+        """
         normalized = self._normalize_file_format(extension)
         self._writers[normalized] = writer
 

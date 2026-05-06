@@ -69,8 +69,7 @@ nav:
           - Units: API_reference/utilities/units.md
       - Saving Strategies:
           - DataOrg Strategy: API_reference/saving_strategies/data_org.md
-          - Monthly H5 Strategy: API_reference/saving_strategies/monthly_h5.md
-          - Monthly NetCDF Strategy: API_reference/saving_strategies/monthly_netcdf.md
+          - Monthly File Strategy: API_reference/saving_strategies/monthly.md
           - Single File Strategy: API_reference/saving_strategies/single_file.md
       - Data Standards:
           - PRBEM Standard: API_reference/data_standards/prbem.md
@@ -84,6 +83,8 @@ nav:
 
 markdown_extensions:
   - admonition
+  - pymdownx.highlight
+  - pymdownx.superfences
   - pymdownx.arithmatex:
       generic: true # Enable support for block and inline math
 
@@ -91,10 +92,21 @@ plugins:
   - mkdocstrings:
       handlers:
         python:
+          paths: ["el_paso"]
           options:
             docstring_style: google
             show_root_heading: true
             show_signature: false
+            signature_crossrefs: true
+            merge_init_into_class: false
+            separate_signature: true
+            show_category_heading: true
+            show_root_members_full_path: true
+            show_signature_annotations: true
+          inventories:
+            - https://docs.python.org/3/objects.inv
+            - https://numpy.org/doc/stable/objects.inv
+
   - search
   - mkdocs-jupyter:
       execute: true # run the notebook on build

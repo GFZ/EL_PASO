@@ -58,14 +58,13 @@ class SingleFileStrategy(SavingStrategy):
         - Custom: Any user-defined format via register_writer() or format_writers parameter
 
     Example:
-        >>> def write_custom(file_path: Path, data_dict: dict[str, Any]) -> None:
-        ...     # Custom writer implementation
-        ...     pass
-        >>> strategy = SingleFileStrategy(
-        ...     "output.myformat",
-        ...     format_writers={".myformat": write_custom}
-        ... )
-        >>> ep.save(variables, saving_strategy=strategy, ...)
+        ```python
+        def write_custom(file_path: Path, data_dict: dict[str, Any]) -> None:
+            # Custom writer implementation
+            pass
+        strategy = SingleFileStrategy("output.myformat",format_writers={".myformat": write_custom})
+        ep.save(variables, saving_strategy=strategy, ...)
+        ```
     """
 
     output_files: list[OutputFile]
@@ -87,13 +86,13 @@ class SingleFileStrategy(SavingStrategy):
                 built-in writers for the same extension. Defaults to None.
 
         Example:
-            >>> def my_writer(path: Path, data: dict[str, Any]) -> None:
-            ...     # Custom implementation
-            ...     pass
-            >>> strategy = SingleFileStrategy(
-            ...     "output.myformat",
-            ...     format_writers={".myformat": my_writer}
-            ... )
+            ```python
+            def write_custom(file_path: Path, data_dict: dict[str, Any]) -> None:
+                # Custom writer implementation
+                pass
+            strategy = SingleFileStrategy("output.myformat",format_writers={".myformat": write_custom})
+            ep.save(variables, saving_strategy=strategy, ...)
+            ```
         """
         self.file_path = Path(file_path)
         self.output_files = [OutputFile(self.file_path.name, [])]
@@ -178,14 +177,16 @@ class SingleFileStrategy(SavingStrategy):
                 handles writing the data dictionary to the specified file path.
 
         Example:
-            >>> def write_binary(path: Path, data: dict[str, Any]) -> None:
-            ...     import struct
-            ...     with open(path, 'wb') as f:
-            ...         for key, value in data.items():
-            ...             if key != "metadata":
-            ...                 f.write(value.tobytes())
-            >>> strategy = SingleFileStrategy("output.dat")
-            >>> strategy.register_writer(".dat", write_binary)
+            ```python
+            def write_binary(path: Path, data: dict[str, Any]) -> None:
+                import struct
+                with open(path, 'wb') as f:
+                    for key, value in data.items():
+                        if key != "metadata":
+                            f.write(value.tobytes())
+            strategy = SingleFileStrategy("output.dat")
+            strategy.register_writer(".dat", write_binary)
+            ```
         """
         if not extension.startswith("."):
             extension = "." + extension

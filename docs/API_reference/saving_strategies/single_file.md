@@ -9,3 +9,4 @@ SPDX-License-Identifier: Apache-2.0
     options:
       members:
         - __init__
+        - register_writer

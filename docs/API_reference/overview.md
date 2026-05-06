@@ -64,9 +64,7 @@ This section provides a detailed reference for all modules, classes, and functio
 
 [DataOrgStrategy](saving_strategies/data_org.md)
 
-[MonthlyH5Strategy](saving_strategies/monthly_h5.md)
-
-[MonthlyNetCDFStrategy](saving_strategies/monthly_netcdf.md)
+[MonthlyFileStrategy](saving_strategies/monthly.md)
 
 [SingleFileStrategy](saving_strategies/single_file.md)
 

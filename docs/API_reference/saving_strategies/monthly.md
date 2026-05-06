@@ -5,7 +5,7 @@ SPDX-FileContributor: Bernhard Haas
 SPDX-License-Identifier: Apache-2.0
 -->
 
-::: el_paso.saving_strategies.monthly_netcdf_strategy.MonthlyNetCDFStrategy
+::: el_paso.saving_strategies.monthly_strategy.MonthlyFileStrategy
     options:
       members:
         - __init__
