@@ -12,6 +12,7 @@ import shutil
 import tempfile
 import typing
 from collections.abc import Callable
+from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
@@ -24,6 +25,7 @@ from scipy.io import loadmat, savemat
 
 import el_paso as ep
 from el_paso.saving_strategy import OutputFile, SavingStrategy
+from el_paso.variable import Variable
 
 if TYPE_CHECKING:
     from el_paso.data_standard import DataStandard
@@ -56,18 +58,22 @@ class MonthlyFileStrategy(SavingStrategy):
         file_format: MFSFormats = "h5",
         data_standard: DataStandard | None = None,
         root_metadata: dict[str, str] | None = None,
+        *,
+        custom_variables: dict[str, Variable] | None = None,
     ) -> None:
         """Initialize a monthly file saving strategy.
 
         Parameters:
-            base_data_path: Directory where monthly files are written.
-            file_name_stem: Prefix used in generated monthly file names.
-            mag_field: Magnetic field model name. Monthly files use one model.
-            file_format: One of ``"nc"``, ``"cdf"``, ``"h5"``, or ``"mat"``.
+            base_data_path (str | Path): Directory where monthly files are written.
+            file_name_stem (str): Prefix used in generated monthly file names.
+            mag_field (MagneticFieldLiteral): Magnetic field model name. Monthly files use one model.
+            file_format (MFSFormats): One of ``"nc"``, ``"cdf"``, ``"h5"``, or ``"mat"``.
                 A leading dot is also accepted.
-            data_standard: Standardization implementation. Defaults to
+            data_standard (DataStandard | None): Standardization implementation. Defaults to
                 [`el_paso.data_standards.PRBEMStandard`][]
-            root_metadata: Optional global NetCDF attributes.
+            root_metadata (dict[str, str] | None): Optional global NetCDF attributes.
+            custom_variables (dict[str, Variable] | None): Custom variables to include in the output.
+                Each entry is saved below ``custom/`` using its dictionary key as the variable path.
 
         Attributes:
             output_files: List of output file configurations, with variable names
@@ -80,6 +86,7 @@ class MonthlyFileStrategy(SavingStrategy):
         self.mag_field = mag_field
         self.file_format = self._normalize_file_format(file_format)
         self.root_metadata = root_metadata
+        self.custom_variables = self._validate_custom_variables(custom_variables)
 
         if data_standard is None:
             data_standard = ep.data_standards.PRBEMStandard()
@@ -116,9 +123,48 @@ class MonthlyFileStrategy(SavingStrategy):
 
         return normalized
 
-    def _get_output_file_entries(self) -> list[str]:
-        """Return the variable list."""
-        entries = [
+    def _validate_custom_variables(self, custom_variables: dict[str, Variable] | None) -> dict[str, Variable]:
+        """Validate and copy user-defined custom variables."""
+        if custom_variables is None:
+            return {}
+
+        standard_entries = set(self._get_standard_output_file_entries())
+        validated: dict[str, Variable] = {}
+        custom_output_paths: set[str] = set()
+        for name, variable in custom_variables.items():
+            if not isinstance(name, str) or len(name.strip()) == 0:
+                msg = "Custom variable names must be non-empty strings."
+                raise ValueError(msg)
+
+            output_path = self._get_custom_variable_path(name)
+            if output_path == "custom/":
+                msg = "Custom variable names must contain a non-empty name after the custom group."
+                raise ValueError(msg)
+
+            if name == "metadata" or output_path == "custom/metadata":
+                msg = f"Custom variable name '{name}' is reserved."
+                raise ValueError(msg)
+
+            if output_path in standard_entries:
+                msg = f"Custom variable '{name}' conflicts with a standard monthly variable."
+                raise ValueError(msg)
+
+            if output_path in custom_output_paths:
+                msg = f"Custom variable '{name}' maps to a duplicate output path '{output_path}'."
+                raise ValueError(msg)
+
+            if not isinstance(variable, Variable):
+                msg = f"Custom variable '{name}' must be an el_paso.Variable instance."
+                raise TypeError(msg)
+
+            custom_output_paths.add(output_path)
+            validated[name] = variable
+
+        return validated
+
+    def _get_standard_output_file_entries(self) -> list[str]:
+        """Return the standard PRBEM monthly variable list."""
+        return [
             "time",
             "flux/FEDU",
             "flux/FEDO",
@@ -140,11 +186,15 @@ class MonthlyFileStrategy(SavingStrategy):
             f"density/{self.mag_field}/density_eq",
         ]
 
+    def _get_output_file_entries(self) -> list[str]:
+        """Return the standard variable list plus user-defined custom variables."""
+        entries = self._get_standard_output_file_entries()
+        entries.extend(self._get_custom_variable_path(name) for name in self.custom_variables)
         return entries
 
     def _get_dependency_dict(self) -> dict[str, list[str]]:
         """Return NetCDF dimension dependencies for all monthly variables."""
-        return {
+        dependency_dict = {
             "time": ["time"],
             "flux/FEDU": ["time", "energy", "alpha"],
             "flux/FEDO": ["time", "energy"],
@@ -165,6 +215,46 @@ class MonthlyFileStrategy(SavingStrategy):
             "density/density_local": ["time"],
             f"density/{self.mag_field}/density_eq": ["time"],
         }
+        dependency_dict.update(self._get_custom_dependency_dict())
+        return dependency_dict
+
+    def _get_custom_dependency_dict(self) -> dict[str, list[str]]:
+        """Infer NetCDF dimension dependencies for custom variables.
+
+        Custom monthly variables are independent payloads and do not need to share
+        the monthly file's time dimension. Every custom axis gets a variable-specific
+        dimension name.
+        """
+        return {
+            self._get_custom_variable_path(name): self._infer_custom_variable_dimensions(
+                self._get_custom_variable_path(name),
+                variable,
+            )
+            for name, variable in self.custom_variables.items()
+        }
+
+    def _get_custom_variable_path(self, name: str) -> str:
+        """Return the output path for a custom variable."""
+        name_without_group = name.removeprefix("custom/").strip("/")
+        return f"custom/{name_without_group}"
+
+    def _infer_custom_variable_dimensions(self, name: str, variable: Variable) -> list[str]:
+        """Infer dimensions for one custom variable from its data shape."""
+        return self._infer_custom_array_dimensions(name, np.asarray(variable.get_data()))
+
+    def _infer_custom_array_dimensions(self, name: str, data: np.ndarray) -> list[str]:
+        """Infer custom variable dimensions from an array shape."""
+        if data.ndim == 0:
+            return []
+
+        if data.ndim == 2 and data.shape[1] == 1:  # noqa: PLR2004
+            return [f"{self._sanitize_dimension_name(name)}_dim_0"]
+
+        return [f"{self._sanitize_dimension_name(name)}_dim_{axis}" for axis in range(data.ndim)]
+
+    def _sanitize_dimension_name(self, variable_name: str) -> str:
+        """Return a NetCDF-safe root dimension name derived from a variable path."""
+        return "".join(char if char.isalnum() else "_" for char in variable_name).strip("_") or "custom"
 
     def _register_writer(self, extension: str, writer: FormatWriter) -> None:
         """Register or replace the writer used for a file extension.
@@ -219,14 +309,47 @@ class MonthlyFileStrategy(SavingStrategy):
         first_call_of_interval: bool,
     ) -> ep.Variable:
         """Standardize a variable through the configured data standard."""
+        if name_in_file.startswith("custom/"):
+            return variable
+
         return self.standard.standardize_variable(
             name_in_file, variable, reset_consistency_check=first_call_of_interval
         )
 
+    def get_target_variables(
+        self,
+        output_file: OutputFile,
+        variables_dict: dict[str, Variable],
+        time_var: Variable | None,
+        start_time: datetime | None,
+        end_time: datetime | None,
+    ) -> dict[str, Variable] | None:
+        """Return standard monthly variables plus configured custom variables."""
+        standard_output_file = OutputFile(
+            output_file.name,
+            [name for name in output_file.names_to_save if not name.startswith("custom/")],
+            output_file.save_incomplete,
+        )
+        target_variables = super().get_target_variables(
+            standard_output_file,
+            variables_dict,
+            time_var,
+            start_time,
+            end_time,
+        )
+
+        if target_variables is None:
+            return None
+
+        for name, variable in self.custom_variables.items():
+            output_path = self._get_custom_variable_path(name)
+            var_to_save = variables_dict.get(output_path, variables_dict.get(name, variable))
+            target_variables[output_path] = deepcopy(var_to_save)
+
+        return target_variables
+
     def save_single_file(self, file_path: Path, dict_to_save: dict[str, Any], *, append: bool = False) -> None:
         """Save one monthly file, optionally appending to an existing file."""
-        logger.info(f"Saving file {file_path.name}...")
-
         file_path.parent.mkdir(parents=True, exist_ok=True)
         format_name = self._normalize_file_format(file_path.suffix)
         writer = self._writers.get(format_name)
@@ -238,6 +361,7 @@ class MonthlyFileStrategy(SavingStrategy):
 
         if file_path.exists() and append:
             self.append_data(file_path, dict_to_save)
+            logger.info(f"Saving file {file_path.resolve()}")
             return
 
         writer(file_path, dict_to_save)
@@ -273,22 +397,22 @@ class MonthlyFileStrategy(SavingStrategy):
         if format_name == ".nc":
             self._validate_netcdf_appendable(file_path)
 
-        logger.info(f"Loading existing data from {file_path.name}...")
+        logger.info(f"Loading existing data from {file_path.name}")
         existing_data = loader(file_path)
 
-        logger.info(f"Merging and sorting data for {file_path.name}...")
+        logger.info(f"Merging and sorting data for {file_path.name}")
         merged_data = self._merge_and_sort_data(existing_data, data_dict_to_save)
 
         with tempfile.NamedTemporaryFile(suffix=format_name, delete=False, dir=file_path.parent) as tmp_file:
             tmp_path = Path(tmp_file.name)
 
         try:
-            logger.info(f"Writing merged data to temporary file {tmp_path.name}...")
+            logger.info(f"Writing merged data to temporary file {tmp_path.name}")
             writer(tmp_path, merged_data)
 
-            logger.info(f"Replacing original file with merged data for {file_path.name}...")
+            logger.info(f"Replacing original file with merged data for {file_path.name}")
             shutil.move(str(tmp_path), str(file_path))
-            logger.info(f"Successfully inserted data into {file_path.name}")
+            logger.info(f"Successfully inserted data into {file_path.resolve()}")
 
             return merged_data  # noqa: TRY300
         except Exception:
@@ -338,6 +462,10 @@ class MonthlyFileStrategy(SavingStrategy):
 
             if key not in new_data:
                 merged[key] = existing_data[key]
+                continue
+
+            if key.startswith("custom/"):
+                merged[key] = new_data[key]
                 continue
 
             v1 = _normalize_1d(np.asarray(existing_data[key]))
@@ -477,6 +605,24 @@ class MonthlyFileStrategy(SavingStrategy):
         if "position/xGEO" in data_dict and np.asarray(data_dict["position/xGEO"]).size > 0:
             dimensions["xGEO_components"] = 3
 
+        for name in self.custom_variables:
+            path = self._get_custom_variable_path(name)
+            if path not in data_dict:
+                continue
+
+            value_array = np.asarray(data_dict[path])
+            if value_array.size == 0:
+                continue
+
+            path_dimensions = self._infer_custom_array_dimensions(path, value_array)
+            self.dependency_dict[path] = path_dimensions
+
+            for axis, dimension_name in enumerate(path_dimensions):
+                if dimension_name == "time":
+                    continue
+
+                dimensions[dimension_name] = int(value_array.shape[axis])
+
         return dimensions
 
     def _write_data_to_netcdf_file(self, file: nC.Dataset | nC.Group, data_dict: dict[str, Any]) -> None:
@@ -517,7 +663,10 @@ class MonthlyFileStrategy(SavingStrategy):
             if len(dimensions) == 1 and value_array.ndim == 2 and value_array.shape[1] == 1:  # noqa: PLR2004
                 value_to_write = value_array.reshape(-1)
 
-            data_set[:, ...] = value_to_write
+            if len(dimensions) == 0:
+                data_set[...] = value_to_write
+            else:
+                data_set[:, ...] = value_to_write
 
             if path in data_dict.get("metadata", {}):
                 metadata = data_dict["metadata"][path]
