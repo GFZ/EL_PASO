@@ -16,8 +16,9 @@ ignore = [
     "COM812",  # disable trailing whitespace because we use formatter
     "S101",    # allow assert statements
     "RET504",  # allow assignment before return
+    "PLR2004", # allow constants inline
 ]
-exclude = ["*.ipynb", "IRBEM/*", "setup.py"]
+exclude = ["*.ipynb", "setup.py"]
 
 [lint.pydocstyle]
 convention = "google"

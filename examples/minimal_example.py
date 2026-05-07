@@ -37,36 +37,36 @@ ep.download(
 )
 
 extraction_infos = [
-    ep.ExtractionInfo(
+    ep.processing.ExtractionInfo(
         result_key="Epoch",
         name_or_column="Epoch",
         unit=ep.units.cdf_epoch,
     ),
-    ep.ExtractionInfo(
+    ep.processing.ExtractionInfo(
         result_key="Energy",
         name_or_column="FEDU_Energy",
         unit=u.keV,
         is_time_dependent=False,
     ),
-    ep.ExtractionInfo(
+    ep.processing.ExtractionInfo(
         result_key="Pitch_angle",
         name_or_column="FEDU_Alpha",
         unit=u.deg,
         is_time_dependent=False,
     ),
-    ep.ExtractionInfo(
+    ep.processing.ExtractionInfo(
         result_key="FEDU",
         name_or_column="FEDU",
         unit=(u.cm**2 * u.s * u.sr * u.keV) ** (-1),
     ),
-    ep.ExtractionInfo(
+    ep.processing.ExtractionInfo(
         result_key="xGEO",
         name_or_column="Position",
         unit=u.km,
     ),
 ]
 
-variables = ep.extract_variables_from_files(
+variables = ep.processing.extract_variables_from_files(
     start_time=start_time,
     end_time=end_time,
     file_cadence="daily",

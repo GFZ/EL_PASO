@@ -68,24 +68,24 @@ def process_goes_real_time(
     )
 
     extraction_infos = [
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="Epoch",
             name_or_column="time_tag",
             unit=u.dimensionless_unscaled,
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="Energy",
             name_or_column="energy",
             unit=u.keV,
             is_time_dependent=False,
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="FEDO",
             name_or_column="flux",
             unit=(u.cm**2 * u.s * u.keV) ** (-1),
             dependent_variables=["time_tag", "energy"],
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="sat_id",
             name_or_column="satellite",
             unit=u.dimensionless_unscaled,
@@ -93,7 +93,7 @@ def process_goes_real_time(
         ),
     ]
 
-    variables = ep.extract_variables_from_files(
+    variables = ep.processing.extract_variables_from_files(
         start_time,
         end_time,
         file_cadence="daily",
@@ -106,7 +106,7 @@ def process_goes_real_time(
     logger.info(f"Processing satellite: {sat_name}")
 
     # parse time strings
-    datetimes = ep.processing.convert_string_to_datetime(variables["Epoch"], time_format="%Y-%m-%dT%H:%M:%SZ")
+    datetimes = ep.utils.convert_string_to_datetime(variables["Epoch"], time_format="%Y-%m-%dT%H:%M:%SZ")
     variables["Epoch"].set_data(np.asarray([t.timestamp() for t in datetimes]), ep.units.posixtime)
 
     # generated weighted energy channels

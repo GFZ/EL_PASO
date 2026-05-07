@@ -19,7 +19,7 @@ This section provides a detailed reference for all modules, classes, and functio
 ## Core functions
 [download](download.md)
 
-[extract_variables_from_files](extract_variables_from_files.md)
+[extraction](processing/extraction.md)
 
 [save](save.md)
 
@@ -57,7 +57,7 @@ This section provides a detailed reference for all modules, classes, and functio
 
 [fold_pitch_angles_and_flux](processing/fold_pitch_angles_and_flux.md)
 
-[convert_string_to_datetime](processing/convert_string_to_datetime.md)
+[convert_string_to_datetime](utilities/convert_string_to_datetime.md)
 
 
 ## Saving standards

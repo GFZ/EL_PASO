@@ -177,24 +177,24 @@ def _get_efw_variables(
     )
 
     extraction_infos = [
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="Epoch",
             name_or_column="epoch",
             unit=ep.units.cdf_epoch,
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="Density",
             name_or_column="density",
             unit=u.cm**-3,
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="xGSE",
             name_or_column="position_gse",
             unit=u.km,
         ),
     ]
 
-    variables = ep.extract_variables_from_files(
+    variables = ep.processing.extract_variables_from_files(
         start_time,
         end_time,
         "daily",
@@ -227,24 +227,24 @@ def _get_emfisis_variables(
     )
 
     extraction_infos = [
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="Epoch",
             name_or_column="Epoch",
             unit=ep.units.tt2000,
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="Density",
             name_or_column="density",
             unit=u.cm**-3,
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="Digi_type",
             name_or_column="digi_type",
             unit=u.dimensionless_unscaled,
         ),
     ]
 
-    variables = ep.extract_variables_from_files(
+    variables = ep.processing.extract_variables_from_files(
         start_time,
         end_time,
         "daily",
@@ -282,19 +282,19 @@ def _get_and_time_bin_hiss_derived_densities(
         file_name_stem = "rbsp-b_hiss_density_arase_recalibrated_v2.txt"
 
     extraction_infos = [
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="Epoch",
             name_or_column=0,
             unit=u.dimensionless_unscaled,
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="Density",
             name_or_column=1,
             unit=u.cm**-3,
         ),
     ]
 
-    hiss_derived_vars = ep.extract_variables_from_files(
+    hiss_derived_vars = ep.processing.extract_variables_from_files(
         start_time=start_time,
         end_time=end_time,
         file_cadence="single_file",
@@ -304,7 +304,7 @@ def _get_and_time_bin_hiss_derived_densities(
         pd_read_csv_kwargs={"skiprows": 4, "sep": "\t", "dtype": {0: str, 1: np.float64}},
     )
 
-    datetimes = ep.processing.convert_string_to_datetime(hiss_derived_vars["Epoch"], time_format="%Y-%m-%dT%H:%M:%S.%f")
+    datetimes = ep.utils.convert_string_to_datetime(hiss_derived_vars["Epoch"], time_format="%Y-%m-%dT%H:%M:%S.%f")
     timestamps = np.asarray([dt.timestamp() for dt in datetimes])
     hiss_derived_vars["Epoch"].set_data(timestamps, unit=ep.units.posixtime)
 

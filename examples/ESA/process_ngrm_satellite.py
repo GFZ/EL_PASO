@@ -77,44 +77,44 @@ def process_ngrm_electron_fluxes(
     flux_unit = typing.cast("u.Unit", (u.cm**2 * u.s * u.sr * u.MeV) ** (-1))
 
     extraction_infos = [
-        ep.ExtractionInfo(result_key="Epoch_iso", name_or_column="Time", unit=u.dimensionless_unscaled),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(result_key="Epoch_iso", name_or_column="Time", unit=u.dimensionless_unscaled),
+        ep.processing.ExtractionInfo(
             result_key="FEDO_ch1", name_or_column="Differential electron flux (0.18 MeV)", unit=flux_unit
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="FEDO_ch2", name_or_column="Differential electron flux (0.27 MeV)", unit=flux_unit
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="FEDO_ch3", name_or_column="Differential electron flux (0.40 MeV)", unit=flux_unit
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="FEDO_ch4", name_or_column="Differential electron flux (0.60 MeV)", unit=flux_unit
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="FEDO_ch5", name_or_column="Differential electron flux (0.88 MeV)", unit=flux_unit
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="FEDO_ch6", name_or_column="Differential electron flux (1.30 MeV)", unit=flux_unit
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="FEDO_ch7", name_or_column="Differential electron flux (1.93 MeV)", unit=flux_unit
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="FEDO_ch8", name_or_column="Differential electron flux (2.90 MeV)", unit=flux_unit
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="FEDO_ch9", name_or_column="Differential electron flux (3.40 MeV)", unit=flux_unit
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="FEDO_ch10", name_or_column="Differential electron flux (4.00 MeV)", unit=flux_unit
         ),
-        ep.ExtractionInfo(result_key="x_ECI", name_or_column="X", unit=u.km),
-        ep.ExtractionInfo(result_key="y_ECI", name_or_column="Y", unit=u.km),
-        ep.ExtractionInfo(result_key="z_ECI", name_or_column="Z", unit=u.km),
-        ep.ExtractionInfo(result_key="L", name_or_column="L", unit=ep.units.RE),
+        ep.processing.ExtractionInfo(result_key="x_ECI", name_or_column="X", unit=u.km),
+        ep.processing.ExtractionInfo(result_key="y_ECI", name_or_column="Y", unit=u.km),
+        ep.processing.ExtractionInfo(result_key="z_ECI", name_or_column="Z", unit=u.km),
+        ep.processing.ExtractionInfo(result_key="L", name_or_column="L", unit=ep.units.RE),
     ]
 
-    variables = ep.extract_variables_from_files(
+    variables = ep.processing.extract_variables_from_files(
         start_time,
         end_time,
         file_cadence="daily",
@@ -127,7 +127,7 @@ def process_ngrm_electron_fluxes(
     time_format = "%Y-%m-%dT%H:%M:%S.%fZ" if satellite in ["MTG-I1", "MTG-S1"] else "%Y-%m-%dT%H:%M:%SZ"
 
     # convert iso strings to posixtime
-    datetimes = ep.processing.convert_string_to_datetime(variables["Epoch_iso"], time_format=time_format)
+    datetimes = ep.utils.convert_string_to_datetime(variables["Epoch_iso"], time_format=time_format)
     variables["Epoch"] = ep.Variable(
         data=np.asarray([t.timestamp() for t in datetimes]), original_unit=ep.units.posixtime
     )

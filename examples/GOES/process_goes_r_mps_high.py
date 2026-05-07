@@ -107,7 +107,7 @@ def process_goes_r_mps_high(
 
     # fold pitch angles around 90 degree
     local_pa = local_pa_var.get_data(u.degree)
-    local_pa_folded = np.where(local_pa > 90, local_pa - 90, local_pa)  # noqa: PLR2004
+    local_pa_folded = np.where(local_pa > 90, local_pa - 90, local_pa)
     local_pa_var.set_data(local_pa_folded, unit=u.degree)
 
     # sort pitch angles in ascending order and apply to fluxes
@@ -233,12 +233,12 @@ def _get_magn_variables(
     )
 
     extraction_infos = [
-        ep.ExtractionInfo(name_or_column="time", unit=ep.units.j2k, result_key="time"),
-        ep.ExtractionInfo(name_or_column="DQF", unit=u.dimensionless_unscaled, result_key="dqf"),
-        ep.ExtractionInfo(name_or_column="b_brf", unit=u.nT, result_key="b_brf"),
+        ep.processing.ExtractionInfo(name_or_column="time", unit=ep.units.j2k, result_key="time"),
+        ep.processing.ExtractionInfo(name_or_column="DQF", unit=u.dimensionless_unscaled, result_key="dqf"),
+        ep.processing.ExtractionInfo(name_or_column="b_brf", unit=u.nT, result_key="b_brf"),
     ]
 
-    return ep.extract_variables_from_files(
+    return ep.processing.extract_variables_from_files(
         start_time,
         end_time,
         file_cadence="daily",
@@ -269,11 +269,11 @@ def _get_ephe_variables(
     )
 
     extraction_infos = [
-        ep.ExtractionInfo(name_or_column="time", unit=ep.units.j2k, result_key="time"),
-        ep.ExtractionInfo(name_or_column="gse_xyz", unit=u.km, result_key="xgse"),
+        ep.processing.ExtractionInfo(name_or_column="time", unit=ep.units.j2k, result_key="time"),
+        ep.processing.ExtractionInfo(name_or_column="gse_xyz", unit=u.km, result_key="xgse"),
     ]
 
-    return ep.extract_variables_from_files(
+    return ep.processing.extract_variables_from_files(
         start_time,
         end_time,
         file_cadence="daily",
@@ -304,26 +304,28 @@ def _get_mps_high_variables(
     )
 
     extraction_infos = [
-        ep.ExtractionInfo(name_or_column="time", unit=ep.units.j2k, result_key="time"),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(name_or_column="time", unit=ep.units.j2k, result_key="time"),
+        ep.processing.ExtractionInfo(
             name_or_column="AvgDiffElectronFlux", unit=(u.cm**2 * u.s * u.keV * u.sr) ** (-1), result_key="diff_flux"
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             name_or_column="AvgDiffElectronFluxUncert",
             unit=(u.cm**2 * u.s * u.keV * u.sr) ** (-1),
             result_key="diff_flux_uncert",
         ),
-        ep.ExtractionInfo(name_or_column="DiffElectronEffectiveEnergy", unit=u.keV, result_key="diff_energy"),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
+            name_or_column="DiffElectronEffectiveEnergy", unit=u.keV, result_key="diff_energy"
+        ),
+        ep.processing.ExtractionInfo(
             name_or_column="AvgIntElectronFlux", unit=(u.cm**2 * u.s * u.sr) ** (-1), result_key="int_flux"
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             name_or_column="AvgIntElectronFluxUncert", unit=(u.cm**2 * u.s * u.sr) ** (-1), result_key="int_flux_uncert"
         ),
-        ep.ExtractionInfo(name_or_column="IntElectronEffectiveEnergy", unit=u.keV, result_key="int_energy"),
+        ep.processing.ExtractionInfo(name_or_column="IntElectronEffectiveEnergy", unit=u.keV, result_key="int_energy"),
     ]
 
-    return ep.extract_variables_from_files(
+    return ep.processing.extract_variables_from_files(
         start_time,
         end_time,
         file_cadence="daily",

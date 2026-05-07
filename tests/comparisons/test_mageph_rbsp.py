@@ -20,8 +20,6 @@ import el_paso as ep
 from el_paso import InstrumentEnum, MfmEnum, RBMDataSet
 from examples.VanAllenProbes.process_hope_electrons import process_hope_electrons
 
-# ruff: noqa: PLR2004
-
 sat_str_list = ["a", "b"]
 mag_field_list = ["TS04", "T89"]
 
@@ -84,29 +82,29 @@ def test_mageph_rbsp(sat_str: Literal["a", "b"], mag_field: Literal["T89", "TS04
     )
 
     extraction_infos = [
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="Epoch",
             name_or_column="IsoTime",
             unit=u.dimensionless_unscaled,
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="Lstar",
             name_or_column="Lstar",
             unit=u.dimensionless_unscaled,
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="Alpha_eq",
             name_or_column="Alpha",
             unit=u.dimensionless_unscaled,
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="Kp",
             name_or_column="Kp",
             unit=u.dimensionless_unscaled,
         ),
     ]
 
-    variables = ep.extract_variables_from_files(
+    variables = ep.processing.extract_variables_from_files(
         start_time, end_time, "daily", "tests/comparisons/raw_data", file_name_stem, extraction_infos
     )
 

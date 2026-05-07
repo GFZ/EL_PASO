@@ -68,30 +68,42 @@ def process_ept_electron_fluxes(
     flux_unit = typing.cast("u.Unit", (u.cm**2 * u.s * u.sr * u.MeV) ** (-1))
 
     extraction_infos = [
-        ep.ExtractionInfo(result_key="year", name_or_column="Y", unit=u.dimensionless_unscaled, np_dtype=np.int32),
-        ep.ExtractionInfo(result_key="month", name_or_column="M", unit=u.dimensionless_unscaled, np_dtype=np.int32),
-        ep.ExtractionInfo(result_key="day", name_or_column="D", unit=u.dimensionless_unscaled, np_dtype=np.int32),
-        ep.ExtractionInfo(result_key="hour", name_or_column="H", unit=u.dimensionless_unscaled, np_dtype=np.int32),
-        ep.ExtractionInfo(result_key="minute", name_or_column="MI", unit=u.dimensionless_unscaled, np_dtype=np.int32),
-        ep.ExtractionInfo(result_key="second", name_or_column="S", unit=u.dimensionless_unscaled, np_dtype=np.int32),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
+            result_key="year", name_or_column="Y", unit=u.dimensionless_unscaled, np_dtype=np.int32
+        ),
+        ep.processing.ExtractionInfo(
+            result_key="month", name_or_column="M", unit=u.dimensionless_unscaled, np_dtype=np.int32
+        ),
+        ep.processing.ExtractionInfo(
+            result_key="day", name_or_column="D", unit=u.dimensionless_unscaled, np_dtype=np.int32
+        ),
+        ep.processing.ExtractionInfo(
+            result_key="hour", name_or_column="H", unit=u.dimensionless_unscaled, np_dtype=np.int32
+        ),
+        ep.processing.ExtractionInfo(
+            result_key="minute", name_or_column="MI", unit=u.dimensionless_unscaled, np_dtype=np.int32
+        ),
+        ep.processing.ExtractionInfo(
+            result_key="second", name_or_column="S", unit=u.dimensionless_unscaled, np_dtype=np.int32
+        ),
+        ep.processing.ExtractionInfo(
             result_key="millisecond", name_or_column="mS", unit=u.dimensionless_unscaled, np_dtype=np.int32
         ),
-        ep.ExtractionInfo(result_key="flag", name_or_column="FLAG", unit=u.dimensionless_unscaled),
-        ep.ExtractionInfo(result_key="chi2", name_or_column="e-Chi2", unit=u.dimensionless_unscaled),
-        ep.ExtractionInfo(result_key="ch0", name_or_column="e-fl-00", unit=flux_unit),
-        ep.ExtractionInfo(result_key="ch1", name_or_column="e-fl-01", unit=flux_unit),
-        ep.ExtractionInfo(result_key="ch2", name_or_column="e-fl-02", unit=flux_unit),
-        ep.ExtractionInfo(result_key="ch3", name_or_column="e-fl-03", unit=flux_unit),
-        ep.ExtractionInfo(result_key="ch4", name_or_column="e-fl-04", unit=flux_unit),
-        ep.ExtractionInfo(result_key="ch5", name_or_column="e-fl-05", unit=flux_unit),
-        ep.ExtractionInfo(result_key="PA_local", name_or_column="Pitch", unit=u.deg),
-        ep.ExtractionInfo(result_key="rad", name_or_column="Rad", unit=u.km),
-        ep.ExtractionInfo(result_key="lon", name_or_column="Long", unit=u.deg),
-        ep.ExtractionInfo(result_key="lat", name_or_column="Lat", unit=u.deg),
+        ep.processing.ExtractionInfo(result_key="flag", name_or_column="FLAG", unit=u.dimensionless_unscaled),
+        ep.processing.ExtractionInfo(result_key="chi2", name_or_column="e-Chi2", unit=u.dimensionless_unscaled),
+        ep.processing.ExtractionInfo(result_key="ch0", name_or_column="e-fl-00", unit=flux_unit),
+        ep.processing.ExtractionInfo(result_key="ch1", name_or_column="e-fl-01", unit=flux_unit),
+        ep.processing.ExtractionInfo(result_key="ch2", name_or_column="e-fl-02", unit=flux_unit),
+        ep.processing.ExtractionInfo(result_key="ch3", name_or_column="e-fl-03", unit=flux_unit),
+        ep.processing.ExtractionInfo(result_key="ch4", name_or_column="e-fl-04", unit=flux_unit),
+        ep.processing.ExtractionInfo(result_key="ch5", name_or_column="e-fl-05", unit=flux_unit),
+        ep.processing.ExtractionInfo(result_key="PA_local", name_or_column="Pitch", unit=u.deg),
+        ep.processing.ExtractionInfo(result_key="rad", name_or_column="Rad", unit=u.km),
+        ep.processing.ExtractionInfo(result_key="lon", name_or_column="Long", unit=u.deg),
+        ep.processing.ExtractionInfo(result_key="lat", name_or_column="Lat", unit=u.deg),
     ]
 
-    variables = ep.extract_variables_from_files(
+    variables = ep.processing.extract_variables_from_files(
         start_time,
         end_time,
         file_cadence="daily",

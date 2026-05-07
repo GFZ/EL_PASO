@@ -31,7 +31,7 @@ You can learn more about the EL-PASO download routine in tutorial #1 located in 
 
 A [Variable](../API_reference/variable.md) in EL-PASO is a custom class which holds a numpy-array as data and metadata (unit, processing notes, etc).
 
-We can turn the downloaded files into variables by calling the EL-PASO [extract_variables_from_files](../API_reference/extract_variables_from_files.md) routine.
+We can turn the downloaded files into variables by calling the EL-PASO [extract_variables_from_files](../API_reference/processing/extraction.md) routine.
 
 The user has to provide information about under which name or column the variable is storred and its unit:
 

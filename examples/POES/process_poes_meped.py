@@ -45,7 +45,6 @@ def process_poes_meped_electron(
     num_cores: int = 32,
     bin_cadence: timedelta = timedelta(minutes=5),
 ) -> None:
-
     data_path_stem = f"{raw_data_path}/YYYY/MM/{satellite_str}/"
     url = f"https://spdf.gsfc.nasa.gov/pub/data/noaa/{satellite_str}/sem2_fluxes-2sec/YYYY/"
     file_name_stem = satellite_str + "_poes-sem2_fluxes-2sec_YYYYMMDD_.{3}.cdf"
@@ -60,50 +59,50 @@ def process_poes_meped_electron(
     )
 
     extraction_infos = [
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="Epoch",
             name_or_column="Epoch",
             unit=ep.units.tt2000,
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="Energy",
             name_or_column="mep_ele_int_energies",
             unit=u.keV,
             is_time_dependent=False,
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="FEIU",
             name_or_column="mep_ele_flux",
             unit=(u.cm**2 * u.s * u.sr) ** (-1),
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="PA_local_t0",
             name_or_column="meped_alpha_0_sat",
             unit=u.deg,
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="PA_local_t90",
             name_or_column="meped_alpha_90_sat",
             unit=u.deg,
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="alt",
             name_or_column="alt",
             unit=u.km,
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="lon",
             name_or_column="lon",
             unit=u.deg,
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="lat",
             name_or_column="lat",
             unit=u.deg,
         ),
     ]
 
-    variables = ep.extract_variables_from_files(
+    variables = ep.processing.extract_variables_from_files(
         start_time,
         end_time,
         file_cadence="daily",
@@ -130,7 +129,9 @@ def process_poes_meped_electron(
     variables["FEIU"].transpose_data((0, 2, 1))
 
     # stack pitch angles
-    pa_arr = np.stack((variables["PA_local_t0"].get_data(u.deg), variables["PA_local_t90"].get_data(u.deg))).T.astype(np.float64)
+    pa_arr = np.stack((variables["PA_local_t0"].get_data(u.deg), variables["PA_local_t90"].get_data(u.deg))).T.astype(
+        np.float64
+    )
     variables["PA_local"] = ep.Variable(data=pa_arr, original_unit=u.deg)
 
     del variables["PA_local_t0"]
@@ -207,9 +208,7 @@ if __name__ == "__main__":
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     logging.getLogger().setLevel(logging.INFO)
 
-    parser = argparse.ArgumentParser(
-        description="Process MEPED data from POES satellites."
-    )
+    parser = argparse.ArgumentParser(description="Process MEPED data from POES satellites.")
     parser.add_argument(
         "--start_time",
         type=str,
@@ -239,17 +238,16 @@ if __name__ == "__main__":
 
     #    with tempfile.TemporaryDirectory() as tmpdir:
     for sat_str in get_args(poes_satellite_literal):
-        print(f"Processing {sat_str}!")
-        # try:
-        process_poes_meped_electron(
-            start_time=dt_start,
-            end_time=dt_end,
-            satellite_str=sat_str,
-            irbem_lib_path=args.irbem_lib_path,
-            raw_data_path=".",
-            processed_data_path=".",
-            num_cores=64,
-            bin_cadence=timedelta(seconds=10),
-        )
-        # except:
-        #     continue
+        try:
+            process_poes_meped_electron(
+                start_time=dt_start,
+                end_time=dt_end,
+                satellite_str=sat_str,
+                irbem_lib_path=args.irbem_lib_path,
+                raw_data_path=".",
+                processed_data_path=".",
+                num_cores=64,
+                bin_cadence=timedelta(seconds=10),
+            )
+        except:  # noqa: E722, S112
+            continue

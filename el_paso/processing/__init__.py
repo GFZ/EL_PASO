@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: 2025 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -13,12 +14,13 @@ from el_paso.processing.compute_magnetic_field_variables import VariableRequest,
 from el_paso.processing.compute_phase_space_density import compute_phase_space_density
 from el_paso.processing.compute_pitch_angles_for_telescopes import compute_pitch_angles_for_telescopes
 from el_paso.processing.construct_pitch_angle_distribution import construct_pitch_angle_distribution
-from el_paso.processing.convert_string_to_datetime import convert_string_to_datetime
+from el_paso.processing.extraction import ExtractionInfo, extract_variables_from_files
 from el_paso.processing.fold_pitch_angles_and_flux import fold_pitch_angles_and_flux
 from el_paso.processing.get_real_time_tipsod import get_real_time_tipsod
 from el_paso.processing.magnetic_field_utils import MagFieldVarTypes
 
 __all__ = [
+    "ExtractionInfo",
     "MagFieldVarTypes",
     "TimeBinMethod",
     "VariableRequest",
@@ -31,7 +33,7 @@ __all__ = [
     "compute_phase_space_density",
     "compute_pitch_angles_for_telescopes",
     "construct_pitch_angle_distribution",
-    "convert_string_to_datetime",
+    "extract_variables_from_files",
     "fold_pitch_angles_and_flux",
     "get_real_time_tipsod",
     "magnetic_field_utils",

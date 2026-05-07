@@ -47,7 +47,7 @@ nav:
           - API_reference/variable.md
       - Core Functions:
           - API_reference/download.md
-          - API_reference/extract_variables_from_files.md
+          - API_reference/processing/extraction.md
           - API_reference/save.md
       - Processing Functions:
           - API_reference/processing/bin_by_time.md
@@ -57,7 +57,6 @@ nav:
           - API_reference/processing/compute_phase_space_density.md
           - API_reference/processing/compute_pitch_angles_for_telescopes.md
           - API_reference/processing/construct_pitch_angle_distribution.md
-          - API_reference/processing/convert_string_to_datetime.md
           - API_reference/processing/fold_pitch_angles_and_flux.md
           - API_reference/processing/calculate_geo_coords_from_tle.md
       - Utilities:
@@ -67,6 +66,7 @@ nav:
           - Release mode: API_reference/utilities/release_mode.md
           - Scripts: API_reference/utilities/scripts.md
           - Units: API_reference/utilities/units.md
+          - API_reference/utilities/convert_string_to_datetime.md
       - Saving Strategies:
           - DataOrg Strategy: API_reference/saving_strategies/data_org.md
           - Monthly H5 Strategy: API_reference/saving_strategies/monthly_h5.md

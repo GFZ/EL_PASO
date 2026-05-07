@@ -47,7 +47,6 @@ def process_poes_meped_electron(
     *,
     calculate_Lm_Lstar: bool = False,  # noqa: N803
 ) -> None:
-
     data_path_stem = f"{raw_data_path}/YYYY/MM/{satellite_str}/"
     url = f"https://spdf.gsfc.nasa.gov/pub/data/noaa/{satellite_str}/sem2_fluxes-2sec/YYYY/"
     file_name_stem = satellite_str + "_poes-sem2_fluxes-2sec_YYYYMMDD_.{3}.cdf"
@@ -62,50 +61,50 @@ def process_poes_meped_electron(
     )
 
     extraction_infos = [
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="Epoch",
             name_or_column="Epoch",
             unit=ep.units.tt2000,
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="Energy",
             name_or_column="ted_ele_diff_energies",
             unit=u.eV,
             is_time_dependent=False,
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="FEDU",
             name_or_column="ted_ele_flux",
             unit=(u.cm**2 * u.s * u.sr * u.eV) ** (-1),
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="PA_local_t0",
             name_or_column="ted_alpha_0_sat",
             unit=u.deg,
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="PA_local_t30",
             name_or_column="ted_alpha_30_sat",
             unit=u.deg,
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="alt",
             name_or_column="alt",
             unit=u.km,
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="lon",
             name_or_column="lon",
             unit=u.deg,
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="lat",
             name_or_column="lat",
             unit=u.deg,
         ),
     ]
 
-    variables = ep.extract_variables_from_files(
+    variables = ep.processing.extract_variables_from_files(
         start_time,
         end_time,
         file_cadence="daily",
@@ -132,7 +131,9 @@ def process_poes_meped_electron(
 
     variables["FEDU"].transpose_data((0, 2, 1))
     # stack pitch angles
-    pa_arr = np.stack((variables["PA_local_t0"].get_data(u.deg), variables["PA_local_t30"].get_data(u.deg))).T.astype(np.float64)
+    pa_arr = np.stack((variables["PA_local_t0"].get_data(u.deg), variables["PA_local_t30"].get_data(u.deg))).T.astype(
+        np.float64
+    )
     pa_arr = np.where(pa_arr > 90, 180 - pa_arr, pa_arr)
 
     variables["PA_local"] = ep.Variable(data=pa_arr, original_unit=u.deg)
@@ -196,8 +197,10 @@ def process_poes_meped_electron(
     }
 
     if calculate_Lm_Lstar:
-        variables_to_save |= {"position/T89/Lm": magnetic_field_variables["Lm_T89"],
-                              "position/T89/Lstar": magnetic_field_variables["Lstar_T89"]}
+        variables_to_save |= {
+            "position/T89/Lm": magnetic_field_variables["Lm_T89"],
+            "position/T89/Lstar": magnetic_field_variables["Lstar_T89"],
+        }
 
     saving_strategy = ep.saving_strategies.MonthlyNetCDFStrategy(
         base_data_path=Path(processed_data_path) / "POES" / sat_str,
@@ -214,9 +217,7 @@ if __name__ == "__main__":
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     logging.getLogger().setLevel(logging.INFO)
 
-    parser = argparse.ArgumentParser(
-        description="Process TED data from POES satellites."
-    )
+    parser = argparse.ArgumentParser(description="Process TED data from POES satellites.")
     parser.add_argument(
         "--start_time",
         type=str,
@@ -246,7 +247,6 @@ if __name__ == "__main__":
 
     #    with tempfile.TemporaryDirectory() as tmpdir:
     for sat_str in get_args(poes_satellite_literal):
-        print(f"Processing {sat_str}!")
         try:
             process_poes_meped_electron(
                 start_time=dt_start,
@@ -258,5 +258,5 @@ if __name__ == "__main__":
                 num_cores=64,
                 bin_cadence=timedelta(seconds=2),
             )
-        except:
+        except:  # noqa: E722, S112
             continue

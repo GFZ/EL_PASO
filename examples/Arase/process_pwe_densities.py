@@ -56,19 +56,19 @@ def process_pwe_density(
     )
 
     extraction_infos = [
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="Epoch",
             name_or_column="Epoch",
             unit=ep.units.tt2000,
         ),
-        ep.ExtractionInfo(
+        ep.processing.ExtractionInfo(
             result_key="Density",
             name_or_column="ne_mgf",
             unit=u.cm ** (-3),
         ),
     ]
 
-    pwe_variables = ep.extract_variables_from_files(
+    pwe_variables = ep.processing.extract_variables_from_files(
         start_time,
         end_time,
         "daily",
