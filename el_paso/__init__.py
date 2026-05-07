@@ -28,6 +28,7 @@ from el_paso.download import download
 from el_paso.load_indices_solar_wind_parameters import load_indices_solar_wind_parameters
 from el_paso import utils
 from el_paso.processing import ExtractionInfo
+from el_paso.processing import extract_variables_from_files
 
 # expose RBMDataSet related classes and functions
 from swvo.io.RBMDataSet.custom_enums import (
@@ -65,6 +66,7 @@ __all__ = [
     "activate_release_mode",
     "data_standards",
     "download",
+    "extract_variables_from_files",
     "get_release_msg",
     "is_in_release_mode",
     "load_indices_solar_wind_parameters",
