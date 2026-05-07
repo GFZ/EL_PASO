@@ -34,6 +34,7 @@ Full documentation can be viewed [here](https://el-paso.readthedocs.io/en/latest
 ## Available processing scripts
 
 - **Arase**
+    - MEPe
     - XEP real-time
     - PWE density
 - **GOES-R**
