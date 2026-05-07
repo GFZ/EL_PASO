@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import numpy as np
-from scipy.io import loadmat
+from scipy.io import loadmat, savemat
 
 from el_paso.data_standards import DataOrgStandard
 from el_paso.saving_strategy import OutputFile, SavingStrategy
@@ -327,3 +327,36 @@ class DataOrgStrategy(SavingStrategy):
                 msg = f"Appending to '{file_path.suffix}' files is not supported by DataOrgStrategy."
                 logger.error(msg)
                 raise NotImplementedError(msg)
+
+    def save_single_file(self, file_path: Path, dict_to_save: dict[str, Any], *, append: bool = False) -> None:
+        """Saves variable data to a single file in one of the supported formats (.mat, .pickle, .h5).
+
+        Parameters:
+            file_path (Path): The path to the file where the dictionary will be saved.
+                            The file extension determines the format.
+            dict_to_save (dict[str, Any]): The dictionary containing variable data to save.
+            append (bool, optional): If True and the file exists, appends data to the existing file (if supported).
+                                    Defaults to False.
+
+        Raises:
+            NotImplementedError: If the file format specified by the file extension is not supported.
+
+        Supported formats:
+            - .mat: Saves using scipy.io.savemat.
+            - .pickle: Saves using pickle.dump.
+        """
+        logger.info(f"Saving file {file_path.name}...")
+
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        format_name = file_path.suffix.lower()
+
+        if file_path.exists() and append:
+            dict_to_save = self.append_data(file_path, dict_to_save)
+
+        if format_name == ".mat":
+            # Save the dictionary into a .mat file
+            savemat(str(file_path), dict_to_save)
+
+        elif format_name == ".pickle":
+            with file_path.open("wb") as file:
+                pickle.dump(dict_to_save, file)
