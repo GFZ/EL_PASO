@@ -77,41 +77,41 @@ def process_ngrm_electron_fluxes(
     flux_unit = typing.cast("u.Unit", (u.cm**2 * u.s * u.sr * u.MeV) ** (-1))
 
     extraction_infos = [
-        ep.processing.ExtractionInfo(result_key="Epoch_iso", name_or_column="Time", unit=u.dimensionless_unscaled),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(result_key="Epoch_iso", name_or_column="Time", unit=u.dimensionless_unscaled),
+        ep.ExtractionInfo(
             result_key="FEDO_ch1", name_or_column="Differential electron flux (0.18 MeV)", unit=flux_unit
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="FEDO_ch2", name_or_column="Differential electron flux (0.27 MeV)", unit=flux_unit
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="FEDO_ch3", name_or_column="Differential electron flux (0.40 MeV)", unit=flux_unit
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="FEDO_ch4", name_or_column="Differential electron flux (0.60 MeV)", unit=flux_unit
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="FEDO_ch5", name_or_column="Differential electron flux (0.88 MeV)", unit=flux_unit
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="FEDO_ch6", name_or_column="Differential electron flux (1.30 MeV)", unit=flux_unit
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="FEDO_ch7", name_or_column="Differential electron flux (1.93 MeV)", unit=flux_unit
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="FEDO_ch8", name_or_column="Differential electron flux (2.90 MeV)", unit=flux_unit
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="FEDO_ch9", name_or_column="Differential electron flux (3.40 MeV)", unit=flux_unit
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="FEDO_ch10", name_or_column="Differential electron flux (4.00 MeV)", unit=flux_unit
         ),
-        ep.processing.ExtractionInfo(result_key="x_ECI", name_or_column="X", unit=u.km),
-        ep.processing.ExtractionInfo(result_key="y_ECI", name_or_column="Y", unit=u.km),
-        ep.processing.ExtractionInfo(result_key="z_ECI", name_or_column="Z", unit=u.km),
-        ep.processing.ExtractionInfo(result_key="L", name_or_column="L", unit=ep.units.RE),
+        ep.ExtractionInfo(result_key="x_ECI", name_or_column="X", unit=u.km),
+        ep.ExtractionInfo(result_key="y_ECI", name_or_column="Y", unit=u.km),
+        ep.ExtractionInfo(result_key="z_ECI", name_or_column="Z", unit=u.km),
+        ep.ExtractionInfo(result_key="L", name_or_column="L", unit=ep.units.RE),
     ]
 
     variables = ep.processing.extract_variables_from_files(

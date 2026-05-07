@@ -68,24 +68,24 @@ def process_goes_real_time(
     )
 
     extraction_infos = [
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="Epoch",
             name_or_column="time_tag",
             unit=u.dimensionless_unscaled,
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="Energy",
             name_or_column="energy",
             unit=u.keV,
             is_time_dependent=False,
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="FEDO",
             name_or_column="flux",
             unit=(u.cm**2 * u.s * u.keV) ** (-1),
             dependent_variables=["time_tag", "energy"],
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="sat_id",
             name_or_column="satellite",
             unit=u.dimensionless_unscaled,

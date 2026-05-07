@@ -82,22 +82,22 @@ def test_mageph_rbsp(sat_str: Literal["a", "b"], mag_field: Literal["T89", "TS04
     )
 
     extraction_infos = [
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="Epoch",
             name_or_column="IsoTime",
             unit=u.dimensionless_unscaled,
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="Lstar",
             name_or_column="Lstar",
             unit=u.dimensionless_unscaled,
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="Alpha_eq",
             name_or_column="Alpha",
             unit=u.dimensionless_unscaled,
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="Kp",
             name_or_column="Kp",
             unit=u.dimensionless_unscaled,

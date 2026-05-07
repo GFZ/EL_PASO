@@ -233,9 +233,9 @@ def _get_magn_variables(
     )
 
     extraction_infos = [
-        ep.processing.ExtractionInfo(name_or_column="time", unit=ep.units.j2k, result_key="time"),
-        ep.processing.ExtractionInfo(name_or_column="DQF", unit=u.dimensionless_unscaled, result_key="dqf"),
-        ep.processing.ExtractionInfo(name_or_column="b_brf", unit=u.nT, result_key="b_brf"),
+        ep.ExtractionInfo(name_or_column="time", unit=ep.units.j2k, result_key="time"),
+        ep.ExtractionInfo(name_or_column="DQF", unit=u.dimensionless_unscaled, result_key="dqf"),
+        ep.ExtractionInfo(name_or_column="b_brf", unit=u.nT, result_key="b_brf"),
     ]
 
     return ep.processing.extract_variables_from_files(
@@ -269,8 +269,8 @@ def _get_ephe_variables(
     )
 
     extraction_infos = [
-        ep.processing.ExtractionInfo(name_or_column="time", unit=ep.units.j2k, result_key="time"),
-        ep.processing.ExtractionInfo(name_or_column="gse_xyz", unit=u.km, result_key="xgse"),
+        ep.ExtractionInfo(name_or_column="time", unit=ep.units.j2k, result_key="time"),
+        ep.ExtractionInfo(name_or_column="gse_xyz", unit=u.km, result_key="xgse"),
     ]
 
     return ep.processing.extract_variables_from_files(
@@ -304,25 +304,23 @@ def _get_mps_high_variables(
     )
 
     extraction_infos = [
-        ep.processing.ExtractionInfo(name_or_column="time", unit=ep.units.j2k, result_key="time"),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(name_or_column="time", unit=ep.units.j2k, result_key="time"),
+        ep.ExtractionInfo(
             name_or_column="AvgDiffElectronFlux", unit=(u.cm**2 * u.s * u.keV * u.sr) ** (-1), result_key="diff_flux"
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             name_or_column="AvgDiffElectronFluxUncert",
             unit=(u.cm**2 * u.s * u.keV * u.sr) ** (-1),
             result_key="diff_flux_uncert",
         ),
-        ep.processing.ExtractionInfo(
-            name_or_column="DiffElectronEffectiveEnergy", unit=u.keV, result_key="diff_energy"
-        ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(name_or_column="DiffElectronEffectiveEnergy", unit=u.keV, result_key="diff_energy"),
+        ep.ExtractionInfo(
             name_or_column="AvgIntElectronFlux", unit=(u.cm**2 * u.s * u.sr) ** (-1), result_key="int_flux"
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             name_or_column="AvgIntElectronFluxUncert", unit=(u.cm**2 * u.s * u.sr) ** (-1), result_key="int_flux_uncert"
         ),
-        ep.processing.ExtractionInfo(name_or_column="IntElectronEffectiveEnergy", unit=u.keV, result_key="int_energy"),
+        ep.ExtractionInfo(name_or_column="IntElectronEffectiveEnergy", unit=u.keV, result_key="int_energy"),
     ]
 
     return ep.processing.extract_variables_from_files(

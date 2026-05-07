@@ -56,12 +56,12 @@ def process_pwe_density(
     )
 
     extraction_infos = [
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="Epoch",
             name_or_column="Epoch",
             unit=ep.units.tt2000,
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="Density",
             name_or_column="ne_mgf",
             unit=u.cm ** (-3),

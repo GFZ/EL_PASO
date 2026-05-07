@@ -65,24 +65,24 @@ def process_mepe_level_3(  # noqa: PLR0915
     )
 
     extraction_infos = [
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="Epoch",
             name_or_column="epoch",
             unit=ep.units.tt2000,
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="Energy",
             name_or_column="FEDU_Energy",
             unit=u.keV,
             is_time_dependent=False,
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="Pitch_angle",
             name_or_column="FEDU_Alpha",
             unit=u.deg,
             is_time_dependent=False,
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="FEDU",
             name_or_column="FEDU",
             unit=(u.cm**2 * u.s * u.sr * u.keV) ** (-1),

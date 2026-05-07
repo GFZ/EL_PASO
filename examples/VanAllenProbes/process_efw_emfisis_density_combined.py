@@ -177,17 +177,17 @@ def _get_efw_variables(
     )
 
     extraction_infos = [
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="Epoch",
             name_or_column="epoch",
             unit=ep.units.cdf_epoch,
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="Density",
             name_or_column="density",
             unit=u.cm**-3,
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="xGSE",
             name_or_column="position_gse",
             unit=u.km,
@@ -227,17 +227,17 @@ def _get_emfisis_variables(
     )
 
     extraction_infos = [
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="Epoch",
             name_or_column="Epoch",
             unit=ep.units.tt2000,
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="Density",
             name_or_column="density",
             unit=u.cm**-3,
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="Digi_type",
             name_or_column="digi_type",
             unit=u.dimensionless_unscaled,
@@ -282,12 +282,12 @@ def _get_and_time_bin_hiss_derived_densities(
         file_name_stem = "rbsp-b_hiss_density_arase_recalibrated_v2.txt"
 
     extraction_infos = [
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="Epoch",
             name_or_column=0,
             unit=u.dimensionless_unscaled,
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="Density",
             name_or_column=1,
             unit=u.cm**-3,

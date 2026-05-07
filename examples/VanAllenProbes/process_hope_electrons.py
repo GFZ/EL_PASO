@@ -50,28 +50,28 @@ def process_hope_electrons(
     )
 
     extraction_infos = [
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="Epoch",
             name_or_column="Epoch_Ele",
             unit=ep.units.cdf_epoch,
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="Energy",
             name_or_column="HOPE_ENERGY_Ele",
             unit=u.eV,
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="Pitch_angle",
             name_or_column="PITCH_ANGLE",
             unit=u.deg,
             is_time_dependent=False,
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="FEDU",
             name_or_column="FEDU",
             unit=(u.cm**2 * u.s * u.sr * u.keV) ** (-1),
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="xGEO",
             name_or_column="Position_Ele",
             unit=u.km,

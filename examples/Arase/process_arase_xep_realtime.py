@@ -238,15 +238,15 @@ def _get_xep_variables(
     fedo_unit = typing.cast("u.Unit", (u.cm**2 * u.s * u.sr * u.keV) ** (-1))
 
     extraction_infos = [
-        ep.processing.ExtractionInfo(name_or_column="time", unit=u.dimensionless_unscaled, result_key="Epoch"),
-        ep.processing.ExtractionInfo(name_or_column="ch1", unit=fedo_unit, result_key="FEDO_ch1"),
-        ep.processing.ExtractionInfo(name_or_column="ch2", unit=fedo_unit, result_key="FEDO_ch2"),
-        ep.processing.ExtractionInfo(name_or_column="ch3", unit=fedo_unit, result_key="FEDO_ch3"),
-        ep.processing.ExtractionInfo(name_or_column="ch4", unit=fedo_unit, result_key="FEDO_ch4"),
-        ep.processing.ExtractionInfo(name_or_column="ch5", unit=fedo_unit, result_key="FEDO_ch5"),
-        ep.processing.ExtractionInfo(name_or_column="ch6", unit=fedo_unit, result_key="FEDO_ch6"),
-        ep.processing.ExtractionInfo(name_or_column="ch7", unit=fedo_unit, result_key="FEDO_ch7"),
-        ep.processing.ExtractionInfo(name_or_column="ch8", unit=fedo_unit, result_key="FEDO_ch8"),
+        ep.ExtractionInfo(name_or_column="time", unit=u.dimensionless_unscaled, result_key="Epoch"),
+        ep.ExtractionInfo(name_or_column="ch1", unit=fedo_unit, result_key="FEDO_ch1"),
+        ep.ExtractionInfo(name_or_column="ch2", unit=fedo_unit, result_key="FEDO_ch2"),
+        ep.ExtractionInfo(name_or_column="ch3", unit=fedo_unit, result_key="FEDO_ch3"),
+        ep.ExtractionInfo(name_or_column="ch4", unit=fedo_unit, result_key="FEDO_ch4"),
+        ep.ExtractionInfo(name_or_column="ch5", unit=fedo_unit, result_key="FEDO_ch5"),
+        ep.ExtractionInfo(name_or_column="ch6", unit=fedo_unit, result_key="FEDO_ch6"),
+        ep.ExtractionInfo(name_or_column="ch7", unit=fedo_unit, result_key="FEDO_ch7"),
+        ep.ExtractionInfo(name_or_column="ch8", unit=fedo_unit, result_key="FEDO_ch8"),
     ]
 
     # Bernhard: the header is also in the file, but there is a comment after it, so it cannot be read by pd.read_csv
@@ -336,10 +336,10 @@ def _get_orb_variables(
         )
 
     extraction_infos = [
-        ep.processing.ExtractionInfo(name_or_column="time", unit=u.dimensionless_unscaled, result_key="Epoch"),
-        ep.processing.ExtractionInfo(name_or_column="sm_x", unit=ep.units.RE, result_key="sm_x"),
-        ep.processing.ExtractionInfo(name_or_column="sm_y", unit=ep.units.RE, result_key="sm_y"),
-        ep.processing.ExtractionInfo(name_or_column="sm_z", unit=ep.units.RE, result_key="sm_z"),
+        ep.ExtractionInfo(name_or_column="time", unit=u.dimensionless_unscaled, result_key="Epoch"),
+        ep.ExtractionInfo(name_or_column="sm_x", unit=ep.units.RE, result_key="sm_x"),
+        ep.ExtractionInfo(name_or_column="sm_y", unit=ep.units.RE, result_key="sm_y"),
+        ep.ExtractionInfo(name_or_column="sm_z", unit=ep.units.RE, result_key="sm_z"),
     ]
 
     orb_variables = ep.processing.extract_variables_from_files(

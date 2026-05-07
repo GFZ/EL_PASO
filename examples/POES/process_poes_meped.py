@@ -59,43 +59,43 @@ def process_poes_meped_electron(
     )
 
     extraction_infos = [
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="Epoch",
             name_or_column="Epoch",
             unit=ep.units.tt2000,
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="Energy",
             name_or_column="mep_ele_int_energies",
             unit=u.keV,
             is_time_dependent=False,
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="FEIU",
             name_or_column="mep_ele_flux",
             unit=(u.cm**2 * u.s * u.sr) ** (-1),
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="PA_local_t0",
             name_or_column="meped_alpha_0_sat",
             unit=u.deg,
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="PA_local_t90",
             name_or_column="meped_alpha_90_sat",
             unit=u.deg,
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="alt",
             name_or_column="alt",
             unit=u.km,
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="lon",
             name_or_column="lon",
             unit=u.deg,
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="lat",
             name_or_column="lat",
             unit=u.deg,

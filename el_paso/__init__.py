@@ -27,6 +27,7 @@ from el_paso.processing import TimeBinMethod
 from el_paso.download import download
 from el_paso.load_indices_solar_wind_parameters import load_indices_solar_wind_parameters
 from el_paso import utils
+from el_paso.processing import ExtractionInfo
 
 # expose RBMDataSet related classes and functions
 from swvo.io.RBMDataSet.custom_enums import (
@@ -58,6 +59,7 @@ __all__ = [
     "IRBEM_SYSAXIS_GSM",
     "IRBEM_SYSAXIS_MAG",
     "IRBEM_SYSAXIS_SM",
+    "ExtractionInfo",
     "TimeBinMethod",
     "Variable",
     "activate_release_mode",

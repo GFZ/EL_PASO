@@ -37,12 +37,12 @@ def get_arase_orbit_level_2_variables(
     )
 
     extraction_infos = [
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="Epoch",
             name_or_column="epoch",
             unit=ep.units.tt2000,
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="pos_sm",
             name_or_column="pos_sm",
             unit=u.dimensionless_unscaled,
@@ -108,32 +108,32 @@ def get_arase_orbit_level_3_variables(
             raise ValueError(msg)
 
     extraction_infos = [
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="Epoch",
             name_or_column="epoch",
             unit=ep.units.tt2000,
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="B_local",
             name_or_column=f"pos_blocal_{mag_field_label}",
             unit=u.nT,
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="B_eq",
             name_or_column=f"pos_beq_{mag_field_label}",
             unit=u.nT,
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="Lm",
             name_or_column=f"pos_lmc_{mag_field_label}",
             unit=u.dimensionless_unscaled,
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="Lstar",
             name_or_column=f"pos_lstar_{mag_field_label}",
             unit=u.dimensionless_unscaled,
         ),
-        ep.processing.ExtractionInfo(
+        ep.ExtractionInfo(
             result_key="pos_eq",
             name_or_column=f"pos_eq_{mag_field_label}",
             unit=u.dimensionless_unscaled,
