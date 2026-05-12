@@ -3,14 +3,33 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+from typing import Literal
+
 from astropy import units as u  # type: ignore[reportMissingTypeStubs]
 
 import el_paso as ep
-from el_paso.data_standard import ConsistencyCheck, DataStandard
-from el_paso.utils import assert_n_dim
+from el_paso.data_standard import ConsistencyCheck, DataStandard, VariableInfo
+
+GFZVarNames = Literal[
+    "time",
+    "xGEO",
+    "energy_channels",
+    "Flux",
+    "alpha_local",
+    "alpha_eq_model",
+    "PSD",
+    "MLT",
+    "Lstar",
+    "Lm",
+    "B_eq",
+    "B_local",
+    "R0",
+    "InvMu",
+    "InvK",
+]
 
 
-class DataOrgStandard(DataStandard):
+class DataOrgStandard(DataStandard[GFZVarNames]):
     """A data standard used historically at the GFZ German Research Centre for Geosciences.
 
     This standard defines rules for a set of canonical variable names by converting them
@@ -22,126 +41,50 @@ class DataOrgStandard(DataStandard):
         """Initializes the DataOrgStandard with a ConsistencyCheck object."""
         self.consistency_check = ConsistencyCheck()
 
-    def standardize_variable(  # noqa: C901, PLR0912, PLR0915
-        self,
-        standard_name: str,
-        variable: ep.Variable,
-        *,
-        reset_consistency_check: bool,
-    ) -> ep.Variable:
-        """Standardizes a variable based on its specified standard name.
-
-        Applies unit conversions and dimension checks to a variable, ensuring its structure
-        conforms to the expectations for its `standard_name`.
-
-        Parameters:
-            standard_name (str): The canonical name of the variable (e.g., 'FEDU', 'xGEO').
-            variable (ep.Variable): The variable to be standardized.
-            reset_consistency_check (bool): If set to true, the consistency check will be reseted.
-
-        Returns:
-            ep.Variable: The standardized variable.
-
-        Raises:
-            AssertionError: If the variable's dimensions are incorrect.
-            UnitConversionError: If unit conversion fails.
-        """
-        if reset_consistency_check:
-            self.consistency_check = ConsistencyCheck()
-
-        match standard_name:
-            case "time":
-                variable.convert_to_unit(ep.units.datenum)
-                assert_n_dim(variable, 1, standard_name)
-            case "Flux":
-                variable.convert_to_unit((u.cm**2 * u.s * u.sr * u.keV) ** (-1))  # type: ignore[reportUnknownArgumentType]
-
-                assert_n_dim(variable, 3, standard_name)
-                shape = variable.get_data().shape
-                self.consistency_check.check_time_size(shape[0], standard_name)
-                self.consistency_check.check_energy_size(shape[1], standard_name)
-                self.consistency_check.check_pitch_angle_size(shape[2], standard_name)
-
-            case "alpha_local" | "alpha_eq_model":
-                variable.convert_to_unit(u.radian)  # type: ignore[reportUnknownArgumentType]
-
-                assert_n_dim(variable, 2, standard_name)
-                shape = variable.get_data().shape
-                self.consistency_check.check_time_size(shape[0], standard_name)
-                self.consistency_check.check_pitch_angle_size(shape[1], standard_name)
-
-            case "energy_channels":
-                variable.convert_to_unit(u.MeV)  # type: ignore[reportUnknownArgumentType]
-
-                assert_n_dim(variable, 2, standard_name)
-                shape = variable.get_data().shape
-                self.consistency_check.check_time_size(shape[0], standard_name)
-                self.consistency_check.check_energy_size(shape[1], standard_name)
-
-            case "MLT":
-                variable.convert_to_unit(u.hour)  # type: ignore[reportUnknownArgumentType]
-
-                assert_n_dim(variable, 1, standard_name)
-                self.consistency_check.check_time_size(variable.get_data().shape[0], standard_name)
-
-            case "Lstar" | "Lm":
-                variable.convert_to_unit(u.dimensionless_unscaled)
-
-                assert_n_dim(variable, 2, standard_name)
-                shape = variable.get_data().shape
-                self.consistency_check.check_time_size(shape[0], standard_name)
-                self.consistency_check.check_pitch_angle_size(shape[1], standard_name)
-
-            case "xGEO":
-                variable.convert_to_unit(ep.units.RE)
-                assert_n_dim(variable, 2, standard_name)
-                self.consistency_check.check_time_size(variable.get_data().shape[0], standard_name)
-
-            case "B_eq" | "B_local":
-                variable.convert_to_unit(u.nT)  # type: ignore[reportUnknownArgumentType]
-
-                assert_n_dim(variable, 1, standard_name)
-                self.consistency_check.check_time_size(variable.get_data().shape[0], standard_name)
-
-            case "R0":
-                variable.convert_to_unit(ep.units.RE)
-
-                assert_n_dim(variable, 1, standard_name)
-                self.consistency_check.check_time_size(variable.get_data().shape[0], standard_name)
-
-            case "density":
-                variable.convert_to_unit(u.cm ** (-3))  # type: ignore[reportUnknownArgumentType]
-
-                assert_n_dim(variable, 1, standard_name)
-                self.consistency_check.check_time_size(variable.get_data().shape[0], standard_name)
-            case "PSD":
-                variable.convert_to_unit((u.m * u.kg * u.m / u.s) ** (-3))  # type: ignore[reportUnknownArgumentType]
-
-                assert_n_dim(variable, 3, standard_name)
-                shape = variable.get_data().shape
-                self.consistency_check.check_time_size(shape[0], standard_name)
-                self.consistency_check.check_energy_size(shape[1], standard_name)
-                self.consistency_check.check_pitch_angle_size(shape[2], standard_name)
-
-            case "InvMu":
-                variable.convert_to_unit(u.MeV / u.G)  # type: ignore[reportUnknownArgumentType]
-
-                assert_n_dim(variable, 3, standard_name)
-                shape = variable.get_data().shape
-                self.consistency_check.check_time_size(shape[0], standard_name)
-                self.consistency_check.check_energy_size(shape[1], standard_name)
-                self.consistency_check.check_pitch_angle_size(shape[2], standard_name)
-
-            case "InvK":
-                variable.convert_to_unit(ep.units.RE * u.G**0.5)  # type: ignore[reportUnknownArgumentType]
-
-                assert_n_dim(variable, 2, standard_name)
-                shape = variable.get_data().shape
-                self.consistency_check.check_time_size(shape[0], standard_name)
-                self.consistency_check.check_pitch_angle_size(shape[1], standard_name)
-
-            case _:
-                msg = f"Encountered invalid name_in_file: {standard_name}!"
-                raise ValueError(msg)
-
-        return variable
+        self.variable_infos = {
+            "Epoch": VariableInfo[GFZVarNames]("time", "Time in MATLAB datenum format.", ep.units.datenum, ["Epoch"]),
+            "Position": VariableInfo[GFZVarNames](
+                "xGEO", "Position in geographic cartesian coordinates.", ep.units.RE, ["Epoch", "Position_components"]
+            ),
+            "Energy_FEDU": VariableInfo[GFZVarNames](
+                "energy_channels", "Central energy of measured flux.", u.MeV, ["Epoch", "Energy_FEDU"]
+            ),
+            "FEDU": VariableInfo[GFZVarNames](
+                "Flux",
+                "Flux of particles. Can be uni/omni-directional and differential/integral.",
+                (u.cm**2 * u.s * u.sr * u.keV) ** (-1),
+                ["Epoch", "Energy_FEDU", "Alpha"],
+            ),
+            "Alpha": VariableInfo[GFZVarNames](
+                "alpha_local", "Local pitch angles of the particles.", u.radian, ["Epoch", "Alpha"]
+            ),
+            "Alpha_Eq": VariableInfo[GFZVarNames](
+                "alpha_eq_model", "Calculated equatorial pitch angles of the particles.", u.radian, ["Epoch", "Alpha"]
+            ),
+            "PSD": VariableInfo[GFZVarNames](
+                "PSD",
+                "Calculated phase space density of particles.",
+                (u.m * u.kg * u.m / u.s) ** (-3),
+                ["Epoch", "Energy_FEDU", "Alpha"],
+            ),
+            "MLT": VariableInfo[GFZVarNames](
+                "MLT", "Magnetic local time at the satellite location.", u.hour, ["Epoch"]
+            ),
+            "L_star": VariableInfo[GFZVarNames](
+                "Lstar", "Calculated Lstar of the particles.", u.dimensionless_unscaled, ["Epoch", "Alpha"]
+            ),
+            "L_m": VariableInfo[GFZVarNames]("Lm", "Calculated Lm of the particles.", u.dimensionless_unscaled, ["Epoch", "Alpha"]),
+            "B_Eq": VariableInfo[GFZVarNames]("B_eq", "Calculated magnetic field at the equator.", u.nT, ["Epoch"]),
+            "B_Calc": VariableInfo[GFZVarNames](
+                "B_local", "Calculated magnetic field at the satellite location.", u.nT, ["Epoch"]
+            ),
+            "R_Eq": VariableInfo[GFZVarNames](
+                "R0", "Radial distance of the satellite location mapped to the equator.", ep.units.RE, ["Epoch"]
+            ),
+            "InvMu": VariableInfo[GFZVarNames](
+                "InvMu", "Calculated first adiabatic invariant.", u.MeV / u.G, ["Epoch", "Energy_FEDU", "Alpha"]
+            ),
+            "InvK": VariableInfo[GFZVarNames](
+                "InvK", "Calculated modified second adiabatic invariant.", ep.units.RE * u.G**0.5, ["Epoch", "Alpha"]
+            ),
+        }

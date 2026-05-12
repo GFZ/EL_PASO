@@ -6,10 +6,11 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 
+from el_paso.data_standard import InternalName
 from el_paso.utils import enforce_utc_timezone, timed_function
 
 if TYPE_CHECKING:
@@ -22,10 +23,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
 @timed_function()
 def save(
-    variables_dict: dict[str, Variable],
+    variables_dict: dict[InternalName, Variable],
     saving_strategy: SavingStrategy,
     start_time: datetime,
     end_time: datetime,
@@ -79,7 +79,7 @@ def save(
                 saving_strategy.save_single_file(file_path, data_dict, append=append)
 
 
-def _get_data_dict_to_save(target_variables: dict[str, Variable]) -> dict[str, Any]:
+def _get_data_dict_to_save(target_variables: dict[InternalName, Variable]) -> dict[InternalName | Literal["metadata"], Any]:
     """Generates a dictionary of data and metadata for saving.
 
     This internal function iterates through a dictionary of variables, extracts their
@@ -94,7 +94,7 @@ def _get_data_dict_to_save(target_variables: dict[str, Variable]) -> dict[str, A
         dict[str, Any]: The formatted dictionary containing all variable data and
             associated metadata.
     """
-    data_dict: dict[str, NDArray[np.generic] | dict[str, Any]] = {}
+    data_dict: dict[InternalName | Literal["metadata"], NDArray[np.generic] | dict[InternalName | Literal["metadata"], Any]] = {}
     metadata_dict: dict[Any, Any] = {}
 
     for save_name, variable in target_variables.items():

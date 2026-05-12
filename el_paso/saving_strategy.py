@@ -8,12 +8,13 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 
 import numpy as np
 from astropy import units as u  # type: ignore[reportMissingTypeStubs]
 
 from el_paso import Variable
+from el_paso.data_standard import InternalName
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +33,8 @@ class OutputFile(NamedTuple):
     """
 
     name: str
-    names_to_save: list[str]
+    names_to_save: list[InternalName]
     save_incomplete: bool = False
-
 
 class SavingStrategy(ABC):
     """Abstract base class for defining strategies to save output files with specific time intervals and variables.
@@ -66,7 +66,6 @@ class SavingStrategy(ABC):
     """
 
     output_files: list[OutputFile]
-    dependency_dict: dict[str, list[str]]
 
     @abstractmethod
     def get_time_intervals_to_save(self, start_time: datetime, end_time: datetime) -> list[tuple[datetime, datetime]]:
@@ -98,7 +97,7 @@ class SavingStrategy(ABC):
         """
 
     @abstractmethod
-    def standardize_variable(self, variable: Variable, name_in_file: str, *, first_call_of_interval: bool) -> Variable:
+    def standardize_variable(self, variable: Variable, internal_name: InternalName, *, first_call_of_interval: bool) -> Variable:
         """Standardizes the given variable according to the specified name in the file.
 
         Standardization may include checking of units, dimensions, and size consistency.
@@ -113,7 +112,7 @@ class SavingStrategy(ABC):
         """
 
     @abstractmethod
-    def save_single_file(self, file_path: Path, dict_to_save: dict[str, Any], *, append: bool = False) -> None:
+    def save_single_file(self, file_path: Path, dict_to_save: dict[InternalName | Literal["metadata"], Any], *, append: bool = False) -> None:
         """Saves the provided dictionary to a single file in one of the supported formats (.mat, .pickle, .h5, .nc).
 
         Parameters:
@@ -126,11 +125,11 @@ class SavingStrategy(ABC):
     def get_target_variables(
         self,
         output_file: OutputFile,
-        variables_dict: dict[str, Variable],
+        variables_dict: dict[InternalName, Variable],
         time_var: Variable | None,
         start_time: datetime | None,
         end_time: datetime | None,
-    ) -> dict[str, Variable] | None:
+    ) -> dict[InternalName, Variable] | None:
         """Retrieves and processes target variables for saving based on the specified output file.
 
         Parameters:
@@ -151,7 +150,7 @@ class SavingStrategy(ABC):
             - Each variable is standardized using the `standardize_variable` method.
             - If a requested variable name is not found, a warning is issued and None is returned.
         """
-        target_variables: dict[str, Variable] = {}
+        target_variables: dict[InternalName, Variable] = {}
         first_call_of_interval = True
 
         # if no variables have been specified, we save all of them

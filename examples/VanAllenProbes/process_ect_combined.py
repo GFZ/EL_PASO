@@ -153,76 +153,62 @@ def process_ect_combined(
         variables["FEDU"], variables["Energy"], particle_species="electron"
     )
 
+    variables_to_save: dict[ep.InternalName, ep.Variable] = {
+        "Epoch": binned_time_variable,
+        "FEDU": variables["FEDU"],
+        "Energy_FEDU": variables["Energy"],
+        "Alpha": variables["Pitch_angle"],
+        "Alpha_Eq": magnetic_field_variables["PA_eq_" + mag_field],
+        "R_Eq": magnetic_field_variables["R_eq_" + mag_field],
+        "MLT": magnetic_field_variables["MLT_" + mag_field],
+        "L_m": magnetic_field_variables["Lm_" + mag_field],
+        "L_star": magnetic_field_variables["Lstar_" + mag_field],
+        "B_Calc": magnetic_field_variables["B_local_" + mag_field],
+        "B_Eq": magnetic_field_variables["B_eq_" + mag_field],
+        "PSD": psd_variable,
+        "InvMu": magnetic_field_variables["invMu_" + mag_field],
+        "InvK": magnetic_field_variables["invK_" + mag_field],
+        "Position": variables["xGEO"],
+        }
+
     match save_strategy:
         case "dataorg":
             saving_strategy = ep.saving_strategies.DataOrgStrategy(
                 processed_data_path, "RBSP", "rbsp" + sat_str, "ect_combined", mag_field, ".mat"
             )
 
-            variables_to_save = {
-                "time": binned_time_variable,
-                "Flux": variables["FEDU"],
-                "xGEO": variables["xGEO"],
-                "energy_channels": variables["Energy"],
-                "alpha_local": variables["Pitch_angle"],
-                "alpha_eq_model": magnetic_field_variables["PA_eq_" + mag_field],
-                "R0": magnetic_field_variables["R_eq_" + mag_field],
-                "MLT": magnetic_field_variables["MLT_" + mag_field],
-                "Lm": magnetic_field_variables["Lm_" + mag_field],
-                "Lstar": magnetic_field_variables["Lstar_" + mag_field],
-                "PSD": psd_variable,
-                "InvMu": magnetic_field_variables["invMu_" + mag_field],
-                "InvK": magnetic_field_variables["invK_" + mag_field],
-                "B_local": magnetic_field_variables["B_local_" + mag_field],
-                "B_eq": magnetic_field_variables["B_eq_" + mag_field],
-            }
-
         case "h5":
-            variables_to_save = {
-                "time": binned_time_variable,
-                "flux/FEDU": variables["FEDU"],
-                "flux/energy": variables["Energy"],
-                "flux/alpha_local": variables["Pitch_angle"],
-                "flux/alpha_eq": magnetic_field_variables["PA_eq_" + mag_field],
-                f"position/{mag_field}/R0": magnetic_field_variables["R_eq_" + mag_field],
-                f"position/{mag_field}/MLT": magnetic_field_variables["MLT_" + mag_field],
-                f"position/{mag_field}/Lm": magnetic_field_variables["Lm_" + mag_field],
-                f"position/{mag_field}/Lstar": magnetic_field_variables["Lstar_" + mag_field],
-                f"mag_field/{mag_field}/B_local": magnetic_field_variables["B_local_" + mag_field],
-                f"mag_field/{mag_field}/B_eq": magnetic_field_variables["B_eq_" + mag_field],
-                "psd/PSD": psd_variable,
-                f"psd/{mag_field}/inv_mu": magnetic_field_variables["invMu_" + mag_field],
-                f"psd/{mag_field}/inv_K": magnetic_field_variables["invK_" + mag_field],
-                "position/xGEO": variables["xGEO"],
-            }
 
-            saving_strategy = ep.saving_strategies.MonthlyH5Strategy(
-                processed_data_path, f"rbsp{sat_str}_ect_combined", mag_field=mag_field
+            saving_strategy = ep.saving_strategies.MonthlyFileStrategy(
+                processed_data_path, f"rbsp{sat_str}_ect_combined", mag_field=mag_field, file_format="h5",
             )
 
         case "netcdf":
-            variables_to_save = {
-                "time": binned_time_variable,
-                "flux/FEDU": variables["FEDU"],
-                "flux/energy": variables["Energy"],
-                "flux/alpha_local": variables["Pitch_angle"],
-                "flux/alpha_eq": magnetic_field_variables["PA_eq_" + mag_field],
-                f"position/{mag_field}/R0": magnetic_field_variables["R_eq_" + mag_field],
-                f"position/{mag_field}/MLT": magnetic_field_variables["MLT_" + mag_field],
-                f"position/{mag_field}/Lm": magnetic_field_variables["Lm_" + mag_field],
-                f"position/{mag_field}/Lstar": magnetic_field_variables["Lstar_" + mag_field],
-                f"mag_field/{mag_field}/B_local": magnetic_field_variables["B_local_" + mag_field],
-                f"mag_field/{mag_field}/B_eq": magnetic_field_variables["B_eq_" + mag_field],
-                "psd/PSD": psd_variable,
-                f"psd/{mag_field}/inv_mu": magnetic_field_variables["invMu_" + mag_field],
-                f"psd/{mag_field}/inv_K": magnetic_field_variables["invK_" + mag_field],
-                "position/xGEO": variables["xGEO"],
-            }
+            # variables_to_save = {
+            #     "time": binned_time_variable,
+            #     "flux/FEDU": variables["FEDU"],
+            #     "flux/energy": variables["Energy"],
+            #     "flux/alpha_local": variables["Pitch_angle"],
+            #     "flux/alpha_eq": magnetic_field_variables["PA_eq_" + mag_field],
+            #     f"position/{mag_field}/R0": magnetic_field_variables["R_eq_" + mag_field],
+            #     f"position/{mag_field}/MLT": magnetic_field_variables["MLT_" + mag_field],
+            #     f"position/{mag_field}/Lm": magnetic_field_variables["Lm_" + mag_field],
+            #     f"position/{mag_field}/Lstar": magnetic_field_variables["Lstar_" + mag_field],
+            #     f"mag_field/{mag_field}/B_local": magnetic_field_variables["B_local_" + mag_field],
+            #     f"mag_field/{mag_field}/B_eq": magnetic_field_variables["B_eq_" + mag_field],
+            #     "psd/PSD": psd_variable,
+            #     f"psd/{mag_field}/inv_mu": magnetic_field_variables["invMu_" + mag_field],
+            #     f"psd/{mag_field}/inv_K": magnetic_field_variables["invK_" + mag_field],
+            #     "position/xGEO": variables["xGEO"],
+            # }
 
-            saving_strategy = ep.saving_strategies.MonthlyNetCDFStrategy(
-                processed_data_path, f"rbsp{sat_str}_ect_combined", mag_field=mag_field
+            saving_strategy = ep.saving_strategies.MonthlyFileStrategy(
+                processed_data_path, f"rbsp{sat_str}_ect_combined", mag_field=mag_field, file_format="nc",
             )
 
+    saving_strategy = ep.saving_strategies.MonthlyFileStrategy(
+        processed_data_path, f"rbsp{sat_str}_ect_combined", mag_field=mag_field, file_format="nc", data_standard=ep.data_standards.DataOrgStandard(),
+    )
     ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
 
 
