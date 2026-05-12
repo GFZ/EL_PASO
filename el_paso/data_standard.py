@@ -122,7 +122,6 @@ class ConsistencyCheck:
     # len_energy: _SizeAttr | None = None
 
     def check(self, data_shape: tuple[int, ...], dim_names_or_sizes: Sequence[str | int], var_name: str) -> None:
-
         if len(data_shape) != len(dim_names_or_sizes):
             msg = "Encountered size missmatch!"
             raise ValueError(msg)
@@ -131,7 +130,6 @@ class ConsistencyCheck:
             self.check_size(data_shape[i], dim_name_or_size, var_name)
 
     def check_size(self, provided_len: int, dim_name_or_size: str | int, var_name: str) -> None:
-
         if isinstance(dim_name_or_size, int) and dim_name_or_size != provided_len:
             msg = (
                 f"Length mismatch! Variable {var_name} should have length {dim_name_or_size},"

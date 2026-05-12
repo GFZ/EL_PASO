@@ -12,7 +12,6 @@ import shutil
 import tempfile
 import typing
 from collections.abc import Callable
-from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
@@ -33,8 +32,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 MFSFormats = Literal["nc", "cdf", "h5", "mat", ".nc", ".cdf", ".h5", ".mat"]
-FormatWriter = Callable[[Path, dict[InternalName | Literal["metadata"], Any]], None]
-FormatLoader = Callable[[Path], dict[InternalName | Literal["metadata"], Any]]
+DataDict = dict[InternalName | Literal["metadata"], Any]
+FormatWriter = Callable[[Path, DataDict], None]
+FormatLoader = Callable[[Path], DataDict]
 
 
 class MonthlyFileStrategy(SavingStrategy):
@@ -140,31 +140,6 @@ class MonthlyFileStrategy(SavingStrategy):
         """Return the standard variable list plus user-defined custom variables."""
         entries = self._get_standard_output_file_entries()
         return entries
-
-    def _get_dependency_dict(self) -> dict[str, list[str]]:
-        """Return NetCDF dimension dependencies for all monthly variables."""
-        dependency_dict = {
-            "time": ["time"],
-            "flux/FEDU": ["time", "energy", "alpha"],
-            "flux/FEDO": ["time", "energy"],
-            "flux/FEIU": ["time", "energy", "alpha"],
-            "flux/alpha_eq": ["time", "alpha"],
-            "flux/energy": ["time", "energy"],
-            "flux/alpha_local": ["time", "alpha"],
-            "position/xGEO": ["time", "xGEO_components"],
-            f"position/{self.mag_field}/MLT": ["time"],
-            f"position/{self.mag_field}/R0": ["time"],
-            f"position/{self.mag_field}/Lstar": ["time", "alpha"],
-            f"position/{self.mag_field}/Lm": ["time", "alpha"],
-            f"mag_field/{self.mag_field}/B_eq": ["time"],
-            f"mag_field/{self.mag_field}/B_local": ["time"],
-            "psd/PSD": ["time", "energy", "alpha"],
-            f"psd/{self.mag_field}/inv_mu": ["time", "energy", "alpha"],
-            f"psd/{self.mag_field}/inv_K": ["time", "alpha"],
-            "density/density_local": ["time"],
-            f"density/{self.mag_field}/density_eq": ["time"],
-        }
-        return dependency_dict
 
     def _sanitize_dimension_name(self, variable_name: str) -> str:
         """Return a NetCDF-safe root dimension name derived from a variable path."""
@@ -306,11 +281,11 @@ class MonthlyFileStrategy(SavingStrategy):
             logger.exception("Failed to write merged data to temporary file")
             raise
 
-    def _merge_and_sort_data(
+    def _merge_and_sort_data(  # noqa: C901, PLR0912, PLR0915
         self,
         existing_data: dict[InternalName | Literal["metadata"], Any],
         new_data: dict[InternalName | Literal["metadata"], Any],
-    ) -> dict[InternalName | Literal["metadata"], Any]:  # noqa: C901, PLR0912
+    ) -> dict[InternalName | Literal["metadata"], Any]:
         """Merge two dictionaries along the time axis, replacing duplicate times."""
 
         def _normalize_1d(arr: np.ndarray) -> np.ndarray:
@@ -386,24 +361,24 @@ class MonthlyFileStrategy(SavingStrategy):
 
         return merged
 
-    def _load_mat_data(self, file_path: Path) -> dict[str, Any]:
+    def _load_mat_data(self, file_path: Path) -> dict[InternalName | Literal["metadata"], Any]:
         """Load an existing MATLAB file."""
         loaded = loadmat(str(file_path), simplify_cells=True)
         return {key: value for key, value in loaded.items() if not key.startswith("__")}
 
-    def _write_mat_file(self, file_path: Path, data_dict: dict[InternalName, Any]) -> None:
+    def _write_mat_file(self, file_path: Path, data_dict: DataDict) -> None:
         """Write a MATLAB file."""
         savemat(str(file_path), data_dict)
 
-    def _load_h5_data(self, file_path: Path) -> dict[str, Any]:
+    def _load_h5_data(self, file_path: Path) -> DataDict:
         """Load all datasets and dataset attributes from an HDF5 file."""
-        loaded_data: dict[str, Any] = {"metadata": {}}
+        loaded_data: DataDict = {"metadata": {}}
 
         def _recursively_load_datasets(group: h5py.Group | h5py.File, prefix: str = "") -> None:
             for key, item in group.items():
                 full_path = f"{prefix}{key}" if prefix else key
                 if isinstance(item, h5py.Dataset):
-                    loaded_data[full_path] = np.array(item)
+                    loaded_data[full_path] = np.array(item)  # ty:ignore[invalid-assignment]
                     loaded_data["metadata"][full_path] = dict(item.attrs.items())
                 elif isinstance(item, h5py.Group):
                     _recursively_load_datasets(item, f"{full_path}/")
@@ -416,9 +391,10 @@ class MonthlyFileStrategy(SavingStrategy):
     def _write_h5_file(self, file_path: Path, data_dict: dict[InternalName | Literal["metadata"], Any]) -> None:
         """Write an HDF5 file with hierarchical groups from slash-delimited paths."""
         with h5py.File(file_path, "w") as file:
-            for path, value in data_dict.items():
-                if path == "metadata":
+            for internal_name, value in data_dict.items():
+                if internal_name == "metadata":
                     continue
+                path = self.standard.get_full_var_name(internal_name)
 
                 path_parts = path.split("/")
                 groups = path_parts[:-1]
@@ -431,9 +407,16 @@ class MonthlyFileStrategy(SavingStrategy):
                     else:
                         curr_hierarchy = typing.cast("h5py.Group", curr_hierarchy[group])
 
-                data_set = curr_hierarchy.create_dataset(dataset_name, data=value, compression="gzip", shuffle=True)
+                # Normalize 2D arrays with shape (n, 1) back to 1D for consistency with other formats
+                value_to_write = value
+                if isinstance(value, np.ndarray) and value.ndim == 2 and value.shape[1] == 1:  # noqa: PLR2004
+                    value_to_write = value.reshape(-1)
 
-                metadata_dict = data_dict.get("metadata", {}).get(path, {})
+                data_set = curr_hierarchy.create_dataset(
+                    dataset_name, data=value_to_write, compression="gzip", shuffle=True
+                )
+
+                metadata_dict = data_dict.get("metadata", {}).get(internal_name, {})
                 if not isinstance(metadata_dict, dict):
                     continue
 
@@ -454,14 +437,14 @@ class MonthlyFileStrategy(SavingStrategy):
                 )
                 raise ValueError(msg)
 
-    def _load_netcdf_data(self, file_path: Path) -> dict[InternalName | Literal["metadata"], Any]:
+    def _load_netcdf_data(self, file_path: Path) -> DataDict:
         """Load all variables and variable metadata from a NetCDF file."""
-        loaded_data: dict[str, Any] = {"metadata": {}}
+        loaded_data: DataDict = {"metadata": {}}
 
         def _recursively_load(group: nC.Group | nC.Dataset, prefix: str = "") -> None:
             for var_name, variable in group.variables.items():
                 full_path = f"{prefix}{var_name}" if prefix else var_name
-                loaded_data[full_path] = np.array(variable[:])
+                loaded_data[full_path] = np.array(variable[:])  # ty:ignore[invalid-assignment]
                 loaded_data["metadata"][full_path] = {
                     "unit": getattr(variable, "units", "unknown"),
                     "source_files": getattr(variable, "source", "unknown"),
@@ -494,7 +477,7 @@ class MonthlyFileStrategy(SavingStrategy):
 
         return loaded_data
 
-    def _calculate_dimensions(self, data_dict: dict[InternalName, Any]) -> dict[str, int]:
+    def _calculate_dimensions(self, data_dict: DataDict) -> dict[str, int]:
         """Calculate NetCDF dimension sizes from the data dictionary."""
         dimensions = {
             "Epoch": np.asarray(data_dict["Epoch"]).shape[0],
@@ -595,15 +578,15 @@ class MonthlyFileStrategy(SavingStrategy):
 
             self._write_data_to_netcdf_file(file, data_dict)
 
-    def _load_cdf_data(self, file_path: Path) -> dict[str, Any]:
+    def _load_cdf_data(self, file_path: Path) -> DataDict:
         """Load all zVariables from an existing CDF file."""
-        loaded_data: dict[str, Any] = {"metadata": {}}
+        loaded_data: DataDict = {"metadata": {}}
         cdf_file = cdflib.CDF(str(file_path))
         try:
             info = cdf_file.cdf_info()
             z_variables = getattr(info, "zVariables", None)
             if z_variables is None and isinstance(info, dict):
-                z_variables = info.get("zVariables", [])
+                z_variables = info.get("zVariables", [])  # ty:ignore[no-matching-overload]
 
             for variable_name in z_variables or []:
                 try:
@@ -625,10 +608,10 @@ class MonthlyFileStrategy(SavingStrategy):
 
         return loaded_data
 
-    def _get_cdf_variable_attrs(self, var_name: str, data_dict: dict[str, Any]) -> dict[str, Any]:
+    def _get_cdf_variable_attrs(self, var_name: str, data_dict: DataDict) -> DataDict:
         """Return non-empty CDF variable attributes for a saved variable."""
         metadata = data_dict.get("metadata", {}).get(var_name, {})
-        var_attrs: dict[str, Any] = {}
+        var_attrs: DataDict = {}
 
         if isinstance(metadata, dict):
             for attr_name, attr_value in metadata.items():
@@ -636,9 +619,9 @@ class MonthlyFileStrategy(SavingStrategy):
                     logger.debug(f"Skipping empty CDF attribute {var_name}:{attr_name}")
                     continue
 
-                var_attrs[str(attr_name)] = attr_value
+                var_attrs[str(attr_name)] = attr_value  # ty:ignore[invalid-assignment]
 
-        var_attrs["Compress"] = 6
+        var_attrs["Compress"] = 6  # ty:ignore[invalid-assignment]
         return var_attrs
 
     def _is_empty_cdf_attribute(self, value: Any) -> bool:  # noqa: ANN401
@@ -651,7 +634,7 @@ class MonthlyFileStrategy(SavingStrategy):
 
         return getattr(value, "size", None) == 0
 
-    def _write_cdf_file(self, file_path: Path, data_dict: dict[InternalName, Any]) -> None:
+    def _write_cdf_file(self, file_path: Path, data_dict: DataDict) -> None:
         """Write a CDF file."""
         try:
             cdf_file = cdflib.cdfwrite.CDF(str(file_path), delete=True)
