@@ -28,106 +28,18 @@ class PRBEMStandard(DataStandard[PRBEMName]):
     def __init__(self) -> None:
         """Initializes the PRBEMStandard with a ConsistencyCheck object."""
         self.consistency_check = ConsistencyCheck()
-        flux_unit = (u.cm**2 * u.s * u.sr * u.keV) ** (-1)
-        psd_unit = (u.m * u.kg * u.m / u.s) ** (-3)
 
         self.variable_infos = {
-            "Epoch": VariableInfo[PRBEMName](
-                "Epoch",
-                "Posix Time",
-                ep.units.posixtime,
-                dependencies=["Epoch"],
-            ),
-            "FEDU": VariableInfo[PRBEMName](
-                "FEDU",
-                "Processed unidirectional differential electron flux",
-                flux_unit,
-                dependencies=["Epoch", "Energy_FEDU", "Alpha"],
-            ),
-            "Alpha": VariableInfo[PRBEMName](
-                "Alpha",
-                "Processed unidirectional differential electron flux",
-                u.deg,
-                dependencies=["Epoch", "Alpha"],
-            ),
-            "Energy_FEDU": VariableInfo[PRBEMName](
-                "Energy_FEDU",
-                "Processed unidirectional differential electron flux",
-                u.MeV,
-                dependencies=["Epoch", "Energy_FEDU"],
-            ),
-            "Alpha_Eq": VariableInfo[PRBEMName](
-                "Alpha_Eq",
-                "Calculated equatorial pitch angles of the particles.",
-                u.deg,
-                dependencies=["Epoch", "Alpha"],
-            ),
-            "B_Calc": VariableInfo[PRBEMName](
-                "B_Calc",
-                "Calculated magnetic field at the satellite location.",
-                u.nT,
-                dependencies=["Epoch"],
-            ),
-            "B_Eq": VariableInfo[PRBEMName](
-                "B_Eq",
-                "Calculated magnetic field at the equator.",
-                u.nT,
-                dependencies=["Epoch"],
-            ),
-            "InvK": VariableInfo[PRBEMName](
-                "InvK",
-                "Calculated modified second adiabatic invariant.",
-                ep.units.RE * u.G**0.5,
-                dependencies=["Epoch", "Alpha"],
-            ),
-            "InvMu": VariableInfo[PRBEMName](
-                "InvMu",
-                "Calculated first adiabatic invariant.",
-                u.MeV / u.G,
-                dependencies=["Epoch", "Energy_FEDU", "Alpha"],
-            ),
-            "Position": VariableInfo[PRBEMName](
-                "Position",
-                "Position in geographic cartesian coordinates.",
-                ep.units.RE,
-                dependencies=["Epoch", "Position_components"],
-            ),
-            "PSD": VariableInfo[PRBEMName](
-                "PSD",
-                "Calculated phase space density of particles.",
-                psd_unit,
-                dependencies=["Epoch", "Energy_FEDU", "Alpha"],
-            ),
-            "R_Eq": VariableInfo[PRBEMName](
-                "R_Eq",
-                "Radial distance of the satellite location mapped to the equator.",
-                ep.units.RE,
-                dependencies=["Epoch"],
-            ),
-            "MLT": VariableInfo[PRBEMName](
-                "MLT",
-                "Magnetic local time at the satellite location.",
-                u.hour,
-                dependencies=["Epoch"],
-            ),
-            "L_m": VariableInfo[PRBEMName](
-                "L_m",
-                "Calculated Lm of the particles.",
-                u.dimensionless_unscaled,
-                dependencies=["Epoch", "Alpha"],
-            ),
-            "L_star": VariableInfo[PRBEMName](
-                "L_star",
-                "Calculated Lstar of the particles.",
-                u.dimensionless_unscaled,
-                dependencies=["Epoch", "Alpha"],
-            ),
-        }
+            "Epoch": VariableInfo[PRBEMName]("Epoch", "Posix Time", ep.units.posixtime, dependencies=["Epoch"]),
+            "FEDU": VariableInfo[PRBEMName]("FEDU", "Processed unidirectional differential electron flux", (u.cm**2 * u.s * u.sr * u.keV) ** (-1), dependencies=["Epoch", "Energy_FEDU", "Pitch_angle"]),
+            "Alpha": VariableInfo[PRBEMName]("Alpha", "Processed unidirectional differential electron flux", u.deg, dependencies=["Epoch", "Alpha"]),
+            "Energy_FEDU": VariableInfo[PRBEMName]("Energy_FEDU", "Processed unidirectional differential electron flux", u.MeV, dependencies=["Epoch", "Energy_FEDU"]),
+    }
 
     def get_full_var_name(self, internal_name: InternalName) -> PRBEMName:
         return internal_name
 
-    def get_dependencies(self, internal_name: InternalName) -> list[InternalName | str]:
+    def get_dependencies(self, internal_name: InternalName) -> list[InternalName]:
         return self.variable_infos[internal_name].dependencies
 
     def standardize_variable(  # noqa: C901, PLR0912, PLR0915
