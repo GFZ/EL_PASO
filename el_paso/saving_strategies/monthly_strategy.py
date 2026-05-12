@@ -26,7 +26,6 @@ from scipy.io import loadmat, savemat
 import el_paso as ep
 from el_paso.data_standard import DataStandard, InternalName
 from el_paso.saving_strategy import OutputFile, SavingStrategy
-from el_paso.variable import Variable
 
 if TYPE_CHECKING:
     from el_paso.processing.magnetic_field_utils import MagneticFieldLiteral
@@ -70,8 +69,6 @@ class MonthlyFileStrategy(SavingStrategy):
             data_standard (DataStandard | None): Standardization implementation. Defaults to
                 [`el_paso.data_standards.PRBEMStandard`][]
             root_metadata (dict[str, str] | None): Optional global NetCDF attributes.
-            custom_variables (dict[str, Variable] | None): Custom variables to include in the output.
-                Each entry is saved below ``custom/`` using its dictionary key as the variable path.
 
         Attributes:
             output_files: List of output file configurations, with variable names
@@ -457,7 +454,7 @@ class MonthlyFileStrategy(SavingStrategy):
                 )
                 raise ValueError(msg)
 
-    def _load_netcdf_data(self, file_path: Path) -> dict[str, Any]:
+    def _load_netcdf_data(self, file_path: Path) -> dict[InternalName | Literal["metadata"], Any]:
         """Load all variables and variable metadata from a NetCDF file."""
         loaded_data: dict[str, Any] = {"metadata": {}}
 
@@ -565,14 +562,18 @@ class MonthlyFileStrategy(SavingStrategy):
             else:
                 data_set[:, ...] = value_to_write
 
-            if path in data_dict.get("metadata", {}):
-                metadata = data_dict["metadata"][path]
-                if not isinstance(metadata, dict):
-                    continue
-                data_set.units = metadata.get("unit", "unknown")
-                data_set.source = metadata.get("source_files", "unknown")
-                data_set.history = metadata.get("processing_notes", "unknown")
-                data_set.description = metadata.get("description", "unknown")
+            metadata_dict = data_dict.get("metadata", {})
+            metadata = {}
+            if isinstance(metadata_dict, dict):
+                metadata = metadata_dict.get(path, metadata_dict.get(mfs_name, {}))
+
+            if not isinstance(metadata, dict):
+                continue
+
+            data_set.units = metadata.get("unit", "unknown")
+            data_set.source = metadata.get("source_files", "unknown")
+            data_set.history = metadata.get("processing_notes", "unknown")
+            data_set.description = metadata.get("description", "unknown")
 
     def _write_netcdf_file(self, file_path: Path, data_dict: dict[InternalName | Literal["metadata"], Any]) -> None:
         """Create and write a NetCDF file from a data dictionary."""
