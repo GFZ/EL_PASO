@@ -203,7 +203,7 @@ class MonthlyFileStrategy(SavingStrategy):
         )
 
     def save_single_file(
-        self, file_path: Path, dict_to_save: dict[InternalName | Literal["metadata"], Any], *, append: bool = False
+        self, file_path: Path, dict_to_save: DataDict, *, append: bool = False
     ) -> None:
         """Save one monthly file, optionally appending to an existing file."""
         file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -223,8 +223,8 @@ class MonthlyFileStrategy(SavingStrategy):
         writer(file_path, dict_to_save)
 
     def append_data(
-        self, file_path: Path, data_dict_to_save: dict[InternalName | Literal["metadata"], Any]
-    ) -> dict[InternalName | Literal["metadata"], Any]:
+        self, file_path: Path, data_dict_to_save: DataDict
+    ) -> DataDict:
         """Append data to any supported monthly file format.
 
         Existing data is loaded with the loader for ``file_path.suffix``, merged
@@ -283,9 +283,9 @@ class MonthlyFileStrategy(SavingStrategy):
 
     def _merge_and_sort_data(  # noqa: C901, PLR0912, PLR0915
         self,
-        existing_data: dict[InternalName | Literal["metadata"], Any],
-        new_data: dict[InternalName | Literal["metadata"], Any],
-    ) -> dict[InternalName | Literal["metadata"], Any]:
+        existing_data: DataDict,
+        new_data: DataDict,
+    ) -> DataDict:
         """Merge two dictionaries along the time axis, replacing duplicate times."""
 
         def _normalize_1d(arr: np.ndarray) -> np.ndarray:
@@ -307,7 +307,7 @@ class MonthlyFileStrategy(SavingStrategy):
         mask_keep_existing = ~np.isin(existing_time, new_time)
         insert_idx = int(np.searchsorted(existing_time, new_time[0]))
 
-        merged: dict[InternalName | Literal["metadata"], Any] = {}
+        merged: DataDict = {}
         existing_metadata = existing_data.get("metadata", {})
         new_metadata = new_data.get("metadata", {})
         if isinstance(existing_metadata, dict) and isinstance(new_metadata, dict):
@@ -361,7 +361,7 @@ class MonthlyFileStrategy(SavingStrategy):
 
         return merged
 
-    def _load_mat_data(self, file_path: Path) -> dict[InternalName | Literal["metadata"], Any]:
+    def _load_mat_data(self, file_path: Path) -> DataDict:
         """Load an existing MATLAB file."""
         loaded = loadmat(str(file_path), simplify_cells=True)
         data = {key: value for key, value in loaded.items() if not key.startswith("__")}
@@ -437,7 +437,7 @@ class MonthlyFileStrategy(SavingStrategy):
 
         return loaded_data
 
-    def _write_h5_file(self, file_path: Path, data_dict: dict[InternalName | Literal["metadata"], Any]) -> None:
+    def _write_h5_file(self, file_path: Path, data_dict: DataDict) -> None:
         """Write an HDF5 file with hierarchical groups from slash-delimited paths."""
         with h5py.File(file_path, "w") as file:
             for internal_name, value in data_dict.items():
@@ -549,7 +549,7 @@ class MonthlyFileStrategy(SavingStrategy):
         return dimensions
 
     def _write_data_to_netcdf_file(
-        self, file: nC.Dataset | nC.Group, data_dict: dict[InternalName | Literal["metadata"], Any]
+        self, file: nC.Dataset | nC.Group, data_dict: DataDict
     ) -> None:
         """Write variables to a NetCDF file or group."""
         for mfs_name, value in data_dict.items():
@@ -609,7 +609,7 @@ class MonthlyFileStrategy(SavingStrategy):
             data_set.description = metadata.get("description", "unknown")
             data_set.original_cadence_seconds = metadata.get("original_cadence_seconds", "unknown")
 
-    def _write_netcdf_file(self, file_path: Path, data_dict: dict[InternalName | Literal["metadata"], Any]) -> None:
+    def _write_netcdf_file(self, file_path: Path, data_dict: DataDict) -> None:
         """Create and write a NetCDF file from a data dictionary."""
         with nC.Dataset(file_path, "w", format="NETCDF4") as file:
             if self.root_metadata is not None:
