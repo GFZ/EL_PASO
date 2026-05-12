@@ -364,11 +364,60 @@ class MonthlyFileStrategy(SavingStrategy):
     def _load_mat_data(self, file_path: Path) -> dict[InternalName | Literal["metadata"], Any]:
         """Load an existing MATLAB file."""
         loaded = loadmat(str(file_path), simplify_cells=True)
-        return {key: value for key, value in loaded.items() if not key.startswith("__")}
+        data = {key: value for key, value in loaded.items() if not key.startswith("__")}
+
+        if "metadata" in data and isinstance(data["metadata"], dict):
+            for var_key, attrs in data["metadata"].items():
+                if not isinstance(attrs, dict):
+                    continue
+                data["metadata"][var_key] = {
+                    k: v.item() if isinstance(v, np.ndarray) and v.ndim == 0
+                    else str(v) if isinstance(v, np.ndarray)
+                    else v
+                    for k, v in attrs.items()
+                }
+
+        return data
 
     def _write_mat_file(self, file_path: Path, data_dict: DataDict) -> None:
-        """Write a MATLAB file."""
-        savemat(str(file_path), data_dict)
+        """Write a MATLAB file, resolving standard variable paths and flattening hierarchy.
+
+        Data variables are stored under their flattened canonical names (``/`` → ``__``).
+        Per-variable metadata is stored in a parallel ``metadata`` struct whose field
+        names mirror the data variable names, matching how HDF5 stores attrs per dataset.
+        """
+        mat_dict: dict[str, Any] = {}
+        mat_metadata: dict[str, Any] = {}
+
+        for internal_name, value in data_dict.items():
+            if internal_name == "metadata":
+                continue
+
+            path = self.standard.get_full_var_name(internal_name)
+            mat_var_name = path.replace("/", "__")
+
+            value_to_write = value
+            if isinstance(value, np.ndarray) and value.ndim == 2 and value.shape[1] == 1:  # noqa: PLR2004
+                value_to_write = value.reshape(-1)
+
+            mat_dict[mat_var_name] = value_to_write
+
+            # Attach per-variable metadata under a matching key in the metadata struct,
+            # mirroring how _write_h5_file stores attrs on each dataset.
+            variable_meta = data_dict.get("metadata", {}).get(internal_name, {})
+            if isinstance(variable_meta, dict) and variable_meta:
+                mat_metadata[mat_var_name] = {
+                    "unit": variable_meta.get("unit", "unknown"),
+                    "source_files": variable_meta.get("source_files", "unknown"),
+                    "processing_notes": variable_meta.get("processing_notes", "unknown"),
+                    "description": variable_meta.get("description", "unknown"),
+                    "original_cadence_seconds": variable_meta.get("original_cadence_seconds", "unknown"),
+                }
+
+        if mat_metadata:
+            mat_dict["metadata"] = mat_metadata
+
+        savemat(str(file_path), mat_dict)
 
     def _load_h5_data(self, file_path: Path) -> DataDict:
         """Load all datasets and dataset attributes from an HDF5 file."""
@@ -450,6 +499,7 @@ class MonthlyFileStrategy(SavingStrategy):
                     "source_files": getattr(variable, "source", "unknown"),
                     "processing_notes": getattr(variable, "history", "unknown"),
                     "description": getattr(variable, "description", "unknown"),
+                    "original_cadence_seconds": getattr(variable, "original_cadence_seconds", "unknown"),
                 }
 
             for group_name, subgroup in group.groups.items():
@@ -557,6 +607,7 @@ class MonthlyFileStrategy(SavingStrategy):
             data_set.source = metadata.get("source_files", "unknown")
             data_set.history = metadata.get("processing_notes", "unknown")
             data_set.description = metadata.get("description", "unknown")
+            data_set.original_cadence_seconds = metadata.get("original_cadence_seconds", "unknown")
 
     def _write_netcdf_file(self, file_path: Path, data_dict: dict[InternalName | Literal["metadata"], Any]) -> None:
         """Create and write a NetCDF file from a data dictionary."""
@@ -634,20 +685,29 @@ class MonthlyFileStrategy(SavingStrategy):
 
         return getattr(value, "size", None) == 0
 
-    def _write_cdf_file(self, file_path: Path, data_dict: DataDict) -> None:
-        """Write a CDF file."""
+    def _write_cdf_file(self, file_path: Path, data_dict: DataDict) -> None:  # noqa: C901, PLR0912
+        """Write a CDF file, resolving standard variable paths and embedding metadata."""
         try:
             cdf_file = cdflib.cdfwrite.CDF(str(file_path), delete=True)
             try:
-                for var_name, var_data in data_dict.items():
-                    if var_name == "metadata":
+                for internal_name, var_data in data_dict.items():
+                    if internal_name == "metadata":
                         continue
 
                     if getattr(var_data, "size", 0) == 0:
-                        logger.warning(f"Skipping empty variable {var_name}")
+                        logger.warning(f"Skipping empty variable {internal_name}")
                         continue
 
-                    var_data_array = np.asarray(var_data)
+                    # Resolve the canonical name via the data standard, matching H5/NC behaviour.
+                    # CDF does not support '/' in variable names, so we replace path separators
+                    # with '__' to preserve hierarchy information without violating the spec.
+                    path = self.standard.get_full_var_name(internal_name)
+                    cdf_var_name = path
+                    value_to_write = var_data
+                    if isinstance(var_data, np.ndarray) and var_data.ndim == 2 and var_data.shape[1] == 1:
+                        value_to_write = var_data.reshape(-1)
+
+                    var_data_array = np.asarray(value_to_write)
                     if np.issubdtype(var_data_array.dtype, np.integer):
                         if var_data_array.dtype == np.int8:
                             cdf_dtype = cdflib.cdfwrite.CDF.CDF_INT1
@@ -668,13 +728,41 @@ class MonthlyFileStrategy(SavingStrategy):
                         cdf_dtype = cdflib.cdfwrite.CDF.CDF_DOUBLE
 
                     var_spec: dict[str, Any] = {
-                        "Variable": var_name,
+                        "Variable": cdf_var_name,
                         "Data_Type": cdf_dtype,
                         "Num_Elements": 1,
                         "Rec_Vary": True,
                         "Dim_Sizes": (list(var_data_array.shape[1:]) if var_data_array.ndim > 1 else []),
                     }
-                    var_attrs = self._get_cdf_variable_attrs(var_name, data_dict)
+
+                    metadata_dict = data_dict.get("metadata", {})
+                    metadata: dict[str, Any] = {}
+                    if isinstance(metadata_dict, dict):
+                        metadata = metadata_dict.get(path, metadata_dict.get(internal_name, {}))
+
+                    var_attrs = {}
+                    if isinstance(metadata, dict):
+                        for attr_name, attr_value in metadata.items():
+                            if self._is_empty_cdf_attribute(attr_value):
+                                logger.debug(f"Skipping empty CDF attribute {cdf_var_name}:{attr_name}")
+                                continue
+                            var_attrs[str(attr_name)] = attr_value
+                    if isinstance(metadata, dict):
+                        for field, nc_key in {
+                            "unit": "unit",
+                            "source_files": "source_files",
+                            "processing_notes": "processing_notes",
+                            "description": "description",
+                            "original_cadence_seconds": "original_cadence_seconds",
+                        }.items():
+                            value = metadata.get(nc_key)
+                            if value is None or self._is_empty_cdf_attribute(value):
+                                var_attrs.setdefault(nc_key, "empty")
+                                continue
+                            if value and not self._is_empty_cdf_attribute(value):
+                                var_attrs.setdefault(field, value)
+
+                    var_attrs["Compress"] = 6
 
                     cdf_file.write_var(var_spec, var_attrs=var_attrs, var_data=var_data_array)
             finally:
