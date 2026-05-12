@@ -23,6 +23,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 @timed_function()
 def save(
     variables_dict: dict[InternalName, Variable],
@@ -79,7 +80,9 @@ def save(
                 saving_strategy.save_single_file(file_path, data_dict, append=append)
 
 
-def _get_data_dict_to_save(target_variables: dict[InternalName, Variable]) -> dict[InternalName | Literal["metadata"], Any]:
+def _get_data_dict_to_save(
+    target_variables: dict[InternalName, Variable],
+) -> dict[InternalName | Literal["metadata"], Any]:
     """Generates a dictionary of data and metadata for saving.
 
     This internal function iterates through a dictionary of variables, extracts their
@@ -94,7 +97,9 @@ def _get_data_dict_to_save(target_variables: dict[InternalName, Variable]) -> di
         dict[str, Any]: The formatted dictionary containing all variable data and
             associated metadata.
     """
-    data_dict: dict[InternalName | Literal["metadata"], NDArray[np.generic] | dict[InternalName | Literal["metadata"], Any]] = {}
+    data_dict: dict[
+        InternalName | Literal["metadata"], NDArray[np.generic] | dict[InternalName | Literal["metadata"], Any]
+    ] = {}
     metadata_dict: dict[Any, Any] = {}
 
     for save_name, variable in target_variables.items():
