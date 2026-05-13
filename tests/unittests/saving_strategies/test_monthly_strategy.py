@@ -6,7 +6,7 @@
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Literal, Callable
+from typing import Any, Callable, Literal  # noqa: UP035
 
 import numpy as np
 import pytest
@@ -14,24 +14,21 @@ from astropy import units as u  # type: ignore[reportMissingTypeStubs]
 
 import el_paso as ep
 from el_paso.data_standard import DataStandard, InternalName
+from el_paso.dataset.utils import python2matlab
 
 
 def _mock_monthly_variables() -> dict[InternalName, ep.Variable]:
     """Create mocked monthly product variables without running processing code."""
-    time_size = 2
+    time_size = 144
     energy_size = 3
     alpha_size = 4
 
     start_time = datetime(2013, 1, 1, tzinfo=timezone.utc)
-    epoch = np.asarray(
-        [
-            start_time.timestamp(),
-            datetime(2013, 1, 2, tzinfo=timezone.utc).timestamp(),
-        ]
-    )
+    datetimes = [start_time + i * np.timedelta64(6000, "s") for i in range(time_size)]
+    epoch = np.array([python2matlab(i) for i in datetimes])
 
     variables: dict[InternalName, ep.Variable] = {
-        "Epoch": ep.Variable(original_unit=ep.units.posixtime, data=epoch),
+        "Epoch": ep.Variable(original_unit=ep.units.datenum, data=epoch),
         "FEDU": ep.Variable(
             original_unit=(u.cm**2 * u.s * u.sr * u.keV) ** (-1),
             data=np.arange(time_size * energy_size * alpha_size, dtype=float).reshape(
@@ -49,8 +46,8 @@ def _mock_monthly_variables() -> dict[InternalName, ep.Variable]:
             original_unit=u.deg,
             data=np.tile(np.asarray([10.0, 30.0, 60.0, 90.0]), (time_size, 1)),
         ),
-        "B_Calc": ep.Variable(original_unit=u.nT, data=np.asarray([100.0, 110.0])),
-        "B_Eq": ep.Variable(original_unit=u.nT, data=np.asarray([80.0, 85.0])),
+        "B_Calc": ep.Variable(original_unit=u.nT, data=np.full(time_size, 75.0)),
+        "B_Eq": ep.Variable(original_unit=u.nT, data=np.full(time_size, 50.0)),
         "InvK": ep.Variable(
             original_unit=ep.units.RE * u.G**0.5,
             data=np.full((time_size, alpha_size), 1.5),
@@ -67,8 +64,8 @@ def _mock_monthly_variables() -> dict[InternalName, ep.Variable]:
             original_unit=(u.m * u.kg * u.m / u.s) ** (-3),
             data=np.full((time_size, energy_size, alpha_size), 3.5),
         ),
-        "R_Eq": ep.Variable(original_unit=ep.units.RE, data=np.asarray([5.0, 5.1])),
-        "MLT": ep.Variable(original_unit=u.hour, data=np.asarray([12.0, 13.0])),
+        "R_Eq": ep.Variable(original_unit=ep.units.RE, data=np.full(time_size, 6.0)),
+        "MLT": ep.Variable(original_unit=u.hour, data=np.full(time_size, 12.0)),
         "L_m": ep.Variable(
             original_unit=u.dimensionless_unscaled,
             data=np.full((time_size, alpha_size), 4.5),
@@ -112,11 +109,16 @@ def test_monthly_strategy_saves_mocked_variables_to_netcdf_with_data_standards(
     variables = _mock_monthly_variables()
     start_time = datetime(2013, 1, 1, tzinfo=timezone.utc)
     end_time = datetime(2013, 1, 2, tzinfo=timezone.utc)
-
+    MISSION = "GOES"
+    SATELLITE = "primary"
+    INSTRUMENT = "MAGED"
+    MAG_FIELD = "T89"
     strategy = ep.saving_strategies.MonthlyFileStrategy(
         base_data_path=tmp_path,
-        file_name_stem=data_standard.__class__.__name__.lower(),
-        mag_field="T89",
+        mission=MISSION,
+        satellite=SATELLITE,
+        instrument=INSTRUMENT,
+        mag_field=MAG_FIELD,
         file_format=output_format,
         data_standard=data_standard,
     )
@@ -129,7 +131,12 @@ def test_monthly_strategy_saves_mocked_variables_to_netcdf_with_data_standards(
         time_var=variables["Epoch"],
     )
 
-    output_path = tmp_path / f"{data_standard.__class__.__name__.lower()}_20130101to20130131_T89.{output_format}"
+    output_path = (
+        tmp_path
+        / MISSION
+        / SATELLITE
+        / f"{SATELLITE}_{INSTRUMENT.lower()}_20130101to20130131_{MAG_FIELD}.{output_format}"
+    )
     assert output_path.exists()
 
     loader = {

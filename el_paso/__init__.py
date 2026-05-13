@@ -29,26 +29,6 @@ from el_paso.extract_variables_from_files import extract_variables_from_files, E
 from el_paso.load_indices_solar_wind_parameters import load_indices_solar_wind_parameters
 from el_paso.data_standard import InternalName
 
-# expose RBMDataSet related classes and functions
-from swvo.io.RBMDataSet.custom_enums import (
-    FolderTypeEnum as FolderTypeEnum,
-    FileCadenceEnum as FileCadenceEnum,
-    VariableEnum as VariableEnum,
-    Satellite as Satellite,
-    SatelliteLike as SatelliteLike,
-    SatelliteEnum as SatelliteEnum,
-    Instrument as Instrument,
-    InstrumentEnum as InstrumentEnum,
-    InstrumentLike as InstrumentLike,
-    Mfm as Mfm,
-    MfmEnum as MfmEnum,
-    MfmLike as MfmLike,
-    SatelliteLiteral as SatelliteLiteral,
-    VariableLiteral as VariableLiteral,
-)
-from swvo.io.RBMDataSet.RBMDataSet import RBMDataSet as RBMDataSet
-from swvo.io.RBMDataSet.interp_functions import TargetType as TargetType
-from swvo.io.RBMDataSet.scripts.create_RBSP_line_data import create_RBSP_line_data as create_RBSP_line_data
 
 __all__ = [
     # Public constants

@@ -9,29 +9,30 @@
 from __future__ import annotations
 
 import datetime as dt
-from datetime import timedelta, timezone
+import logging
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import distance
 import numpy as np
-from dateutil.relativedelta import relativedelta
-from numpy.typing import NDArray
-from swvo.io.exceptions import VariableNotFoundError
-from swvo.io.RBMDataSet.utils import (
-    get_file_path_any_format,
+from swvo.io.utils import enforce_utc_timezone
+
+from el_paso.dataset.utils import (
     join_var,
-    load_file_any_format,
     matlab2python,
     read_all_datasets_netcdf,
 )
-from swvo.io.utils import enforce_utc_timezone
 
-from el_paso.saving_strategy import SavingStrategy
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+
+    from el_paso.saving_strategy import SavingStrategy
+
+logger = logging.getLogger(__name__)
 
 
 class DataSet:
-    """RBMDataSet class supporting .mat, .pickle, and .nc file formats.
+    """DataSet class supporting .mat, and .nc file formats.
 
     This unified class handles loading RBM (Radiation Belt Model) data from multiple
     file formats. It can load data either from files or from a dictionary.
@@ -53,70 +54,63 @@ class DataSet:
         End time for file-based loading.
     folder_path : Path, optional
         Base folder path for file-based loading.
-    preferred_extension : Literal["mat", "pickle", "nc"], optional
-        Preferred file extension for file-based loading. Default is "pickle".
+    preferred_extension : Literal["mat", "nc"], optional
+        Preferred file extension for file-based loading. Default is "nc".
     verbose : bool, optional
         Whether to print verbose output. Default is True.
     enable_dict_loading : bool, optional
         Enable dictionary-based loading even in file mode. Default is False.
 
-    Attributes
+    Attributes:
     ----------
     datetime : list[dt.datetime]
-    time : NDArray[np.float64]
-    energy_channels : NDArray[np.float64]
-    alpha_local : NDArray[np.float64]
-    alpha_eq_model : NDArray[np.float64]
-    alpha_eq_real : NDArray[np.float64]
-    InvMu : NDArray[np.float64]
-    InvMu_real : NDArray[np.float64]
-    InvK : NDArray[np.float64]
-    InvV : NDArray[np.float64]
-    Lstar : NDArray[np.float64]
-    Flux : NDArray[np.float64]
-    PSD : NDArray[np.float64]
-    MLT : NDArray[np.float64]
-    B_SM : NDArray[np.float64]
-    B_total : NDArray[np.float64]
-    B_sat : NDArray[np.float64]
-    xGEO : NDArray[np.float64]
-    P : NDArray[np.float64]
-    R0 : NDArray[np.float64]
-    density : NDArray[np.float64]
+    FEDU: NDArray[np.float64]
+    FEDO: NDArray[np.float64]
+    FEIU: NDArray[np.float64]
+    Energy_FEDU: NDArray[np.float64]
+    Epoch: NDArray[np.float64]
+    Alpha: NDArray[np.float64]
+    Alpha_Eq: NDArray[np.float64]
+    Position: NDArray[np.float64]
+    B_Calc: NDArray[np.float64]
+    B_Eq: NDArray[np.float64]
+    L_star: NDArray[np.float64]
+    I: NDArray[np.float64]
+    MLT: NDArray[np.float64]
+    L_m: NDArray[np.float64]
+    PSD: NDArray[np.float64]
+    R_Eq: NDArray[np.float64]
+    InvMu: NDArray[np.float64]
+    InvK: NDArray[np.float64]
 
     """
 
-    _preferred_ext: Literal["mat", "pickle", "nc"]
-
-    # internal names
-    datetime : list[dt.datetime]
-    Epoch : NDArray[np.float64]
-    Energy_FEDU : NDArray[np.float64]
-    Alpha : NDArray[np.float64]
-    Alpha_Eq : NDArray[np.float64]
-    alpha_eq_real : NDArray[np.float64]
-    InvMu : NDArray[np.float64]
-    InvMu_real : NDArray[np.float64]
-    InvK : NDArray[np.float64]
-    InvV : NDArray[np.float64]
-    Lstar : NDArray[np.float64]
-    Flux : NDArray[np.float64]
-    PSD : NDArray[np.float64]
-    MLT : NDArray[np.float64]
-    B_SM : NDArray[np.float64]
-    B_total : NDArray[np.float64]
-    B_sat : NDArray[np.float64]
-    xGEO : NDArray[np.float64]
-    P : NDArray[np.float64]
-    R0 : NDArray[np.float64]
-    density : NDArray[np.float64]
+    datetime: list[dt.datetime]
+    FEDU: NDArray[np.float64]
+    FEDO: NDArray[np.float64]
+    FEIU: NDArray[np.float64]
+    Energy_FEDU: NDArray[np.float64]
+    Epoch: NDArray[np.float64]
+    Alpha: NDArray[np.float64]
+    Alpha_Eq: NDArray[np.float64]
+    Position: NDArray[np.float64]
+    B_Calc: NDArray[np.float64]
+    B_Eq: NDArray[np.float64]
+    L_star: NDArray[np.float64]
+    I: NDArray[np.float64]
+    MLT: NDArray[np.float64]
+    L_m: NDArray[np.float64]
+    PSD: NDArray[np.float64]
+    R_Eq: NDArray[np.float64]
+    InvMu: NDArray[np.float64]
+    InvK: NDArray[np.float64]
 
     def __init__(
         self,
         saving_strategy: SavingStrategy,
         start_time: dt.datetime | None = None,
         end_time: dt.datetime | None = None,
-        preferred_extension: Literal["mat", "pickle", "nc"] = "nc",
+        preferred_extension: Literal["mat", "nc"] = "nc",
         *,
         verbose: bool = True,
         enable_dict_loading: bool = False,
@@ -129,12 +123,13 @@ class DataSet:
         self.saving_strategy = saving_strategy
 
         # For dict-based loading, modify satellite properties
-        if start_time is None and end_time is None and folder_path is None:
+        self._file_loading_mode = True
+        if start_time is None and end_time is None:
             self._file_loading_mode = False
         else:
             # File loading mode: need all parameters
-            if start_time is None or end_time is None or folder_path is None:
-                msg = "For file-based loading, start_time, end_time, and folder_path must all be provided"
+            if start_time is None or end_time is None:
+                msg = "For file-based loading, start_time and end_time must be provided"
                 raise ValueError(msg)
 
             start_time = enforce_utc_timezone(start_time)
@@ -145,20 +140,13 @@ class DataSet:
             self._date_list = self.saving_strategy.get_time_intervals_to_save(start_time, end_time)
             self._enable_dict_loading = enable_dict_loading
             self._netcdf_dataset_cache: dict[Path, dict[str, Any]] = {}
+            self._is_nc_dataset: bool = False
 
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({self.saving_strategy.satellite}, {self.saving_strategy.instrument}, {self.saving_strategy.mag_field})"
-
-    def __str__(self) -> str:
-        return self.__repr__()
-
-    def __dir__(self) -> list[str]:
-        return list(super().__dir__()) + [var.var_name for var in VariableEnum]
-
-    def __getattr__(self, name: str) -> NDArray[np.float64]:
+    def __getattr__(self, name: str) -> NDArray[np.float64]:  # noqa: D105
         # Avoid recursion for internal attributes
         if name.startswith("_"):
-            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+            msg = f"'{self.__class__.__name__}' object has no attribute '{name}'"
+            raise AttributeError(msg)
 
         # Handle computed properties for both modes
         if name == "P":
@@ -172,61 +160,54 @@ class DataSet:
             if len(self.InvK) == 0 or len(self.InvMu) == 0:  # invariants not found
                 self.InvV = np.asarray([])
             else:
-                inv_K_repeated = np.repeat(self.InvK[:, np.newaxis, :], self.InvMu.shape[1], axis=1)
+                inv_K_repeated = np.repeat(self.InvK[:, np.newaxis, :], self.InvMu.shape[1], axis=1)  # noqa: N806
                 self.InvV = self.InvMu * (inv_K_repeated + 0.5) ** 2
             return self.InvV
 
         # check if a sat variable is requested
         # if we find a similar word, suggest that to the user
-        sat_variable = None
         sat_variable, levenstein_info = self.find_similar_variable(name)
-
         if sat_variable is not None and self._file_loading_mode:
             self._load_variable(sat_variable)
             return getattr(self, name)
-
         if not self._file_loading_mode and name in self.possible_variables:
-            raise AttributeError(
+            msg = (
                 f"Attribute '{name}' exists in `VariableLiteral` but has not been set. "
                 "Call `update_from_dict()` before accessing it."
             )
+            raise AttributeError(msg)
 
-        if levenstein_info["min_distance"] <= 2:
-            msg = f"{self.__class__.__name__} object has no attribute {name}. Maybe you meant {levenstein_info['var_name']}?"
+        if levenstein_info["min_distance"] <= 2:  # noqa: PLR2004
+            msg = f"{self.__class__.__name__} object has no attribute {name}. Maybe you meant {levenstein_info['var_name']}?"  # noqa: E501
         else:
             msg = f"{self.__class__.__name__} object has no attribute {name}"
 
         raise AttributeError(msg)
 
-    def load(self, name_or_var: str | VariableEnum) -> None:
-        """Load data into memory"""
+    def load(self, name_or_var: str) -> None:
+        """Load data into memory."""
+        getattr(self, name_or_var)
 
-        if isinstance(name_or_var, VariableEnum):
-            getattr(self, name_or_var.var_name)
-        else:
-            getattr(self, name_or_var)
-
-    def find_similar_variable(self, name: str) -> tuple[None | VariableEnum, dict[str, Any]]:
+    def find_similar_variable(self, name: str) -> tuple[None | str, dict[str, Any]]:  # noqa: D102
         levenstein_info: dict[str, Any] = {"min_distance": 10, "var_name": ""}
         sat_variable = None
-        for var in VariableEnum:
-            if name == var.var_name:
+        for var in self.possible_variables:
+            if name == var:
                 sat_variable = var
                 break
-            else:
-                dist = distance.levenshtein(name, var.var_name)
-                if name.lower() in var.var_name.lower():
-                    dist = 1
+            dist = distance.levenshtein(name, var)
+            if not var:
+                continue
+            if name.lower() in var.lower():
+                dist = 1
 
-                if dist < levenstein_info["min_distance"]:
-                    levenstein_info["min_distance"] = dist
-                    levenstein_info["var_name"] = var.var_name
+            if dist < levenstein_info["min_distance"]:
+                levenstein_info["min_distance"] = dist
+                levenstein_info["var_name"] = var
 
         return sat_variable, levenstein_info
 
-    def update_from_dict(
-        self, source_dict: dict[VariableLiteral, NDArray[np.floating] | list[dt.datetime]]
-    ) -> DataSet:
+    def update_from_dict(self, source_dict: dict[str, NDArray[np.floating] | list[dt.datetime]]) -> DataSet:
         """Get data from data dictionary and update the object.
 
         Parameters
@@ -234,21 +215,21 @@ class DataSet:
         source_dict : dict[str, VariableLiteral]
             Dictionary containing the data to be loaded into the object.
 
-        Returns
+        Returns:
         -------
-        RBMDataSet
-            The updated RBMDataSet object.
+        DataSet
+            The updated DataSet object.
 
-        Raises
+        Raises:
         ------
         VariableNotFoundError
             If a key in the `source_dict` is not a valid `VariableLiteral`.
         RuntimeError
-            If the RBMDataSet is in file loading mode and dictionary loading is not enabled.
+            If the DataSet is in file loading mode and dictionary loading is not enabled.
 
         """
         if self._file_loading_mode and not self._enable_dict_loading:
-            msg = "RBMDataSet is in file loading mode. Cannot update from dictionary. To use dictionary-based loading, set `enable_dict_loading=True` during initialization."
+            msg = "DataSet is in file loading mode. Cannot update from dictionary. To use dictionary-based loading, set `enable_dict_loading=True` during initialization."
             raise RuntimeError(msg)
         for key, value in source_dict.items():
             _, levenstein_info = self.find_similar_variable(key)
@@ -262,47 +243,46 @@ class DataSet:
                 raise VariableNotFoundError(msg)
         return self
 
-    def _check_if_nc_dataset(self) -> bool:
-        does_processed_mat_files_folder_exist = (self._file_path_stem / "Processed_Mat_Files").exists()
-
-        if does_processed_mat_files_folder_exist and self._preferred_ext in ["mat", "pickle"]:
-            return False
-        elif does_processed_mat_files_folder_exist and self._preferred_ext == "nc":
-            # if any .nc files are stored in the file_path_stem, we switch to nc mode
-            return next(self._file_path_stem.glob("*.nc"), None) is not None
-        else:
-            # if the Processed_Mat_Files folder does not exist, it is safe to assume nc mode
-            return True
-
-    def get_satellite_name(self) -> str:
+    def get_satellite_name(self) -> str:  # noqa: D102
         return self.saving_strategy.satellite
 
-    def get_satellite_and_instrument_name(self) -> str:
+    def get_satellite_and_instrument_name(self) -> str:  # noqa: D102
         return self.saving_strategy.satellite + "_" + self.saving_strategy.instrument
 
-    def get_print_name(self) -> str:
+    def get_print_name(self) -> str:  # noqa: D102
         return self.saving_strategy.satellite + " " + self.saving_strategy.instrument
 
-    def _load_variable(self, requested_name: str) -> None:
-        """Load variable from .mat, .pickle, or .nc files."""
+    def _load_variable(self, requested_name: str) -> None:  # noqa: C901, PLR0912, PLR0915
+        """Load variable from .mat, or .nc files."""
         loaded_var_arrs: dict[str, NDArray[np.number]] = {}
         var_names_stored: list[str] = []
 
         # 1. Handle Computed Values
         if requested_name == "InvV":
-            inv_K_repeated = np.repeat(self.InvK[:, np.newaxis, :], self.InvMu.shape[1], axis=1)
+            inv_K_repeated = np.repeat(self.InvK[:, np.newaxis, :], self.InvMu.shape[1], axis=1)  # noqa: N806
             self.InvV = self.InvMu * (inv_K_repeated + 0.5) ** 2
             return
         if requested_name == "P":
             self.P = ((self.MLT + 12) / 12 * np.pi) % (2 * np.pi)
             return
 
-        if requested_name in args(InternalName):
+        internal_name = self.saving_strategy.data_standard.get_internal_name(requested_name)
+        if not internal_name:
             internal_name = requested_name
-        else:
-            internal_name = self.saving_strategy.data_standard.get_internal_name(requested_name)
+        if requested_name == "datetime":
+            internal_name = "Epoch"
 
-        output_file = self.saving_strategy.get_output_file(internal_name=internal_name)
+        output_file = self.saving_strategy.get_output_file(internal_name=internal_name)  # ty:ignore[invalid-argument-type]
+        if requested_name == "datetime" and output_file is None:
+            time_key = self.saving_strategy.data_standard.get_full_var_name("Epoch")
+            output_file = next(
+                (
+                    candidate_output_file
+                    for candidate_output_file in self.saving_strategy.output_files
+                    if time_key in candidate_output_file.names_to_save
+                ),
+                None,
+            )
 
         if output_file is None:
             msg = "This var name is not part of the chosen saving strategy!"
@@ -310,34 +290,10 @@ class DataSet:
 
         # 2. Iterate through date ranges
         for time_start, time_end in self._date_list:
-            # if self._folder_type != FolderTypeEnum.DataServer:
-            #     raise NotImplementedError("Only DataServer folder type is currently supported.")
-
             full_file_path = self.saving_strategy.get_file_path(time_start, time_end, output_file)
-            file_name_no_format = full_file_path.stem
 
-            # 3. Handle File Pathing & Loading based on format
-            if self._is_nc_dataset:
-                # NOT IMPLEMENTED
-                file_name = f"{self._file_name_stem}{date_str}_{self._mfm.mfm_name}.nc"
-                full_file_path = self._file_path_stem / file_name
+            if self._preferred_ext == "nc":
                 file_content = self._get_cached_datasets_netcdf(full_file_path)
-            else:
-                # file_name_no_format = f"{self._file_name_stem}{date_str}_{var.mat_file_prefix}"
-                # if var.mat_has_B:
-                #     file_name_no_format += f"_n4_4_{self._mfm.mfm_name}"
-                # file_name_no_format += "_ver4"
-
-                full_file_path = get_file_path_any_format(
-                    self.saving_strategy.base_data_path, file_name_no_format, self._preferred_ext, self._is_nc_dataset
-                )
-                if full_file_path is None:
-                    print(f"File not found: {file_name_no_format}")
-                    continue
-
-                if self._verbose:
-                    print(f"\tLoading {full_file_path}")
-                file_content = load_file_any_format(full_file_path)
 
             if not file_content:
                 continue
@@ -346,12 +302,11 @@ class DataSet:
 
             # 4. Process Datetimes
             raw_times = file_content[time_key]
-            if self._is_nc_dataset:
-                # NetCDF timestamp logic
+            if self.saving_strategy.data_standard.variable_infos["Epoch"].unit.to_string() == "posixtime":
                 datetimes = np.asarray(
                     [dt.datetime.fromtimestamp(t.astype(np.int64), tz=dt.timezone.utc) for t in raw_times]
                 )
-            else:
+            elif self.saving_strategy.data_standard.variable_infos["Epoch"].unit.to_string() == "datenum":
                 # Matlab logic
                 datetimes = np.asarray([matlab2python(t) for t in raw_times])
 
@@ -370,56 +325,47 @@ class DataSet:
 
                 # Time-dependent trimming
                 if var_arr.shape[0] == correct_time_idx.shape[0]:
-                    var_arr = var_arr[correct_time_idx.reshape(-1), ...]
+                    var_arr = var_arr[correct_time_idx.reshape(-1), ...]  # noqa: PLW2901
                     joined_value = join_var(loaded_var_arrs[key], var_arr) if key in loaded_var_arrs else var_arr
                 else:
                     joined_value = var_arr
 
-                loaded_var_arrs[key] = joined_value  # type: ignore
+                loaded_var_arrs[key] = joined_value  # ty:ignore[invalid-assignment]
                 if key not in var_names_stored:
                     var_names_stored.append(key)
 
         # 6. Final Assignment to Self
         if requested_name not in var_names_stored:
-            setattr(self, var.var_name, np.asarray([]))
+            setattr(self, requested_name, np.asarray([]))
 
         for var_name in var_names_stored:
             val = list(loaded_var_arrs[var_name]) if var_name == "datetime" else loaded_var_arrs[var_name]
 
-            if self._is_nc_dataset:
-                # NetCDF name mapping logic
-                rbm_names = self._get_rbm_name_for_nc(var_name, self._mfm.mfm_name)  # type: ignore
-                if rbm_names:
-                    for name in rbm_names if isinstance(rbm_names, list) else [rbm_names]:
-                        setattr(self, name, val)
-            else:
+            internal_name = self.saving_strategy.data_standard.get_internal_name(standard_name=var_name)
 
-                internal_name = self.saving_strategy.data_standard.get_internal_name(standard_name=var_name)
-
-                setattr(self, var_name, val) # set standard name
-                setattr(self, internal_name, val) # set standard name
-
-
+            setattr(self, var_name, val)  # set standard name
+            if not internal_name:
+                continue
+            setattr(self, internal_name, val)  # set standard name
 
     def _get_cached_datasets_netcdf(self, file_path: Path) -> dict[str, Any]:
         """Return cached parsed NetCDF content for a monthly file."""
         file_path = Path(file_path)
         if file_path not in self._netcdf_dataset_cache:
             if self._verbose:
-                print(f"\tLoading {file_path}")
+                logger.info(f"Loading {file_path}")
 
             self._netcdf_dataset_cache[file_path] = read_all_datasets_netcdf(file_path)
         return self._netcdf_dataset_cache[file_path]
 
     def get_loaded_variables(self) -> list[str]:
         """Get a list of currently loaded variable names."""
-        loaded_vars = []
-        for var in VariableEnum:
-            if var.var_name in self.__dict__:
-                loaded_vars.append(var.var_name)
-        return loaded_vars
+        return [var for var in self.possible_variables if var in self.__dict__]
 
-    def __eq__(self, other: RBMDataSet) -> bool:  # ty :ignore[invalid-method-override]
+    def __eq__(self, other: DataSet) -> bool:  # ty :ignore[invalid-method-override]  # noqa: D105
+
+        if self.saving_strategy.data_standard != other.saving_strategy.data_standard:
+            return False
         if (
             self._file_loading_mode != other._file_loading_mode
             or self._satellite != other._satellite
@@ -432,11 +378,21 @@ class DataSet:
 
         return len(different_vars) == 0
 
-    def get_different_variables(self, rbm_other: RBMDataSet) -> list[str]:
+    def get_different_variables(self, other: DataSet) -> list[str]:
+        """Compare the currently loaded variables in this DataSet with another DataSet and return a list of variable names that are different.
+
+        Args:
+            other (DataSet): Another DataSet instance to compare against.
+
+        Returns:
+            list[str]: A list of variable names that are different between the two DataSet instances.
+            This includes variables that are present in one instance but not the other, as well as variables that are
+            present in both instances but have different values or shapes.
+        """  # noqa: E501
         different_vars: list[str] = []
 
         self_vars = self.get_loaded_variables()
-        other_vars = rbm_other.get_loaded_variables()
+        other_vars = other.get_loaded_variables()
 
         for var in set(self_vars + other_vars):
             if var not in other_vars or var not in self_vars:
@@ -444,14 +400,14 @@ class DataSet:
                 continue
 
             self_var = getattr(self, var)
-            other_var = getattr(rbm_other, var)
+            other_var = getattr(other, var)
 
             if not isinstance(other_var, type(self_var)):
                 different_vars.append(var)
                 continue
 
             if isinstance(self_var, list):
-                if len(self_var) != len(other_var) or any(a != b for a, b in zip(self_var, other_var)):
+                if len(self_var) != len(other_var) or any(a != b for a, b in zip(self_var, other_var, strict=True)):
                     different_vars.append(var)
                     continue
             elif isinstance(self_var, np.ndarray):
@@ -464,7 +420,7 @@ class DataSet:
 
         return different_vars
 
-    from .bin_and_interpolate_to_model_grid import bin_and_interpolate_to_model_grid  # noqa: I001
-    from .identify_orbits import identify_orbits
-    from .interp_functions import interp_flux, interp_psd
-    from .linearize_trajectories import linearize_trajectories
+    from .bin_and_interpolate_to_model_grid import bin_and_interpolate_to_model_grid  # noqa: PLC0415
+    from .identify_orbits import identify_orbits  # noqa: PLC0415
+    from .interp_functions import interp_flux, interp_psd  # noqa: PLC0415
+    from .linearize_trajectories import linearize_trajectories  # noqa: PLC0415

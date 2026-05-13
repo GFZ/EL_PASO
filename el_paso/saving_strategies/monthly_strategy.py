@@ -88,7 +88,6 @@ class MonthlyFileStrategy(SavingStrategy):
 
         if data_standard is None:
             data_standard = ep.data_standards.PRBEMStandard()
-        self.standard = data_standard
         self.data_standard = data_standard
 
         self.output_files = [
@@ -120,8 +119,8 @@ class MonthlyFileStrategy(SavingStrategy):
 
         return normalized
 
-    def _get_standard_output_file_entries(self) -> list[InternalName]:
-        """Return the standard PRBEM monthly variable list."""
+    def _get_output_file_entries(self) -> list[InternalName]:
+        """Return the standard variable list plus user-defined custom variables."""
         return [
             "FEDU",
             "Epoch",
@@ -139,11 +138,6 @@ class MonthlyFileStrategy(SavingStrategy):
             "L_m",
             "L_star",
         ]
-
-    def _get_output_file_entries(self) -> list[InternalName]:
-        """Return the standard variable list plus user-defined custom variables."""
-        entries = self._get_standard_output_file_entries()
-        return entries
 
     def _sanitize_dimension_name(self, variable_name: str) -> str:
         """Return a NetCDF-safe root dimension name derived from a variable path."""
@@ -188,15 +182,13 @@ class MonthlyFileStrategy(SavingStrategy):
         return self.base_data_path / self.mission.upper() / self.satellite.lower()
 
     def get_file_name_stem(self) -> str:
-        return self.satellite.lower() + "_" + self.instrument.lower() + "_"
+        return self.satellite.lower() + "_" + self.instrument.lower()
 
     def get_file_path(self, interval_start: datetime, interval_end: datetime, output_file: OutputFile) -> Path:  # noqa: ARG002
         """Generate the monthly file path for the configured format."""
         start_year_month_day = interval_start.strftime("%Y%m%d")
         end_year_month_day = interval_end.strftime("%Y%m%d")
-        file_name = (
-            f"{self.get_file_name_stem()}_{start_year_month_day}to{end_year_month_day}_{self.mag_field}{self.file_format}"
-        )
+        file_name = f"{self.get_file_name_stem()}_{start_year_month_day}to{end_year_month_day}_{self.mag_field}{self.file_format}"
 
         return self.get_file_path_stem() / file_name
 
@@ -208,13 +200,11 @@ class MonthlyFileStrategy(SavingStrategy):
         first_call_of_interval: bool,
     ) -> ep.Variable:
         """Standardize a variable through the configured data standard."""
-        return self.standard.standardize_variable(
+        return self.data_standard.standardize_variable(
             internal_name, variable, reset_consistency_check=first_call_of_interval
         )
 
-    def save_single_file(
-        self, file_path: Path, dict_to_save: DataDict, *, append: bool = False
-    ) -> None:
+    def save_single_file(self, file_path: Path, dict_to_save: DataDict, *, append: bool = False) -> None:
         """Save one monthly file, optionally appending to an existing file."""
         file_path.parent.mkdir(parents=True, exist_ok=True)
         format_name = self._normalize_file_format(file_path.suffix)
@@ -229,12 +219,10 @@ class MonthlyFileStrategy(SavingStrategy):
             self.append_data(file_path, dict_to_save)
             logger.info(f"Saving file {file_path.resolve()}")
             return
-
+        print(file_path)
         writer(file_path, dict_to_save)
 
-    def append_data(
-        self, file_path: Path, data_dict_to_save: DataDict
-    ) -> DataDict:
+    def append_data(self, file_path: Path, data_dict_to_save: DataDict) -> DataDict:
         """Append data to any supported monthly file format.
 
         Existing data is loaded with the loader for ``file_path.suffix``, merged
@@ -245,7 +233,7 @@ class MonthlyFileStrategy(SavingStrategy):
             msg = f"Cannot append: file does not exist: {file_path}"
             raise FileNotFoundError(msg)
 
-        time_key = self.standard.get_full_var_name("Epoch")
+        time_key = self.data_standard.get_full_var_name("Epoch")
 
         if time_key not in data_dict_to_save:
             msg = f"Cannot append: missing {time_key} in data_dict_to_save."
@@ -304,7 +292,7 @@ class MonthlyFileStrategy(SavingStrategy):
                 return arr.reshape(-1)
             return arr
 
-        time_key = self.standard.get_full_var_name("Epoch")
+        time_key = self.data_standard.get_full_var_name("Epoch")
 
         if time_key not in existing_data or np.asarray(existing_data[time_key]).size == 0:
             return new_data
@@ -381,8 +369,10 @@ class MonthlyFileStrategy(SavingStrategy):
                 if not isinstance(attrs, dict):
                     continue
                 data["metadata"][var_key] = {
-                    k: v.item() if isinstance(v, np.ndarray) and v.ndim == 0
-                    else str(v) if isinstance(v, np.ndarray)
+                    k: v.item()
+                    if isinstance(v, np.ndarray) and v.ndim == 0
+                    else str(v)
+                    if isinstance(v, np.ndarray)
                     else v
                     for k, v in attrs.items()
                 }
@@ -403,7 +393,7 @@ class MonthlyFileStrategy(SavingStrategy):
             if internal_name == "metadata":
                 continue
 
-            path = self.standard.get_full_var_name(internal_name)
+            path = self.data_standard.get_full_var_name(internal_name)
             mat_var_name = path.replace("/", "__")
 
             value_to_write = value
@@ -453,7 +443,7 @@ class MonthlyFileStrategy(SavingStrategy):
             for internal_name, value in data_dict.items():
                 if internal_name == "metadata":
                     continue
-                path = self.standard.get_full_var_name(internal_name)
+                path = self.data_standard.get_full_var_name(internal_name)
 
                 path_parts = path.split("/")
                 groups = path_parts[:-1]
@@ -523,7 +513,7 @@ class MonthlyFileStrategy(SavingStrategy):
         for standard_name in loaded_data:
             standard_names: list[InternalName] = [
                 internal_name
-                for internal_name, var_info in self.standard.variable_infos.items()
+                for internal_name, var_info in self.data_standard.variable_infos.items()
                 if var_info.standard_name == standard_name
             ]
 
@@ -558,9 +548,7 @@ class MonthlyFileStrategy(SavingStrategy):
 
         return dimensions
 
-    def _write_data_to_netcdf_file(
-        self, file: nC.Dataset | nC.Group, data_dict: DataDict
-    ) -> None:
+    def _write_data_to_netcdf_file(self, file: nC.Dataset | nC.Group, data_dict: DataDict) -> None:
         """Write variables to a NetCDF file or group."""
         for mfs_name, value in data_dict.items():
             if mfs_name == "metadata":
@@ -570,7 +558,7 @@ class MonthlyFileStrategy(SavingStrategy):
             if value_array.size == 0:
                 continue
 
-            path = self.standard.get_full_var_name(mfs_name)
+            path = self.data_standard.get_full_var_name(mfs_name)
 
             path_parts = path.split("/")
             groups = path_parts[:-1]
@@ -583,7 +571,7 @@ class MonthlyFileStrategy(SavingStrategy):
                 else:
                     curr_hierarchy = curr_hierarchy.groups[group]
 
-            dimensions = self.standard.get_dependencies(mfs_name)
+            dimensions = self.data_standard.get_dependencies(mfs_name)
             data_set = typing.cast(
                 "nC.Variable[Any]",
                 curr_hierarchy.createVariable(
@@ -711,7 +699,7 @@ class MonthlyFileStrategy(SavingStrategy):
                     # Resolve the canonical name via the data standard, matching H5/NC behaviour.
                     # CDF does not support '/' in variable names, so we replace path separators
                     # with '__' to preserve hierarchy information without violating the spec.
-                    path = self.standard.get_full_var_name(internal_name)
+                    path = self.data_standard.get_full_var_name(internal_name)
                     cdf_var_name = path
                     value_to_write = var_data
                     if isinstance(var_data, np.ndarray) and var_data.ndim == 2 and var_data.shape[1] == 1:
