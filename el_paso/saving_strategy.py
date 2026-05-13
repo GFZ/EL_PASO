@@ -14,7 +14,7 @@ import numpy as np
 from astropy import units as u  # type: ignore[reportMissingTypeStubs]
 
 from el_paso import Variable
-from el_paso.data_standard import InternalName
+from el_paso.data_standard import DataStandard, InternalName
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from datetime import datetime
     from pathlib import Path
 
+    from el_paso.processing.magnetic_field_utils import MagneticFieldLiteral
 
 class OutputFile(NamedTuple):
     """Represents an output file with its name and a list of variable names to save.
@@ -66,6 +67,12 @@ class SavingStrategy(ABC):
     """
 
     output_files: list[OutputFile]
+    data_standard: DataStandard[str]
+    base_data_path: Path
+    satellite: str
+    mission: str
+    instrument: str
+    mag_field: MagneticFieldLiteral
 
     @abstractmethod
     def get_time_intervals_to_save(self, start_time: datetime, end_time: datetime) -> list[tuple[datetime, datetime]]:
@@ -121,6 +128,14 @@ class SavingStrategy(ABC):
             append (bool, optional): If True, data will be appended to existing files rather than overwriting them.
                     Defaults to False.
         """
+
+    @abstractmethod
+    def get_file_path_stem(self) -> Path:
+        pass
+
+    @abstractmethod
+    def get_file_name_stem(self) -> str:
+        pass
 
     def get_target_variables(
         self,
@@ -189,3 +204,20 @@ class SavingStrategy(ABC):
                     return None
 
         return target_variables
+
+    def get_output_file(self, *, standard_name: str|None = None, internal_name: InternalName|None = None) -> OutputFile | None:
+
+        if internal_name is None:
+            if standard_name is None:
+                msg = "Either standard_name or internal_name must be provided!"
+                raise ValueError(msg)
+            internal_name = self.data_standard.get_internal_name(standard_name)
+
+        if internal_name is None:
+            return None
+
+        for output_file in self.output_files:
+            if internal_name in output_file.names_to_save:
+                return output_file
+
+        return None

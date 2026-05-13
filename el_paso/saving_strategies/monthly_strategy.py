@@ -52,7 +52,9 @@ class MonthlyFileStrategy(SavingStrategy):
     def __init__(
         self,
         base_data_path: str | Path,
-        file_name_stem: str,
+        mission: str,
+        satellite: str,
+        instrument: str,
         mag_field: MagneticFieldLiteral,
         file_format: MFSFormats = "h5",
         data_standard: DataStandard[Any] | None = None,
@@ -77,7 +79,9 @@ class MonthlyFileStrategy(SavingStrategy):
                 all variables in ``output_files``.
         """
         self.base_data_path = Path(base_data_path)
-        self.file_name_stem = file_name_stem
+        self.mission = mission
+        self.satellite = satellite
+        self.instrument = instrument
         self.mag_field = mag_field
         self.file_format = self._normalize_file_format(file_format)
         self.root_metadata = root_metadata
@@ -180,15 +184,21 @@ class MonthlyFileStrategy(SavingStrategy):
 
         return time_intervals
 
+    def get_file_path_stem(self) -> Path:
+        return self.base_data_path / self.mission.upper() / self.satellite.lower()
+
+    def get_file_name_stem(self) -> str:
+        return self.satellite.lower() + "_" + self.instrument.lower() + "_"
+
     def get_file_path(self, interval_start: datetime, interval_end: datetime, output_file: OutputFile) -> Path:  # noqa: ARG002
         """Generate the monthly file path for the configured format."""
         start_year_month_day = interval_start.strftime("%Y%m%d")
         end_year_month_day = interval_end.strftime("%Y%m%d")
         file_name = (
-            f"{self.file_name_stem}_{start_year_month_day}to{end_year_month_day}_{self.mag_field}{self.file_format}"
+            f"{self.get_file_name_stem()}_{start_year_month_day}to{end_year_month_day}_{self.mag_field}{self.file_format}"
         )
 
-        return self.base_data_path / file_name
+        return self.get_file_path_stem() / file_name
 
     def standardize_variable(
         self,

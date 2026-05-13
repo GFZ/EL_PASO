@@ -52,6 +52,13 @@ class DataStandard(ABC, Generic[T]):
 
     variable_infos: dict[InternalName, VariableInfo[T]]
 
+    def get_internal_name(self, standard_name: T) -> InternalName | None:
+        for internal_name, var_info in self.variable_infos.items():
+            if var_info.standard_name == standard_name:
+                return internal_name
+
+        return None
+
     def get_full_var_name(self, internal_name: InternalName) -> T:
         return self.variable_infos[internal_name].standard_name
 
