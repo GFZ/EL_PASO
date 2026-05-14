@@ -17,6 +17,7 @@ import distance
 import numpy as np
 from swvo.io.utils import enforce_utc_timezone
 
+import el_paso as ep
 from el_paso.dataset.utils import (
     join_var,
     matlab2python,
@@ -26,6 +27,7 @@ from el_paso.dataset.utils import (
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
+    from el_paso.data_standard import InternalName
     from el_paso.saving_strategy import SavingStrategy
 
 logger = logging.getLogger(__name__)
@@ -84,26 +86,6 @@ class DataSet:
     InvK: NDArray[np.float64]
 
     """
-
-    datetime: list[dt.datetime]
-    FEDU: NDArray[np.float64]
-    FEDO: NDArray[np.float64]
-    FEIU: NDArray[np.float64]
-    Energy_FEDU: NDArray[np.float64]
-    Epoch: NDArray[np.float64]
-    Alpha: NDArray[np.float64]
-    Alpha_Eq: NDArray[np.float64]
-    Position: NDArray[np.float64]
-    B_Calc: NDArray[np.float64]
-    B_Eq: NDArray[np.float64]
-    L_star: NDArray[np.float64]
-    I: NDArray[np.float64]
-    MLT: NDArray[np.float64]
-    L_m: NDArray[np.float64]
-    PSD: NDArray[np.float64]
-    R_Eq: NDArray[np.float64]
-    InvMu: NDArray[np.float64]
-    InvK: NDArray[np.float64]
 
     def __init__(
         self,
@@ -188,6 +170,10 @@ class DataSet:
         """Load data into memory."""
         getattr(self, name_or_var)
 
+    def get_var_by_internal_name(self, internal_name: InternalName):
+        standard_name = self.saving_strategy.data_standard.get_full_var_name(internal_name)
+        return getattr(self, standard_name)
+
     def find_similar_variable(self, name: str) -> tuple[None | str, dict[str, Any]]:  # noqa: D102
         levenstein_info: dict[str, Any] = {"min_distance": 10, "var_name": ""}
         sat_variable = None
@@ -266,13 +252,10 @@ class DataSet:
             self.P = ((self.MLT + 12) / 12 * np.pi) % (2 * np.pi)
             return
 
-        internal_name = self.saving_strategy.data_standard.get_internal_name(requested_name)
-        if not internal_name:
-            internal_name = requested_name
         if requested_name == "datetime":
-            internal_name = "Epoch"
+            requested_name = self.saving_strategy.data_standard.get_full_var_name("Epoch")
 
-        output_file = self.saving_strategy.get_output_file(internal_name=internal_name)  # ty:ignore[invalid-argument-type]
+        output_file = self.saving_strategy.get_output_file(standard_name=requested_name)  # ty:ignore[invalid-argument-type]
         if requested_name == "datetime" and output_file is None:
             time_key = self.saving_strategy.data_standard.get_full_var_name("Epoch")
             output_file = next(
@@ -302,13 +285,22 @@ class DataSet:
 
             # 4. Process Datetimes
             raw_times = file_content[time_key]
-            if self.saving_strategy.data_standard.variable_infos["Epoch"].unit.to_string() == "posixtime":
-                datetimes = np.asarray(
-                    [dt.datetime.fromtimestamp(t.astype(np.int64), tz=dt.timezone.utc) for t in raw_times]
-                )
-            elif self.saving_strategy.data_standard.variable_infos["Epoch"].unit.to_string() == "datenum":
-                # Matlab logic
-                datetimes = np.asarray([matlab2python(t) for t in raw_times])
+            time_unit = self.saving_strategy.data_standard.variable_infos["Epoch"].unit
+
+            posix_times = (raw_times * time_unit).to_value(ep.units.posixtime)
+            datetimes = np.asarray(
+                [dt.datetime.fromtimestamp(t.astype(np.int64), tz=dt.timezone.utc) for t in posix_times]
+            )
+
+            # raw_times = file_content[time_key]
+
+            # if self.saving_strategy.data_standard.variable_infos["Epoch"].unit == ep.units.posixtime:
+            #     datetimes = np.asarray(
+            #         [dt.datetime.fromtimestamp(t.astype(np.int64), tz=dt.timezone.utc) for t in raw_times]
+            #     )
+            # elif self.saving_strategy.data_standard.variable_infos["Epoch"].unit == ep.units.datenum:
+            #     # Matlab logic
+            #     datetimes = np.asarray([matlab2python(t) for t in raw_times])
 
             file_content["datetime"] = datetimes
             correct_time_idx = (datetimes >= self._start_time) & (datetimes <= self._end_time)
@@ -340,13 +332,7 @@ class DataSet:
 
         for var_name in var_names_stored:
             val = list(loaded_var_arrs[var_name]) if var_name == "datetime" else loaded_var_arrs[var_name]
-
-            internal_name = self.saving_strategy.data_standard.get_internal_name(standard_name=var_name)
-
             setattr(self, var_name, val)  # set standard name
-            if not internal_name:
-                continue
-            setattr(self, internal_name, val)  # set standard name
 
     def _get_cached_datasets_netcdf(self, file_path: Path) -> dict[str, Any]:
         """Return cached parsed NetCDF content for a monthly file."""

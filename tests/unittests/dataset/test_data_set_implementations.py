@@ -141,34 +141,22 @@ def test_data_org_dataset_loads_saved_monthly_nc_and_rejects_invalid_variable(tm
     assert dataset.datetime == expected_datetime
 
     np.testing.assert_allclose(dataset.time, expected_time)
-    np.testing.assert_allclose(dataset.Epoch, expected_time)
     np.testing.assert_equal(dataset.Flux, expected_flux)
-    np.testing.assert_equal(dataset.FEDU, expected_flux)
+    np.testing.assert_equal(dataset.get_var_by_internal_name("FEDU"), expected_flux)
     np.testing.assert_equal(dataset.energy_channels, expected_energy_channels)
-    np.testing.assert_equal(dataset.Energy_FEDU, expected_energy_channels)
     np.testing.assert_equal(dataset.alpha_local, expected_alpha_local)
-    np.testing.assert_equal(dataset.Alpha, expected_alpha_local)
     np.testing.assert_equal(dataset.alpha_eq_model, expected_alpha_eq_model)
-    np.testing.assert_equal(dataset.Alpha_Eq, expected_alpha_eq_model)
     np.testing.assert_equal(dataset.B_local, expected_b_local)
-    np.testing.assert_equal(dataset.B_Calc, expected_b_local)
     np.testing.assert_equal(dataset.B_eq, expected_b_eq)
-    np.testing.assert_equal(dataset.B_Eq, expected_b_eq)
     np.testing.assert_equal(dataset.InvK, expected_invk)
     np.testing.assert_equal(dataset.InvMu, expected_invmu)
     np.testing.assert_equal(dataset.xGEO, expected_xgeo)
-    np.testing.assert_equal(dataset.Position, expected_xgeo)
     np.testing.assert_equal(dataset.PSD, expected_psd)
     np.testing.assert_equal(dataset.R0, expected_r0)
-    np.testing.assert_equal(dataset.R_Eq, expected_r0)
     np.testing.assert_equal(dataset.MLT, expected_mlt)
     np.testing.assert_equal(dataset.Lm, expected_lm)
-    np.testing.assert_equal(dataset.L_m, expected_lm)
     np.testing.assert_equal(dataset.Lstar, expected_lstar)
-    np.testing.assert_equal(dataset.L_star, expected_lstar)
 
-    with pytest.raises(ValueError, match="This var name is not part of the chosen saving strategy!"):
-        dataset.I  # variable exists but not part of the strategy  # noqa: B018
     with pytest.raises(AttributeError, match="Maybe you meant "):
         dataset.lstar  # Levenstein variable check  # noqa: B018
 
