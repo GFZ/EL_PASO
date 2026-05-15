@@ -5,6 +5,7 @@
 
 import numpy as np
 import pytest
+from astropy import units as u
 
 import el_paso as ep
 from el_paso.processing import compute_pitch_angles_for_telescopes
@@ -33,9 +34,9 @@ def test_goes_pitch_angles_basic() -> None:
     tele_alpha_angle = np.array([0., 0., 0., 0., 0.])
     tele_beta_angle = np.array([-35., 35., -70., 0, 70.])
 
-    b_var = ep.Variable(data=b_rot, original_unit="nT")
-    alpha_angles_var = ep.Variable(data=tele_alpha_angle, original_unit="deg")
-    beta_angles_var = ep.Variable(data=tele_beta_angle, original_unit="deg")
+    b_var = ep.Variable(data=b_rot, original_unit=u.nT)
+    alpha_angles_var = ep.Variable(data=tele_alpha_angle, original_unit=u.deg)
+    beta_angles_var = ep.Variable(data=tele_beta_angle, original_unit=u.deg)
 
     pitch_angles = compute_pitch_angles_for_telescopes(b_var, alpha_angles_var, beta_angles_var)
 

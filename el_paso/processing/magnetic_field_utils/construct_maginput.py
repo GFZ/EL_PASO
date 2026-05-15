@@ -71,7 +71,7 @@ MagInputKeys = Literal[
 
 @cache
 def construct_maginput(
-    time_var: ep.Variable, magnetic_field: MagneticField, indices_solar_wind: dict[str, ep.Variable] | None = None
+    time_var: ep.Variable, magnetic_field: MagneticField, indices_solar_wind: dict[SW_Index, ep.Variable] | None = None
 ) -> dict[MagInputKeys, NDArray[np.float64]]:
     """Construct the basic magnetospheric input parameters array.
 
@@ -104,7 +104,7 @@ def construct_maginput(
     end_time = datetime.fromtimestamp(time[-1], tz=timezone.utc)
 
     if indices_solar_wind is None:
-        indices_solar_wind = {}
+        indices_solar_wind: dict[SW_Index, ep.Variable] = {}
 
     kext = magnetic_field.kext()
 

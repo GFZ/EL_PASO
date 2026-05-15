@@ -8,7 +8,7 @@ from astropy import units as u  # type: ignore[reportMissingTypeStubs]
 
 import el_paso as ep
 from el_paso.data_standard import ConsistencyCheck, DataStandard, VariableInfo
-from el_paso.typing import PRBEMName, InternalName
+from el_paso.typing import InternalName, PRBEMName
 from el_paso.utils import assert_n_dim
 
 logger = logging.getLogger("__name__")
@@ -28,7 +28,7 @@ class PRBEMStandard(DataStandard[PRBEMName]):
         """Initializes the PRBEMStandard with a ConsistencyCheck object."""
         self.consistency_check = ConsistencyCheck()
 
-        self.variable_infos = {
+        self.variable_infos: dict[str, VariableInfo[PRBEMName]] = {
             "Epoch": VariableInfo[PRBEMName]("Epoch", "Posix Time", ep.units.posixtime, dependencies=["Epoch"]),
             "FEDU": VariableInfo[PRBEMName](
                 "FEDU",
@@ -86,10 +86,10 @@ class PRBEMStandard(DataStandard[PRBEMName]):
     def get_full_var_name(self, internal_name: InternalName) -> PRBEMName:
         return internal_name
 
-    def get_dependencies(self, internal_name: InternalName) -> list[InternalName]:
+    def get_dependencies(self, internal_name: InternalName) -> list[str]:
         return self.variable_infos[internal_name].dependencies
 
-    def standardize_variable(  # noqa: C901, PLR0912, PLR0915
+    def standardize_variable(
         self, internal_name: InternalName, variable: ep.Variable, *, reset_consistency_check: bool
     ) -> ep.Variable:
         """Standardizes a variable based on its specified standard name.
@@ -123,109 +123,5 @@ class PRBEMStandard(DataStandard[PRBEMName]):
             variable.metadata.description = variable_info.description
         assert_n_dim(variable, len(variable_info.dependencies), internal_name)
         self.consistency_check.check(variable.get_data().shape, variable_info.dependencies, internal_name)
-
-        # if "FEDU" in standard_name:
-        #     variable.convert_to_unit((u.cm**2 * u.s * u.sr * u.keV) ** (-1))  # type: ignore[reportUnknownArgumentType]
-
-        #     assert_n_dim(variable, 3, standard_name)
-        #     shape = variable.get_data().shape
-        #     self.consistency_check.check_time_size(shape[0], standard_name)
-        #     self.consistency_check.check_energy_size(shape[1], standard_name)
-        #     self.consistency_check.check_pitch_angle_size(shape[2], standard_name)
-
-        #     if len(variable.metadata.description) == 0:
-        #         variable.metadata.description = "Processed unidirectional differential electron flux"
-
-        # elif "FEDO" in standard_name:
-        #     variable.convert_to_unit((u.cm**2 * u.s * u.sr * u.keV) ** (-1))  # type: ignore[reportUnknownArgumentType]
-
-        #     assert_n_dim(variable, 2, standard_name)
-        #     shape = variable.get_data().shape
-        #     self.consistency_check.check_time_size(shape[0], standard_name)
-        #     self.consistency_check.check_energy_size(shape[1], standard_name)
-
-        #     if len(variable.metadata.description) == 0:
-        #         variable.metadata.description = "Processed omnidirectional differential electron flux"
-
-        # elif "alpha" in standard_name:
-        #     variable.convert_to_unit(u.radian)  # type: ignore[reportUnknownArgumentType]
-
-        #     assert_n_dim(variable, 2, standard_name)
-        #     shape = variable.get_data().shape
-        #     self.consistency_check.check_time_size(shape[0], standard_name)
-        #     self.consistency_check.check_pitch_angle_size(shape[1], standard_name)
-
-        # elif "energy" in standard_name:
-        #     variable.convert_to_unit(u.MeV)  # type: ignore[reportUnknownArgumentType]
-
-        #     assert_n_dim(variable, 2, standard_name)
-        #     shape = variable.get_data().shape
-        #     self.consistency_check.check_time_size(shape[0], standard_name)
-        #     self.consistency_check.check_energy_size(shape[1], standard_name)
-
-        # elif "xGEO" in standard_name:
-        #     variable.convert_to_unit(ep.units.RE)
-
-        #     assert_n_dim(variable, 2, standard_name)
-        #     self.consistency_check.check_time_size(variable.get_data().shape[0], standard_name)
-
-        # elif "MLT" in standard_name:
-        #     variable.convert_to_unit(u.hour)  # type: ignore[reportUnknownArgumentType]
-
-        #     assert_n_dim(variable, 1, standard_name)
-        #     self.consistency_check.check_time_size(variable.get_data().shape[0], standard_name)
-
-        # elif "R0" in standard_name:
-        #     variable.convert_to_unit(ep.units.RE)
-
-        #     assert_n_dim(variable, 1, standard_name)
-        #     self.consistency_check.check_time_size(variable.get_data().shape[0], standard_name)
-
-        # elif "Lstar" in standard_name or "lm" in standard_name:
-        #     variable.convert_to_unit(u.dimensionless_unscaled)
-
-        #     assert_n_dim(variable, 2, standard_name)
-        #     shape = variable.get_data().shape
-        #     self.consistency_check.check_time_size(shape[0], standard_name)
-        #     self.consistency_check.check_pitch_angle_size(shape[1], standard_name)
-
-        # elif "B_eq" in standard_name or "B_local" in standard_name:
-        #     variable.convert_to_unit(u.nT)  # type: ignore[reportUnknownArgumentType]
-
-        #     assert_n_dim(variable, 1, standard_name)
-        #     self.consistency_check.check_time_size(variable.get_data().shape[0], standard_name)
-
-        # elif "PSD" in standard_name:
-        #     variable.convert_to_unit((u.m * u.kg * u.m / u.s) ** (-3))  # type: ignore[reportUnknownArgumentType]
-
-        #     assert_n_dim(variable, 3, standard_name)
-        #     shape = variable.get_data().shape
-        #     self.consistency_check.check_time_size(shape[0], standard_name)
-        #     self.consistency_check.check_energy_size(shape[1], standard_name)
-        #     self.consistency_check.check_pitch_angle_size(shape[2], standard_name)
-
-        # elif "inv_mu" in standard_name:
-        #     variable.convert_to_unit(u.MeV / u.G)  # type: ignore[reportUnknownArgumentType]
-
-        #     assert_n_dim(variable, 3, standard_name)
-        #     shape = variable.get_data().shape
-        #     self.consistency_check.check_time_size(shape[0], standard_name)
-        #     self.consistency_check.check_energy_size(shape[1], standard_name)
-        #     self.consistency_check.check_pitch_angle_size(shape[2], standard_name)
-
-        # elif "inv_K" in standard_name:
-        #     variable.convert_to_unit(ep.units.RE * u.G**0.5)  # type: ignore[reportUnknownArgumentType]
-
-        #     assert_n_dim(variable, 2, standard_name)
-        #     shape = variable.get_data().shape
-        #     self.consistency_check.check_time_size(shape[0], standard_name)
-        #     self.consistency_check.check_pitch_angle_size(shape[1], standard_name)
-
-        # elif "density" in standard_name:
-        #     variable.convert_to_unit(u.cm ** (-3))  # type: ignore[reportUnknownArgumentType]
-
-        #     assert_n_dim(variable, 1, standard_name)
-        #     shape = variable.get_data().shape
-        #     self.consistency_check.check_time_size(shape[0], standard_name)
 
         return variable

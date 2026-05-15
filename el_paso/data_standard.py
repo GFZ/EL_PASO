@@ -118,17 +118,22 @@ class ConsistencyCheck:
             self.check_size(data_shape[i], dim_name_or_size, var_name)
 
     def check_size(self, provided_len: int, dim_name_or_size: str | int, var_name: str) -> None:
-        if isinstance(dim_name_or_size, int) and dim_name_or_size != provided_len:
-            msg = (
-                f"Length mismatch! Variable {var_name} should have length {dim_name_or_size},"
-                f"but encountered {provided_len}!",
-            )
-            raise ValueError(msg)
+        if isinstance(dim_name_or_size, int):
+            if dim_name_or_size != provided_len:
+                msg = (
+                    f"Length mismatch! Variable {var_name} should have length {dim_name_or_size}, "
+                    f"but encountered {provided_len}!",
+                )
+                raise ValueError(msg)
+            return
 
-        if dim_name_or_size in self.lengths and self.lengths[dim_name_or_size].size != provided_len:
-            msg = (
-                f"Length mismatch! {dim_name_or_size} length of variable"
-                f"{self.lengths[dim_name_or_size].name}: {self.lengths[dim_name_or_size].size}",
-                f"and of variable {var_name}: {provided_len}",
-            )
-            raise ValueError(msg)
+        if dim_name_or_size in self.lengths:
+            if self.lengths[dim_name_or_size].size != provided_len:
+                msg = (
+                    f"Length mismatch! {dim_name_or_size} length of variable "
+                    f"{self.lengths[dim_name_or_size].name}: {self.lengths[dim_name_or_size].size}",
+                    f"and of variable {var_name}: {provided_len}",
+                )
+                raise ValueError(msg)
+        else:
+            self.lengths[dim_name_or_size] = _SizeAttr(var_name, provided_len)
