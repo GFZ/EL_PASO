@@ -22,7 +22,7 @@ from el_paso.saving_strategy import OutputFile, SavingStrategy
 if TYPE_CHECKING:
     from datetime import datetime
 
-    from el_paso.typing import Variable
+    from el_paso.typing import InternalName, Variable
 
 logger = logging.getLogger(__name__)
 
@@ -144,11 +144,7 @@ class SingleFileStrategy(SavingStrategy):
         return self.file_path
 
     def standardize_variable(
-        self,
-        variable: Variable,
-        name_in_file: str,  # noqa: ARG002
-        *,
-        first_call_of_interval: bool,  # noqa: ARG002
+        self, variable: Variable, internal_name: InternalName, *, first_call_of_interval: bool  # noqa: ARG002
     ) -> Variable:
         """Does not modify the variable.
 
@@ -196,7 +192,7 @@ class SingleFileStrategy(SavingStrategy):
         """Attach metadata values that can be represented as NetCDF attributes."""
         for key, value in metadata.items():
             if isinstance(value, list):
-                value = ", ".join(str(item) for item in value)  # noqa: PLW2901
+                value = ", ".join(str(item) for item in value)
 
             if getattr(value, "size", None) == 0:
                 continue
@@ -254,7 +250,7 @@ class SingleFileStrategy(SavingStrategy):
                 if path in data_dict.get("metadata", {}):
                     self._write_metadata_to_netcdf_variable(data_set, data_dict["metadata"][path])
 
-    def save_single_file(self, file_path: Path, dict_to_save: dict[str, Any], *, append: bool = False) -> None:
+    def save_single_file(self, file_path: Path, dict_to_save: dict[str, Any], *, append: bool = False) -> None:  # ty:ignore[invalid-method-override]
         """Saves variable data to a single file in one of the supported formats.
 
         The file format is determined by the file extension. Built-in formats include .mat, .h5, .nc, and .cdf.

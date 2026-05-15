@@ -13,7 +13,7 @@ initialization.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from datetime import datetime
 from importlib import import_module
 from pathlib import Path
@@ -51,7 +51,19 @@ InternalName: TypeAlias = Literal[
     "InvK",
 ]
 
-PRBEMName: TypeAlias = InternalName
+PRBEMName: TypeAlias = Literal[
+    "Epoch",
+    "FEDU",
+    "Alpha",
+    "Alpha_Eq",
+    "FEDU_Energy",
+    "Position",
+    "B_Calc",
+    "B_Eq",
+    "L_m",
+    "L_star",
+]
+
 GFZVarNames: TypeAlias = Literal[
     "time",
     "xGEO",

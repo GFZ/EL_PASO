@@ -99,7 +99,7 @@ class DataOrgStrategy(SavingStrategy):
 
         self.output_files = [
             OutputFile("flux", ["Epoch", "FEDU"]),
-            OutputFile("alpha_and_energy", ["Epoch", "Alpha", "Alpha_Eq", "FEDU_Energy"]),
+            OutputFile("alpha_and_energy", ["Epoch", "Alpha", "Alpha_Eq", "FEDU_Energy"]),  # ty:ignore[invalid-argument-type]
             OutputFile("mlt", ["Epoch", "MLT"]),
             OutputFile("lstar", ["Epoch", "L_star"]),
             OutputFile("lm", ["Epoch", "L_m"]),
