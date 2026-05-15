@@ -10,20 +10,16 @@ import calendar
 import logging
 import shutil
 import tempfile
-import typing
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
 import cdflib
-import h5py
 import netCDF4 as nC
 import numpy as np
-from scipy.io import loadmat, savemat
 
 import el_paso as ep
 from el_paso.saving_strategy import OutputFile, SavingStrategy
-from el_paso.typing import MonthlyFormatLoader, MonthlyFormatWriter
 
 if TYPE_CHECKING:
     from el_paso.processing.magnetic_field_utils import MagneticFieldLiteral
@@ -32,15 +28,16 @@ if TYPE_CHECKING:
         DataStandardInstance,
         InternalName,
         MFSFormats,
+        MonthlyFormatLoader,
+        MonthlyFormatWriter,
         SavedDataDict,
         Variable,
     )
 
-logger = logging.getLogger(__name__)
+    FormatWriter = MonthlyFormatWriter
+    FormatLoader = MonthlyFormatLoader
 
-MFSFormats = Literal["nc", "cdf", "h5", "mat", ".nc", ".cdf", ".h5", ".mat"]
-FormatWriter = MonthlyFormatWriter
-FormatLoader = MonthlyFormatLoader
+logger = logging.getLogger(__name__)
 
 
 class MonthlyFileStrategy(SavingStrategy):
@@ -64,7 +61,6 @@ class MonthlyFileStrategy(SavingStrategy):
         mag_field: MagneticFieldLiteral,
         file_format: MFSFormats = "h5",
         data_standard: DataStandardClass = ep.data_standards.PRBEMStandard,
-        root_metadata: dict[str, str] | None = None,
     ) -> None:
         """Initialize a monthly file saving strategy.
 
@@ -76,7 +72,6 @@ class MonthlyFileStrategy(SavingStrategy):
                 A leading dot is also accepted.
             data_standard (DataStandardClass): Standardization implementation. Defaults to
                 [`el_paso.data_standards.PRBEMStandard`][]
-            root_metadata (dict[str, str] | None): Optional global NetCDF attributes.
 
         Attributes:
             output_files: List of output file configurations, with variable names
@@ -90,7 +85,6 @@ class MonthlyFileStrategy(SavingStrategy):
         self.instrument = instrument
         self.mag_field = mag_field
         self.file_format = ep.utils.normalize_file_format(file_format)
-        self.root_metadata = root_metadata
 
         self.data_standard: DataStandardInstance = data_standard()
 
@@ -99,10 +93,10 @@ class MonthlyFileStrategy(SavingStrategy):
         ]
 
         self._writers: dict[str, FormatWriter] = {
-            ".mat": self._write_mat_file,
-            ".h5": self._write_h5_file,
-            ".nc": self._write_netcdf_file,
-            ".cdf": self._write_cdf_file,
+            ".mat": ep.utils.write_mat_file,
+            ".h5": ep.utils.write_h5_file,
+            ".nc": ep.utils.write_netcdf_file,
+            ".cdf": ep.utils.write_cdf_file,
         }
         self._loaders: dict[str, FormatLoader] = {
             ".mat": ep.utils.load_mat_data,
@@ -110,7 +104,6 @@ class MonthlyFileStrategy(SavingStrategy):
             ".nc": ep.utils.load_netcdf_data,
             ".cdf": ep.utils.load_cdf_data,
         }
-
 
     def _get_output_file_entries(self) -> list[InternalName]:
         """Return the standard variable list plus user-defined custom variables."""
@@ -211,7 +204,7 @@ class MonthlyFileStrategy(SavingStrategy):
             self.append_data(file_path, dict_to_save)
             logger.info(f"Saving file {file_path.resolve()}")
             return
-        writer(file_path, dict_to_save)
+        writer(file_path, dict_to_save, self.data_standard)
 
     def append_data(self, file_path: Path, data_dict_to_save: SavedDataDict) -> SavedDataDict:
         """Append data to any supported monthly file format.
@@ -257,7 +250,7 @@ class MonthlyFileStrategy(SavingStrategy):
 
         try:
             logger.info(f"Writing merged data to temporary file {tmp_path.name}")
-            writer(tmp_path, merged_data)
+            writer(tmp_path, merged_data, self.data_standard)
 
             logger.info(f"Replacing original file with merged data for {file_path.name}")
             shutil.move(str(tmp_path), str(file_path))
@@ -350,83 +343,6 @@ class MonthlyFileStrategy(SavingStrategy):
 
         return merged
 
-    def _write_mat_file(self, file_path: Path, data_dict: SavedDataDict) -> None:
-        """Write a MATLAB file, resolving standard variable paths and flattening hierarchy.
-
-        Data variables are stored under their flattened canonical names (``/`` → ``__``).
-        Per-variable metadata is stored in a parallel ``metadata`` struct whose field
-        names mirror the data variable names, matching how HDF5 stores attrs per dataset.
-        """
-        mat_dict: dict[str, Any] = {}
-        mat_metadata: dict[str, Any] = {}
-
-        for internal_name, value in data_dict.items():
-            if internal_name == "metadata":
-                continue
-
-            path = self.data_standard.get_full_var_name(internal_name)
-            mat_var_name = path.replace("/", "__")
-
-            value_to_write = value
-            if isinstance(value, np.ndarray) and value.ndim == 2 and value.shape[1] == 1:  # noqa: PLR2004
-                value_to_write = value.reshape(-1)
-
-            mat_dict[mat_var_name] = value_to_write
-
-            # Attach per-variable metadata under a matching key in the metadata struct,
-            # mirroring how _write_h5_file stores attrs on each dataset.
-            variable_meta = data_dict.get("metadata", {}).get(internal_name, {})
-            if isinstance(variable_meta, dict) and variable_meta:
-                mat_metadata[mat_var_name] = {
-                    "unit": variable_meta.get("unit", "unknown"),
-                    "source_files": variable_meta.get("source_files", "unknown"),
-                    "processing_notes": variable_meta.get("processing_notes", "unknown"),
-                    "description": variable_meta.get("description", "unknown"),
-                    "original_cadence_seconds": variable_meta.get("original_cadence_seconds", "unknown"),
-                }
-
-        if mat_metadata:
-            mat_dict["metadata"] = mat_metadata
-
-        savemat(str(file_path), mat_dict)
-
-    def _write_h5_file(self, file_path: Path, data_dict: SavedDataDict) -> None:
-        """Write an HDF5 file with hierarchical groups from slash-delimited paths."""
-        with h5py.File(file_path, "w") as file:
-            for internal_name, value in data_dict.items():
-                if internal_name == "metadata":
-                    continue
-                path = self.data_standard.get_full_var_name(internal_name)
-
-                path_parts = path.split("/")
-                groups = path_parts[:-1]
-                dataset_name = path_parts[-1]
-
-                curr_hierarchy = file
-                for group in groups:
-                    if group not in curr_hierarchy:
-                        curr_hierarchy = curr_hierarchy.create_group(group)
-                    else:
-                        curr_hierarchy = typing.cast("h5py.Group", curr_hierarchy[group])
-
-                # Normalize 2D arrays with shape (n, 1) back to 1D for consistency with other formats
-                value_to_write = value
-                if isinstance(value, np.ndarray) and value.ndim == 2 and value.shape[1] == 1:  # noqa: PLR2004
-                    value_to_write = value.reshape(-1)
-
-                data_set = curr_hierarchy.create_dataset(
-                    dataset_name, data=value_to_write, compression="gzip", shuffle=True
-                )
-
-                metadata_dict = data_dict.get("metadata", {}).get(internal_name, {})
-                if not isinstance(metadata_dict, dict):
-                    continue
-
-                for key, metadata in metadata_dict.items():
-                    if getattr(metadata, "size", None) == 0:
-                        continue
-                    data_set.attrs[key] = metadata
-
     def _validate_netcdf_appendable(self, file_path: Path) -> None:
         """Validate that the existing NetCDF file has an unlimited time dimension."""
         with nC.Dataset(file_path, "r", format="NETCDF4") as file:
@@ -438,216 +354,3 @@ class MonthlyFileStrategy(SavingStrategy):
                     "created as unlimited (None)."
                 )
                 raise ValueError(msg)
-
-    def _calculate_dimensions(self, data_dict: SavedDataDict) -> dict[str, int]:
-        """Calculate NetCDF dimension sizes from the data dictionary."""
-        dimensions = {
-            "Epoch": np.asarray(data_dict["Epoch"]).shape[0],
-            "Alpha": 0,
-            "Energy_FEDU": 0,
-        }
-
-        if "Alpha_Eq" in data_dict and np.asarray(data_dict["Alpha_Eq"]).size > 0:
-            dimensions["Alpha"] = np.asarray(data_dict["Alpha_Eq"]).shape[1]
-        elif "Alpha" in data_dict and np.asarray(data_dict["Alpha"]).size > 0:
-            dimensions["Alpha"] = np.asarray(data_dict["Alpha"]).shape[1]
-
-        if "Energy_FEDU" in data_dict and np.asarray(data_dict["Energy_FEDU"]).size > 0:
-            dimensions["Energy_FEDU"] = np.asarray(data_dict["Energy_FEDU"]).shape[1]
-
-        if "Position" in data_dict and np.asarray(data_dict["Position"]).size > 0:
-            dimensions["Position_components"] = 3
-
-        return dimensions
-
-    def _write_data_to_netcdf_file(self, file: nC.Dataset | nC.Group, data_dict: SavedDataDict) -> None:
-        """Write variables to a NetCDF file or group."""
-        for mfs_name, value in data_dict.items():
-            if mfs_name == "metadata":
-                continue
-
-            value_array = np.asarray(value)
-            if value_array.size == 0:
-                continue
-
-            path = self.data_standard.get_full_var_name(mfs_name)
-
-            path_parts = path.split("/")
-            groups = path_parts[:-1]
-            dataset_name = path_parts[-1]
-
-            curr_hierarchy: nC.Group | nC.Dataset = file
-            for group in groups:
-                if group not in curr_hierarchy.groups:
-                    curr_hierarchy = curr_hierarchy.createGroup(group)
-                else:
-                    curr_hierarchy = curr_hierarchy.groups[group]
-
-            dimensions = self.data_standard.get_dependencies(mfs_name)
-            data_set = typing.cast(
-                "nC.Variable[Any]",
-                curr_hierarchy.createVariable(
-                    dataset_name,
-                    "float64",
-                    dimensions,
-                    zlib=True,
-                    complevel=5,
-                    shuffle=True,
-                ),
-            )
-
-            value_to_write = value_array
-            if len(dimensions) == 1 and value_array.ndim == 2 and value_array.shape[1] == 1:  # noqa: PLR2004
-                value_to_write = value_array.reshape(-1)
-
-            if len(dimensions) == 0:
-                data_set[...] = value_to_write
-            else:
-                data_set[:, ...] = value_to_write
-
-            metadata_dict = data_dict.get("metadata", {})
-            metadata = {}
-            if isinstance(metadata_dict, dict):
-                metadata = metadata_dict.get(path, metadata_dict.get(mfs_name, {}))
-
-            if not isinstance(metadata, dict):
-                continue
-
-            data_set.units = metadata.get("unit", "unknown")
-            data_set.source = metadata.get("source_files", "unknown")
-            data_set.history = metadata.get("processing_notes", "unknown")
-            data_set.description = metadata.get("description", "unknown")
-            data_set.original_cadence_seconds = metadata.get("original_cadence_seconds", "unknown")
-
-    def _write_netcdf_file(self, file_path: Path, data_dict: SavedDataDict) -> None:
-        """Create and write a NetCDF file from a data dictionary."""
-        with nC.Dataset(file_path, "w", format="NETCDF4") as file:
-            if self.root_metadata is not None:
-                for key, value in self.root_metadata.items():
-                    setattr(file, key, value)
-
-            size_time = np.asarray(data_dict["Epoch"]).shape[0]
-            if size_time == 0:
-                logger.info(f"Skipping write for {file_path.name} (time has length 0).")
-                return
-
-            dimensions = self._calculate_dimensions(data_dict)
-            file.createDimension("time", None)
-            for dim_name, dim_size in dimensions.items():
-                if dim_name != "time":
-                    file.createDimension(dim_name, dim_size)
-
-            self._write_data_to_netcdf_file(file, data_dict)
-
-    def _get_cdf_variable_attrs(self, var_name: str, data_dict: SavedDataDict) -> SavedDataDict:
-        """Return non-empty CDF variable attributes for a saved variable."""
-        metadata = data_dict.get("metadata", {}).get(var_name, {})
-        var_attrs: SavedDataDict = {}
-
-        if isinstance(metadata, dict):
-            for attr_name, attr_value in metadata.items():
-                if self._is_empty_cdf_attribute(attr_value):
-                    logger.debug(f"Skipping empty CDF attribute {var_name}:{attr_name}")
-                    continue
-
-                var_attrs[str(attr_name)] = attr_value  # ty:ignore[invalid-assignment]
-
-        var_attrs["Compress"] = 6  # ty:ignore[invalid-assignment]
-        return var_attrs
-
-    def _is_empty_cdf_attribute(self, value: Any) -> bool:  # noqa: ANN401
-        """Return True if cdflib cannot infer a datatype from the attribute value."""
-        if value is None:
-            return True
-
-        if isinstance(value, (list, tuple, dict, str, bytes)):
-            return len(value) == 0
-
-        return getattr(value, "size", None) == 0
-
-    def _write_cdf_file(self, file_path: Path, data_dict: SavedDataDict) -> None:  # noqa: C901, PLR0912
-        """Write a CDF file, resolving standard variable paths and embedding metadata."""
-        try:
-            cdf_file = cdflib.cdfwrite.CDF(str(file_path), delete=True)
-            try:
-                for internal_name, var_data in data_dict.items():
-                    if internal_name == "metadata":
-                        continue
-
-                    if getattr(var_data, "size", 0) == 0:
-                        logger.warning(f"Skipping empty variable {internal_name}")
-                        continue
-
-                    # Resolve the canonical name via the data standard, matching H5/NC behaviour.
-                    # CDF does not support '/' in variable names, so we replace path separators
-                    # with '__' to preserve hierarchy information without violating the spec.
-                    path = self.data_standard.get_full_var_name(internal_name)
-                    cdf_var_name = path
-                    value_to_write = var_data
-                    if isinstance(var_data, np.ndarray) and var_data.ndim == 2 and var_data.shape[1] == 1:
-                        value_to_write = var_data.reshape(-1)
-
-                    var_data_array = np.asarray(value_to_write)
-                    if np.issubdtype(var_data_array.dtype, np.integer):
-                        if var_data_array.dtype == np.int8:
-                            cdf_dtype = cdflib.cdfwrite.CDF.CDF_INT1
-                        elif var_data_array.dtype == np.int16:
-                            cdf_dtype = cdflib.cdfwrite.CDF.CDF_INT2
-                        elif var_data_array.dtype == np.int32:
-                            cdf_dtype = cdflib.cdfwrite.CDF.CDF_INT4
-                        else:
-                            cdf_dtype = cdflib.cdfwrite.CDF.CDF_INT8
-                    elif np.issubdtype(var_data_array.dtype, np.floating):
-                        cdf_dtype = (
-                            cdflib.cdfwrite.CDF.CDF_FLOAT
-                            if var_data_array.dtype == np.float32
-                            else cdflib.cdfwrite.CDF.CDF_DOUBLE
-                        )
-                    else:
-                        var_data_array = var_data_array.astype(np.float64)
-                        cdf_dtype = cdflib.cdfwrite.CDF.CDF_DOUBLE
-
-                    var_spec: dict[str, Any] = {
-                        "Variable": cdf_var_name,
-                        "Data_Type": cdf_dtype,
-                        "Num_Elements": 1,
-                        "Rec_Vary": True,
-                        "Dim_Sizes": (list(var_data_array.shape[1:]) if var_data_array.ndim > 1 else []),
-                    }
-
-                    metadata_dict = data_dict.get("metadata", {})
-                    metadata: dict[str, Any] = {}
-                    if isinstance(metadata_dict, dict):
-                        metadata = metadata_dict.get(path, metadata_dict.get(internal_name, {}))
-
-                    var_attrs = {}
-                    if isinstance(metadata, dict):
-                        for attr_name, attr_value in metadata.items():
-                            if self._is_empty_cdf_attribute(attr_value):
-                                logger.debug(f"Skipping empty CDF attribute {cdf_var_name}:{attr_name}")
-                                continue
-                            var_attrs[str(attr_name)] = attr_value
-                    if isinstance(metadata, dict):
-                        for field, nc_key in {
-                            "unit": "unit",
-                            "source_files": "source_files",
-                            "processing_notes": "processing_notes",
-                            "description": "description",
-                            "original_cadence_seconds": "original_cadence_seconds",
-                        }.items():
-                            value = metadata.get(nc_key)
-                            if value is None or self._is_empty_cdf_attribute(value):
-                                var_attrs.setdefault(nc_key, "empty")
-                                continue
-                            if value and not self._is_empty_cdf_attribute(value):
-                                var_attrs.setdefault(field, value)
-
-                    var_attrs["Compress"] = 6
-
-                    cdf_file.write_var(var_spec, var_attrs=var_attrs, var_data=var_data_array)
-            finally:
-                cdf_file.close()
-        except Exception as e:
-            msg = f"Failed to write CDF file {file_path}: {e}"
-            logger.exception(msg)
-            raise RuntimeError(msg) from e

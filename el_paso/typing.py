@@ -87,8 +87,15 @@ if TYPE_CHECKING:
     SavingStrategyClass: TypeAlias = type[SavingStrategy]
     VariableDict: TypeAlias = dict[InternalName, Variable]
     VariableMapping: TypeAlias = Mapping[InternalName, Variable]
+else:  # During runtime, we can't import the concrete classes without risking import cycles, so we use Any as a placeholder.
+    DataStandardInstance: TypeAlias = Any
+    DataStandardClass: TypeAlias = type[Any]
+    SavingStrategyInstance: TypeAlias = Any
+    SavingStrategyClass: TypeAlias = type[Any]
+    VariableDict: TypeAlias = dict[InternalName, Any]
+    VariableMapping: TypeAlias = Mapping[InternalName, Any]
 
-SaveFileWriter: TypeAlias = Callable[[Path, SavedDataDict], None]
+SaveFileWriter: TypeAlias = Callable[[Path, SavedDataDict, DataStandardInstance], None]
 SaveFileLoader: TypeAlias = Callable[[Path], SavedDataDict]
 MonthlyFormatWriter: TypeAlias = SaveFileWriter
 MonthlyFormatLoader: TypeAlias = SaveFileLoader
