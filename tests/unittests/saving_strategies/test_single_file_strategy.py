@@ -6,6 +6,7 @@
 
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
@@ -19,10 +20,10 @@ rng = np.random.default_rng(1337)
 @pytest.mark.parametrize("file_format", [".mat", ".pickle", ".h5"])
 @pytest.mark.basic
 def test_basic_single_file_strategy(tmp_path: Path, file_format: str) -> None:
-    variables_to_save = {
-        "var1": ep.Variable(original_unit=u.dimensionless_unscaled, data=rng.normal((20, 21))),
-        "var2": ep.Variable(original_unit=u.dimensionless_unscaled, data=rng.normal((10, 11))),
-        "var3": ep.Variable(original_unit=u.dimensionless_unscaled, data=rng.normal((51,))),
+    variables_to_save: dict[ep.typing.InternalName, Any] = {
+        "FEDU": ep.Variable(original_unit=u.dimensionless_unscaled, data=rng.normal((20, 21))),
+        "Alpha": ep.Variable(original_unit=u.dimensionless_unscaled, data=rng.normal((10, 11))),
+        "B_Calc": ep.Variable(original_unit=u.dimensionless_unscaled, data=rng.normal((51,))),
     }
 
     save_path = tmp_path / ("test" + file_format)

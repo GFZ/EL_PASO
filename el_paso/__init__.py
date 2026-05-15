@@ -21,7 +21,7 @@ _release_msg: str = ""
 
 from el_paso.release_mode import activate_release_mode, get_release_msg, is_in_release_mode
 from el_paso.variable import Variable
-from el_paso import physics, processing, saving_strategies, units, data_standards, utils
+from el_paso import physics, processing, saving_strategies, units, data_standards, utils, typing
 from el_paso.save import save
 from el_paso.processing import TimeBinMethod
 from el_paso.download import download
@@ -53,6 +53,7 @@ __all__ = [
     "processing",
     "save",
     "saving_strategies",
+    "typing",
     "units",
     "utils",
 ]

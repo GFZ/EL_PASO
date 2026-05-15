@@ -8,9 +8,11 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
 
+import numpy as np
 import pytest
+from swvo.io.RBMDataSet import RBMDataSet
 
-from el_paso import RBMDataSet
+from el_paso.dataset.data_set_implementations import DataOrgDataSet
 from examples.VanAllenProbes.process_ect_combined import process_ect_combined
 
 
@@ -36,7 +38,7 @@ def test_rbsp_ect_combined_snapshot(
 
     irbem_lib_path = Path(__file__).parent / "../../libirbem.so"
 
-    processed_data_path = tmpdir / "RBSP" / "rbspa" if save_strategy != "dataorg" else tmpdir
+    processed_data_path = tmpdir
 
     process_ect_combined(
         start_time=start_time,
@@ -69,14 +71,14 @@ def test_rbsp_ect_combined_snapshot(
                 shutil.copytree(processed_data_path, Path(__file__).parent / "data" / "processed", dirs_exist_ok=True)
 
         case "h5":
-            out_path = processed_data_path / f"rbspa_ect_combined_{start_date:%Y%m%d}to{end_date:%Y%m%d}_{mag_field}.h5"
+            out_path = processed_data_path / "RBSP" / "rbspa" / f"rbspa_ect_combined_{start_date:%Y%m%d}to{end_date:%Y%m%d}_{mag_field}.h5"
             assert out_path.exists()
 
             if renew_solution:
                 shutil.copy(out_path, Path(__file__).parent / "data" / "processed" / "RBSP" / "rbspa")
 
         case "netcdf":
-            out_path = processed_data_path / f"rbspa_ect_combined_{start_date:%Y%m%d}to{end_date:%Y%m%d}_{mag_field}.nc"
+            out_path = processed_data_path / "RBSP" / "rbspa" / f"rbspa_ect_combined_{start_date:%Y%m%d}to{end_date:%Y%m%d}_{mag_field}.nc"
             assert out_path.exists()
 
             if renew_solution:
@@ -102,13 +104,14 @@ def test_rbsp_ect_combined_snapshot(
             preferred_extension="mat",
         )
     elif save_strategy == "netcdf":
-        rbsp_proc = RBMDataSet(
+        rbsp_proc = DataOrgDataSet(
             start_time=start_time,
             end_time=end_time,
-            folder_path=tmpdir,
+            base_path=str(tmpdir),
+            mission="RBSP",
             satellite="RBSPA",
             instrument="ect_combined",
-            mfm=mag_field,
+            mag_field=mag_field,
         )
 
         rbsp_true = RBMDataSet(
@@ -123,4 +126,8 @@ def test_rbsp_ect_combined_snapshot(
         msg = "Test not implemented for this save strategy."
         raise NotImplementedError(msg)
 
-    assert rbsp_proc == rbsp_true, f"Different variables: {rbsp_proc.get_different_variables(rbsp_true)}"
+    # np.testing.assert_array_almost_equal(rbsp_proc.InvMu, rbsp_true.InvMu)
+    # np.testing.assert_array_almost_equal(rbsp_proc.Lstar, rbsp_true.Lstar)
+    # np.testing.assert_allclose(rbsp_proc.time, rbsp_true.time)
+
+    assert rbsp_proc == rbsp_true

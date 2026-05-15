@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
     from astropy import units as u
 
-    from el_paso.typing import InternalName, Variable
+    from el_paso.typing import InternalName, StandardName, Variable
 
 
 logger = logging.getLogger("__name__")
@@ -37,7 +37,7 @@ class DataStandard(ABC, Generic[T]):
 
     variable_infos: dict[InternalName, VariableInfo[T]]
 
-    def get_internal_name(self, standard_name: T) -> InternalName | None:
+    def get_internal_name(self, standard_name: StandardName) -> InternalName | None:
         for internal_name, var_info in self.variable_infos.items():
             if var_info.standard_name == standard_name:
                 return internal_name
