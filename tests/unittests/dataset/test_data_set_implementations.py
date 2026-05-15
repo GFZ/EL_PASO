@@ -3,18 +3,24 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+from __future__ import annotations
+
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
 from astropy import units as u  # type: ignore[reportMissingTypeStubs]
 
 import el_paso as ep
-from el_paso.data_standard import InternalName
 from el_paso.dataset import DataOrgDataSet
 from el_paso.dataset.utils import matlab2python, python2matlab
+
+if TYPE_CHECKING:
+    from el_paso.typing import InternalName
 
 
 def _mock_monthly_variables() -> dict[InternalName, ep.Variable]:

@@ -15,11 +15,10 @@ import pytest
 from astropy import units as u  # type: ignore[reportMissingTypeStubs]
 
 import el_paso as ep
-from el_paso.data_standard import DataStandard, InternalName
 from el_paso.dataset.utils import python2matlab
 
 if TYPE_CHECKING:
-    from el_paso.typing import DataStandardClass
+    from el_paso.typing import DataStandardClass, InternalName
 
 
 def _mock_monthly_variables() -> dict[InternalName, ep.Variable]:

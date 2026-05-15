@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-from el_paso.data_standard import InternalName
 from el_paso.utils import enforce_utc_timezone, timed_function
 
 if TYPE_CHECKING:
@@ -18,7 +17,7 @@ if TYPE_CHECKING:
 
     from numpy.typing import NDArray
 
-    from el_paso import Variable
+    from el_paso.typing import InternalName, Variable
     from el_paso.saving_strategy import SavingStrategy
 
 logger = logging.getLogger(__name__)

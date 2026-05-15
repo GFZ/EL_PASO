@@ -14,7 +14,6 @@ import numpy as np
 from astropy import units as u  # type: ignore[reportMissingTypeStubs]
 
 from el_paso import Variable
-from el_paso.data_standard import DataStandard, InternalName
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +22,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from el_paso.processing.magnetic_field_utils import MagneticFieldLiteral
-    from el_paso.typing import SavedDataDict
+    from el_paso.typing import InternalName, SavedDataDict, DataStandardClass
+
 
 class OutputFile(NamedTuple):
     """Represents an output file with its name and a list of variable names to save.
@@ -37,6 +37,7 @@ class OutputFile(NamedTuple):
     name: str
     names_to_save: list[InternalName]
     save_incomplete: bool = False
+
 
 class SavingStrategy(ABC):
     """Abstract base class for defining strategies to save output files with specific time intervals and variables.
@@ -68,7 +69,7 @@ class SavingStrategy(ABC):
     """
 
     output_files: list[OutputFile]
-    data_standard: DataStandard[str]
+    data_standard: DataStandardClass
     base_data_path: Path
     satellite: str
     mission: str
@@ -105,7 +106,9 @@ class SavingStrategy(ABC):
         """
 
     @abstractmethod
-    def standardize_variable(self, variable: Variable, internal_name: InternalName, *, first_call_of_interval: bool) -> Variable:
+    def standardize_variable(
+        self, variable: Variable, internal_name: InternalName, *, first_call_of_interval: bool
+    ) -> Variable:
         """Standardizes the given variable according to the specified name in the file.
 
         Standardization may include checking of units, dimensions, and size consistency.
@@ -206,7 +209,9 @@ class SavingStrategy(ABC):
 
         return target_variables
 
-    def get_output_file(self, *, standard_name: str|None = None, internal_name: InternalName|None = None) -> OutputFile | None:
+    def get_output_file(
+        self, *, standard_name: str | None = None, internal_name: InternalName | None = None
+    ) -> OutputFile | None:
 
         if internal_name is None:
             if standard_name is None:
