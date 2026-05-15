@@ -13,7 +13,7 @@ import tempfile
 import typing
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, TypeVar
 
 import cdflib
 import h5py
@@ -23,12 +23,18 @@ from scipy.io import loadmat, savemat
 
 import el_paso as ep
 from el_paso.saving_strategy import OutputFile, SavingStrategy
-from el_paso.typing import DataStandard, InternalName, MFSFormats, SavedDataDict, SaveFileLoader, SaveFileWriter
+from el_paso.typing import MonthlyFormatLoader, MonthlyFormatWriter
 
 if TYPE_CHECKING:
     from el_paso.processing.magnetic_field_utils import MagneticFieldLiteral
+    from el_paso.typing import DataStandardClass, InternalName, MFSFormats, SavedDataDict
 
 logger = logging.getLogger(__name__)
+
+MFSFormats = Literal["nc", "cdf", "h5", "mat", ".nc", ".cdf", ".h5", ".mat"]
+FormatWriter = MonthlyFormatWriter
+FormatLoader = MonthlyFormatLoader
+
 
 class MonthlyFileStrategy(SavingStrategy):
     """Save PRBEM-standard data into one monthly file per interval.
@@ -50,7 +56,7 @@ class MonthlyFileStrategy(SavingStrategy):
         instrument: str,
         mag_field: MagneticFieldLiteral,
         file_format: MFSFormats = "h5",
-        data_standard: DataStandard[Any] | None = None,
+        data_standard: DataStandardClass = ep.data_standards.PRBEMStandard,
         root_metadata: dict[str, str] | None = None,
     ) -> None:
         """Initialize a monthly file saving strategy.
@@ -79,21 +85,19 @@ class MonthlyFileStrategy(SavingStrategy):
         self.file_format = self._normalize_file_format(file_format)
         self.root_metadata = root_metadata
 
-        if data_standard is None:
-            data_standard = ep.data_standards.PRBEMStandard()
-        self.data_standard = data_standard
+        self.data_standard = data_standard()
 
         self.output_files = [
             OutputFile("full", self._get_output_file_entries(), save_incomplete=True),
         ]
 
-        self._writers: dict[str, SaveFileWriter] = {
+        self._writers: dict[str, FormatWriter] = {
             ".mat": self._write_mat_file,
             ".h5": self._write_h5_file,
             ".nc": self._write_netcdf_file,
             ".cdf": self._write_cdf_file,
         }
-        self._loaders: dict[str, SaveFileLoader] = {
+        self._loaders: dict[str, FormatLoader] = {
             ".mat": self._load_mat_data,
             ".h5": self._load_h5_data,
             ".nc": self._load_netcdf_data,
@@ -212,7 +216,6 @@ class MonthlyFileStrategy(SavingStrategy):
             self.append_data(file_path, dict_to_save)
             logger.info(f"Saving file {file_path.resolve()}")
             return
-        print(file_path)
         writer(file_path, dict_to_save)
 
     def append_data(self, file_path: Path, data_dict_to_save: SavedDataDict) -> SavedDataDict:

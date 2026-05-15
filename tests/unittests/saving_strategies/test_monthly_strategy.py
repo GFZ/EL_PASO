@@ -3,10 +3,12 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+from __future__ import annotations
+
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Literal  # noqa: UP035
+from typing import TYPE_CHECKING, Any, Callable, Literal  # noqa: UP035
 
 import numpy as np
 import pytest
@@ -15,6 +17,9 @@ from astropy import units as u  # type: ignore[reportMissingTypeStubs]
 import el_paso as ep
 from el_paso.data_standard import DataStandard, InternalName
 from el_paso.dataset.utils import python2matlab
+
+if TYPE_CHECKING:
+    from el_paso.typing import DataStandardClass
 
 
 def _mock_monthly_variables() -> dict[InternalName, ep.Variable]:
@@ -98,11 +103,11 @@ _FORMAT_PARAMS = [
 
 
 @pytest.mark.basic
-@pytest.mark.parametrize("data_standard", [ep.data_standards.DataOrgStandard()])
+@pytest.mark.parametrize("data_standard", [ep.data_standards.DataOrgStandard])
 @pytest.mark.parametrize(("output_format", "meta_keys_check"), _FORMAT_PARAMS)
 def test_monthly_strategy_saves_mocked_variables_to_netcdf_with_data_standards(
     tmp_path: Path,
-    data_standard: DataStandard[Any],
+    data_standard: DataStandardClass,
     output_format: Literal["nc", "h5", "cdf", "mat"],
     meta_keys_check: Callable[[set[str]], bool],
 ) -> None:
@@ -150,7 +155,7 @@ def test_monthly_strategy_saves_mocked_variables_to_netcdf_with_data_standards(
     metadata = loaded_data.get("metadata", {})
 
     for internal_name in strategy.output_files[0].names_to_save:
-        var_key = data_standard.get_full_var_name(internal_name)
+        var_key = data_standard().get_full_var_name(internal_name)
         saved_variable = loaded_data[var_key]
         assert saved_variable.shape == variables[internal_name].get_data().shape
         var_attrs = metadata.get(var_key, {})

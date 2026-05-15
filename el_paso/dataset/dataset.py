@@ -193,41 +193,43 @@ class DataSet:
 
         return sat_variable, levenstein_info
 
-    def update_from_dict(self, source_dict: dict[str, NDArray[np.floating] | list[dt.datetime]]) -> DataSet:
-        """Get data from data dictionary and update the object.
+    # ruff: disable[ERA001, E501]
+    # def update_from_dict(self, source_dict: dict[str, NDArray[np.floating] | list[dt.datetime]]) -> DataSet:
+    #     """Get data from data dictionary and update the object.
 
-        Parameters
-        ----------
-        source_dict : dict[str, VariableLiteral]
-            Dictionary containing the data to be loaded into the object.
+    #     Parameters
+    #     ----------
+    #     source_dict : dict[str, VariableLiteral]
+    #         Dictionary containing the data to be loaded into the object.
 
-        Returns:
-        -------
-        DataSet
-            The updated DataSet object.
+    #     Returns:
+    #     -------
+    #     DataSet
+    #         The updated DataSet object.
 
-        Raises:
-        ------
-        VariableNotFoundError
-            If a key in the `source_dict` is not a valid `VariableLiteral`.
-        RuntimeError
-            If the DataSet is in file loading mode and dictionary loading is not enabled.
+    #     Raises:
+    #     ------
+    #     VariableNotFoundError
+    #         If a key in the `source_dict` is not a valid `VariableLiteral`.
+    #     RuntimeError
+    #         If the DataSet is in file loading mode and dictionary loading is not enabled.
 
-        """
-        if self._file_loading_mode and not self._enable_dict_loading:
-            msg = "DataSet is in file loading mode. Cannot update from dictionary. To use dictionary-based loading, set `enable_dict_loading=True` during initialization."
-            raise RuntimeError(msg)
-        for key, value in source_dict.items():
-            _, levenstein_info = self.find_similar_variable(key)
-            if key in self.possible_variables:
-                setattr(self, key, value)
-            elif levenstein_info["min_distance"] <= 2:
-                msg = f"Key '{key}' is not a valid `VariableLiteral`. Maybe you meant '{levenstein_info['var_name']}'?"
-                raise VariableNotFoundError(msg)
-            else:
-                msg = f"Key '{key}' is not a valid `VariableLiteral`."
-                raise VariableNotFoundError(msg)
-        return self
+    #     """
+    #     if self._file_loading_mode and not self._enable_dict_loading:
+    #         msg = "DataSet is in file loading mode. Cannot update from dictionary. To use dictionary-based loading, set `enable_dict_loading=True` during initialization."
+    #         raise RuntimeError(msg)
+    #     for key, value in source_dict.items():
+    #         _, levenstein_info = self.find_similar_variable(key)
+    #         if key in self.possible_variables:
+    #             setattr(self, key, value)
+    #         elif levenstein_info["min_distance"] <= 2:
+    #             msg = f"Key '{key}' is not a valid `VariableLiteral`. Maybe you meant '{levenstein_info['var_name']}'?"
+    #             raise VariableNotFoundError(msg)
+    #         else:
+    #             msg = f"Key '{key}' is not a valid `VariableLiteral`."
+    #             raise VariableNotFoundError(msg)
+    #     return self
+    # ruff:enable[ERA001, E501]
 
     def get_satellite_name(self) -> str:  # noqa: D102
         return self.saving_strategy.satellite
@@ -238,7 +240,7 @@ class DataSet:
     def get_print_name(self) -> str:  # noqa: D102
         return self.saving_strategy.satellite + " " + self.saving_strategy.instrument
 
-    def _load_variable(self, requested_name: str) -> None:  # noqa: C901, PLR0912, PLR0915
+    def _load_variable(self, requested_name: str) -> None:  # noqa: C901, PLR0912
         """Load variable from .mat, or .nc files."""
         loaded_var_arrs: dict[str, NDArray[np.number]] = {}
         var_names_stored: list[str] = []
@@ -255,7 +257,7 @@ class DataSet:
         if requested_name == "datetime":
             requested_name = self.saving_strategy.data_standard.get_full_var_name("Epoch")
 
-        output_file = self.saving_strategy.get_output_file(standard_name=requested_name)  # ty:ignore[invalid-argument-type]
+        output_file = self.saving_strategy.get_output_file(standard_name=requested_name)
         if requested_name == "datetime" and output_file is None:
             time_key = self.saving_strategy.data_standard.get_full_var_name("Epoch")
             output_file = next(
@@ -284,23 +286,23 @@ class DataSet:
             time_key = self.saving_strategy.data_standard.get_full_var_name("Epoch")
 
             # 4. Process Datetimes
-            raw_times = file_content[time_key]
-            time_unit = self.saving_strategy.data_standard.variable_infos["Epoch"].unit
-
-            posix_times = (raw_times * time_unit).to_value(ep.units.posixtime)
-            datetimes = np.asarray(
-                [dt.datetime.fromtimestamp(t.astype(np.int64), tz=dt.timezone.utc) for t in posix_times]
-            )
-
             # raw_times = file_content[time_key]
+            # time_unit = self.saving_strategy.data_standard.variable_infos["Epoch"].unit
 
-            # if self.saving_strategy.data_standard.variable_infos["Epoch"].unit == ep.units.posixtime:
-            #     datetimes = np.asarray(
-            #         [dt.datetime.fromtimestamp(t.astype(np.int64), tz=dt.timezone.utc) for t in raw_times]
-            #     )
-            # elif self.saving_strategy.data_standard.variable_infos["Epoch"].unit == ep.units.datenum:
-            #     # Matlab logic
-            #     datetimes = np.asarray([matlab2python(t) for t in raw_times])
+            # posix_times = (raw_times * time_unit).to_value(ep.units.posixtime)
+            # datetimes = np.asarray(
+            #     [dt.datetime.fromtimestamp(t.astype(np.int64), tz=dt.timezone.utc) for t in posix_times]
+            # )
+
+            raw_times = file_content[time_key]
+
+            if self.saving_strategy.data_standard.variable_infos["Epoch"].unit == ep.units.posixtime:
+                datetimes = np.asarray(
+                    [dt.datetime.fromtimestamp(t.astype(np.int64), tz=dt.timezone.utc) for t in raw_times]
+                )
+            elif self.saving_strategy.data_standard.variable_infos["Epoch"].unit == ep.units.datenum:
+                # Matlab logic
+                datetimes = np.asarray([matlab2python(t) for t in raw_times])
 
             file_content["datetime"] = datetimes
             correct_time_idx = (datetimes >= self._start_time) & (datetimes <= self._end_time)
@@ -317,7 +319,7 @@ class DataSet:
 
                 # Time-dependent trimming
                 if var_arr.shape[0] == correct_time_idx.shape[0]:
-                    var_arr = var_arr[correct_time_idx.reshape(-1), ...]  # noqa: PLW2901
+                    var_arr = var_arr[correct_time_idx.reshape(-1), ...]
                     joined_value = join_var(loaded_var_arrs[key], var_arr) if key in loaded_var_arrs else var_arr
                 else:
                     joined_value = var_arr

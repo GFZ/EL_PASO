@@ -1,12 +1,17 @@
-import datetime as dt
-from typing import Literal
+from __future__ import annotations
 
-import numpy as np
-from numpy.typing import NDArray
+from typing import TYPE_CHECKING, Literal
 
 import el_paso as ep
 from el_paso.dataset.dataset import DataSet
-from el_paso.saving_strategy import SavingStrategy
+
+if TYPE_CHECKING:
+    import datetime as dt
+
+    import numpy as np
+    from numpy.typing import NDArray
+
+    from el_paso.typing import SavingStrategyClass
 
 
 class DataOrgDataSet(DataSet):
@@ -41,8 +46,8 @@ class DataOrgDataSet(DataSet):
         base_path: str,
         start_time: dt.datetime | None = None,
         end_time: dt.datetime | None = None,
-        preferred_extension: Literal["mat", "pickle", "nc"] = "nc",
-        saving_strategy_type: type[SavingStrategy] = ep.saving_strategies.MonthlyFileStrategy,
+        preferred_extension: Literal["mat", "nc"] = "nc",
+        saving_strategy_type: SavingStrategyClass = ep.saving_strategies.MonthlyFileStrategy,
         *,
         verbose: bool = True,
         enable_dict_loading: bool = False,
@@ -64,7 +69,7 @@ class DataOrgDataSet(DataSet):
             self._satellite,
             self._instrument,
             mag_field=self._mag_field,  # ty:ignore[unknown-argument]
-            data_standard=ep.data_standards.DataOrgStandard(),  # ty:ignore[unknown-argument]
+            data_standard=ep.data_standards.DataOrgStandard,  # ty:ignore[unknown-argument]
             file_format=self._preferred_ext,  # ty:ignore[unknown-argument]
         )
         super().__init__(
@@ -77,12 +82,11 @@ class DataOrgDataSet(DataSet):
         )
 
         possible_vars: list[str] = []
-        for cls in (DataSet, DataOrgDataSet):
-            for attr_name in getattr(cls, "__annotations__", {}):
-                if attr_name.startswith("_"):
-                    continue
-                if attr_name not in possible_vars:
-                    possible_vars.append(attr_name)
+        for attr_name in getattr(DataOrgDataSet, "__annotations__", {}):
+            if attr_name.startswith("_"):
+                continue
+            if attr_name not in possible_vars:
+                possible_vars.append(attr_name)
         self.possible_variables = possible_vars
 
         self._is_nc_dataset = True

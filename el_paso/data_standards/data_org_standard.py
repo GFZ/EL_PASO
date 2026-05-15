@@ -3,30 +3,11 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Literal
-
 from astropy import units as u  # type: ignore[reportMissingTypeStubs]
 
 import el_paso as ep
 from el_paso.data_standard import ConsistencyCheck, DataStandard, VariableInfo
-
-GFZVarNames = Literal[
-    "time",
-    "xGEO",
-    "energy_channels",
-    "Flux",
-    "alpha_local",
-    "alpha_eq_model",
-    "PSD",
-    "MLT",
-    "Lstar",
-    "Lm",
-    "B_eq",
-    "B_local",
-    "R0",
-    "InvMu",
-    "InvK",
-]
+from el_paso.typing import GFZVarNames
 
 
 class DataOrgStandard(DataStandard[GFZVarNames]):
@@ -73,7 +54,9 @@ class DataOrgStandard(DataStandard[GFZVarNames]):
             "L_star": VariableInfo[GFZVarNames](
                 "Lstar", "Calculated Lstar of the particles.", u.dimensionless_unscaled, ["Epoch", "Alpha"]
             ),
-            "L_m": VariableInfo[GFZVarNames]("Lm", "Calculated Lm of the particles.", u.dimensionless_unscaled, ["Epoch", "Alpha"]),
+            "L_m": VariableInfo[GFZVarNames](
+                "Lm", "Calculated Lm of the particles.", u.dimensionless_unscaled, ["Epoch", "Alpha"]
+            ),
             "B_Eq": VariableInfo[GFZVarNames]("B_eq", "Calculated magnetic field at the equator.", u.nT, ["Epoch"]),
             "B_Calc": VariableInfo[GFZVarNames](
                 "B_local", "Calculated magnetic field at the satellite location.", u.nT, ["Epoch"]

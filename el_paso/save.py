@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -82,7 +82,7 @@ def save(
 
 def _get_data_dict_to_save(
     target_variables: dict[InternalName, Variable],
-) -> dict[InternalName | Literal["metadata"], Any]:
+) -> dict[str, Any]:
     """Generates a dictionary of data and metadata for saving.
 
     This internal function iterates through a dictionary of variables, extracts their
@@ -97,9 +97,7 @@ def _get_data_dict_to_save(
         dict[str, Any]: The formatted dictionary containing all variable data and
             associated metadata.
     """
-    data_dict: dict[
-        InternalName | Literal["metadata"], NDArray[np.generic] | dict[InternalName | Literal["metadata"], Any]
-    ] = {}
+    data_dict: dict[str, NDArray[np.generic] | dict[str, Any]] = {}
     metadata_dict: dict[Any, Any] = {}
 
     for save_name, variable in target_variables.items():

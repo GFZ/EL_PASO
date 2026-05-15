@@ -7,12 +7,12 @@ import logging
 from astropy import units as u  # type: ignore[reportMissingTypeStubs]
 
 import el_paso as ep
-from el_paso.data_standard import ConsistencyCheck, DataStandard, InternalName, VariableInfo
+from el_paso.data_standard import ConsistencyCheck, DataStandard, VariableInfo
+from el_paso.typing import PRBEMName, InternalName
 from el_paso.utils import assert_n_dim
 
 logger = logging.getLogger("__name__")
 
-PRBEMName = InternalName
 
 class PRBEMStandard(DataStandard[PRBEMName]):
     """A data standard of the Panel for Radiation Belt Environment Modeling (PRBEM).
@@ -24,17 +24,28 @@ class PRBEMStandard(DataStandard[PRBEMName]):
     expected format for each standard name.
     """
 
-
     def __init__(self) -> None:
         """Initializes the PRBEMStandard with a ConsistencyCheck object."""
         self.consistency_check = ConsistencyCheck()
 
         self.variable_infos = {
             "Epoch": VariableInfo[PRBEMName]("Epoch", "Posix Time", ep.units.posixtime, dependencies=["Epoch"]),
-            "FEDU": VariableInfo[PRBEMName]("FEDU", "Processed unidirectional differential electron flux", (u.cm**2 * u.s * u.sr * u.keV) ** (-1), dependencies=["Epoch", "Energy_FEDU", "Pitch_angle"]),
-            "Alpha": VariableInfo[PRBEMName]("Alpha", "Processed unidirectional differential electron flux", u.deg, dependencies=["Epoch", "Alpha"]),
-            "Energy_FEDU": VariableInfo[PRBEMName]("Energy_FEDU", "Processed unidirectional differential electron flux", u.MeV, dependencies=["Epoch", "Energy_FEDU"]),
-    }
+            "FEDU": VariableInfo[PRBEMName](
+                "FEDU",
+                "Processed unidirectional differential electron flux",
+                (u.cm**2 * u.s * u.sr * u.keV) ** (-1),
+                dependencies=["Epoch", "Energy_FEDU", "Pitch_angle"],
+            ),
+            "Alpha": VariableInfo[PRBEMName](
+                "Alpha", "Processed unidirectional differential electron flux", u.deg, dependencies=["Epoch", "Alpha"]
+            ),
+            "Energy_FEDU": VariableInfo[PRBEMName](
+                "Energy_FEDU",
+                "Processed unidirectional differential electron flux",
+                u.MeV,
+                dependencies=["Epoch", "Energy_FEDU"],
+            ),
+        }
 
     def get_full_var_name(self, internal_name: InternalName) -> PRBEMName:
         return internal_name

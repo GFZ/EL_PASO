@@ -3,39 +3,25 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+from __future__ import annotations
+
 import logging
-from abc import ABC, abstractmethod
-from collections.abc import Sequence
+from abc import ABC
 from dataclasses import dataclass, field
-from typing import Generic, Literal, NamedTuple, TypeVar
+from typing import TYPE_CHECKING, Generic, NamedTuple, TypeVar
 
-from astropy import units as u
-
-import el_paso as ep
 from el_paso.utils import assert_n_dim
 
-logger = logging.getLogger("__name__")
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
-InternalName = Literal[
-    "FEDU",
-    "FEDO",
-    "FEIU",
-    "Energy_FEDU",
-    "Epoch",
-    "Alpha",
-    "Alpha_Eq",
-    "Position",
-    "B_Calc",
-    "B_Eq",
-    "L_star",
-    "I",
-    "MLT",
-    "L_m",
-    "PSD",
-    "R_Eq",
-    "InvMu",
-    "InvK",
-]
+    from astropy import units as u
+
+    import el_paso as ep
+    from el_paso.typing import InternalName
+
+
+logger = logging.getLogger("__name__")
 
 T = TypeVar("T", bound=str, covariant=True)
 

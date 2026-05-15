@@ -95,7 +95,7 @@ def test_data_org_dataset_loads_saved_monthly_nc_and_rejects_invalid_variable(tm
         instrument="MAGED",
         mag_field="T89",
         file_format="nc",
-        data_standard=ep.data_standards.DataOrgStandard(),
+        data_standard=ep.data_standards.DataOrgStandard,
     )
 
     ep.save(
