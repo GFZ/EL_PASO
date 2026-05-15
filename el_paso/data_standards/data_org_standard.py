@@ -27,14 +27,14 @@ class DataOrgStandard(DataStandard[GFZVarNames]):
             "Position": VariableInfo[GFZVarNames](
                 "xGEO", "Position in geographic cartesian coordinates.", ep.units.RE, ["Epoch", "Position_components"]
             ),
-            "Energy_FEDU": VariableInfo[GFZVarNames](
-                "energy_channels", "Central energy of measured flux.", u.MeV, ["Epoch", "Energy_FEDU"]
+            "FEDU_Energy": VariableInfo[GFZVarNames](
+                "energy_channels", "Central energy of measured flux.", u.MeV, ["Epoch", "FEDU_Energy"]
             ),
             "FEDU": VariableInfo[GFZVarNames](
                 "Flux",
                 "Flux of particles. Can be uni/omni-directional and differential/integral.",
                 (u.cm**2 * u.s * u.sr * u.keV) ** (-1),
-                ["Epoch", "Energy_FEDU", "Alpha"],
+                ["Epoch", "FEDU_Energy", "Alpha"],
             ),
             "Alpha": VariableInfo[GFZVarNames](
                 "alpha_local", "Local pitch angles of the particles.", u.radian, ["Epoch", "Alpha"]
@@ -46,7 +46,7 @@ class DataOrgStandard(DataStandard[GFZVarNames]):
                 "PSD",
                 "Calculated phase space density of particles.",
                 (u.m * u.kg * u.m / u.s) ** (-3),
-                ["Epoch", "Energy_FEDU", "Alpha"],
+                ["Epoch", "FEDU_Energy", "Alpha"],
             ),
             "MLT": VariableInfo[GFZVarNames](
                 "MLT", "Magnetic local time at the satellite location.", u.hour, ["Epoch"]
@@ -65,7 +65,7 @@ class DataOrgStandard(DataStandard[GFZVarNames]):
                 "R0", "Radial distance of the satellite location mapped to the equator.", ep.units.RE, ["Epoch"]
             ),
             "InvMu": VariableInfo[GFZVarNames](
-                "InvMu", "Calculated first adiabatic invariant.", u.MeV / u.G, ["Epoch", "Energy_FEDU", "Alpha"]
+                "InvMu", "Calculated first adiabatic invariant.", u.MeV / u.G, ["Epoch", "FEDU_Energy", "Alpha"]
             ),
             "InvK": VariableInfo[GFZVarNames](
                 "InvK", "Calculated modified second adiabatic invariant.", ep.units.RE * u.G**0.5, ["Epoch", "Alpha"]

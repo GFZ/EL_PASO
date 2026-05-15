@@ -8,16 +8,14 @@ from __future__ import annotations
 
 import calendar
 import logging
-import pickle
 import typing
-import warnings
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Literal
 
 import numpy as np
-from scipy.io import loadmat, savemat
+from scipy.io import savemat
 
+import el_paso as ep
 from el_paso.data_standards import DataOrgStandard
 from el_paso.saving_strategy import OutputFile, SavingStrategy
 
@@ -25,7 +23,7 @@ if typing.TYPE_CHECKING:
     from numpy.typing import NDArray
 
     from el_paso import Variable
-    from el_paso.typing import InternalName, SavedDataDict
+    from el_paso.typing import DataStandardInstance, InternalName, SavedDataDict
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +71,7 @@ class DataOrgStrategy(SavingStrategy):
         satellite: str,
         instrument: str,
         kext: str,
-        file_format: Literal[".mat", ".pickle"] = ".mat",
+        data_standard: DataStandardInstance|None = None,
     ) -> None:
         """Initializes the data organization strategy.
 
@@ -88,29 +86,20 @@ class DataOrgStrategy(SavingStrategy):
                     Passing ``".pickle"`` is deprecated and will be removed in a future release.
                     Use ``".mat"`` instead.
         """
-        if file_format == ".pickle":
-            warnings.warn(
-                "The '.pickle' file format for DataOrgStrategy is deprecated and will be removed "
-                "in a future release. Use '.mat' instead.",
-                FutureWarning,
-                stacklevel=2,
-            )
-
         self.base_data_path = Path(base_data_path)
         self.mission = mission
         self.satellite = satellite
         self.instrument = instrument
+        self.data_standard = data_standard or DataOrgStandard()
 
         # for backwards compatibility
         if kext == "TS04":
             kext = "T04s"
         self.kext = kext
 
-        self.file_format = file_format
-
         self.output_files = [
             OutputFile("flux", ["Epoch", "FEDU"]),
-            OutputFile("alpha_and_energy", ["Epoch", "Alpha", "Alpha_Eq", "Energy_FEDU"]),
+            OutputFile("alpha_and_energy", ["Epoch", "Alpha", "Alpha_Eq", "FEDU_Energy"]),
             OutputFile("mlt", ["Epoch", "MLT"]),
             OutputFile("lstar", ["Epoch", "L_star"]),
             OutputFile("lm", ["Epoch", "L_m"]),
@@ -121,7 +110,8 @@ class DataOrgStrategy(SavingStrategy):
             OutputFile("R0", ["Epoch", "R_Eq"])
         ]
 
-        self.data_standard = DataOrgStandard()
+        self._loader = ep.utils.load_mat_data
+
 
     def standardize_variable(self, variable: Variable, internal_name: InternalName, *, first_call_of_interval: bool) -> Variable:
         """Standardizes a variable's units and dimensions based on its predefined name.
@@ -217,26 +207,14 @@ class DataOrgStrategy(SavingStrategy):
         if output_file.name in ["alpha_and_energy", "lstar", "lm", "invmu_and_invk", "mlt", "bfield", "R0"]:
             file_name += f"_n4_4_{self.kext}"
 
-        file_name += "_ver4" + self.file_format
+        file_name += "_ver4.mat"
 
         return self.get_file_path_stem() /  file_name
 
-    def _merge_data_dicts_by_time(
-        self, data_dict_old: dict[str, Any], data_dict_to_save: SavedDataDict
-    ) -> SavedDataDict:
-        """Appends new data to an existing file by combining the new and old data dictionaries.
 
-        Parameters:
-            data_dict_old (dict[str, Any]): The dictionary with existing data.
-            data_dict_to_save (dict[str, Any]): The dictionary with new data to be added.
-
-        Returns:
-            dict[str, Any]: A new dictionary containing the merged old and new data.
-
-        Raises:
-            ValueError: If a key mismatch occurs between the dictionaries or if the concatenated
-                time array contains non-unique values.
-        """
+    def _append_mat_data(self, file_path: Path, data_dict_to_save: SavedDataDict) -> SavedDataDict:
+        """Load an existing MATLAB file and merge the new data into it."""
+        data_dict_old = self._loader(file_path)
         time_key = self.data_standard.get_full_var_name("Epoch")
 
         time_1 = np.atleast_1d(np.squeeze(data_dict_old[time_key]))
@@ -287,25 +265,6 @@ class DataOrgStrategy(SavingStrategy):
 
         return data_dict_to_save
 
-    def _append_mat_data(self, file_path: Path, data_dict_to_save: SavedDataDict) -> SavedDataDict:
-        """Load an existing MATLAB file and merge the new data into it."""
-        data_dict_old = loadmat(str(file_path))
-        return self._merge_data_dicts_by_time(data_dict_old, data_dict_to_save)
-
-    def _append_pickle_data(self, file_path: Path, data_dict_to_save: SavedDataDict) -> SavedDataDict:
-        """Load an existing pickle file and merge the new data into it."""
-        warnings.warn(
-            "Appending to '.pickle' files is deprecated alongside the '.pickle' format and will "
-            "be removed in a future release. Switch to '.mat' to avoid this warning.",
-            FutureWarning,
-            stacklevel=2,
-        )
-
-        with file_path.open("rb") as file:
-            data_dict_old = pickle.load(file)  # noqa: S301
-
-        return self._merge_data_dicts_by_time(data_dict_old, data_dict_to_save)
-
     def append_data(self, file_path: Path, data_dict_to_save: SavedDataDict) -> SavedDataDict:
         """Appends new data to an existing DataOrg file.
 
@@ -329,15 +288,7 @@ class DataOrgStrategy(SavingStrategy):
                 time array contains non-unique values.
             NotImplementedError: If ``append`` is requested for an unsupported file format.
         """
-        match file_path.suffix:
-            case ".mat":
-                return self._append_mat_data(file_path, data_dict_to_save)
-            case ".pickle":
-                return self._append_pickle_data(file_path, data_dict_to_save)
-            case _:
-                msg = f"Appending to '{file_path.suffix}' files is not supported by DataOrgStrategy."
-                logger.error(msg)
-                raise NotImplementedError(msg)
+        return self._append_mat_data(file_path, data_dict_to_save)
 
     def save_single_file(self, file_path: Path, dict_to_save: SavedDataDict, *, append: bool = False) -> None:
         """Saves variable data to a single file in one of the supported formats (.mat, .pickle, .h5).
@@ -359,7 +310,6 @@ class DataOrgStrategy(SavingStrategy):
         logger.info(f"Saving file {file_path.name}...")
 
         file_path.parent.mkdir(parents=True, exist_ok=True)
-        format_name = file_path.suffix.lower()
 
         if file_path.exists() and append:
             dict_to_save = self.append_data(file_path, dict_to_save)
@@ -371,10 +321,4 @@ class DataOrgStrategy(SavingStrategy):
             else:
                 standard_dict[self.data_standard.get_full_var_name(key)] = value
 
-        if format_name == ".mat":
-            # Save the dictionary into a .mat file
-            savemat(str(file_path), standard_dict)
-
-        elif format_name == ".pickle":
-            with file_path.open("wb") as file:
-                pickle.dump(standard_dict, file)
+        savemat(str(file_path), standard_dict)

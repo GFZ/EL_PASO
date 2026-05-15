@@ -34,17 +34,53 @@ class PRBEMStandard(DataStandard[PRBEMName]):
                 "FEDU",
                 "Processed unidirectional differential electron flux",
                 (u.cm**2 * u.s * u.sr * u.keV) ** (-1),
-                dependencies=["Epoch", "Energy_FEDU", "Pitch_angle"],
+                dependencies=["Epoch", "FEDU_Energy", "Pitch_angle"],
             ),
             "Alpha": VariableInfo[PRBEMName](
-                "Alpha", "Processed unidirectional differential electron flux", u.deg, dependencies=["Epoch", "Alpha"]
+                "Alpha", "Local pitch angle the instrument is looking at", u.deg, dependencies=["Alpha"]
             ),
-            "Energy_FEDU": VariableInfo[PRBEMName](
-                "Energy_FEDU",
-                "Processed unidirectional differential electron flux",
+            "Alpha_Eq": VariableInfo[PRBEMName](
+                "Alpha_Eq",
+                "Computed equatorial pitch angle the instrument is looking from Alpha, B_Calc and B_Eq",
+                u.deg,
+                dependencies=["Alpha"]
+            ),
+            "FEDU_Energy": VariableInfo[PRBEMName](
+                "FEDU_Energy",
+                "Central energy of unidirectional differential electron flux",
                 u.MeV,
-                dependencies=["Epoch", "Energy_FEDU"],
+                dependencies=["FEDU_Energy"],
             ),
+            "Position": VariableInfo[PRBEMName](
+                "Position",
+                "Spacecraft position in geographic cartesian coordinates",
+                u.km,
+                dependencies=["Epoch", "Position_components"],
+            ),
+            "B_Calc": VariableInfo[PRBEMName](
+                "B_Calc",
+                "Calculated magnetic field strength at the spacecraft position",
+                u.nT,
+                dependencies=["Epoch"],
+            ),
+            "B_Eq": VariableInfo[PRBEMName](
+                "B_Eq",
+                "Calculated magnetic field strength at magnetic equator",
+                u.nT,
+                dependencies=["Epoch"],
+            ),
+            "L_m": VariableInfo[PRBEMName](
+                "L_m",
+                "Calculated L McIlwain's L parameter",
+                u.dimensionless_unscaled,
+                dependencies=["Epoch", "Alpha"],
+            ),
+            "L_star": VariableInfo[PRBEMName](
+                "L_star",
+                "Calculated Roederer's L* parameter",
+                u.dimensionless_unscaled,
+                dependencies=["Epoch", "Alpha"],
+            )
         }
 
     def get_full_var_name(self, internal_name: InternalName) -> PRBEMName:
