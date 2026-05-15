@@ -17,8 +17,8 @@ if TYPE_CHECKING:
 
     from numpy.typing import NDArray
 
-    from el_paso.typing import InternalName, Variable
     from el_paso.saving_strategy import SavingStrategy
+    from el_paso.typing import InternalName, Variable
 
 logger = logging.getLogger(__name__)
 

@@ -4,28 +4,39 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
+from scipy.io.matlab import loadmat
 
 import logging
 import re
 import time
 import timeit
-import typing
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from pathlib import Path
-from typing import Any, ParamSpec, TypeVar
+from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar
 
+import cdflib
+import h5py
+import netCDF4 as nC
+import numpy as np
 import pandas as pd
 import tqdm
 from packaging import version as version_pkg
 
-if typing.TYPE_CHECKING:
+from el_paso.typing import (
+    SavedDataDict,
+)
+
+if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
     from multiprocessing.pool import MapResult
 
     import el_paso as ep
 
+
 logger = logging.getLogger(__name__)
+
+DataDict = SavedDataDict
 
 
 def fill_str_template_with_time(input_str: str, time: datetime) -> str:
@@ -299,3 +310,108 @@ def make_dict_hashable(dict_input: dict[Any, Any] | None) -> Hashabledict | None
         return dict_input
 
     return Hashabledict(dict_input)
+
+
+def load_h5_data(file_path: Path) -> DataDict:
+    """Load all datasets and dataset attributes from an HDF5 file."""
+    loaded_data: DataDict = {"metadata": {}}
+
+    def _recursively_load_datasets(group: h5py.Group | h5py.File, prefix: str = "") -> None:
+        for key, item in group.items():
+            full_path = f"{prefix}{key}" if prefix else key
+            if isinstance(item, h5py.Dataset):
+                loaded_data[full_path] = np.array(item)  # ty:ignore[invalid-assignment]
+                loaded_data["metadata"][full_path] = dict(item.attrs.items())
+            elif isinstance(item, h5py.Group):
+                _recursively_load_datasets(item, f"{full_path}/")
+
+    with h5py.File(file_path, "r") as file:
+        _recursively_load_datasets(file)
+
+    return loaded_data
+
+
+def load_netcdf_data(file_path: Path) -> DataDict:
+    """Load all variables and variable metadata from a NetCDF file."""
+    loaded_data: DataDict = {"metadata": {}}
+
+    def _recursively_load(group: nC.Group | nC.Dataset, prefix: str = "") -> None:
+        for var_name, variable in group.variables.items():
+            full_path = f"{prefix}{var_name}" if prefix else var_name
+            loaded_data[full_path] = np.array(variable[:])  # ty:ignore[invalid-assignment]
+            loaded_data["metadata"][full_path] = {
+                "unit": getattr(variable, "units", "unknown"),
+                "source_files": getattr(variable, "source", "unknown"),
+                "processing_notes": getattr(variable, "history", "unknown"),
+                "description": getattr(variable, "description", "unknown"),
+                "original_cadence_seconds": getattr(variable, "original_cadence_seconds", "unknown"),
+            }
+
+        for group_name, subgroup in group.groups.items():
+            _recursively_load(subgroup, f"{prefix}{group_name}/")
+
+    with nC.Dataset(file_path, "r", format="NETCDF4") as file:
+        _recursively_load(file)
+
+    return loaded_data
+
+
+def load_cdf_data(file_path: Path) -> DataDict:
+    """Load all zVariables from an existing CDF file."""
+    loaded_data: DataDict = {"metadata": {}}
+    cdf_file = cdflib.CDF(str(file_path))
+    try:
+        info = cdf_file.cdf_info()
+        z_variables = getattr(info, "zVariables", None)
+        if z_variables is None and isinstance(info, dict):
+            z_variables = info.get("zVariables", [])  # ty:ignore[no-matching-overload]
+
+        for variable_name in z_variables or []:
+            try:
+                loaded_data[variable_name] = np.asarray(cdf_file.varget(variable_name))
+            except ValueError as exc:
+                if "No records found" not in str(exc):
+                    raise
+                logger.warning(f"Skipping empty CDF variable {variable_name} in {file_path.name}")
+                continue
+
+            try:
+                loaded_data["metadata"][variable_name] = cdf_file.varattsget(variable_name)
+            except Exception:  # noqa: BLE001
+                loaded_data["metadata"][variable_name] = {}
+    finally:
+        close = getattr(cdf_file, "close", None)
+        if close is not None:
+            close()
+
+    return loaded_data
+
+
+def load_mat_data(file_path: Path) -> DataDict:
+    """Load an existing MATLAB file."""
+    loaded = loadmat(str(file_path), simplify_cells=True)
+    data: DataDict = {key: value for key, value in loaded.items() if not key.startswith("__")}
+
+    if "metadata" in data and isinstance(data["metadata"], dict):
+        for var_key, attrs in data["metadata"].items():
+            if not isinstance(attrs, dict):
+                continue
+            data["metadata"][var_key] = {
+                k: v.item() if isinstance(v, np.ndarray) and v.ndim == 0 else str(v) if isinstance(v, np.ndarray) else v
+                for k, v in attrs.items()
+            }
+
+    return data
+
+
+def normalize_file_format(file_format: str) -> str:
+    """Return a normalized file extension for the requested monthly format."""
+    normalized = file_format.lower()
+    if not normalized.startswith("."):
+        normalized = f".{normalized}"
+
+    if normalized not in {".nc", ".cdf", ".h5", ".mat"}:
+        msg = "MonthlyFileStrategy supports only 'nc', 'cdf', 'h5', and 'mat' formats."
+        raise ValueError(msg)
+
+    return normalized

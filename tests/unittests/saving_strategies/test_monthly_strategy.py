@@ -144,10 +144,10 @@ def test_monthly_strategy_saves_mocked_variables_to_netcdf_with_data_standards(
     assert output_path.exists()
 
     loader = {
-        "nc": strategy._load_netcdf_data,  # noqa: SLF001
-        "h5": strategy._load_h5_data,  # noqa: SLF001
-        "cdf": strategy._load_cdf_data,  # noqa: SLF001
-        "mat": strategy._load_mat_data,  # noqa: SLF001
+        "nc": ep.utils.load_netcdf_data,
+        "h5": ep.utils.load_h5_data,
+        "cdf": ep.utils.load_cdf_data,
+        "mat": ep.utils.load_mat_data,
     }[output_format]
 
     loaded_data = loader(output_path)

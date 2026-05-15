@@ -21,14 +21,15 @@ import el_paso as ep
 from el_paso.dataset.utils import (
     join_var,
     matlab2python,
-    read_all_datasets_netcdf,
 )
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
-    from el_paso.data_standard import InternalName
-    from el_paso.saving_strategy import SavingStrategy
+    from el_paso.typing import InternalName, MFSFormats, MonthlyFormatLoader, SavedDataDict, SavingStrategyInstance
+
+    DataDict = SavedDataDict
+    FormatLoader = MonthlyFormatLoader
 
 logger = logging.getLogger(__name__)
 
@@ -89,10 +90,10 @@ class DataSet:
 
     def __init__(
         self,
-        saving_strategy: SavingStrategy,
+        saving_strategy: SavingStrategyInstance,
         start_time: dt.datetime | None = None,
         end_time: dt.datetime | None = None,
-        preferred_extension: Literal["mat", "nc"] = "nc",
+        preferred_extension: MFSFormats = "nc",
         *,
         verbose: bool = True,
         enable_dict_loading: bool = False,
@@ -121,8 +122,15 @@ class DataSet:
             self._end_time = end_time
             self._date_list = self.saving_strategy.get_time_intervals_to_save(start_time, end_time)
             self._enable_dict_loading = enable_dict_loading
-            self._netcdf_dataset_cache: dict[Path, dict[str, Any]] = {}
+            self._dataset_cache: dict[Path, DataDict] = {}
             self._is_nc_dataset: bool = False
+
+            self._loaders: dict[str, FormatLoader] = {
+                ".mat": ep.utils.load_mat_data,
+                ".h5": ep.utils.load_h5_data,
+                ".nc": ep.utils.load_netcdf_data,
+                ".cdf": ep.utils.load_cdf_data,
+            }
 
     def __getattr__(self, name: str) -> NDArray[np.float64]:  # noqa: D105
         # Avoid recursion for internal attributes
@@ -277,8 +285,7 @@ class DataSet:
         for time_start, time_end in self._date_list:
             full_file_path = self.saving_strategy.get_file_path(time_start, time_end, output_file)
 
-            if self._preferred_ext == "nc":
-                file_content = self._get_cached_datasets_netcdf(full_file_path)
+            file_content = self._get_cached_datasets(full_file_path)
 
             if not file_content:
                 continue
@@ -336,15 +343,17 @@ class DataSet:
             val = list(loaded_var_arrs[var_name]) if var_name == "datetime" else loaded_var_arrs[var_name]
             setattr(self, var_name, val)  # set standard name
 
-    def _get_cached_datasets_netcdf(self, file_path: Path) -> dict[str, Any]:
-        """Return cached parsed NetCDF content for a monthly file."""
+    def _get_cached_datasets(self, file_path: Path) -> DataDict:
+        """Return cached parsed content for a monthly file."""
         file_path = Path(file_path)
-        if file_path not in self._netcdf_dataset_cache:
+        if file_path not in self._dataset_cache:
             if self._verbose:
                 logger.info(f"Loading {file_path}")
 
-            self._netcdf_dataset_cache[file_path] = read_all_datasets_netcdf(file_path)
-        return self._netcdf_dataset_cache[file_path]
+            self._dataset_cache[file_path] = self._loaders[(ep.utils.normalize_file_format(file_path.suffix))](
+                file_path
+            )
+        return self._dataset_cache[file_path]
 
     def get_loaded_variables(self) -> list[str]:
         """Get a list of currently loaded variable names."""

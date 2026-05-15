@@ -212,7 +212,6 @@ class SavingStrategy(ABC):
     def get_output_file(
         self, *, standard_name: str | None = None, internal_name: InternalName | None = None
     ) -> OutputFile | None:
-
         if internal_name is None:
             if standard_name is None:
                 msg = "Either standard_name or internal_name must be provided!"

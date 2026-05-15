@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from astropy import units as u
 
     import el_paso as ep
-    from el_paso.typing import InternalName
+    from el_paso.typing import InternalName, Variable
 
 
 logger = logging.getLogger("__name__")
@@ -52,20 +52,20 @@ class DataStandard(ABC, Generic[T]):
         return self.variable_infos[internal_name].dependencies
 
     def standardize_variable(
-        self, internal_name: InternalName, variable: ep.Variable, *, reset_consistency_check: bool
-    ) -> ep.Variable:
+        self, internal_name: InternalName, variable: Variable, *, reset_consistency_check: bool
+    ) -> Variable:
         """Standardizes a variable according to the data standard's rules.
 
         This abstract method takes avariable and a standard name,
         and returns a new `el_paso.Variable` that conforms to the specified standard.
 
         Args:
-            standard_name (str): The name of the standard to apply to the variable.
-            variable (ep.Variable): The variable to be standardized.
+            internal_name (str): The name of the standard to apply to the variable.
+            variable (Variable): The variable to be standardized.
             reset_consistency_check (bool): If set to true, the consistency check will be reseted.
 
         Returns:
-            ep.Variable: The standardized variable.
+            Variable: The standardized variable.
         """
         if reset_consistency_check:
             self.consistency_check = ConsistencyCheck()

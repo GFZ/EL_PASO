@@ -5,6 +5,7 @@
 
 
 from __future__ import annotations
+from el_paso.typing import MFSFormats
 
 import shutil
 from datetime import datetime, timezone
@@ -89,7 +90,10 @@ def _mock_monthly_variables() -> dict[InternalName, ep.Variable]:
 
 
 @pytest.mark.basic
-def test_data_org_dataset_loads_saved_monthly_nc_and_rejects_invalid_variable(tmp_path: Path) -> None:
+@pytest.mark.parametrize("formats", ["nc", "h5", "cdf", "mat"])
+def test_data_org_dataset_loads_saved_monthly_nc_and_rejects_invalid_variable(
+    tmp_path: Path, formats: MFSFormats
+) -> None:
     variables = _mock_monthly_variables()
     start_time = datetime(2013, 1, 1, tzinfo=timezone.utc)
     end_time = datetime(2013, 1, 2, tzinfo=timezone.utc)
@@ -100,7 +104,7 @@ def test_data_org_dataset_loads_saved_monthly_nc_and_rejects_invalid_variable(tm
         satellite="primary",
         instrument="MAGED",
         mag_field="T89",
-        file_format="nc",
+        file_format=formats,
         data_standard=ep.data_standards.DataOrgStandard,
     )
 
@@ -120,7 +124,7 @@ def test_data_org_dataset_loads_saved_monthly_nc_and_rejects_invalid_variable(tm
         base_path=str(tmp_path),
         start_time=start_time,
         end_time=end_time,
-        preferred_extension="nc",
+        preferred_extension=formats,
         verbose=False,
     )
 

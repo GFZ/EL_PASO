@@ -13,7 +13,7 @@ import tempfile
 import typing
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, TypeVar
+from typing import TYPE_CHECKING, Any, Literal
 
 import cdflib
 import h5py
@@ -27,7 +27,14 @@ from el_paso.typing import MonthlyFormatLoader, MonthlyFormatWriter
 
 if TYPE_CHECKING:
     from el_paso.processing.magnetic_field_utils import MagneticFieldLiteral
-    from el_paso.typing import DataStandardClass, InternalName, MFSFormats, SavedDataDict
+    from el_paso.typing import (
+        DataStandardClass,
+        DataStandardInstance,
+        InternalName,
+        MFSFormats,
+        SavedDataDict,
+        Variable,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +74,7 @@ class MonthlyFileStrategy(SavingStrategy):
             mag_field (MagneticFieldLiteral): Magnetic field model name. Monthly files use one model.
             file_format (MFSFormats): One of ``"nc"``, ``"cdf"``, ``"h5"``, or ``"mat"``.
                 A leading dot is also accepted.
-            data_standard (DataStandard | None): Standardization implementation. Defaults to
+            data_standard (DataStandardClass): Standardization implementation. Defaults to
                 [`el_paso.data_standards.PRBEMStandard`][]
             root_metadata (dict[str, str] | None): Optional global NetCDF attributes.
 
@@ -82,10 +89,10 @@ class MonthlyFileStrategy(SavingStrategy):
         self.satellite = satellite
         self.instrument = instrument
         self.mag_field = mag_field
-        self.file_format = self._normalize_file_format(file_format)
+        self.file_format = ep.utils.normalize_file_format(file_format)
         self.root_metadata = root_metadata
 
-        self.data_standard = data_standard()
+        self.data_standard: DataStandardInstance = data_standard()
 
         self.output_files = [
             OutputFile("full", self._get_output_file_entries(), save_incomplete=True),
@@ -98,23 +105,12 @@ class MonthlyFileStrategy(SavingStrategy):
             ".cdf": self._write_cdf_file,
         }
         self._loaders: dict[str, FormatLoader] = {
-            ".mat": self._load_mat_data,
-            ".h5": self._load_h5_data,
-            ".nc": self._load_netcdf_data,
-            ".cdf": self._load_cdf_data,
+            ".mat": ep.utils.load_mat_data,
+            ".h5": ep.utils.load_h5_data,
+            ".nc": ep.utils.load_netcdf_data,
+            ".cdf": ep.utils.load_cdf_data,
         }
 
-    def _normalize_file_format(self, file_format: str) -> str:
-        """Return a normalized file extension for the requested monthly format."""
-        normalized = file_format.lower()
-        if not normalized.startswith("."):
-            normalized = f".{normalized}"
-
-        if normalized not in {".nc", ".cdf", ".h5", ".mat"}:
-            msg = "MonthlyFileStrategy supports only 'nc', 'cdf', 'h5', and 'mat' formats."
-            raise ValueError(msg)
-
-        return normalized
 
     def _get_output_file_entries(self) -> list[InternalName]:
         """Return the standard variable list plus user-defined custom variables."""
@@ -140,12 +136,12 @@ class MonthlyFileStrategy(SavingStrategy):
         """Return a NetCDF-safe root dimension name derived from a variable path."""
         return "".join(char if char.isalnum() else "_" for char in variable_name).strip("_") or "custom"
 
-    def _register_writer(self, extension: str, writer: SaveFileWriter) -> None:
+    def _register_writer(self, extension: str, writer: FormatWriter) -> None:
         """Register or replace the writer used for a file extension.
 
         TODO: We may want to support user defined formats in the future, so this method could be extended to check.
         """
-        normalized = self._normalize_file_format(extension)
+        normalized = ep.utils.normalize_file_format(extension)
         self._writers[normalized] = writer
 
     def get_time_intervals_to_save(
@@ -186,16 +182,15 @@ class MonthlyFileStrategy(SavingStrategy):
         start_year_month_day = interval_start.strftime("%Y%m%d")
         end_year_month_day = interval_end.strftime("%Y%m%d")
         file_name = f"{self.get_file_name_stem()}_{start_year_month_day}to{end_year_month_day}_{self.mag_field}{self.file_format}"
-
         return self.get_file_path_stem() / file_name
 
     def standardize_variable(
         self,
-        variable: ep.Variable,
+        variable: Variable,
         internal_name: InternalName,
         *,
         first_call_of_interval: bool,
-    ) -> ep.Variable:
+    ) -> Variable:
         """Standardize a variable through the configured data standard."""
         return self.data_standard.standardize_variable(
             internal_name, variable, reset_consistency_check=first_call_of_interval
@@ -204,7 +199,7 @@ class MonthlyFileStrategy(SavingStrategy):
     def save_single_file(self, file_path: Path, dict_to_save: SavedDataDict, *, append: bool = False) -> None:
         """Save one monthly file, optionally appending to an existing file."""
         file_path.parent.mkdir(parents=True, exist_ok=True)
-        format_name = self._normalize_file_format(file_path.suffix)
+        format_name = ep.utils.normalize_file_format(file_path.suffix)
         writer = self._writers.get(format_name)
 
         if writer is None:
@@ -240,7 +235,7 @@ class MonthlyFileStrategy(SavingStrategy):
             logger.info(f"No new time data to insert for {file_path.name}")
             return data_dict_to_save
 
-        format_name = self._normalize_file_format(file_path.suffix)
+        format_name = ep.utils.normalize_file_format(file_path.suffix)
         loader = self._loaders.get(format_name)
         writer = self._writers.get(format_name)
         if loader is None or writer is None:
@@ -355,26 +350,6 @@ class MonthlyFileStrategy(SavingStrategy):
 
         return merged
 
-    def _load_mat_data(self, file_path: Path) -> SavedDataDict:
-        """Load an existing MATLAB file."""
-        loaded = loadmat(str(file_path), simplify_cells=True)
-        data = {key: value for key, value in loaded.items() if not key.startswith("__")}
-
-        if "metadata" in data and isinstance(data["metadata"], dict):
-            for var_key, attrs in data["metadata"].items():
-                if not isinstance(attrs, dict):
-                    continue
-                data["metadata"][var_key] = {
-                    k: v.item()
-                    if isinstance(v, np.ndarray) and v.ndim == 0
-                    else str(v)
-                    if isinstance(v, np.ndarray)
-                    else v
-                    for k, v in attrs.items()
-                }
-
-        return data
-
     def _write_mat_file(self, file_path: Path, data_dict: SavedDataDict) -> None:
         """Write a MATLAB file, resolving standard variable paths and flattening hierarchy.
 
@@ -414,24 +389,6 @@ class MonthlyFileStrategy(SavingStrategy):
             mat_dict["metadata"] = mat_metadata
 
         savemat(str(file_path), mat_dict)
-
-    def _load_h5_data(self, file_path: Path) -> SavedDataDict:
-        """Load all datasets and dataset attributes from an HDF5 file."""
-        loaded_data: SavedDataDict = {"metadata": {}}
-
-        def _recursively_load_datasets(group: h5py.Group | h5py.File, prefix: str = "") -> None:
-            for key, item in group.items():
-                full_path = f"{prefix}{key}" if prefix else key
-                if isinstance(item, h5py.Dataset):
-                    loaded_data[full_path] = np.array(item)  # ty:ignore[invalid-assignment]
-                    loaded_data["metadata"][full_path] = dict(item.attrs.items())
-                elif isinstance(item, h5py.Group):
-                    _recursively_load_datasets(item, f"{full_path}/")
-
-        with h5py.File(file_path, "r") as file:
-            _recursively_load_datasets(file)
-
-        return loaded_data
 
     def _write_h5_file(self, file_path: Path, data_dict: SavedDataDict) -> None:
         """Write an HDF5 file with hierarchical groups from slash-delimited paths."""
@@ -481,47 +438,6 @@ class MonthlyFileStrategy(SavingStrategy):
                     "created as unlimited (None)."
                 )
                 raise ValueError(msg)
-
-    def _load_netcdf_data(self, file_path: Path) -> SavedDataDict:
-        """Load all variables and variable metadata from a NetCDF file."""
-        loaded_data: SavedDataDict = {"metadata": {}}
-
-        def _recursively_load(group: nC.Group | nC.Dataset, prefix: str = "") -> None:
-            for var_name, variable in group.variables.items():
-                full_path = f"{prefix}{var_name}" if prefix else var_name
-                loaded_data[full_path] = np.array(variable[:])  # ty:ignore[invalid-assignment]
-                loaded_data["metadata"][full_path] = {
-                    "unit": getattr(variable, "units", "unknown"),
-                    "source_files": getattr(variable, "source", "unknown"),
-                    "processing_notes": getattr(variable, "history", "unknown"),
-                    "description": getattr(variable, "description", "unknown"),
-                    "original_cadence_seconds": getattr(variable, "original_cadence_seconds", "unknown"),
-                }
-
-            for group_name, subgroup in group.groups.items():
-                _recursively_load(subgroup, f"{prefix}{group_name}/")
-
-        with nC.Dataset(file_path, "r", format="NETCDF4") as file:
-            _recursively_load(file)
-
-        standard_internal_name_map: dict[str, InternalName] = {}
-
-        for standard_name in loaded_data:
-            standard_names: list[InternalName] = [
-                internal_name
-                for internal_name, var_info in self.data_standard.variable_infos.items()
-                if var_info.standard_name == standard_name
-            ]
-
-            if len(standard_names) == 0:
-                continue
-            if len(standard_names) == 1:
-                standard_internal_name_map[standard_name] = standard_names[0]
-            else:
-                msg = "More than one fitting internal name found!"
-                raise ValueError(msg)
-
-        return loaded_data
 
     def _calculate_dimensions(self, data_dict: SavedDataDict) -> dict[str, int]:
         """Calculate NetCDF dimension sizes from the data dictionary."""
@@ -622,36 +538,6 @@ class MonthlyFileStrategy(SavingStrategy):
                     file.createDimension(dim_name, dim_size)
 
             self._write_data_to_netcdf_file(file, data_dict)
-
-    def _load_cdf_data(self, file_path: Path) -> SavedDataDict:
-        """Load all zVariables from an existing CDF file."""
-        loaded_data: SavedDataDict = {"metadata": {}}
-        cdf_file = cdflib.CDF(str(file_path))
-        try:
-            info = cdf_file.cdf_info()
-            z_variables = getattr(info, "zVariables", None)
-            if z_variables is None and isinstance(info, dict):
-                z_variables = info.get("zVariables", [])  # ty:ignore[no-matching-overload]
-
-            for variable_name in z_variables or []:
-                try:
-                    loaded_data[variable_name] = np.asarray(cdf_file.varget(variable_name))
-                except ValueError as exc:
-                    if "No records found" not in str(exc):
-                        raise
-                    logger.warning(f"Skipping empty CDF variable {variable_name} in {file_path.name}")
-                    continue
-
-                try:
-                    loaded_data["metadata"][variable_name] = cdf_file.varattsget(variable_name)
-                except Exception:  # noqa: BLE001
-                    loaded_data["metadata"][variable_name] = {}
-        finally:
-            close = getattr(cdf_file, "close", None)
-            if close is not None:
-                close()
-
-        return loaded_data
 
     def _get_cdf_variable_attrs(self, var_name: str, data_dict: SavedDataDict) -> SavedDataDict:
         """Return non-empty CDF variable attributes for a saved variable."""
