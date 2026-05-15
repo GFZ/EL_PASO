@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     import numpy as np
     from numpy.typing import NDArray
 
-    from el_paso.typing import MFSFormats, SavingStrategyClass
+    from el_paso.typing import MFSFormats, SavingStrategy
 
 
 class DataOrgDataSet(DataSet):
@@ -47,7 +47,7 @@ class DataOrgDataSet(DataSet):
         start_time: dt.datetime | None = None,
         end_time: dt.datetime | None = None,
         preferred_extension: MFSFormats = "nc",
-        saving_strategy_type: SavingStrategyClass = ep.saving_strategies.MonthlyFileStrategy,
+        saving_strategy_type: type[SavingStrategy] = ep.saving_strategies.MonthlyFileStrategy,
         *,
         verbose: bool = True,
         enable_dict_loading: bool = False,

@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from multiprocessing.pool import MapResult
 
     import el_paso as ep
-    from el_paso.typing import DataStandardInstance, SavedDataDict
+    from el_paso.typing import DataStandard, SavedDataDict, StandardName
 
     DataDict = SavedDataDict
 
@@ -308,9 +308,9 @@ def make_dict_hashable(dict_input: dict[Any, Any] | None) -> Hashabledict | None
     return Hashabledict(dict_input)
 
 
-def load_h5_data(file_path: Path) -> DataDict:
+def load_h5_data(file_path: Path) -> dict[StandardName, Any]:
     """Load all datasets and dataset attributes from an HDF5 file."""
-    loaded_data: DataDict = {"metadata": {}}
+    loaded_data: dict[StandardName, Any] = {"metadata": {}}
 
     def _recursively_load_datasets(group: h5py.Group | h5py.File, prefix: str = "") -> None:
         for key, item in group.items():
@@ -327,9 +327,9 @@ def load_h5_data(file_path: Path) -> DataDict:
     return loaded_data
 
 
-def load_netcdf_data(file_path: Path) -> DataDict:
+def load_netcdf_data(file_path: Path) -> dict[StandardName, Any]:
     """Load all variables and variable metadata from a NetCDF file."""
-    loaded_data: DataDict = {"metadata": {}}
+    loaded_data: dict[StandardName, Any] = {"metadata": {}}
 
     def _recursively_load(group: nC.Group | nC.Dataset, prefix: str = "") -> None:
         for var_name, variable in group.variables.items():
@@ -352,9 +352,9 @@ def load_netcdf_data(file_path: Path) -> DataDict:
     return loaded_data
 
 
-def load_cdf_data(file_path: Path) -> DataDict:
+def load_cdf_data(file_path: Path) -> dict[StandardName, Any]:
     """Load all zVariables from an existing CDF file."""
-    loaded_data: DataDict = {"metadata": {}}
+    loaded_data: dict[StandardName, Any] = {"metadata": {}}
     cdf_file = cdflib.CDF(str(file_path))
     try:
         info = cdf_file.cdf_info()
@@ -383,10 +383,10 @@ def load_cdf_data(file_path: Path) -> DataDict:
     return loaded_data
 
 
-def load_mat_data(file_path: Path) -> DataDict:
+def load_mat_data(file_path: Path) -> dict[StandardName, Any]:
     """Load an existing MATLAB file."""
     loaded = loadmat(str(file_path), simplify_cells=True)
-    data: DataDict = {key: value for key, value in loaded.items() if not key.startswith("__")}
+    data: dict[StandardName, Any] = {key: value for key, value in loaded.items() if not key.startswith("__")}
 
     if "metadata" in data and isinstance(data["metadata"], dict):
         for var_key, attrs in data["metadata"].items():
@@ -413,7 +413,7 @@ def normalize_file_format(file_format: str) -> str:
     return normalized
 
 
-def write_mat_file(file_path: Path, data_dict: DataDict, data_standard: DataStandardInstance) -> None:
+def write_mat_file(file_path: Path, data_dict: DataDict, data_standard: DataStandard) -> None:
     """Write a MATLAB file, resolving standard variable paths and flattening hierarchy.
 
     Data variables are stored under their flattened canonical names (``/`` → ``__``).
@@ -454,7 +454,7 @@ def write_mat_file(file_path: Path, data_dict: DataDict, data_standard: DataStan
     savemat(str(file_path), mat_dict)
 
 
-def write_h5_file(file_path: Path, data_dict: SavedDataDict, data_standard: DataStandardInstance) -> None:
+def write_h5_file(file_path: Path, data_dict: SavedDataDict, data_standard: DataStandard) -> None:
     """Write an HDF5 file with hierarchical groups from slash-delimited paths."""
     with h5py.File(file_path, "w") as file:
         for internal_name, value in data_dict.items():
@@ -492,9 +492,7 @@ def write_h5_file(file_path: Path, data_dict: SavedDataDict, data_standard: Data
                 data_set.attrs[key] = metadata
 
 
-def _write_data_to_netcdf_file(
-    file: nC.Dataset | nC.Group, data_dict: DataDict, data_standard: DataStandardInstance
-) -> None:
+def _write_data_to_netcdf_file(file: nC.Dataset | nC.Group, data_dict: DataDict, data_standard: DataStandard) -> None:
     """Write variables to a NetCDF file or group."""
     for mfs_name, value in data_dict.items():
         if mfs_name == "metadata":
@@ -554,7 +552,7 @@ def _write_data_to_netcdf_file(
         data_set.original_cadence_seconds = metadata.get("original_cadence_seconds", "unknown")
 
 
-def write_netcdf_file(file_path: Path, data_dict: DataDict, data_standard: DataStandardInstance) -> None:
+def write_netcdf_file(file_path: Path, data_dict: DataDict, data_standard: DataStandard) -> None:
     """Create and write a NetCDF file from a data dictionary."""
     with nC.Dataset(file_path, "w", format="NETCDF4") as file:
         size_time = np.asarray(data_dict["Epoch"]).shape[0]
@@ -621,7 +619,7 @@ def _is_empty_cdf_attribute(value: Any) -> bool:  # noqa: ANN401
     return getattr(value, "size", None) == 0
 
 
-def write_cdf_file(file_path: Path, data_dict: DataDict, data_standard: DataStandardInstance) -> None:  # noqa: C901, PLR0912, PLR0915
+def write_cdf_file(file_path: Path, data_dict: DataDict, data_standard: DataStandard) -> None:  # noqa: C901, PLR0912, PLR0915
     """Write a CDF file, resolving standard variable paths and embedding metadata."""
     try:
         cdf_file = cdflib.cdfwrite.CDF(str(file_path), delete=True)

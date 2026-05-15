@@ -23,7 +23,7 @@ if typing.TYPE_CHECKING:
     from numpy.typing import NDArray
 
     from el_paso import Variable
-    from el_paso.typing import DataStandardInstance, InternalName, SavedDataDict
+    from el_paso.typing import DataStandard, InternalName, SavedDataDict
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +71,7 @@ class DataOrgStrategy(SavingStrategy):
         satellite: str,
         instrument: str,
         kext: str,
-        data_standard: DataStandardInstance|None = None,
+        data_standard: type[DataStandard],
     ) -> None:
         """Initializes the data organization strategy.
 
@@ -90,7 +90,7 @@ class DataOrgStrategy(SavingStrategy):
         self.mission = mission
         self.satellite = satellite
         self.instrument = instrument
-        self.data_standard = data_standard or DataOrgStandard()
+        self.data_standard = data_standard() or DataOrgStandard()
 
         # for backwards compatibility
         if kext == "TS04":

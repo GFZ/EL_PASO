@@ -70,15 +70,13 @@ GFZVarNames: TypeAlias = Literal[
     "InvK",
 ]
 
-StandardName: TypeAlias = PRBEMName | GFZVarNames
+StandardName: TypeAlias = PRBEMName | GFZVarNames | Literal["metadata"]
 
 MagneticFieldLiteral: TypeAlias = Literal["T89", "T01", "T01s", "TS04", "TS05", "T04s", "T96", "OP77Q", "OP77"]
 MFSFormats: TypeAlias = Literal["nc", "cdf", "h5", "mat", ".nc", ".cdf", ".h5", ".mat"]
-DataOrgFileFormat: TypeAlias = Literal[".mat", ".pickle"]
-
 TimeInterval: TypeAlias = tuple[datetime, datetime]
 SavedDataDict: TypeAlias = dict[InternalName | Literal["metadata"], Any]
-MonthlyDataDict: TypeAlias = SavedDataDict
+FileLoader: TypeAlias = Callable[[Path], dict[StandardName, Any]]
 
 
 class FileWriter(Protocol):  # noqa: D101
@@ -86,29 +84,8 @@ class FileWriter(Protocol):  # noqa: D101
         self,
         file_path: Path,
         data_dict: SavedDataDict,
-        data_standard: DataStandardInstance,
+        data_standard: DataStandard,
     ) -> None: ...
-
-
-if TYPE_CHECKING:
-    DataStandardInstance: TypeAlias = DataStandard[Any]
-    DataStandardClass: TypeAlias = type[DataStandard[Any]]
-    SavingStrategyInstance: TypeAlias = SavingStrategy
-    SavingStrategyClass: TypeAlias = type[SavingStrategy]
-    VariableDict: TypeAlias = dict[InternalName, Variable]
-    VariableMapping: TypeAlias = Mapping[InternalName, Variable]
-else:  # During runtime, we can't import the concrete classes without risking import cycles, so we use Any as a placeholder.
-    DataStandardInstance: TypeAlias = Any
-    DataStandardClass: TypeAlias = type[Any]
-    SavingStrategyInstance: TypeAlias = Any
-    SavingStrategyClass: TypeAlias = type[Any]
-    VariableDict: TypeAlias = dict[InternalName, Any]
-    VariableMapping: TypeAlias = Mapping[InternalName, Any]
-
-FileLoader: TypeAlias = Callable[[Path], SavedDataDict]
-MonthlyFormatWriter: TypeAlias = FileWriter
-MonthlyFormatLoader: TypeAlias = FileLoader
-SingleFileFormatWriter: TypeAlias = Callable[[Path, dict[str, Any]], None]
 
 
 _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
@@ -146,37 +123,26 @@ def __dir__() -> list[str]:
 
 __all__ = [
     "ConsistencyCheck",
-    "DataOrgFileFormat",
     "DataOrgStandard",
     "DataOrgStrategy",
     "DataStandard",
-    "DataStandardClass",
-    "DataStandardInstance",
     "DensityNetCDFStrategy",
+    "FileLoader",
+    "FileWriter",
     "GFZVarNames",
     "InternalName",
     "MFSFormats",
     "MagneticFieldLiteral",
-    "MonthlyDataDict",
     "MonthlyFileStrategy",
-    "MonthlyFormatLoader",
-    "MonthlyFormatWriter",
     "OutputFile",
     "PRBEMName",
     "PRBEMStandard",
-    "FileLoader",
-    "FileWriter",
     "SavedDataDict",
     "SavingStrategy",
-    "SavingStrategyClass",
-    "SavingStrategyInstance",
-    "SingleFileFormatWriter",
     "SingleFileStrategy",
     "StandardName",
     "TimeInterval",
     "Variable",
-    "VariableDict",
     "VariableInfo",
-    "VariableMapping",
     "VariableMetadata",
 ]

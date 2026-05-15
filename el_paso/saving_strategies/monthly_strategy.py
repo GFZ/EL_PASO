@@ -23,18 +23,14 @@ from el_paso.saving_strategy import OutputFile, SavingStrategy
 if TYPE_CHECKING:
     from el_paso.processing.magnetic_field_utils import MagneticFieldLiteral
     from el_paso.typing import (
-        DataStandardClass,
-        DataStandardInstance,
+        DataStandard,
+        FileLoader,
+        FileWriter,
         InternalName,
         MFSFormats,
-        MonthlyFormatLoader,
-        MonthlyFormatWriter,
         SavedDataDict,
         Variable,
     )
-
-    FormatWriter = MonthlyFormatWriter
-    FormatLoader = MonthlyFormatLoader
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +55,7 @@ class MonthlyFileStrategy(SavingStrategy):
         instrument: str,
         mag_field: MagneticFieldLiteral,
         file_format: MFSFormats = "h5",
-        data_standard: DataStandardClass = ep.data_standards.PRBEMStandard,
+        data_standard: type[DataStandard] = ep.data_standards.PRBEMStandard,
     ) -> None:
         """Initialize a monthly file saving strategy.
 
@@ -85,19 +81,19 @@ class MonthlyFileStrategy(SavingStrategy):
         self.mag_field = mag_field
         self.file_format = ep.utils.normalize_file_format(file_format)
 
-        self.data_standard: DataStandardInstance = data_standard()
+        self.data_standard = data_standard()
 
         self.output_files = [
             OutputFile("full", self._get_output_file_entries(), save_incomplete=True),
         ]
 
-        self._writers: dict[str, FormatWriter] = {
+        self._writers: dict[str, FileWriter] = {
             ".mat": ep.utils.write_mat_file,
             ".h5": ep.utils.write_h5_file,
             ".nc": ep.utils.write_netcdf_file,
             ".cdf": ep.utils.write_cdf_file,
         }
-        self._loaders: dict[str, FormatLoader] = {
+        self._loaders: dict[str, FileLoader] = {
             ".mat": ep.utils.load_mat_data,
             ".h5": ep.utils.load_h5_data,
             ".nc": ep.utils.load_netcdf_data,
@@ -128,7 +124,7 @@ class MonthlyFileStrategy(SavingStrategy):
         """Return a NetCDF-safe root dimension name derived from a variable path."""
         return "".join(char if char.isalnum() else "_" for char in variable_name).strip("_") or "custom"
 
-    def _register_writer(self, extension: str, writer: FormatWriter) -> None:
+    def _register_writer(self, extension: str, writer: FileWriter) -> None:
         """Register or replace the writer used for a file extension.
 
         TODO: We may want to support user defined formats in the future, so this method could be extended to check.
@@ -173,7 +169,7 @@ class MonthlyFileStrategy(SavingStrategy):
         """Generate the monthly file path for the configured format."""
         start_year_month_day = interval_start.strftime("%Y%m%d")
         end_year_month_day = interval_end.strftime("%Y%m%d")
-        file_name = f"{self.get_file_name_stem()}_{start_year_month_day}to{end_year_month_day}_{self.mag_field}{self.file_format}"
+        file_name = f"{self.get_file_name_stem()}_{start_year_month_day}to{end_year_month_day}_{self.mag_field}{self.file_format}"  # noqa: E501
         return self.get_file_path_stem() / file_name
 
     def standardize_variable(
@@ -242,7 +238,7 @@ class MonthlyFileStrategy(SavingStrategy):
         existing_data = loader(file_path)
 
         logger.info(f"Merging and sorting data for {file_path.name}")
-        merged_data = self._merge_and_sort_data(existing_data, data_dict_to_save)
+        merged_data = self._merge_and_sort_data(existing_data, data_dict_to_save)  # ty:ignore[invalid-argument-type]
 
         with tempfile.NamedTemporaryFile(suffix=format_name, delete=False, dir=file_path.parent) as tmp_file:
             tmp_path = Path(tmp_file.name)

@@ -22,12 +22,12 @@ from el_paso.saving_strategy import OutputFile, SavingStrategy
 if TYPE_CHECKING:
     from datetime import datetime
 
-    from el_paso import Variable
+    from el_paso.typing import Variable
 
 logger = logging.getLogger(__name__)
 
 
-FormatWriter = Callable[[Path, dict[str, Any]], None]
+SingleFileFormatWriter = Callable[[Path, dict[str, Any]], None]
 
 
 class SingleFileStrategy(SavingStrategy):
@@ -69,19 +69,19 @@ class SingleFileStrategy(SavingStrategy):
 
     output_files: list[OutputFile]
     file_path: Path
-    _writers: dict[str, FormatWriter]
+    _writers: dict[str, SingleFileFormatWriter]
 
     def __init__(
         self,
         file_path: str | Path,
-        format_writers: dict[str, FormatWriter] | None = None,
+        format_writers: dict[str, SingleFileFormatWriter] | None = None,
     ) -> None:
         """Initializes the SingleFileStrategy with the specified file path and optional custom format writers.
 
         Parameters:
             file_path (str | Path): The full path to the output file. The file extension determines
                 the format unless a custom writer is registered.
-            format_writers (dict[str, FormatWriter] | None): Optional dictionary mapping file extensions
+            format_writers (dict[str, SingleFileFormatWriter] | None): Optional dictionary mapping file extensions
                 (including the dot, e.g., ".myformat") to custom writer functions. Custom writers override
                 built-in writers for the same extension. Defaults to None.
 
@@ -98,7 +98,7 @@ class SingleFileStrategy(SavingStrategy):
         self.output_files = [OutputFile(self.file_path.name, [])]
 
         # Build the dispatch table with built-in writers
-        self._writers: dict[str, FormatWriter] = {
+        self._writers: dict[str, SingleFileFormatWriter] = {
             ".mat": self._write_mat_file,
             ".h5": self._write_h5_file,
             ".nc": self._write_netcdf_file,
@@ -164,7 +164,7 @@ class SingleFileStrategy(SavingStrategy):
         """
         return variable
 
-    def register_writer(self, extension: str, writer: FormatWriter) -> None:
+    def register_writer(self, extension: str, writer: SingleFileFormatWriter) -> None:
         """Register a custom format writer for a file extension.
 
         This method allows you to register custom writers for file formats not natively supported,
@@ -173,7 +173,7 @@ class SingleFileStrategy(SavingStrategy):
 
         Parameters:
             extension (str): The file extension (including the dot), e.g., ".myformat" or ".bin".
-            writer (FormatWriter): A callable with signature `(Path, dict[str, Any]) -> None` that
+            writer (SingleFileFormatWriter): A callable with signature `(Path, dict[str, Any]) -> None` that
                 handles writing the data dictionary to the specified file path.
 
         Example:

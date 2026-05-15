@@ -11,7 +11,7 @@ from __future__ import annotations
 import datetime as dt
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import distance
 import numpy as np
@@ -26,10 +26,17 @@ from el_paso.dataset.utils import (
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
-    from el_paso.typing import InternalName, MFSFormats, MonthlyFormatLoader, SavedDataDict, SavingStrategyInstance
+    from el_paso.typing import (
+        FileLoader,
+        InternalName,
+        MFSFormats,
+        SavedDataDict,
+        SavingStrategy,
+        StandardName,
+    )
 
     DataDict = SavedDataDict
-    FormatLoader = MonthlyFormatLoader
+    FormatLoader = FileLoader
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +97,7 @@ class DataSet:
 
     def __init__(
         self,
-        saving_strategy: SavingStrategyInstance,
+        saving_strategy: SavingStrategy,
         start_time: dt.datetime | None = None,
         end_time: dt.datetime | None = None,
         preferred_extension: MFSFormats = "nc",
@@ -122,7 +129,7 @@ class DataSet:
             self._end_time = end_time
             self._date_list = self.saving_strategy.get_time_intervals_to_save(start_time, end_time)
             self._enable_dict_loading = enable_dict_loading
-            self._dataset_cache: dict[Path, DataDict] = {}
+            self._dataset_cache: dict[Path, dict[StandardName, Any]] = {}
             self._is_nc_dataset: bool = False
 
             self._loaders: dict[str, FormatLoader] = {
