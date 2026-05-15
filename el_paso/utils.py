@@ -161,7 +161,7 @@ def timed_function(func_name: str | None = None) -> Callable[[Callable[P, R]], C
             tic = timeit.default_timer()
             result = f(*args, **kwargs)
             toc = timeit.default_timer()
-            name = func_name or f"{f.__name__}"
+            name = func_name or f"{f.__name__}"  # ty:ignore[unresolved-attribute]
             log = logging.getLogger(f.__module__)
             log.info(f"{name} finished in {toc - tic:0.3f} seconds", stacklevel=2)
 
@@ -259,12 +259,12 @@ def show_process_bar_for_map_async(map_result: MapResult[Any], chunksize: int) -
         map_result (MapResult): The result object from `Pool.map_async()`.
         chunksize (int): The chunk size used in the `map_async` call.
     """
-    init = typing.cast("int", map_result._number_left) * chunksize  # type: ignore[reportUnknownMemberType] # noqa: SLF001
+    init = cast("int", map_result._number_left) * chunksize  # noqa: SLF001 # ty:ignore[unresolved-attribute]
     with tqdm.tqdm(total=init) as t:
         while True:
             if map_result.ready():
                 break
-            t.n = init - map_result._number_left * chunksize  # type: ignore[reportUnknownMemberType] # noqa: SLF001
+            t.n = init - map_result._number_left * chunksize  # noqa: SLF001  # ty:ignore[unresolved-attribute]
             t.refresh()
             time.sleep(1)
 
@@ -276,7 +276,7 @@ class Hashabledict(dict[Any, Any]):
     by providing a custom hash implementation based on its contents.
     """
 
-    def __hash__(self) -> int:  # type: ignore[reportIncompatibleVariableOverride]
+    def __hash__(self) -> int:
         """Computes a hash value for the dictionary.
 
         The hash is computed based on the frozensets of the dictionary's keys
@@ -287,7 +287,7 @@ class Hashabledict(dict[Any, Any]):
         Returns:
             int: The hash value of the dictionary.
         """
-        return hash((frozenset(self), frozenset(self.itervalues())))  # type: ignore[reportAttributeAccessIssue]
+        return hash((frozenset(self), frozenset(self.itervalues())))  # ty:ignore[unresolved-attribute]
 
 
 def make_dict_hashable(dict_input: dict[Any, Any] | None) -> Hashabledict | None:

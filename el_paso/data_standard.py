@@ -17,16 +17,15 @@ if TYPE_CHECKING:
 
     from astropy import units as u
 
-    import el_paso as ep
     from el_paso.typing import InternalName, Variable
 
 
 logger = logging.getLogger("__name__")
 
-T = TypeVar("T", bound=str, covariant=True)
+T = TypeVar("T", bound=str, covariant=True)  # noqa: PLC0105
 
 
-class VariableInfo(NamedTuple, Generic[T]):
+class VariableInfo(NamedTuple, Generic[T]):  # noqa: D101
     standard_name: T
     description: str
     unit: u.UnitBase
@@ -110,10 +109,6 @@ class ConsistencyCheck:
 
     lengths: dict[str | int, _SizeAttr] = field(default_factory=dict[str | int, _SizeAttr])
 
-    # len_time: _SizeAttr | None = None
-    # len_pitch_angle: _SizeAttr | None = None
-    # len_energy: _SizeAttr | None = None
-
     def check(self, data_shape: tuple[int, ...], dim_names_or_sizes: Sequence[str | int], var_name: str) -> None:
         if len(data_shape) != len(dim_names_or_sizes):
             msg = "Encountered size missmatch!"
@@ -137,66 +132,3 @@ class ConsistencyCheck:
                 f"and of variable {var_name}: {provided_len}",
             )
             raise ValueError(msg)
-
-    # def check_time_size(self, provided_len_time: int, name_in_file: str) -> None:
-    #     """Checks for consistency in the time dimension's length.
-
-    #     The first time this method is called, it stores the provided length.
-    #     Subsequent calls will raise a `ValueError` if the new length does not
-    #     match the stored length.
-
-    #     Args:
-    #         provided_len_time (int): The length of the time dimension for the current variable.
-    #         name_in_file (str): The name of the variable being checked.
-
-    #     Raises:
-    #         ValueError: If `provided_len_time` does not match the previously stored time length.
-    #     """
-    #     if self.len_time is None:
-    #         self.len_time = _SizeAttr(name_in_file, provided_len_time)
-    #     elif self.len_time.size != provided_len_time:
-    #         msg = (
-    #             f"Time length mismatch! Time length of variable {self.len_time.name}: {self.len_time.size}",
-    #             f"and of variable {name_in_file}: {provided_len_time}",
-    #         )
-    #         raise ValueError(msg)
-
-    # def check_pitch_angle_size(self, provided_len_pitch_angle: int, name_in_file: str) -> None:
-    #     """Checks for consistency in the pitch angle dimension's length.
-
-    #     Args:
-    #         provided_len_pitch_angle (int): The length of the pitch angle dimension.
-    #         name_in_file (str): The name of the variable being checked.
-
-    #     Raises:
-    #         ValueError: If `provided_len_pitch_angle` does not match the previously stored
-    #                     pitch angle length.
-    #     """
-    #     if self.len_pitch_angle is None:
-    #         self.len_pitch_angle = _SizeAttr(name_in_file, provided_len_pitch_angle)
-    #     elif self.len_pitch_angle.size != provided_len_pitch_angle:
-    #         msg = (
-    #             f"Pitch angle length mismatch! Pitch angle length of variable {self.len_pitch_angle.name}:"
-    #             f"{self.len_pitch_angle.size} and of variable {name_in_file}: {provided_len_pitch_angle}"
-    #         )
-    #         raise ValueError(msg)
-
-    # def check_energy_size(self, provided_len_energy: int, name_in_file: str) -> None:
-    #     """Checks for consistency in the energy dimension's length.
-
-    #     Args:
-    #         provided_len_energy (int): The length of the energy dimension.
-    #         name_in_file (str): The name of the variable being checked.
-
-    #     Raises:
-    #         ValueError: If `provided_len_energy` does not match the previously stored
-    #                     energy length.
-    #     """
-    #     if self.len_energy is None:
-    #         self.len_energy = _SizeAttr(name_in_file, provided_len_energy)
-    #     elif self.len_energy.size != provided_len_energy:
-    #         msg = (
-    #             f"Energy length mismatch! Energy length of variable {self.len_energy.name}:"
-    #             f"{self.len_energy.size} and of variable {name_in_file}: {provided_len_energy}"
-    #         )
-    #         raise ValueError(msg)

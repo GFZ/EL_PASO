@@ -212,7 +212,7 @@ def load_indices_solar_wind_parameters(  # noqa: C901, PLR0912, PLR0915
                 msg = f"Requested invalid output: {requested_output}!"
                 raise ValueError(msg)
 
-        result_dict[requested_output] = result  # type: ignore[reportArgumentType]
+        result_dict[requested_output] = result  # ty:ignore[invalid-assignment]
 
     return result_dict
 
@@ -225,8 +225,8 @@ def _create_variables_from_data_frame(
     time_interp_method: str,
 ) -> ep.Variable | tuple[ep.Variable, ep.Variable]:
     data_var = ep.Variable(data=df_in[data_key].to_numpy(), original_unit=unit)
-    timestamps = np.asarray([t.timestamp() for t in df_in.index.to_pydatetime()])  # type: ignore[reportUnknownMemberType]
-    time_var = ep.Variable(data=timestamps, original_unit=ep.units.posixtime)  # type: ignore[reportUnknownArgumentType]
+    timestamps = np.asarray([t.timestamp() for t in df_in.index.to_pydatetime()])  # ty:ignore[unresolved-attribute]
+    time_var = ep.Variable(data=timestamps, original_unit=ep.units.posixtime)
 
     if target_time_variable is None:
         result = (data_var, time_var)

@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 import distance
@@ -32,7 +31,6 @@ if TYPE_CHECKING:
         MFSFormats,
         SavedDataDict,
         SavingStrategy,
-        StandardName,
     )
 
     DataDict = SavedDataDict
@@ -44,58 +42,14 @@ logger = logging.getLogger(__name__)
 class DataSet:
     """DataSet class supporting .mat, and .nc file formats.
 
-    This unified class handles loading RBM (Radiation Belt Model) data from multiple
+    This unified class handles loading data from multiple
     file formats. It can load data either from files or from a dictionary.
 
     For file-based loading, provide `start_time`, `end_time`, and `folder_path`.
     For dictionary-based loading, initialize without these parameters and use `update_from_dict()`.
-
-    Parameters
-    ----------
-    satellite : Union[:class:`SatelliteLike`, :class:`DummyLike`]
-        Satellite identifier as enum or string.
-    instrument : Union[:class:`InstrumentLike`, :class:`DummyLike`]
-        Instrument enumeration or string.
-    mfm : Union[:class:`MfmLike`, :class:`DummyLike`]
-        Magnetic field model enum or string.
-    start_time : dt.datetime, optional
-        Start time for file-based loading.
-    end_time : dt.datetime, optional
-        End time for file-based loading.
-    folder_path : Path, optional
-        Base folder path for file-based loading.
-    preferred_extension : Literal["mat", "nc"], optional
-        Preferred file extension for file-based loading. Default is "nc".
-    verbose : bool, optional
-        Whether to print verbose output. Default is True.
-    enable_dict_loading : bool, optional
-        Enable dictionary-based loading even in file mode. Default is False.
-
-    Attributes:
-    ----------
-    datetime : list[dt.datetime]
-    FEDU: NDArray[np.float64]
-    FEDO: NDArray[np.float64]
-    FEIU: NDArray[np.float64]
-    Energy_FEDU: NDArray[np.float64]
-    Epoch: NDArray[np.float64]
-    Alpha: NDArray[np.float64]
-    Alpha_Eq: NDArray[np.float64]
-    Position: NDArray[np.float64]
-    B_Calc: NDArray[np.float64]
-    B_Eq: NDArray[np.float64]
-    L_star: NDArray[np.float64]
-    I: NDArray[np.float64]
-    MLT: NDArray[np.float64]
-    L_m: NDArray[np.float64]
-    PSD: NDArray[np.float64]
-    R_Eq: NDArray[np.float64]
-    InvMu: NDArray[np.float64]
-    InvK: NDArray[np.float64]
-
     """
 
-    def __init__(  # noqa: D107
+    def __init__(
         self,
         saving_strategy: SavingStrategy,
         start_time: dt.datetime | None = None,
@@ -105,8 +59,25 @@ class DataSet:
         verbose: bool = True,
         enable_dict_loading: bool = False,
     ) -> None:
+        """Initializes a DataSet instance.
 
-        # Store the original satellite enum for properties and other attributes
+        Constructs the saving strategy, invokes the parent DataSet initializer,
+        and populates the list of possible variables from class annotations.
+
+        Parameters:
+            saving_strategy (SavingStrategy): Instance of the saving strategy used to save the data.
+            start_time (dt.datetime | None): Beginning of the time range to load.
+                If ``None``, no lower bound is applied. Defaults to ``None``.
+            end_time (dt.datetime | None): End of the time range to load.
+                If ``None``, no upper bound is applied. Defaults to ``None``.
+            preferred_extension (MFSFormats): File format to prefer when reading
+                and writing data. Defaults to ``"nc"`` (NetCDF).
+            verbose (bool): If ``True``, print progress and diagnostic messages.
+                Defaults to ``True``.
+            enable_dict_loading (bool): If ``True``, allow loading data from
+                dictionary-backed sources in addition to files. Defaults to
+                ``False``.
+        """
         self._verbose = verbose
         self._preferred_ext = preferred_extension
 
@@ -129,8 +100,6 @@ class DataSet:
             self._end_time = end_time
             self._date_list = self.saving_strategy.get_time_intervals_to_save(start_time, end_time)
             self._enable_dict_loading = enable_dict_loading
-            self._dataset_cache: dict[Path, dict[StandardName, Any]] = {}
-            self._is_nc_dataset: bool = False
 
             self._loaders: dict[str, FormatLoader] = {
                 ".mat": ep.utils.load_mat_data,
@@ -291,7 +260,9 @@ class DataSet:
         # 2. Iterate through date ranges
         for time_start, time_end in self._date_list:
             full_file_path = self.saving_strategy.get_file_path(time_start, time_end, output_file)
-            file_content = self._get_cached_datasets(full_file_path)
+            if self._verbose:
+                logger.info(f"Loading {full_file_path}")
+            file_content = self._loaders[(ep.utils.normalize_file_format(full_file_path.suffix))](full_file_path)
 
             if not file_content:
                 continue
@@ -299,16 +270,6 @@ class DataSet:
             time_key = self.saving_strategy.data_standard.get_full_var_name("Epoch")
 
             # 4. Process Datetimes
-            # ruff: disable[ERA001]
-            # raw_times = file_content[time_key]
-            # time_unit = self.saving_strategy.data_standard.variable_infos["Epoch"].unit
-
-            # posix_times = (raw_times * time_unit).to_value(ep.units.posixtime)
-            # datetimes = np.asarray(
-            #     [dt.datetime.fromtimestamp(t.astype(np.int64), tz=dt.timezone.utc) for t in posix_times]
-            # )
-            # ruff: enable[ERA001]
-
             raw_times = file_content[time_key]
 
             if self.saving_strategy.data_standard.variable_infos["Epoch"].unit == ep.units.posixtime:
@@ -350,18 +311,6 @@ class DataSet:
         for var_name in var_names_stored:
             val = list(loaded_var_arrs[var_name]) if var_name == "datetime" else loaded_var_arrs[var_name]
             setattr(self, var_name, val)  # set standard name
-
-    def _get_cached_datasets(self, file_path: Path) -> dict[StandardName, Any]:
-        """Return cached parsed content for a monthly file."""
-        file_path = Path(file_path)
-        if file_path not in self._dataset_cache:
-            if self._verbose:
-                logger.info(f"Loading {file_path}")
-
-            self._dataset_cache[file_path] = self._loaders[(ep.utils.normalize_file_format(file_path.suffix))](
-                file_path
-            )
-        return self._dataset_cache[file_path]
 
     def get_loaded_variables(self) -> list[str]:
         """Get a list of currently loaded variable names."""

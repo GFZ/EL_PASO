@@ -303,7 +303,7 @@ def _extract_data_from_cdf(
     for info in extraction_infos:
         if info.name_or_column in cdfinfo.zVariables:
             # Retrieve data corresponding to the variable name from the CDF file
-            var_content = cdf_file.varget(info.name_or_column)  # type: ignore[reportUnknownMemberType]
+            var_content = cdf_file.varget(info.name_or_column)  # ty:ignore[invalid-argument-type]
             var_content = typing.cast("NDArray[Any]", var_content)
 
             if isinstance(var_content, str):
