@@ -173,4 +173,4 @@ def test_data_org_dataset_loads_saved_monthly_nc_and_rejects_invalid_variable(
     with pytest.raises(AttributeError, match="DataOrgDataSet object has no attribute somethingrandom"):
         dataset.somethingrandom  # this does not exist as a variable  # noqa: B018
 
-    shutil.rmtree(tmp_path)
+    # shutil.rmtree(tmp_path)

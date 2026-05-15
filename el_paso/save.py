@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
     from el_paso.saving_strategy import SavingStrategy
-    from el_paso.typing import InternalName, Variable
+    from el_paso.typing import InternalName, SavedDataDict, Variable
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +81,7 @@ def save(
 
 def _get_data_dict_to_save(
     target_variables: dict[InternalName, Variable],
-) -> dict[str, Any]:
+) -> SavedDataDict:
     """Generates a dictionary of data and metadata for saving.
 
     This internal function iterates through a dictionary of variables, extracts their
@@ -96,7 +96,7 @@ def _get_data_dict_to_save(
         dict[str, Any]: The formatted dictionary containing all variable data and
             associated metadata.
     """
-    data_dict: dict[str, NDArray[np.generic] | dict[str, Any]] = {}
+    data_dict: SavedDataDict = {}
     metadata_dict: dict[Any, Any] = {}
 
     for save_name, variable in target_variables.items():

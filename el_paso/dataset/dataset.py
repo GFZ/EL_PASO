@@ -95,7 +95,7 @@ class DataSet:
 
     """
 
-    def __init__(
+    def __init__(  # noqa: D107
         self,
         saving_strategy: SavingStrategy,
         start_time: dt.datetime | None = None,
@@ -185,11 +185,11 @@ class DataSet:
         """Load data into memory."""
         getattr(self, name_or_var)
 
-    def get_var_by_internal_name(self, internal_name: InternalName):
+    def get_var_by_internal_name(self, internal_name: InternalName):  # noqa: ANN201
         standard_name = self.saving_strategy.data_standard.get_full_var_name(internal_name)
         return getattr(self, standard_name)
 
-    def find_similar_variable(self, name: str) -> tuple[None | str, dict[str, Any]]:  # noqa: D102
+    def find_similar_variable(self, name: str) -> tuple[None | str, dict[str, Any]]:
         levenstein_info: dict[str, Any] = {"min_distance": 10, "var_name": ""}
         sat_variable = None
         for var in self.possible_variables:
@@ -246,13 +246,13 @@ class DataSet:
     #     return self
     # ruff:enable[ERA001, E501]
 
-    def get_satellite_name(self) -> str:  # noqa: D102
+    def get_satellite_name(self) -> str:
         return self.saving_strategy.satellite
 
-    def get_satellite_and_instrument_name(self) -> str:  # noqa: D102
+    def get_satellite_and_instrument_name(self) -> str:
         return self.saving_strategy.satellite + "_" + self.saving_strategy.instrument
 
-    def get_print_name(self) -> str:  # noqa: D102
+    def get_print_name(self) -> str:
         return self.saving_strategy.satellite + " " + self.saving_strategy.instrument
 
     def _load_variable(self, requested_name: str) -> None:  # noqa: C901, PLR0912
@@ -291,7 +291,6 @@ class DataSet:
         # 2. Iterate through date ranges
         for time_start, time_end in self._date_list:
             full_file_path = self.saving_strategy.get_file_path(time_start, time_end, output_file)
-
             file_content = self._get_cached_datasets(full_file_path)
 
             if not file_content:
@@ -300,6 +299,7 @@ class DataSet:
             time_key = self.saving_strategy.data_standard.get_full_var_name("Epoch")
 
             # 4. Process Datetimes
+            # ruff: disable[ERA001]
             # raw_times = file_content[time_key]
             # time_unit = self.saving_strategy.data_standard.variable_infos["Epoch"].unit
 
@@ -307,6 +307,7 @@ class DataSet:
             # datetimes = np.asarray(
             #     [dt.datetime.fromtimestamp(t.astype(np.int64), tz=dt.timezone.utc) for t in posix_times]
             # )
+            # ruff: enable[ERA001]
 
             raw_times = file_content[time_key]
 
@@ -318,7 +319,7 @@ class DataSet:
                 # Matlab logic
                 datetimes = np.asarray([matlab2python(t) for t in raw_times])
 
-            file_content["datetime"] = datetimes
+            file_content["datetime"] = datetimes  # ty:ignore[invalid-assignment]
             correct_time_idx = (datetimes >= self._start_time) & (datetimes <= self._end_time)
 
             # 5. Filter and Join Arrays
@@ -350,7 +351,7 @@ class DataSet:
             val = list(loaded_var_arrs[var_name]) if var_name == "datetime" else loaded_var_arrs[var_name]
             setattr(self, var_name, val)  # set standard name
 
-    def _get_cached_datasets(self, file_path: Path) -> DataDict:
+    def _get_cached_datasets(self, file_path: Path) -> dict[StandardName, Any]:
         """Return cached parsed content for a monthly file."""
         file_path = Path(file_path)
         if file_path not in self._dataset_cache:

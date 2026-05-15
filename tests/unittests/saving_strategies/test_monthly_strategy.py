@@ -7,8 +7,7 @@ from __future__ import annotations
 
 import shutil
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Literal  # noqa: UP035
+from typing import TYPE_CHECKING, Callable, Literal  # noqa: UP035
 
 import numpy as np
 import pytest
@@ -18,7 +17,9 @@ import el_paso as ep
 from el_paso.dataset.utils import python2matlab
 
 if TYPE_CHECKING:
-    from el_paso.typing import DataStandardClass, InternalName
+    from pathlib import Path
+
+    from el_paso.typing import DataStandard, InternalName
 
 
 def _mock_monthly_variables() -> dict[InternalName, ep.Variable]:
@@ -106,7 +107,7 @@ _FORMAT_PARAMS = [
 @pytest.mark.parametrize(("output_format", "meta_keys_check"), _FORMAT_PARAMS)
 def test_monthly_strategy_saves_mocked_variables_to_netcdf_with_data_standards(
     tmp_path: Path,
-    data_standard: DataStandardClass,
+    data_standard: type[DataStandard],
     output_format: Literal["nc", "h5", "cdf", "mat"],
     meta_keys_check: Callable[[set[str]], bool],
 ) -> None:
@@ -161,7 +162,7 @@ def test_monthly_strategy_saves_mocked_variables_to_netcdf_with_data_standards(
         assert meta_keys_check(var_attrs.keys())
         assert var_attrs.get("unit", "unknown") != "unknown"
 
-    shutil.rmtree(tmp_path)
+    # shutil.rmtree(tmp_path)
 
 
 def test_append_works_for_monthly_strategy(tmp_path: Path) -> None:

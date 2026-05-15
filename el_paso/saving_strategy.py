@@ -115,7 +115,7 @@ class SavingStrategy(ABC):
 
         Args:
             variable (Variable): The variable instance to be standardized.
-            name_in_file (str): The name of the variable as it appears in the file.
+            internal_name (str): The internal name of the variable, used for standardization rules.
             first_call_of_interval (bool): Flag to indicate if it is the first call of a time interval
 
         Returns:

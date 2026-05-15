@@ -346,6 +346,10 @@ def load_netcdf_data(file_path: Path) -> dict[StandardName, Any]:
         for group_name, subgroup in group.groups.items():
             _recursively_load(subgroup, f"{prefix}{group_name}/")
 
+    if not file_path.exists():
+        logger.error(f"File not found: {file_path}")
+        return {}
+
     with nC.Dataset(file_path, "r", format="NETCDF4") as file:
         _recursively_load(file)
 
@@ -638,7 +642,7 @@ def write_cdf_file(file_path: Path, data_dict: DataDict, data_standard: DataStan
                 path = data_standard.get_full_var_name(internal_name)
                 cdf_var_name = path
                 value_to_write = var_data
-                if isinstance(var_data, np.ndarray) and var_data.ndim == 2 and var_data.shape[1] == 1:
+                if isinstance(var_data, np.ndarray) and var_data.ndim == 2 and var_data.shape[1] == 1:  # noqa: PLR2004
                     value_to_write = var_data.reshape(-1)
 
                 var_data_array = np.asarray(value_to_write)
