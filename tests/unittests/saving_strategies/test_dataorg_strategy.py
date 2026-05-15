@@ -15,6 +15,7 @@ from astropy import units as u  # type: ignore[reportMissingTypeStubs]
 from scipy.io import savemat  # type: ignore[reportMissingTypeStubs]
 
 import el_paso as ep
+from el_paso.typing import InternalName
 
 rng = np.random.default_rng(1337)
 
@@ -31,13 +32,13 @@ def test_basic_dataorg_strategy(tmp_path: Path, file_format: Literal[".mat", ".p
     time = [t.timestamp() for t in time]
     time_var = ep.Variable(original_unit=ep.units.posixtime, data=np.asarray(time))
 
-    variables_to_save = {
-        "time": time_var,
-        "Flux": ep.Variable(
+    variables_to_save: dict[InternalName, ep.Variable] = {
+        "Epoch": time_var,
+        "FEDU": ep.Variable(
             original_unit=(u.cm**2 * u.s * u.sr * u.keV) ** (-1),  # type: ignore[reportUnknownArgumentType]
             data=rng.normal(size=(len(time), 11, 5)),
         ),
-        "Lstar": ep.Variable(original_unit=u.dimensionless_unscaled, data=rng.normal(size=(len(time), 5))),
+        "L_star": ep.Variable(original_unit=u.dimensionless_unscaled, data=rng.normal(size=(len(time), 5))),
     }
 
     strategy = ep.saving_strategies.DataOrgStrategy(
@@ -70,8 +71,8 @@ def test_dataorg_append_data_merges_existing_file(tmp_path: Path, file_format: L
         "metadata": {"time": {"unit": "s"}, "Flux": {"unit": "1"}},
     }
     new_data = {
-        "time": np.array([[2.0], [3.0]]),
-        "Flux": np.array([[20.0], [30.0]]),
+        "Epoch": np.array([[2.0], [3.0]]),
+        "FEDU": np.array([[20.0], [30.0]]),
         "metadata": {"time": {"unit": "s"}, "Flux": {"unit": "1"}},
     }
 
@@ -96,5 +97,5 @@ def test_dataorg_append_data_merges_existing_file(tmp_path: Path, file_format: L
     else:
         merged_data = strategy.append_data(file_path, new_data)
 
-    np.testing.assert_array_equal(merged_data["time"], np.array([[1.0], [2.0], [3.0], [4.0]]))
-    np.testing.assert_array_equal(merged_data["Flux"], np.array([[10.0], [20.0], [30.0], [40.0]]))
+    np.testing.assert_array_equal(merged_data["Epoch"], np.array([[1.0], [2.0], [3.0], [4.0]]))
+    np.testing.assert_array_equal(merged_data["FEDU"], np.array([[10.0], [20.0], [30.0], [40.0]]))

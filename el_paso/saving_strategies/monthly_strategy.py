@@ -11,10 +11,9 @@ import logging
 import shutil
 import tempfile
 import typing
-from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
 import cdflib
 import h5py
@@ -23,19 +22,13 @@ import numpy as np
 from scipy.io import loadmat, savemat
 
 import el_paso as ep
-from el_paso.data_standard import DataStandard, InternalName
 from el_paso.saving_strategy import OutputFile, SavingStrategy
+from el_paso.typing import DataStandard, InternalName, MFSFormats, SavedDataDict, SaveFileLoader, SaveFileWriter
 
 if TYPE_CHECKING:
     from el_paso.processing.magnetic_field_utils import MagneticFieldLiteral
 
 logger = logging.getLogger(__name__)
-
-MFSFormats = Literal["nc", "cdf", "h5", "mat", ".nc", ".cdf", ".h5", ".mat"]
-DataDict = dict[InternalName | Literal["metadata"], Any]
-FormatWriter = Callable[[Path, DataDict], None]
-FormatLoader = Callable[[Path], DataDict]
-
 
 class MonthlyFileStrategy(SavingStrategy):
     """Save PRBEM-standard data into one monthly file per interval.
@@ -94,13 +87,13 @@ class MonthlyFileStrategy(SavingStrategy):
             OutputFile("full", self._get_output_file_entries(), save_incomplete=True),
         ]
 
-        self._writers: dict[str, FormatWriter] = {
+        self._writers: dict[str, SaveFileWriter] = {
             ".mat": self._write_mat_file,
             ".h5": self._write_h5_file,
             ".nc": self._write_netcdf_file,
             ".cdf": self._write_cdf_file,
         }
-        self._loaders: dict[str, FormatLoader] = {
+        self._loaders: dict[str, SaveFileLoader] = {
             ".mat": self._load_mat_data,
             ".h5": self._load_h5_data,
             ".nc": self._load_netcdf_data,
@@ -143,7 +136,7 @@ class MonthlyFileStrategy(SavingStrategy):
         """Return a NetCDF-safe root dimension name derived from a variable path."""
         return "".join(char if char.isalnum() else "_" for char in variable_name).strip("_") or "custom"
 
-    def _register_writer(self, extension: str, writer: FormatWriter) -> None:
+    def _register_writer(self, extension: str, writer: SaveFileWriter) -> None:
         """Register or replace the writer used for a file extension.
 
         TODO: We may want to support user defined formats in the future, so this method could be extended to check.
@@ -204,7 +197,7 @@ class MonthlyFileStrategy(SavingStrategy):
             internal_name, variable, reset_consistency_check=first_call_of_interval
         )
 
-    def save_single_file(self, file_path: Path, dict_to_save: DataDict, *, append: bool = False) -> None:
+    def save_single_file(self, file_path: Path, dict_to_save: SavedDataDict, *, append: bool = False) -> None:
         """Save one monthly file, optionally appending to an existing file."""
         file_path.parent.mkdir(parents=True, exist_ok=True)
         format_name = self._normalize_file_format(file_path.suffix)
@@ -222,7 +215,7 @@ class MonthlyFileStrategy(SavingStrategy):
         print(file_path)
         writer(file_path, dict_to_save)
 
-    def append_data(self, file_path: Path, data_dict_to_save: DataDict) -> DataDict:
+    def append_data(self, file_path: Path, data_dict_to_save: SavedDataDict) -> SavedDataDict:
         """Append data to any supported monthly file format.
 
         Existing data is loaded with the loader for ``file_path.suffix``, merged
@@ -281,9 +274,9 @@ class MonthlyFileStrategy(SavingStrategy):
 
     def _merge_and_sort_data(  # noqa: C901, PLR0912, PLR0915
         self,
-        existing_data: DataDict,
-        new_data: DataDict,
-    ) -> DataDict:
+        existing_data: SavedDataDict,
+        new_data: SavedDataDict,
+    ) -> SavedDataDict:
         """Merge two dictionaries along the time axis, replacing duplicate times."""
 
         def _normalize_1d(arr: np.ndarray) -> np.ndarray:
@@ -305,7 +298,7 @@ class MonthlyFileStrategy(SavingStrategy):
         mask_keep_existing = ~np.isin(existing_time, new_time)
         insert_idx = int(np.searchsorted(existing_time, new_time[0]))
 
-        merged: DataDict = {}
+        merged: SavedDataDict = {}
         existing_metadata = existing_data.get("metadata", {})
         new_metadata = new_data.get("metadata", {})
         if isinstance(existing_metadata, dict) and isinstance(new_metadata, dict):
@@ -359,7 +352,7 @@ class MonthlyFileStrategy(SavingStrategy):
 
         return merged
 
-    def _load_mat_data(self, file_path: Path) -> DataDict:
+    def _load_mat_data(self, file_path: Path) -> SavedDataDict:
         """Load an existing MATLAB file."""
         loaded = loadmat(str(file_path), simplify_cells=True)
         data = {key: value for key, value in loaded.items() if not key.startswith("__")}
@@ -379,7 +372,7 @@ class MonthlyFileStrategy(SavingStrategy):
 
         return data
 
-    def _write_mat_file(self, file_path: Path, data_dict: DataDict) -> None:
+    def _write_mat_file(self, file_path: Path, data_dict: SavedDataDict) -> None:
         """Write a MATLAB file, resolving standard variable paths and flattening hierarchy.
 
         Data variables are stored under their flattened canonical names (``/`` → ``__``).
@@ -419,9 +412,9 @@ class MonthlyFileStrategy(SavingStrategy):
 
         savemat(str(file_path), mat_dict)
 
-    def _load_h5_data(self, file_path: Path) -> DataDict:
+    def _load_h5_data(self, file_path: Path) -> SavedDataDict:
         """Load all datasets and dataset attributes from an HDF5 file."""
-        loaded_data: DataDict = {"metadata": {}}
+        loaded_data: SavedDataDict = {"metadata": {}}
 
         def _recursively_load_datasets(group: h5py.Group | h5py.File, prefix: str = "") -> None:
             for key, item in group.items():
@@ -437,7 +430,7 @@ class MonthlyFileStrategy(SavingStrategy):
 
         return loaded_data
 
-    def _write_h5_file(self, file_path: Path, data_dict: DataDict) -> None:
+    def _write_h5_file(self, file_path: Path, data_dict: SavedDataDict) -> None:
         """Write an HDF5 file with hierarchical groups from slash-delimited paths."""
         with h5py.File(file_path, "w") as file:
             for internal_name, value in data_dict.items():
@@ -486,9 +479,9 @@ class MonthlyFileStrategy(SavingStrategy):
                 )
                 raise ValueError(msg)
 
-    def _load_netcdf_data(self, file_path: Path) -> DataDict:
+    def _load_netcdf_data(self, file_path: Path) -> SavedDataDict:
         """Load all variables and variable metadata from a NetCDF file."""
-        loaded_data: DataDict = {"metadata": {}}
+        loaded_data: SavedDataDict = {"metadata": {}}
 
         def _recursively_load(group: nC.Group | nC.Dataset, prefix: str = "") -> None:
             for var_name, variable in group.variables.items():
@@ -527,7 +520,7 @@ class MonthlyFileStrategy(SavingStrategy):
 
         return loaded_data
 
-    def _calculate_dimensions(self, data_dict: DataDict) -> dict[str, int]:
+    def _calculate_dimensions(self, data_dict: SavedDataDict) -> dict[str, int]:
         """Calculate NetCDF dimension sizes from the data dictionary."""
         dimensions = {
             "Epoch": np.asarray(data_dict["Epoch"]).shape[0],
@@ -548,7 +541,7 @@ class MonthlyFileStrategy(SavingStrategy):
 
         return dimensions
 
-    def _write_data_to_netcdf_file(self, file: nC.Dataset | nC.Group, data_dict: DataDict) -> None:
+    def _write_data_to_netcdf_file(self, file: nC.Dataset | nC.Group, data_dict: SavedDataDict) -> None:
         """Write variables to a NetCDF file or group."""
         for mfs_name, value in data_dict.items():
             if mfs_name == "metadata":
@@ -607,7 +600,7 @@ class MonthlyFileStrategy(SavingStrategy):
             data_set.description = metadata.get("description", "unknown")
             data_set.original_cadence_seconds = metadata.get("original_cadence_seconds", "unknown")
 
-    def _write_netcdf_file(self, file_path: Path, data_dict: DataDict) -> None:
+    def _write_netcdf_file(self, file_path: Path, data_dict: SavedDataDict) -> None:
         """Create and write a NetCDF file from a data dictionary."""
         with nC.Dataset(file_path, "w", format="NETCDF4") as file:
             if self.root_metadata is not None:
@@ -627,9 +620,9 @@ class MonthlyFileStrategy(SavingStrategy):
 
             self._write_data_to_netcdf_file(file, data_dict)
 
-    def _load_cdf_data(self, file_path: Path) -> DataDict:
+    def _load_cdf_data(self, file_path: Path) -> SavedDataDict:
         """Load all zVariables from an existing CDF file."""
-        loaded_data: DataDict = {"metadata": {}}
+        loaded_data: SavedDataDict = {"metadata": {}}
         cdf_file = cdflib.CDF(str(file_path))
         try:
             info = cdf_file.cdf_info()
@@ -657,10 +650,10 @@ class MonthlyFileStrategy(SavingStrategy):
 
         return loaded_data
 
-    def _get_cdf_variable_attrs(self, var_name: str, data_dict: DataDict) -> DataDict:
+    def _get_cdf_variable_attrs(self, var_name: str, data_dict: SavedDataDict) -> SavedDataDict:
         """Return non-empty CDF variable attributes for a saved variable."""
         metadata = data_dict.get("metadata", {}).get(var_name, {})
-        var_attrs: DataDict = {}
+        var_attrs: SavedDataDict = {}
 
         if isinstance(metadata, dict):
             for attr_name, attr_value in metadata.items():
@@ -683,7 +676,7 @@ class MonthlyFileStrategy(SavingStrategy):
 
         return getattr(value, "size", None) == 0
 
-    def _write_cdf_file(self, file_path: Path, data_dict: DataDict) -> None:  # noqa: C901, PLR0912
+    def _write_cdf_file(self, file_path: Path, data_dict: SavedDataDict) -> None:  # noqa: C901, PLR0912
         """Write a CDF file, resolving standard variable paths and embedding metadata."""
         try:
             cdf_file = cdflib.cdfwrite.CDF(str(file_path), delete=True)

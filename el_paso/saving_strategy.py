@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from el_paso.processing.magnetic_field_utils import MagneticFieldLiteral
+    from el_paso.typing import SavedDataDict
 
 class OutputFile(NamedTuple):
     """Represents an output file with its name and a list of variable names to save.
@@ -119,7 +120,7 @@ class SavingStrategy(ABC):
         """
 
     @abstractmethod
-    def save_single_file(self, file_path: Path, dict_to_save: dict[InternalName | Literal["metadata"], Any], *, append: bool = False) -> None:
+    def save_single_file(self, file_path: Path, dict_to_save: SavedDataDict, *, append: bool = False) -> None:
         """Saves the provided dictionary to a single file in one of the supported formats (.mat, .pickle, .h5, .nc).
 
         Parameters:

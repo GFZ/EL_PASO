@@ -25,6 +25,7 @@ if typing.TYPE_CHECKING:
     from numpy.typing import NDArray
 
     from el_paso import Variable
+    from el_paso.typing import InternalName, SavedDataDict
 
 logger = logging.getLogger(__name__)
 
@@ -108,22 +109,21 @@ class DataOrgStrategy(SavingStrategy):
         self.file_format = file_format
 
         self.output_files = [
-            OutputFile("flux", ["time", "Flux"]),
-            OutputFile("alpha_and_energy", ["time", "alpha_local", "alpha_eq_model", "energy_channels"]),
-            OutputFile("mlt", ["time", "MLT"]),
-            OutputFile("lstar", ["time", "Lstar"]),
-            OutputFile("lm", ["time", "Lm"]),
-            OutputFile("psd", ["time", "PSD"]),
-            OutputFile("xGEO", ["time", "xGEO"]),
-            OutputFile("invmu_and_invk", ["time", "InvMu", "InvK"]),
-            OutputFile("bfield", ["time", "B_eq", "B_local"]),
-            OutputFile("R0", ["time", "R0"]),
-            OutputFile("density", ["time", "density"]),
+            OutputFile("flux", ["Epoch", "FEDU"]),
+            OutputFile("alpha_and_energy", ["Epoch", "Alpha", "Alpha_Eq", "Energy_FEDU"]),
+            OutputFile("mlt", ["Epoch", "MLT"]),
+            OutputFile("lstar", ["Epoch", "L_star"]),
+            OutputFile("lm", ["Epoch", "L_m"]),
+            OutputFile("psd", ["Epoch", "PSD"]),
+            OutputFile("xGEO", ["Epoch", "Position"]),
+            OutputFile("invmu_and_invk", ["Epoch", "InvMu", "InvK"]),
+            OutputFile("bfield", ["Epoch", "B_Eq", "B_Calc"]),
+            OutputFile("R0", ["Epoch", "R_Eq"])
         ]
 
         self.data_standard = DataOrgStandard()
 
-    def standardize_variable(self, variable: Variable, name_in_file: str, *, first_call_of_interval: bool) -> Variable:
+    def standardize_variable(self, variable: Variable, internal_name: InternalName, *, first_call_of_interval: bool) -> Variable:
         """Standardizes a variable's units and dimensions based on its predefined name.
 
         This method acts as a proxy, delegating the actual standardization logic
@@ -143,7 +143,7 @@ class DataOrgStrategy(SavingStrategy):
             ValueError: If an unknown `name_in_file` is encountered..
         """
         return self.data_standard.standardize_variable(
-            name_in_file, variable, reset_consistency_check=first_call_of_interval
+            internal_name, variable, reset_consistency_check=first_call_of_interval
         )
 
     def get_time_intervals_to_save(
@@ -189,6 +189,12 @@ class DataOrgStrategy(SavingStrategy):
 
         return time_intervals
 
+    def get_file_path_stem(self) -> Path:
+        return self.base_data_path / self.mission.upper() / self.satellite.lower() / "Processed_Mat_Files"
+
+    def get_file_name_stem(self) -> str:
+        return self.satellite.lower() + "_" + self.instrument.lower()
+
     def get_file_path(self, interval_start: datetime, interval_end: datetime, output_file: OutputFile) -> Path:
         """Generates a structured file path for the given time interval and output file.
 
@@ -206,21 +212,18 @@ class DataOrgStrategy(SavingStrategy):
         start_year_month_day = interval_start.strftime("%Y%m%d")
         end_year_month_day = interval_end.strftime("%Y%m%d")
 
-        file_name = (
-            f"{self.satellite.lower()}_{self.instrument.lower()}_"
-            f"{start_year_month_day}to{end_year_month_day}_{output_file.name}"
-        )
+        file_name = (self.get_file_name_stem() + f"_{start_year_month_day}to{end_year_month_day}_{output_file.name}")
 
         if output_file.name in ["alpha_and_energy", "lstar", "lm", "invmu_and_invk", "mlt", "bfield", "R0"]:
             file_name += f"_n4_4_{self.kext}"
 
         file_name += "_ver4" + self.file_format
 
-        return self.base_data_path / self.mission.upper() / self.satellite.lower() / "Processed_Mat_Files" / file_name
+        return self.get_file_path_stem() /  file_name
 
     def _merge_data_dicts_by_time(
-        self, data_dict_old: dict[str, Any], data_dict_to_save: dict[str, Any]
-    ) -> dict[str, Any]:
+        self, data_dict_old: dict[str, Any], data_dict_to_save: SavedDataDict
+    ) -> SavedDataDict:
         """Appends new data to an existing file by combining the new and old data dictionaries.
 
         Parameters:
@@ -234,8 +237,10 @@ class DataOrgStrategy(SavingStrategy):
             ValueError: If a key mismatch occurs between the dictionaries or if the concatenated
                 time array contains non-unique values.
         """
-        time_1 = np.atleast_1d(np.squeeze(data_dict_old["time"]))
-        time_2 = np.atleast_1d(np.squeeze(data_dict_to_save["time"]))
+        time_key = self.data_standard.get_full_var_name("Epoch")
+
+        time_1 = np.atleast_1d(np.squeeze(data_dict_old[time_key]))
+        time_2 = np.atleast_1d(np.squeeze(data_dict_to_save["Epoch"]))
 
         idx_to_insert = int(np.searchsorted(time_1, time_2[0]))
 
@@ -251,8 +256,14 @@ class DataOrgStrategy(SavingStrategy):
                     data_dict_to_save[key] = {**value_1, **value_2}
                 elif key not in data_dict_to_save:
                     data_dict_to_save[key] = value_1
+                continue
 
-            if key not in data_dict_to_save:
+            internal_name = self.data_standard.get_internal_name(key)
+            if internal_name is None:
+                msg = "Encountered unexpected standard name!"
+                raise ValueError(msg)
+
+            if internal_name not in data_dict_to_save:
                 msg = "Key mismatch when concatenating data dicts!"
                 logger.error(msg)
                 raise ValueError(msg)
@@ -260,7 +271,7 @@ class DataOrgStrategy(SavingStrategy):
             if isinstance(value_1, np.ndarray):
                 value_1_truncated = typing.cast("NDArray[np.floating]", value_1[~time_1_in_2])
 
-                value_2 = data_dict_to_save[key]
+                value_2 = data_dict_to_save[internal_name]
 
                 concatenated_value = (
                     value_2
@@ -268,20 +279,20 @@ class DataOrgStrategy(SavingStrategy):
                     else np.insert(value_1_truncated, idx_to_insert, value_2, axis=0)
                 )
 
-                if key == "time" and len(np.unique(concatenated_value)) != len(concatenated_value):
+                if key == time_key and len(np.unique(concatenated_value)) != len(concatenated_value):
                     msg = "Time values were not unique when concatenating arrays!"
                     logger.error(msg)
                     raise ValueError(msg)
-                data_dict_to_save[key] = concatenated_value
+                data_dict_to_save[internal_name] = concatenated_value
 
         return data_dict_to_save
 
-    def _append_mat_data(self, file_path: Path, data_dict_to_save: dict[str, Any]) -> dict[str, Any]:
+    def _append_mat_data(self, file_path: Path, data_dict_to_save: SavedDataDict) -> SavedDataDict:
         """Load an existing MATLAB file and merge the new data into it."""
         data_dict_old = loadmat(str(file_path))
         return self._merge_data_dicts_by_time(data_dict_old, data_dict_to_save)
 
-    def _append_pickle_data(self, file_path: Path, data_dict_to_save: dict[str, Any]) -> dict[str, Any]:
+    def _append_pickle_data(self, file_path: Path, data_dict_to_save: SavedDataDict) -> SavedDataDict:
         """Load an existing pickle file and merge the new data into it."""
         warnings.warn(
             "Appending to '.pickle' files is deprecated alongside the '.pickle' format and will "
@@ -295,7 +306,7 @@ class DataOrgStrategy(SavingStrategy):
 
         return self._merge_data_dicts_by_time(data_dict_old, data_dict_to_save)
 
-    def append_data(self, file_path: Path, data_dict_to_save: dict[str, Any]) -> dict[str, Any]:
+    def append_data(self, file_path: Path, data_dict_to_save: SavedDataDict) -> SavedDataDict:
         """Appends new data to an existing DataOrg file.
 
         Existing data is loaded from the file, overlapping time stamps are replaced
@@ -328,7 +339,7 @@ class DataOrgStrategy(SavingStrategy):
                 logger.error(msg)
                 raise NotImplementedError(msg)
 
-    def save_single_file(self, file_path: Path, dict_to_save: dict[str, Any], *, append: bool = False) -> None:
+    def save_single_file(self, file_path: Path, dict_to_save: SavedDataDict, *, append: bool = False) -> None:
         """Saves variable data to a single file in one of the supported formats (.mat, .pickle, .h5).
 
         Parameters:
@@ -353,10 +364,17 @@ class DataOrgStrategy(SavingStrategy):
         if file_path.exists() and append:
             dict_to_save = self.append_data(file_path, dict_to_save)
 
+        standard_dict = {}
+        for key, value in dict_to_save.items():
+            if key == "metadata":
+                standard_dict["metadata"] = value
+            else:
+                standard_dict[self.data_standard.get_full_var_name(key)] = value
+
         if format_name == ".mat":
             # Save the dictionary into a .mat file
-            savemat(str(file_path), dict_to_save)
+            savemat(str(file_path), standard_dict)
 
         elif format_name == ".pickle":
             with file_path.open("wb") as file:
-                pickle.dump(dict_to_save, file)
+                pickle.dump(standard_dict, file)

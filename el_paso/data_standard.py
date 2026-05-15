@@ -37,7 +37,7 @@ InternalName = Literal[
     "InvK",
 ]
 
-T = TypeVar("T", bound=str)
+T = TypeVar("T", bound=str, covariant=True)
 
 
 class VariableInfo(NamedTuple, Generic[T]):
