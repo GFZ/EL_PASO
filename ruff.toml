@@ -17,7 +17,8 @@ ignore = [
     "S101",    # allow assert statements
     "RET504",  # allow assignment before return
     "UP045",
-    "PLW"
+    "PLW",
+    "D102",
 ]
 exclude = ["*.ipynb", "IRBEM/*", "setup.py"]
 
