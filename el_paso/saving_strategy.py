@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from el_paso.processing.magnetic_field_utils import MagneticFieldLiteral
-    from el_paso.typing import InternalName, SavedDataDict, DataStandardClass
+    from el_paso.typing import DataStandardInstance, InternalName, SavedDataDict
 
 
 class OutputFile(NamedTuple):
@@ -69,7 +69,7 @@ class SavingStrategy(ABC):
     """
 
     output_files: list[OutputFile]
-    data_standard: DataStandardClass
+    data_standard: DataStandardInstance
     base_data_path: Path
     satellite: str
     mission: str
