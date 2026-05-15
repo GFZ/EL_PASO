@@ -17,7 +17,7 @@ from collections.abc import Callable, Mapping
 from datetime import datetime
 from importlib import import_module
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, TypeAlias
+from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias
 
 if TYPE_CHECKING:
     from el_paso.data_standard import ConsistencyCheck, DataStandard, VariableInfo
@@ -80,6 +80,16 @@ TimeInterval: TypeAlias = tuple[datetime, datetime]
 SavedDataDict: TypeAlias = dict[InternalName | Literal["metadata"], Any]
 MonthlyDataDict: TypeAlias = SavedDataDict
 
+
+class FileWriter(Protocol):  # noqa: D101
+    def __call__(
+        self,
+        file_path: Path,
+        data_dict: SavedDataDict,
+        data_standard: DataStandardInstance,
+    ) -> None: ...
+
+
 if TYPE_CHECKING:
     DataStandardInstance: TypeAlias = DataStandard[Any]
     DataStandardClass: TypeAlias = type[DataStandard[Any]]
@@ -95,10 +105,9 @@ else:  # During runtime, we can't import the concrete classes without risking im
     VariableDict: TypeAlias = dict[InternalName, Any]
     VariableMapping: TypeAlias = Mapping[InternalName, Any]
 
-SaveFileWriter: TypeAlias = Callable[[Path, SavedDataDict, DataStandardInstance], None]
-SaveFileLoader: TypeAlias = Callable[[Path], SavedDataDict]
-MonthlyFormatWriter: TypeAlias = SaveFileWriter
-MonthlyFormatLoader: TypeAlias = SaveFileLoader
+FileLoader: TypeAlias = Callable[[Path], SavedDataDict]
+MonthlyFormatWriter: TypeAlias = FileWriter
+MonthlyFormatLoader: TypeAlias = FileLoader
 SingleFileFormatWriter: TypeAlias = Callable[[Path, dict[str, Any]], None]
 
 
@@ -155,8 +164,8 @@ __all__ = [
     "OutputFile",
     "PRBEMName",
     "PRBEMStandard",
-    "SaveFileLoader",
-    "SaveFileWriter",
+    "FileLoader",
+    "FileWriter",
     "SavedDataDict",
     "SavingStrategy",
     "SavingStrategyClass",

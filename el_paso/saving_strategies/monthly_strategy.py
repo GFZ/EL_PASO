@@ -12,9 +12,8 @@ import shutil
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-import cdflib
 import netCDF4 as nC
 import numpy as np
 
