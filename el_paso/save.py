@@ -15,8 +15,6 @@ from el_paso.utils import enforce_utc_timezone, timed_function
 if TYPE_CHECKING:
     from datetime import datetime
 
-    from numpy.typing import NDArray
-
     from el_paso.saving_strategy import SavingStrategy
     from el_paso.typing import InternalName, SavedDataDict, Variable
 
@@ -70,7 +68,7 @@ def save(
             )
 
             if target_variables is None:
-                logger.info(
+                logger.warning(
                     f"Saving attempted, but product is missing some required variables for output {output_file.name}!",
                     stacklevel=2,
                 )

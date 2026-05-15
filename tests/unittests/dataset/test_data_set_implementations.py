@@ -5,11 +5,9 @@
 
 
 from __future__ import annotations
-from el_paso.typing import MFSFormats
 
 import shutil
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -21,7 +19,9 @@ from el_paso.dataset import DataOrgDataSet
 from el_paso.dataset.utils import matlab2python, python2matlab
 
 if TYPE_CHECKING:
-    from el_paso.typing import InternalName
+    from pathlib import Path
+
+    from el_paso.typing import InternalName, MFSFormats
 
 
 def _mock_monthly_variables() -> dict[InternalName, ep.Variable]:
@@ -128,6 +128,10 @@ def test_data_org_dataset_loads_saved_monthly_nc_and_rejects_invalid_variable(
         verbose=False,
     )
 
+    inv_K_repeated = np.repeat(dataset.InvK[:, np.newaxis, :], dataset.InvMu.shape[1], axis=1)
+    expected_InvV = dataset.InvMu * (inv_K_repeated + 0.5) ** 2
+    expected_P = ((dataset.MLT + 12) / 12 * np.pi) % (2 * np.pi)
+
     epoch = np.asarray(variables["Epoch"].get_data())
     time_mask = (epoch >= python2matlab(start_time)) & (epoch <= python2matlab(end_time))  # ty:ignore[unsupported-operator]
 
@@ -166,6 +170,9 @@ def test_data_org_dataset_loads_saved_monthly_nc_and_rejects_invalid_variable(
     np.testing.assert_equal(dataset.MLT, expected_mlt)
     np.testing.assert_equal(dataset.Lm, expected_lm)
     np.testing.assert_equal(dataset.Lstar, expected_lstar)
+
+    np.testing.assert_equal(dataset.InvV, expected_InvV)
+    np.testing.assert_equal(dataset.P, expected_P)
 
     with pytest.raises(AttributeError, match="Maybe you meant "):
         dataset.lstar  # Levenstein variable check  # noqa: B018

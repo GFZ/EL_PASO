@@ -64,7 +64,7 @@ class DataSet:
         Constructs the saving strategy, invokes the parent DataSet initializer,
         and populates the list of possible variables from class annotations.
 
-        Parameters:
+        Args:
             saving_strategy (SavingStrategy): Instance of the saving strategy used to save the data.
             start_time (dt.datetime | None): Beginning of the time range to load.
                 If ``None``, no lower bound is applied. Defaults to ``None``.

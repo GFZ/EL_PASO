@@ -35,11 +35,7 @@ class DataOrgStrategy(SavingStrategy):
     It organizes the output files into a specific directory structure
     (e.g., `base_path/MISSION/SATELLITE/Processed_Mat_Files/`) and standardizes
     variables to specific units and dimensions before saving. The data is saved
-    in either `.mat` or `.pickle` format, depending on user preference.
-
-    !!! warning "Deprecation"
-        The ``".pickle"`` file format is deprecated and will be removed in a future
-        release. Use ``".mat"`` instead.
+    in `.mat` format.
 
     Attributes:
         output_files (list[OutputFile]): Pre-defined list of files to be saved,
@@ -50,7 +46,6 @@ class DataOrgStrategy(SavingStrategy):
         instrument (str): The name of the instrument.
         kext (str): A model-related identifier, with "TS04" being mapped to "T04s"
             for backward compatibility.
-        file_format (Literal[".mat", ".pickle"]): The file extension for the output files.
 
     Methods:
         __init__: Initializes the strategy with file paths and metadata.
@@ -71,7 +66,7 @@ class DataOrgStrategy(SavingStrategy):
         satellite: str,
         instrument: str,
         kext: str,
-        data_standard: type[DataStandard],
+        data_standard: type[DataStandard[typing.Any]] | None = None,
     ) -> None:
         """Initializes the data organization strategy.
 
@@ -81,16 +76,15 @@ class DataOrgStrategy(SavingStrategy):
             satellite (str): The satellite name.
             instrument (str): The instrument name.
             kext (str): The model extension type. "TS04" is remapped to "T04s".
-            file_format (Literal[".mat", ".pickle"]): The desired format for the output files.
-            .. deprecated:: 1.0.3rc0
-                    Passing ``".pickle"`` is deprecated and will be removed in a future release.
-                    Use ``".mat"`` instead.
         """
         self.base_data_path = Path(base_data_path)
         self.mission = mission
         self.satellite = satellite
         self.instrument = instrument
-        self.data_standard = data_standard() or DataOrgStandard()
+        if not data_standard:
+            self.data_standard = DataOrgStandard()
+        else:
+            self.data_standard = data_standard()
 
         # for backwards compatibility
         if kext == "TS04":
@@ -99,7 +93,7 @@ class DataOrgStrategy(SavingStrategy):
 
         self.output_files = [
             OutputFile("flux", ["Epoch", "FEDU"]),
-            OutputFile("alpha_and_energy", ["Epoch", "Alpha", "Alpha_Eq", "FEDU_Energy"]),  # ty:ignore[invalid-argument-type]
+            OutputFile("alpha_and_energy", ["Epoch", "Alpha", "Alpha_Eq", "Energy_FEDU"]),
             OutputFile("mlt", ["Epoch", "MLT"]),
             OutputFile("lstar", ["Epoch", "L_star"]),
             OutputFile("lm", ["Epoch", "L_m"]),
@@ -107,13 +101,14 @@ class DataOrgStrategy(SavingStrategy):
             OutputFile("xGEO", ["Epoch", "Position"]),
             OutputFile("invmu_and_invk", ["Epoch", "InvMu", "InvK"]),
             OutputFile("bfield", ["Epoch", "B_Eq", "B_Calc"]),
-            OutputFile("R0", ["Epoch", "R_Eq"])
+            OutputFile("R0", ["Epoch", "R_Eq"]),
         ]
 
         self._loader = ep.utils.load_mat_data
 
-
-    def standardize_variable(self, variable: Variable, internal_name: InternalName, *, first_call_of_interval: bool) -> Variable:
+    def standardize_variable(
+        self, variable: Variable, internal_name: InternalName, *, first_call_of_interval: bool
+    ) -> Variable:
         """Standardizes a variable's units and dimensions based on its predefined name.
 
         This method acts as a proxy, delegating the actual standardization logic
@@ -202,20 +197,25 @@ class DataOrgStrategy(SavingStrategy):
         start_year_month_day = interval_start.strftime("%Y%m%d")
         end_year_month_day = interval_end.strftime("%Y%m%d")
 
-        file_name = (self.get_file_name_stem() + f"_{start_year_month_day}to{end_year_month_day}_{output_file.name}")
+        file_name = self.get_file_name_stem() + f"_{start_year_month_day}to{end_year_month_day}_{output_file.name}"
 
         if output_file.name in ["alpha_and_energy", "lstar", "lm", "invmu_and_invk", "mlt", "bfield", "R0"]:
             file_name += f"_n4_4_{self.kext}"
 
         file_name += "_ver4.mat"
 
-        return self.get_file_path_stem() /  file_name
+        return self.get_file_path_stem() / file_name
 
-
-    def _append_mat_data(self, file_path: Path, data_dict_to_save: SavedDataDict) -> SavedDataDict:
+    def _append_mat_data(self, file_path: Path, data_dict_to_save: SavedDataDict) -> SavedDataDict:  # noqa: C901
         """Load an existing MATLAB file and merge the new data into it."""
         data_dict_old = self._loader(file_path)
         time_key = self.data_standard.get_full_var_name("Epoch")
+
+        def _normalize_1d(arr: np.ndarray) -> np.ndarray:
+            arr = np.asarray(arr)
+            if arr.ndim == 2 and arr.shape[1] == 1:  # noqa: PLR2004
+                return arr.reshape(-1)
+            return arr
 
         time_1 = np.atleast_1d(np.squeeze(data_dict_old[time_key]))
         time_2 = np.atleast_1d(np.squeeze(data_dict_to_save["Epoch"]))
@@ -251,10 +251,11 @@ class DataOrgStrategy(SavingStrategy):
 
                 value_2 = data_dict_to_save[internal_name]
 
+                value_1_truncated = _normalize_1d(value_1_truncated)
+                value_2 = _normalize_1d(value_2)
+
                 concatenated_value = (
-                    value_2
-                    if value_1_truncated.size == 0
-                    else np.insert(value_1_truncated, idx_to_insert, value_2, axis=0)
+                    value_2 if value_1_truncated.size == 0 else np.insert(value_1_truncated, idx_to_insert, value_2)
                 )
 
                 if key == time_key and len(np.unique(concatenated_value)) != len(concatenated_value):
@@ -271,11 +272,6 @@ class DataOrgStrategy(SavingStrategy):
         Existing data is loaded from the file, overlapping time stamps are replaced
         by the new block, and the merged dictionary is returned for the caller to
         write back to disk.
-
-        .. deprecated:: 1.0.3rc0
-            Support for appending to ``.pickle`` files is deprecated alongside the ``.pickle``
-            format itself. This code path will be removed in a future release.
-
         Parameters:
             file_path (Path): The path to the existing file to append to.
             data_dict_to_save (dict[str, Any]): The dictionary with new data to be added.
@@ -284,14 +280,13 @@ class DataOrgStrategy(SavingStrategy):
             dict[str, Any]: A new dictionary containing the merged old and new data.
 
         Raises:
-            ValueError: If a key mismatch occurs between the dictionaries or if the concatenated
-                time array contains non-unique values.
-            NotImplementedError: If ``append`` is requested for an unsupported file format.
+            ValueError: If there are mismatches in keys or if time values are not unique after concatenation or
+                        if invalid standard names are encountered.
         """
         return self._append_mat_data(file_path, data_dict_to_save)
 
     def save_single_file(self, file_path: Path, dict_to_save: SavedDataDict, *, append: bool = False) -> None:
-        """Saves variable data to a single file in one of the supported formats (.mat, .pickle, .h5).
+        """Saves variable data to a single file in ".mat" format.
 
         Parameters:
             file_path (Path): The path to the file where the dictionary will be saved.
@@ -302,10 +297,6 @@ class DataOrgStrategy(SavingStrategy):
 
         Raises:
             NotImplementedError: If the file format specified by the file extension is not supported.
-
-        Supported formats:
-            - .mat: Saves using scipy.io.savemat.
-            - .pickle: Saves using pickle.dump.
         """
         logger.info(f"Saving file {file_path.name}...")
 
