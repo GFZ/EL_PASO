@@ -125,7 +125,7 @@ def test_monthly_strategy_saves_mocked_variables_to_netcdf_with_data_standards(
         instrument=INSTRUMENT,
         mag_field=MAG_FIELD,
         file_format=output_format,
-        data_standard=data_standard,
+        data_standard=data_standard(),
     )
 
     ep.save(
