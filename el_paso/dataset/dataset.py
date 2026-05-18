@@ -390,9 +390,7 @@ class DataSet:
         """  # noqa: E501
         different_vars: list[str] = []
 
-        possible_var_names = self.saving_strategy.get_all_standard_names()
-
-        for var_name in set(possible_var_names):
+        for var_name in self.possible_variables:
             self_var = getattr(self, var_name)
             other_var = getattr(other, var_name)
 
