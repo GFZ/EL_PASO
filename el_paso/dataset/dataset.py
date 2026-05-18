@@ -343,14 +343,39 @@ class DataSet:
         """Get a list of currently loaded variable names."""
         return [var for var in self.possible_variables if var in self.__dict__]
 
-    def __eq__(self, other: DataSet) -> bool:  # ty :ignore[invalid-method-override]  # noqa: D105
+    def assert_equal(self, other: DataSet) -> None:
+        """Assert that two DataSet objects are equal."""
 
-        if self.saving_strategy.get_all_standard_names() != other.saving_strategy.get_all_standard_names():
-            return False
+        assert self.saving_strategy.data_standard == other.saving_strategy.data_standard, (
+            "Data standards are different:\n"
+            f"{self.saving_strategy.data_standard!r} != {other.saving_strategy.data_standard!r}"
+        )
+
+        self_standard_names = self.saving_strategy.get_all_standard_names()
+        other_standard_names = other.saving_strategy.get_all_standard_names()
+
+        assert self_standard_names == other_standard_names, (
+            f"Standard names in saving strategies are different:\n{self_standard_names!r}!={other_standard_names!r}"
+        )
 
         different_vars = self.get_different_variables(other)
 
-        return len(different_vars) == 0
+        assert len(different_vars) == 0, "Variables differ between datasets:\n" + "\n".join(
+            str(var) for var in different_vars
+        )
+
+    def __eq__(self, other: object) -> bool:  # noqa: D105
+        if not isinstance(other, DataSet):
+            msg = f"Cannot compare DataSet with object of type {type(other)}"
+            logger.error(msg)
+            raise TypeError(msg)
+
+        try:
+            self.assert_equal(other)
+        except AssertionError:
+            return False
+
+        return True
 
     def get_different_variables(self, other: DataSet) -> list[str]:
         """Compare the currently loaded variables in this DataSet with another DataSet and return a list of variable names that are different.
