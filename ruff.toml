@@ -19,6 +19,13 @@ ignore = [
     "UP045",
     "PLW",
     "D102",
+    "N806",
+    "N803",
+    "SLF001",
+    "C901",
+    "PLR0912",
+    "PLR0915",
+    "PLR2004"
 ]
 exclude = ["*.ipynb", "IRBEM/*", "setup.py"]
 
