@@ -321,9 +321,7 @@ class DataSet:
 
     def __eq__(self, other: DataSet) -> bool:  # ty :ignore[invalid-method-override]  # noqa: D105
 
-        if self.saving_strategy.data_standard != other.saving_strategy.data_standard:
-            return False
-        if (self._file_loading_mode != other._file_loading_mode):
+        if self.saving_strategy.get_all_standard_names() != other.saving_strategy.get_all_standard_names():
             return False
 
         different_vars = self.get_different_variables(other)
