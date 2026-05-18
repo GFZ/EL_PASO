@@ -157,7 +157,7 @@ class MonthlyFileStrategy(SavingStrategy):
             time_intervals.append((month_start, month_end))
             current_time = (
                 datetime(year + 1, 1, 1, tzinfo=timezone.utc)
-                if month == 12  # noqa: PLR2004
+                if month == 12
                 else datetime(year, month + 1, 1, tzinfo=timezone.utc)
             )
 
@@ -262,7 +262,7 @@ class MonthlyFileStrategy(SavingStrategy):
             logger.exception("Failed to write merged data to temporary file")
             raise
 
-    def _merge_and_sort_data(  # noqa: C901, PLR0912, PLR0915
+    def _merge_and_sort_data(
         self,
         existing_data: SavedDataDict,
         new_data: SavedDataDict,
@@ -271,7 +271,7 @@ class MonthlyFileStrategy(SavingStrategy):
 
         def _normalize_1d(arr: np.ndarray) -> np.ndarray:
             arr = np.asarray(arr)
-            if arr.ndim == 2 and arr.shape[1] == 1:  # noqa: PLR2004
+            if arr.ndim == 2 and arr.shape[1] == 1:
                 return arr.reshape(-1)
             return arr
 

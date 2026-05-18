@@ -4,14 +4,14 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from el_paso.saving_strategies.gfz_strategy import GFZStrategy
 from el_paso.saving_strategies.density_netcdf_strategy import DensityNetCDFStrategy
+from el_paso.saving_strategies.gfz_strategy import GFZStrategy
 from el_paso.saving_strategies.monthly_strategy import MonthlyFileStrategy
 from el_paso.saving_strategies.single_file_strategy import SingleFileStrategy
 
 __all__ = [
-    "GFZStrategy",
     "DensityNetCDFStrategy",
+    "GFZStrategy",
     "MFSFormats",
     "MonthlyFileStrategy",
     "SingleFileStrategy",

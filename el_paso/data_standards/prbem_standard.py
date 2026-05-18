@@ -42,7 +42,7 @@ class PRBEMStandard(DataStandard[PRBEMName]):
                 "Alpha_Eq",
                 "Computed equatorial pitch angle the instrument is looking from Alpha, B_Calc and B_Eq",
                 u.deg,
-                dependencies=["Alpha"]
+                dependencies=["Alpha"],
             ),
             "Energy_FEDU": VariableInfo[PRBEMName](
                 "Energy_FEDU",
@@ -79,6 +79,5 @@ class PRBEMStandard(DataStandard[PRBEMName]):
                 "Calculated Roederer's L* parameter",
                 u.dimensionless_unscaled,
                 dependencies=["Epoch", "Alpha"],
-            )
+            ),
         }
-

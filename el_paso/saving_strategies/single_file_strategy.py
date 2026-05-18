@@ -144,7 +144,11 @@ class SingleFileStrategy(SavingStrategy):
         return self.file_path
 
     def standardize_variable(
-        self, variable: Variable, internal_name: InternalName, *, first_call_of_interval: bool  # noqa: ARG002
+        self,
+        variable: Variable,
+        internal_name: InternalName,  # noqa: ARG002
+        *,
+        first_call_of_interval: bool,  # noqa: ARG002
     ) -> Variable:
         """Does not modify the variable.
 
@@ -352,7 +356,7 @@ class SingleFileStrategy(SavingStrategy):
                     for key, metadata in data_dict["metadata"][path].items():
                         data_set.attrs[key] = metadata
 
-    def _write_cdf_file(self, file_path: Path, data_dict: dict[str, Any]) -> None:  # noqa: C901, PLR0912, PLR0915
+    def _write_cdf_file(self, file_path: Path, data_dict: dict[str, Any]) -> None:
         """Write data dictionary to CDF (Common Data Format) format.
 
         Converts NumPy arrays to appropriate CDF data types and writes them as zVariables.

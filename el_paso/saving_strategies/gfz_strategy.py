@@ -166,7 +166,7 @@ class GFZStrategy(SavingStrategy):
             time_intervals.append((month_start, month_end))
             current_time = (
                 datetime(year + 1, 1, 1, tzinfo=timezone.utc)
-                if month == 12  # noqa: PLR2004
+                if month == 12
                 else datetime(year, month + 1, 1, tzinfo=timezone.utc)
             )
 
@@ -205,14 +205,14 @@ class GFZStrategy(SavingStrategy):
 
         return self.get_file_path_stem() / file_name
 
-    def _append_mat_data(self, file_path: Path, data_dict_to_save: SavedDataDict) -> SavedDataDict:  # noqa: C901
+    def _append_mat_data(self, file_path: Path, data_dict_to_save: SavedDataDict) -> SavedDataDict:
         """Load an existing MATLAB file and merge the new data into it."""
         data_dict_old = self._loader(file_path)
         time_key = self.data_standard.get_standard_name("Epoch")
 
         def _normalize_1d(arr: np.ndarray) -> np.ndarray:
             arr = np.asarray(arr)
-            if arr.ndim == 2 and arr.shape[1] == 1:  # noqa: PLR2004
+            if arr.ndim == 2 and arr.shape[1] == 1:
                 return arr.reshape(-1)
             return arr
 
