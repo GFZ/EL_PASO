@@ -33,22 +33,22 @@ class PRBEMStandard(DataStandard[PRBEMName]):
                 "FEDU",
                 "Processed unidirectional differential electron flux",
                 (u.cm**2 * u.s * u.sr * u.keV) ** (-1),
-                dependencies=["Epoch", "Energy_FEDU", "Pitch_angle"],
+                dependencies=["Epoch", "Energy_FEDU", "Alpha"],
             ),
             "Alpha": VariableInfo[PRBEMName](
-                "Alpha", "Local pitch angle the instrument is looking at", u.deg, dependencies=["Alpha"]
+                "Alpha", "Local pitch angle the instrument is looking at", u.deg, dependencies=["Epoch","Alpha"]
             ),
             "Alpha_Eq": VariableInfo[PRBEMName](
                 "Alpha_Eq",
                 "Computed equatorial pitch angle the instrument is looking from Alpha, B_Calc and B_Eq",
                 u.deg,
-                dependencies=["Alpha"],
+                dependencies=["Epoch","Alpha"],
             ),
             "Energy_FEDU": VariableInfo[PRBEMName](
                 "Energy_FEDU",
                 "Central energy of unidirectional differential electron flux",
                 u.MeV,
-                dependencies=["Energy_FEDU"],
+                dependencies=["Epoch","Energy_FEDU"],
             ),
             "Position": VariableInfo[PRBEMName](
                 "Position",
@@ -79,5 +79,23 @@ class PRBEMStandard(DataStandard[PRBEMName]):
                 "Calculated Roederer's L* parameter",
                 u.dimensionless_unscaled,
                 dependencies=["Epoch", "Alpha"],
+            ),
+            "InvMu": VariableInfo[PRBEMName](
+                "InvMu", "Calculated first adiabatic invariant.", u.MeV / u.G, ["Epoch", "Energy_FEDU", "Alpha"]
+            ),
+            "InvK": VariableInfo[PRBEMName](
+                "InvK", "Calculated modified second adiabatic invariant.", ep.units.RE * u.G**0.5, ["Epoch", "Alpha"]
+            ),
+            "R_Eq": VariableInfo[PRBEMName](
+                "R_Eq", "Radial distance of the satellite location mapped to the equator.", ep.units.RE, ["Epoch"]
+            ),
+            "PSD": VariableInfo[PRBEMName](
+                "PSD",
+                "Calculated phase space density of particles.",
+                (u.m * u.kg * u.m / u.s) ** (-3),
+                ["Epoch", "Energy_FEDU", "Alpha"],
+            ),
+            "MLT": VariableInfo[PRBEMName](
+                "MLT", "Magnetic local time at the satellite location.", u.hour, ["Epoch"]
             ),
         }
