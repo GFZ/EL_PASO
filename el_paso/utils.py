@@ -431,7 +431,7 @@ def write_mat_file(file_path: Path, data_dict: DataDict, data_standard: DataStan
         if internal_name == "metadata":
             continue
 
-        path = data_standard.get_full_var_name(internal_name)
+        path = data_standard.get_standard_name(internal_name)
         mat_var_name = path.replace("/", "__")
 
         value_to_write = value
@@ -464,7 +464,7 @@ def write_h5_file(file_path: Path, data_dict: SavedDataDict, data_standard: Data
         for internal_name, value in data_dict.items():
             if internal_name == "metadata":
                 continue
-            path = data_standard.get_full_var_name(internal_name)
+            path = data_standard.get_standard_name(internal_name)
 
             path_parts = path.split("/")
             groups = path_parts[:-1]
@@ -506,7 +506,7 @@ def _write_data_to_netcdf_file(file: nC.Dataset | nC.Group, data_dict: DataDict,
         if value_array.size == 0:
             continue
 
-        path = data_standard.get_full_var_name(mfs_name)
+        path = data_standard.get_standard_name(mfs_name)
 
         path_parts = path.split("/")
         groups = path_parts[:-1]
@@ -639,7 +639,7 @@ def write_cdf_file(file_path: Path, data_dict: DataDict, data_standard: DataStan
                 # Resolve the canonical name via the data standard, matching H5/NC behaviour.
                 # CDF does not support '/' in variable names, so we replace path separators
                 # with '__' to preserve hierarchy information without violating the spec.
-                path = data_standard.get_full_var_name(internal_name)
+                path = data_standard.get_standard_name(internal_name)
                 cdf_var_name = path
                 value_to_write = var_data
                 if isinstance(var_data, np.ndarray) and var_data.ndim == 2 and var_data.shape[1] == 1:  # noqa: PLR2004

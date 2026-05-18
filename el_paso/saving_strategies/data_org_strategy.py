@@ -209,7 +209,7 @@ class DataOrgStrategy(SavingStrategy):
     def _append_mat_data(self, file_path: Path, data_dict_to_save: SavedDataDict) -> SavedDataDict:  # noqa: C901
         """Load an existing MATLAB file and merge the new data into it."""
         data_dict_old = self._loader(file_path)
-        time_key = self.data_standard.get_full_var_name("Epoch")
+        time_key = self.data_standard.get_standard_name("Epoch")
 
         def _normalize_1d(arr: np.ndarray) -> np.ndarray:
             arr = np.asarray(arr)
@@ -310,6 +310,6 @@ class DataOrgStrategy(SavingStrategy):
             if key == "metadata":
                 standard_dict["metadata"] = value
             else:
-                standard_dict[self.data_standard.get_full_var_name(key)] = value
+                standard_dict[self.data_standard.get_standard_name(key)] = value
 
         savemat(str(file_path), standard_dict)

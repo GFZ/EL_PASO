@@ -22,20 +22,20 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("__name__")
 
-T = TypeVar("T", bound=str, covariant=True)  # noqa: PLC0105
+T_co = TypeVar("T_co", bound=str, covariant=True)
 
 
-class VariableInfo(NamedTuple, Generic[T]):  # noqa: D101
-    standard_name: T
+class VariableInfo(NamedTuple, Generic[T_co]):  # noqa: D101
+    standard_name: T_co
     description: str
     unit: u.UnitBase
     dependencies: list[InternalName | str]
 
 
-class DataStandard(ABC, Generic[T]):
+class DataStandard(ABC, Generic[T_co]):
     """Abstract base class for data standardization."""
 
-    variable_infos: dict[InternalName, VariableInfo[T]]
+    variable_infos: dict[InternalName, VariableInfo[T_co]]
 
     def get_internal_name(self, standard_name: StandardName) -> InternalName | None:
         for internal_name, var_info in self.variable_infos.items():
@@ -44,7 +44,7 @@ class DataStandard(ABC, Generic[T]):
 
         return None
 
-    def get_full_var_name(self, internal_name: InternalName) -> T:
+    def get_standard_name(self, internal_name: InternalName) -> T_co:
         return self.variable_infos[internal_name].standard_name
 
     def get_dependencies(self, internal_name: InternalName) -> list[InternalName | str]:

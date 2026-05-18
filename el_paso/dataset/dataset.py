@@ -155,7 +155,7 @@ class DataSet:
         getattr(self, name_or_var)
 
     def get_var_by_internal_name(self, internal_name: InternalName):  # noqa: ANN201
-        standard_name = self.saving_strategy.data_standard.get_full_var_name(internal_name)
+        standard_name = self.saving_strategy.data_standard.get_standard_name(internal_name)
         return getattr(self, standard_name)
 
     def find_similar_variable(self, name: str) -> tuple[None | str, dict[str, Any]]:
@@ -239,11 +239,11 @@ class DataSet:
             return
 
         if requested_name == "datetime":
-            requested_name = self.saving_strategy.data_standard.get_full_var_name("Epoch")
+            requested_name = self.saving_strategy.data_standard.get_standard_name("Epoch")
 
         output_file = self.saving_strategy.get_output_file(standard_name=requested_name)
         if requested_name == "datetime" and output_file is None:
-            time_key = self.saving_strategy.data_standard.get_full_var_name("Epoch")
+            time_key = self.saving_strategy.data_standard.get_standard_name("Epoch")
             output_file = next(
                 (
                     candidate_output_file
@@ -267,7 +267,7 @@ class DataSet:
             if not file_content:
                 continue
 
-            time_key = self.saving_strategy.data_standard.get_full_var_name("Epoch")
+            time_key = self.saving_strategy.data_standard.get_standard_name("Epoch")
 
             # 4. Process Datetimes
             raw_times = file_content[time_key]

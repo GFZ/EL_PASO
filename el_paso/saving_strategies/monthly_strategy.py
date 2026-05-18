@@ -212,7 +212,7 @@ class MonthlyFileStrategy(SavingStrategy):
             msg = f"Cannot append: file does not exist: {file_path}"
             raise FileNotFoundError(msg)
 
-        time_key = self.data_standard.get_full_var_name("Epoch")
+        time_key = self.data_standard.get_standard_name("Epoch")
 
         if time_key not in data_dict_to_save:
             msg = f"Cannot append: missing {time_key} in data_dict_to_save."
@@ -271,7 +271,7 @@ class MonthlyFileStrategy(SavingStrategy):
                 return arr.reshape(-1)
             return arr
 
-        time_key = self.data_standard.get_full_var_name("Epoch")
+        time_key = self.data_standard.get_standard_name("Epoch")
 
         if time_key not in existing_data or np.asarray(existing_data[time_key]).size == 0:
             return new_data

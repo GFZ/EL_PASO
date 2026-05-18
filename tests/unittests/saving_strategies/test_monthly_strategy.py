@@ -155,7 +155,7 @@ def test_monthly_strategy_saves_mocked_variables_to_netcdf_with_data_standards(
     metadata = loaded_data.get("metadata", {})
 
     for internal_name in strategy.output_files[0].names_to_save:
-        var_key = data_standard().get_full_var_name(internal_name)
+        var_key = data_standard().get_standard_name(internal_name)
         saved_variable = loaded_data[var_key]
         assert saved_variable.shape == variables[internal_name].get_data().shape
         var_attrs = metadata.get(var_key, {})

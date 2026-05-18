@@ -8,8 +8,7 @@ from astropy import units as u  # type: ignore[reportMissingTypeStubs]
 
 import el_paso as ep
 from el_paso.data_standard import ConsistencyCheck, DataStandard, VariableInfo
-from el_paso.typing import InternalName, PRBEMName
-from el_paso.utils import assert_n_dim
+from el_paso.typing import PRBEMName
 
 logger = logging.getLogger("__name__")
 
@@ -34,7 +33,7 @@ class PRBEMStandard(DataStandard[PRBEMName]):
                 "FEDU",
                 "Processed unidirectional differential electron flux",
                 (u.cm**2 * u.s * u.sr * u.keV) ** (-1),
-                dependencies=["Epoch", "FEDU_Energy", "Pitch_angle"],
+                dependencies=["Epoch", "Energy_FEDU", "Pitch_angle"],
             ),
             "Alpha": VariableInfo[PRBEMName](
                 "Alpha", "Local pitch angle the instrument is looking at", u.deg, dependencies=["Alpha"]
@@ -45,11 +44,11 @@ class PRBEMStandard(DataStandard[PRBEMName]):
                 u.deg,
                 dependencies=["Alpha"]
             ),
-            "FEDU_Energy": VariableInfo[PRBEMName](
-                "FEDU_Energy",
+            "Energy_FEDU": VariableInfo[PRBEMName](
+                "Energy_FEDU",
                 "Central energy of unidirectional differential electron flux",
                 u.MeV,
-                dependencies=["FEDU_Energy"],
+                dependencies=["Energy_FEDU"],
             ),
             "Position": VariableInfo[PRBEMName](
                 "Position",
@@ -83,45 +82,3 @@ class PRBEMStandard(DataStandard[PRBEMName]):
             )
         }
 
-    def get_full_var_name(self, internal_name: InternalName) -> PRBEMName:
-        return internal_name
-
-    def get_dependencies(self, internal_name: InternalName) -> list[str]:
-        return self.variable_infos[internal_name].dependencies
-
-    def standardize_variable(
-        self, internal_name: InternalName, variable: ep.Variable, *, reset_consistency_check: bool
-    ) -> ep.Variable:
-        """Standardizes a variable based on its specified standard name.
-
-        This method first converts the variable to its canonical unit based on the
-        `standard_name`. It then performs a series of dimension and shape
-        consistency checks to ensure the variable's structure is valid for
-        the given data type.
-
-        Args:
-            standard_name (str): The name of the data standard to apply (e.g.,
-                'FEDU', 'xGEO', 'Lstar').
-            variable (ep.Variable): The variable to be standardized.
-            reset_consistency_check (bool): If set to true, the consistency check will be reseted.
-
-        Returns:
-            ep.Variable: The standardized variable with its unit converted and
-                          its consistency validated.
-        """
-        if reset_consistency_check:
-            self.consistency_check = ConsistencyCheck()
-
-        if internal_name not in self.variable_infos:
-            logger.warning(f"Encountered custom variable which cannot be standardized: {internal_name}")
-            return variable
-
-        variable_info = self.variable_infos[internal_name]
-
-        variable.convert_to_unit(variable_info.unit)
-        if len(variable.metadata.description) == 0:
-            variable.metadata.description = variable_info.description
-        assert_n_dim(variable, len(variable_info.dependencies), internal_name)
-        self.consistency_check.check(variable.get_data().shape, variable_info.dependencies, internal_name)
-
-        return variable

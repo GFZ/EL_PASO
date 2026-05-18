@@ -51,18 +51,7 @@ InternalName: TypeAlias = Literal[
     "InvK",
 ]
 
-PRBEMName: TypeAlias = Literal[
-    "Epoch",
-    "FEDU",
-    "Alpha",
-    "Alpha_Eq",
-    "FEDU_Energy",
-    "Position",
-    "B_Calc",
-    "B_Eq",
-    "L_m",
-    "L_star",
-]
+PRBEMName: TypeAlias = InternalName
 
 GFZVarNames: TypeAlias = Literal[
     "time",
