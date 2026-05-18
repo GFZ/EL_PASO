@@ -17,15 +17,13 @@ from astropy import units as u
 
 import el_paso as ep
 from el_paso.processing.magnetic_field_utils.irbem import Coords
-
-sys.path.append(str(Path(__file__).parent / ".." / ".."))
-from examples.Arase.get_arase_orbit_variables import (
+from el_paso.recipes.arase import (
     get_arase_orbit_level_2_variables,
     get_arase_orbit_level_3_variables,
 )
 
 
-def process_mepe_level_3(  # noqa: PLR0915
+def process_mepe_level_3(
     start_time: datetime,
     end_time: datetime,
     irbem_lib_path: str | Path,
@@ -34,7 +32,8 @@ def process_mepe_level_3(  # noqa: PLR0915
     processed_data_path: str | Path = ".",
     num_cores: int = 4,
     cadence: timedelta = timedelta(minutes=5),
-    save_strategy: Literal["DataOrg", "h5", "netcdf"] = "DataOrg",
+    save_strategy: Literal["dataorg", "h5", "netcdf"] = "dataorg",
+    data_standard: Literal["dataorg", "prbem"] = "dataorg",
     *,
     use_level_3_orbit_data: bool = True,
 ) -> None:
@@ -212,53 +211,35 @@ def process_mepe_level_3(  # noqa: PLR0915
         case "OP77Q":
             mag_field_save = "OP77"
 
+    data_standard_instance = (
+        ep.data_standards.DataOrgStandard() if data_standard == "dataorg" else ep.data_standards.PRBEMStandard()
+    )
+
+    variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+        "Epoch": binned_time_variable,
+        "FEDU": mepe_variables["FEDU"],
+        "Energy_FEDU": mepe_variables["Energy"],
+        "Alpha": mepe_variables["Pitch_angle"],
+        "Alpha_Eq": mepe_variables["Pa_eq"],
+        "R_Eq": orb_variables["R0"],
+        "MLT": orb_variables["MLT"],
+        "L_m": orb_variables["Lm"],
+    }
+
     match save_strategy:
         case "DataOrg":
             saving_strategy = ep.saving_strategies.DataOrgStrategy(
-                processed_data_path, "ARASE", "arase", "mepe-l3", mag_field_save, ".mat"
+                processed_data_path, "ARASE", "arase", "mepe", mag_field_save, data_standard_instance,
             )
 
-            variables_to_save = {
-                "time": binned_time_variable,
-                "Flux": mepe_variables["FEDU"],
-                "energy_channels": mepe_variables["Energy"],
-                "alpha_local": mepe_variables["Pitch_angle"],
-                "alpha_eq_model": mepe_variables["Pa_eq"],
-                "R0": orb_variables["R0"],
-                "MLT": orb_variables["MLT"],
-                "Lm": orb_variables["Lm"],
-            }
-
         case "h5":
-            variables_to_save = {
-                "time": binned_time_variable,
-                "flux/FEDU": mepe_variables["FEDU"],
-                "flux/energy": mepe_variables["Energy"],
-                "flux/alpha_local": mepe_variables["Pitch_angle"],
-                "flux/alpha_eq": mepe_variables["Pa_eq"],
-                f"position/{mag_field}/R0": orb_variables["R0"],
-                f"position/{mag_field}/MLT": orb_variables["MLT"],
-                f"position/{mag_field}/Lm": orb_variables["Lm"],
-            }
-
-            saving_strategy = ep.saving_strategies.MonthlyH5Strategy(
-                processed_data_path, "arase_mepe-l3", mag_field=mag_field
+            saving_strategy = ep.saving_strategies.MonthlyFileStrategy(
+                processed_data_path, "Arase", "arase", "mepe", mag_field=mag_field, file_format="h5",
             )
 
         case "netcdf":
-            variables_to_save = {
-                "time": binned_time_variable,
-                "flux/FEDU": mepe_variables["FEDU"],
-                "flux/energy": mepe_variables["Energy"],
-                "flux/alpha_local": mepe_variables["Pitch_angle"],
-                "flux/alpha_eq": mepe_variables["Pa_eq"],
-                f"position/{mag_field}/R0": orb_variables["R0"],
-                f"position/{mag_field}/MLT": orb_variables["MLT"],
-                f"position/{mag_field}/Lm": orb_variables["Lm"],
-            }
-
-            saving_strategy = ep.saving_strategies.MonthlyNetCDFStrategy(
-                processed_data_path, "arase_mepe-l3", mag_field=mag_field
+            saving_strategy = ep.saving_strategies.MonthlyFileStrategy(
+                processed_data_path, "Arase", "arase", "mepe", mag_field=mag_field, file_format="nc",
             )
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
@@ -277,5 +258,5 @@ if __name__ == "__main__":
             raw_data_path=tmp_dir,
             processed_data_path=".",
             num_cores=32,
-            save_strategy="DataOrg",
+            save_strategy="dataorg",
         )
