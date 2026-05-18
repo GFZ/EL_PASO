@@ -194,8 +194,9 @@ class DataOrgStrategy(SavingStrategy):
         Returns:
             Path: The generated file path.
         """
-        start_year_month_day = interval_start.strftime("%Y%m%d")
-        end_year_month_day = interval_end.strftime("%Y%m%d")
+        interval = self.get_time_intervals_to_save(interval_start, interval_end)[0]
+        start_year_month_day = interval[0].strftime("%Y%m%d")
+        end_year_month_day = interval[1].strftime("%Y%m%d")
 
         file_name = self.get_file_name_stem() + f"_{start_year_month_day}to{end_year_month_day}_{output_file.name}"
 

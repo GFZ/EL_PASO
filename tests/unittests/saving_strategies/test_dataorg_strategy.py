@@ -4,11 +4,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
-from el_paso.typing import GFZVarNames
-
 import shutil
+
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Callable, Literal  # noqa: UP035
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
@@ -20,7 +19,7 @@ from el_paso.dataset.utils import python2matlab
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from el_paso.typing import DataStandard, InternalName
+    from el_paso.typing import InternalName
 
 
 def _mock_monthly_variables() -> dict[InternalName, ep.Variable]:
@@ -91,10 +90,6 @@ def _mock_monthly_variables() -> dict[InternalName, ep.Variable]:
 _STANDARD_META_KEYS = {"unit", "original_cadence_seconds", "source_files", "processing_notes", "description"}
 
 
-def check_metadata(keys: set[str]):
-    return lambda actual: actual >= keys
-
-
 @pytest.mark.basic
 def test_monthly_strategy_saves_mocked_variables_to_netcdf_with_data_standards(
     tmp_path: Path,
@@ -121,31 +116,36 @@ def test_monthly_strategy_saves_mocked_variables_to_netcdf_with_data_standards(
         time_var=variables["Epoch"],
     )
 
-    save_path = (
-        tmp_path
-        / MISSION
-        / SATELLITE
-        / "Processed_Mat_Files"
-        / (f"{SATELLITE}_{INSTRUMENT.lower()}_20130101to20130131_flux_ver4" + ".mat")
-    )
-    assert save_path.exists()
+    epoch = np.asarray(variables["Epoch"].get_data())
+    time_mask = (epoch >= python2matlab(start_time)) & (epoch <= python2matlab(end_time))  # ty:ignore[unsupported-operator]
 
-    loaded_data = ep.utils.load_mat_data(save_path)
-    metadata = loaded_data.get("metadata", {})
+    for output_file in strategy.output_files:
+        file_path = strategy.get_file_path(start_time, end_time, output_file)
+        assert file_path.exists()
 
-    for files in strategy.output_files:
-        for internal_name in files.names_to_save:
-            var_key = strategy.data_standard.get_standard_name(internal_name)
-            print(internal_name, var_key)
-            # saved_variable = loaded_data[var_key]
-            # assert saved_variable.shape == variables[internal_name].get_data().shape
-            # var_attrs = metadata.get(var_key, {})
-            # assert check_metadata(var_attrs.keys())
+        loaded_data = ep.utils.load_mat_data(file_path)
+        metadata = loaded_data.get("metadata", {})
 
-        # print(loaded_data["metadata"])
+        expected_variables = strategy.get_target_variables(
+            output_file,
+            variables,
+            variables["Epoch"],
+            start_time,
+            end_time,
+        )
+        assert expected_variables is not None
 
-    # shutil.rmtree(tmp_path)
+        for internal_name, expected_variable in expected_variables.items():
+            standard_name = strategy.data_standard.get_standard_name(internal_name)
+            np.testing.assert_allclose(
+                np.asarray(loaded_data[standard_name][time_mask, ...], dtype=float),
+                np.asarray(expected_variable.get_data(), dtype=float),
+            )
+            var_attrs = metadata.get(internal_name, {})
+            assert set(var_attrs) >= _STANDARD_META_KEYS
+            assert var_attrs["source_files"] == "mocked_input.cdf"
+    shutil.rmtree(tmp_path)
 
 
-def test_append_works_for_monthly_strategy(tmp_path: Path) -> None:
+def test_append_works_for_monthly_strategy() -> None:
     pytest.skip("Append functionality for monthly strategy is not yet implemented.")
