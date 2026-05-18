@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2025 GFZ Helmholtz Centre for Geosciences
+# SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
@@ -162,7 +162,7 @@ def test_monthly_strategy_saves_mocked_variables_to_netcdf_with_data_standards(
         assert meta_keys_check(var_attrs.keys())
         assert var_attrs.get("unit", "unknown") != "unknown"
 
-    # shutil.rmtree(tmp_path)
+    shutil.rmtree(tmp_path)
 
 
 def test_append_works_for_monthly_strategy(tmp_path: Path) -> None:
