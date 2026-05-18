@@ -12,12 +12,13 @@ import shutil
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import netCDF4 as nC
 import numpy as np
 
 import el_paso as ep
+from el_paso.data_standards import PRBEMStandard
 from el_paso.saving_strategy import OutputFile, SavingStrategy
 
 if TYPE_CHECKING:
@@ -48,8 +49,6 @@ class MonthlyFileStrategy(SavingStrategy):
     output_files: list[OutputFile]
     dependency_dict: dict[InternalName, list[str]]
 
-    _ds = ep.data_standards.PRBEMStandard()
-
     def __init__(
         self,
         base_data_path: str | Path,
@@ -58,7 +57,7 @@ class MonthlyFileStrategy(SavingStrategy):
         instrument: str,
         mag_field: MagneticFieldLiteral,
         file_format: MFSFormats = "h5",
-        data_standard: DataStandard[StandardName] = _ds,
+        data_standard: Optional[DataStandard[StandardName]] = None,
     ) -> None:
         """Initialize a monthly file saving strategy.
 
@@ -70,7 +69,8 @@ class MonthlyFileStrategy(SavingStrategy):
             mag_field (MagneticFieldLiteral): Magnetic field model name. Monthly files use one model.
             file_format (MFSFormats): One of ``"nc"``, ``"cdf"``, ``"h5"``, or ``"mat"``.
                 A leading dot is also accepted.
-            data_standard (DataStandard): Instance of the data standard implementation
+            data_standard (DataStandard): Instance of the data standard implementation. Deafults to
+                `ep.data_standards.PRBEMStandard()`
 
         Attributes:
             output_files: List of output file configurations, with variable names
@@ -85,7 +85,7 @@ class MonthlyFileStrategy(SavingStrategy):
         self.mag_field = mag_field
         self.file_format = ep.utils.normalize_file_format(file_format)
 
-        self.data_standard = data_standard
+        self.data_standard = data_standard or PRBEMStandard()
 
         self.output_files = [
             OutputFile("full", self._get_output_file_entries(), save_incomplete=True),

@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import inspect
 import logging
 from typing import TYPE_CHECKING, Any, cast
 
@@ -82,7 +83,12 @@ class DataSet:
         self._preferred_ext = preferred_extension
 
         self.saving_strategy = saving_strategy
-        self.possible_variables = self.saving_strategy.get_all_standard_names()
+        self.possible_variables = [
+            *set(self.saving_strategy.get_all_standard_names()),
+            "datetime",
+            "P",
+            "InvV",
+        ]  # add computed properties and datetime
 
         # For dict-based loading, modify satellite properties
         self._file_loading_mode = True
@@ -109,6 +115,26 @@ class DataSet:
                 ".cdf": ep.utils.load_cdf_data,
             }
 
+    def __repr__(self) -> str:  # noqa: D105
+        cls = type(self)
+
+        constructor_params = inspect.signature(cls.__init__).parameters
+
+        args = []
+
+        for name in constructor_params:
+            if name == "self":
+                continue
+
+            if hasattr(self, name):
+                value = getattr(self, name)
+                args.append(f"{name}={value!r}")
+
+        return f"{cls.__name__}({', '.join(args)})"
+
+    def __str__(self) -> str:  # noqa: D105
+        return self.__repr__()
+
     def __getattr__(self, name: str) -> NDArray[np.float64]:  # noqa: D105
         # Avoid recursion for internal attributes
         if name.startswith("_"):
@@ -127,7 +153,7 @@ class DataSet:
             if len(self.InvK) == 0 or len(self.InvMu) == 0:  # invariants not found
                 self.InvV = np.asarray([])
             else:
-                inv_K_repeated = np.repeat(self.InvK[:, np.newaxis, :], self.InvMu.shape[1], axis=1)  # noqa: N806
+                inv_K_repeated = np.repeat(self.InvK[:, np.newaxis, :], self.InvMu.shape[1], axis=1)
                 self.InvV = self.InvMu * (inv_K_repeated + 0.5) ** 2
             return self.InvV
 
@@ -143,7 +169,7 @@ class DataSet:
                 "Call `update_from_dict()` before accessing it."
             )
             raise AttributeError(msg)
-        if levenstein_info["min_distance"] <= 2:  # noqa: PLR2004
+        if levenstein_info["min_distance"] <= 2:
             msg = f"{self.__class__.__name__} object has no attribute {name}. Maybe you meant {levenstein_info['var_name']}?"  # noqa: E501
         else:
             msg = f"{self.__class__.__name__} object has no attribute {name}"
@@ -177,43 +203,40 @@ class DataSet:
 
         return sat_variable, levenstein_info
 
-    # ruff: disable[ERA001, E501]
-    # def update_from_dict(self, source_dict: dict[str, NDArray[np.floating] | list[dt.datetime]]) -> DataSet:
-    #     """Get data from data dictionary and update the object.
+    def update_from_dict(self, source_dict: dict[str, NDArray[np.floating] | list[dt.datetime]]) -> DataSet:
+        """Get data from data dictionary and update the object.
 
-    #     Parameters
-    #     ----------
-    #     source_dict : dict[str, VariableLiteral]
-    #         Dictionary containing the data to be loaded into the object.
+        Parameters
+        ----------
+        source_dict : dict[str, VariableLiteral]
+            Dictionary containing the data to be loaded into the object.
 
-    #     Returns:
-    #     -------
-    #     DataSet
-    #         The updated DataSet object.
+        Returns:
+        -------
+        DataSet
+            The updated DataSet object.
 
-    #     Raises:
-    #     ------
-    #     VariableNotFoundError
-    #         If a key in the `source_dict` is not a valid `VariableLiteral`.
-    #     RuntimeError
-    #         If the DataSet is in file loading mode and dictionary loading is not enabled.
+        Raises:
+        ------
+        VariableNotFoundError
+            If a key in the `source_dict` is not a valid `VariableLiteral`.
+        RuntimeError
+            If the DataSet is in file loading mode and dictionary loading is not enabled.
 
-    #     """
-    #     if self._file_loading_mode and not self._enable_dict_loading:
-    #         msg = "DataSet is in file loading mode. Cannot update from dictionary. To use dictionary-based loading, set `enable_dict_loading=True` during initialization."
-    #         raise RuntimeError(msg)
-    #     for key, value in source_dict.items():
-    #         _, levenstein_info = self.find_similar_variable(key)
-    #         if key in self.possible_variables:
-    #             setattr(self, key, value)
-    #         elif levenstein_info["min_distance"] <= 2:
-    #             msg = f"Key '{key}' is not a valid `VariableLiteral`. Maybe you meant '{levenstein_info['var_name']}'?"
-    #             raise VariableNotFoundError(msg)
-    #         else:
-    #             msg = f"Key '{key}' is not a valid `VariableLiteral`."
-    #             raise VariableNotFoundError(msg)
-    #     return self
-    # ruff:enable[ERA001, E501]
+        """
+        if self._file_loading_mode and not self._enable_dict_loading:
+            msg = "DataSet is in file loading mode. Cannot update from dictionary. To use dictionary-based loading, set `enable_dict_loading=True` during initialization."  # noqa: E501
+            raise RuntimeError(msg)
+        for key, value in source_dict.items():
+            _, levenstein_info = self.find_similar_variable(key)
+            msg = f"Key '{key}' is not a valid {self.saving_strategy.data_standard} variable."
+            if key in self.possible_variables:
+                setattr(self, key, value)
+            elif levenstein_info["min_distance"] <= 2:
+                raise KeyError(msg + f" Maybe you meant '{levenstein_info['var_name']}'?")
+            else:
+                raise KeyError(msg)
+        return self
 
     def get_satellite_name(self) -> str:
         return self.saving_strategy.satellite
@@ -224,14 +247,14 @@ class DataSet:
     def get_print_name(self) -> str:
         return self.saving_strategy.satellite + " " + self.saving_strategy.instrument
 
-    def _load_variable(self, requested_name: str) -> None:  # noqa: C901, PLR0912
+    def _load_variable(self, requested_name: str) -> None:
         """Load variable from .mat, or .nc files."""
         loaded_var_arrs: dict[str, NDArray[np.number]] = {}
         var_names_stored: list[str] = []
 
         # 1. Handle Computed Values
         if requested_name == "InvV":
-            inv_K_repeated = np.repeat(self.InvK[:, np.newaxis, :], self.InvMu.shape[1], axis=1)  # noqa: N806
+            inv_K_repeated = np.repeat(self.InvK[:, np.newaxis, :], self.InvMu.shape[1], axis=1)
             self.InvV = self.InvMu * (inv_K_repeated + 0.5) ** 2
             return
         if requested_name == "P":
@@ -268,7 +291,7 @@ class DataSet:
                 if self._verbose:
                     logger.info(f"Loading {full_file_path}")
             elif self._verbose:
-                logger.info(f"Tried to load {full_file_path}, but it does not exist")
+                logger.warning(f"Tried to load {full_file_path}, but it does not exist")
                 continue
 
             time_key = self.saving_strategy.data_standard.get_standard_name("Epoch")

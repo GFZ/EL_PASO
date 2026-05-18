@@ -4,3 +4,4 @@
 
 from el_paso.dataset.dataset import DataSet as DataSet
 from el_paso.dataset.dataset_implementations import GFZDataSet as GFZDataSet
+from el_paso.dataset.dataset_implementations import PRBEMDataSet as PRBEMDataSet

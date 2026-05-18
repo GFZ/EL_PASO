@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
+from el_paso.data_standards import GFZStandard, PRBEMStandard
 from el_paso.dataset.dataset import DataSet
+from el_paso.saving_strategies import GFZStrategy
 
 if TYPE_CHECKING:
     import datetime as dt
@@ -11,6 +14,9 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
     from el_paso.typing import MFSFormats, SavingStrategy
+
+
+logger = logging.getLogger(__name__)
 
 
 class GFZDataSet(DataSet):
@@ -83,20 +89,13 @@ class GFZDataSet(DataSet):
         and populates the list of possible variables from class annotations.
 
         Parameters:
-            mission (str): Name of the mission (e.g. ``"RBSP"``).
-            satellite (str): Satellite identifier within the mission (e.g. ``"A"``).
-            instrument (str): Instrument name used to scope the data path.
-            mag_field (str): Magnetic field model identifier (e.g. ``"T89"``).
-            base_path (str): Root directory under which data files are stored.
+            saving_strategy (SavingStrategy): Instance of the saving strategy used to resolve file paths.
             start_time (dt.datetime | None): Beginning of the time range to load.
                 If ``None``, no lower bound is applied. Defaults to ``None``.
             end_time (dt.datetime | None): End of the time range to load.
                 If ``None``, no upper bound is applied. Defaults to ``None``.
             preferred_extension (MFSFormats): File format to prefer when reading
                 and writing data. Defaults to ``"nc"`` (NetCDF).
-            saving_strategy_type (type[SavingStrategy]): Class (not instance) of
-                the saving strategy used to resolve file paths. Defaults to
-                ``ep.saving_strategies.MonthlyFileStrategy``.
             verbose (bool): If ``True``, print progress and diagnostic messages.
                 Defaults to ``True``.
             enable_dict_loading (bool): If ``True``, allow loading data from
@@ -110,6 +109,18 @@ class GFZDataSet(DataSet):
         self._verbose = verbose
         self._enable_dict_loading = enable_dict_loading
 
+        if isinstance(self.saving_strategy, GFZStrategy):
+            self._preferred_ext = "mat"
+            logger.warning(
+                "Overriding `preferred_extension` to 'mat' since `GFZStrategy` is used, which only supports .mat files."
+                "Ignoring provided `preferred_extension` value."
+            )
+
+        if not isinstance(self.saving_strategy.data_standard, GFZStandard):
+            msg = f"GFZDataSet requires a saving strategy with  `GFZStandard`, but got {type(self.saving_strategy.data_standard).__name__}"  # noqa: E501
+            logger.error(msg)
+            raise TypeError(msg)
+
         super().__init__(
             self.saving_strategy,
             self._start_time,
@@ -119,45 +130,108 @@ class GFZDataSet(DataSet):
             enable_dict_loading=self._enable_dict_loading,
         )
 
-        possible_vars: list[str] = []
-        for attr_name in getattr(GFZDataSet, "__annotations__", {}):
-            if attr_name.startswith("_"):
-                continue
-            if attr_name not in possible_vars:
-                possible_vars.append(attr_name)
-        self.possible_variables = possible_vars
 
-    def __repr__(self) -> str:
-        """Returns an unambiguous string representation of the instance.
+class PRBEMDataSet(DataSet):
+    """A concrete implementation of DataSet for the PRBEMStandard.
 
-        Returns:
-            str: A string of the form ``ClassName(param=value, ...)`` that could
-            be used to reconstruct the object.
+    Represents a dataset with variables defined by the PRBEMStandard,
+    providing structured access to space physics measurements including
+    particle fluxes, phase space densities, magnetic field data, and
+    adiabatic invariants.
+
+    Attributes:
+        datetime (list[dt.datetime]): List of datetime objects corresponding to each time step.
+        Epoch (NDArray[np.float64]): Array of time values as floats (e.g. seconds since epoch).
+        #TODO: Add detailed descriptions and units for each variable based on the PRBEMStandard documentation.
+        datetime (list[dt.datetime])
+        Epoch (NDArray[np.float64])
+        FEDU (NDArray[np.float64])
+        FEDO (NDArray[np.float64])
+        FEIU (NDArray[np.float64])
+        Energy_FEDU (NDArray[np.float64])
+        Alpha (NDArray[np.float64])
+        Alpha_Eq (NDArray[np.float64])
+        Position (NDArray[np.float64])
+        B_Calc (NDArray[np.float64])
+        B_Eq (NDArray[np.float64])
+        L_star (NDArray[np.float64])
+        I (NDArray[np.float64])
+        MLT (NDArray[np.float64])
+        L_m (NDArray[np.float64])
+        PSD (NDArray[np.float64])
+        R_Eq (NDArray[np.float64])
+        InvMu (NDArray[np.float64])
+        InvK (NDArray[np.float64])
+    """
+
+    datetime: list[dt.datetime]
+    Epoch: NDArray[np.float64]
+    FEDU: NDArray[np.float64]
+    FEDO: NDArray[np.float64]
+    FEIU: NDArray[np.float64]
+    Energy_FEDU: NDArray[np.float64]
+    Alpha: NDArray[np.float64]
+    Alpha_Eq: NDArray[np.float64]
+    Position: NDArray[np.float64]
+    B_Calc: NDArray[np.float64]
+    B_Eq: NDArray[np.float64]
+    L_star: NDArray[np.float64]
+    I: NDArray[np.float64]  # noqa: E741
+    MLT: NDArray[np.float64]
+    L_m: NDArray[np.float64]
+    PSD: NDArray[np.float64]
+    R_Eq: NDArray[np.float64]
+    InvMu: NDArray[np.float64]
+    InvK: NDArray[np.float64]
+
+    def __init__(
+        self,
+        saving_strategy: SavingStrategy,
+        start_time: dt.datetime | None = None,
+        end_time: dt.datetime | None = None,
+        preferred_extension: MFSFormats = "nc",
+        *,
+        verbose: bool = True,
+        enable_dict_loading: bool = False,
+    ) -> None:
+        """Initializes a PRBEMDataSet instance.
+
+        Constructs the saving strategy, invokes the parent DataSet initializer,
+        and populates the list of possible variables from class annotations.
+
+        Parameters:
+            saving_strategy_type (type[SavingStrategy]): Class (not instance) of
+                the saving strategy used to resolve file paths. Defaults to
+                ``ep.saving_strategies.MonthlyFileStrategy``.
+            start_time (dt.datetime | None): Beginning of the time range to load.
+                If ``None``, no lower bound is applied. Defaults to ``None``.
+            end_time (dt.datetime | None): End of the time range to load.
+                If ``None``, no upper bound is applied. Defaults to ``None``.
+            preferred_extension (MFSFormats): File format to prefer when reading
+                and writing data. Defaults to ``"nc"`` (NetCDF).
+            verbose (bool): If ``True``, print progress and diagnostic messages.
+                Defaults to ``True``.
+            enable_dict_loading (bool): If ``True``, allow loading data from
+                dictionary-backed sources in addition to files. Defaults to
+                ``False``.
         """
-        saving_strategy_type_name = f"{self.saving_strategy.__module__}.{self.saving_strategy}"
+        self.saving_strategy = saving_strategy
+        self._start_time = start_time
+        self._end_time = end_time
+        self._preferred_ext = preferred_extension
+        self._verbose = verbose
+        self._enable_dict_loading = enable_dict_loading
 
-        return (
-            f"{self.__class__.__name__}("
-            f"mission={self._mission!r}, "
-            f"satellite={self._satellite!r}, "
-            f"instrument={self._instrument!r}, "
-            f"mag_field={self._mag_field!r}, "
-            f"base_path={self._base_path!r}, "
-            f"start_time={self._start_time!r}, "
-            f"end_time={self._end_time!r}, "
-            f"preferred_extension={self._preferred_ext!r}, "
-            f"saving_strategy_type={saving_strategy_type_name}, "
-            f"verbose={self._verbose!r}, "
-            f"enable_dict_loading={self._enable_dict_loading!r}"
-            f")"
+        if not isinstance(self.saving_strategy.data_standard, PRBEMStandard):
+            msg = f"PRBEMDataSet requires a saving strategy with  `PRBEMStandard`, but got {type(self.saving_strategy.data_standard).__name__}"  # noqa: E501
+            logger.error(msg)
+            raise TypeError(msg)
+
+        super().__init__(
+            self.saving_strategy,
+            self._start_time,
+            self._end_time,
+            self._preferred_ext,
+            verbose=self._verbose,
+            enable_dict_loading=self._enable_dict_loading,
         )
-
-    def __str__(self) -> str:
-        """Returns a human-readable string representation of the instance.
-
-        Delegates to :meth:`__repr__`.
-
-        Returns:
-            str: Same output as :meth:`__repr__`.
-        """
-        return self.__repr__()

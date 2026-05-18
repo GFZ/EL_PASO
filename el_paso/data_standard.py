@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
+import inspect
 
 import logging
 from abc import ABC
@@ -36,6 +37,25 @@ class DataStandard(ABC, Generic[T_co]):
     """Abstract base class for data standardization."""
 
     variable_infos: dict[InternalName, VariableInfo[T_co]]
+
+    def __repr__(self) -> str:
+        cls = type(self)
+
+        constructor_params = inspect.signature(cls.__init__).parameters
+        args = []
+
+        for name in constructor_params:
+            if name == "self":
+                continue
+
+            if hasattr(self, name):
+                value = getattr(self, name)
+                args.append(f"{name}={value!r}")
+
+        return f"{cls.__name__}({', '.join(args)})"
+
+    def __str__(self) -> str:
+        return self.__repr__()
 
     def get_internal_name(self, standard_name: StandardName) -> InternalName | None:
         for internal_name, var_info in self.variable_infos.items():

@@ -19,7 +19,7 @@ from el_paso.dataset.utils import python2matlab
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from el_paso.typing import InternalName
+    from el_paso.typing import DataStandard, InternalName
 
 
 def _mock_monthly_variables() -> dict[InternalName, ep.Variable]:
@@ -91,8 +91,9 @@ _STANDARD_META_KEYS = {"unit", "original_cadence_seconds", "source_files", "proc
 
 
 @pytest.mark.basic
+@pytest.mark.parametrize("data_standard", [ep.data_standards.GFZStandard, ep.data_standards.PRBEMStandard])
 def test_monthly_strategy_saves_mocked_variables_to_netcdf_with_data_standards(
-    tmp_path: Path,
+    tmp_path: Path, data_standard: type[DataStandard]
 ) -> None:
     variables = _mock_monthly_variables()
     start_time = datetime(2013, 1, 1, tzinfo=timezone.utc)
@@ -107,6 +108,7 @@ def test_monthly_strategy_saves_mocked_variables_to_netcdf_with_data_standards(
         satellite=SATELLITE,
         instrument=INSTRUMENT,
         mag_field=MAG_FIELD,
+        data_standard=data_standard(),
     )
     ep.save(
         variables,

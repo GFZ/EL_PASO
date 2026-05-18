@@ -8,19 +8,19 @@ from __future__ import annotations
 
 import calendar
 import logging
-import typing
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING, Optional, cast
 
 import numpy as np
+from numpy.typing import NDArray
 from scipy.io import savemat
 
 import el_paso as ep
 from el_paso.data_standards import GFZStandard
 from el_paso.saving_strategy import OutputFile, SavingStrategy
 
-if typing.TYPE_CHECKING:
-    from numpy.typing import NDArray
+if TYPE_CHECKING:
 
     from el_paso import Variable
     from el_paso.typing import DataStandard, InternalName, SavedDataDict, StandardName
@@ -58,7 +58,6 @@ class GFZStrategy(SavingStrategy):
     output_files: list[OutputFile]
 
     file_path: Path
-    _ds = GFZStandard()
 
     def __init__(
         self,
@@ -67,7 +66,7 @@ class GFZStrategy(SavingStrategy):
         satellite: str,
         instrument: str,
         mag_field: ep.typing.MagneticFieldLiteral,
-        data_standard: DataStandard[StandardName] = _ds,
+        data_standard: Optional[DataStandard[StandardName]] = None,
     ) -> None:
         """Initializes the data organization strategy.
 
@@ -82,7 +81,7 @@ class GFZStrategy(SavingStrategy):
         self.mission = mission
         self.satellite = satellite
         self.instrument = instrument
-        self.data_standard = data_standard
+        self.data_standard = data_standard or GFZStandard()
 
         # for backwards compatibility
         if mag_field == "TS04":
@@ -210,7 +209,7 @@ class GFZStrategy(SavingStrategy):
         data_dict_old = self._loader(file_path)
         time_key = self.data_standard.get_standard_name("Epoch")
 
-        def _normalize_1d(arr: np.ndarray) -> np.ndarray:
+        def _normalize_1d(arr: NDArray) -> NDArray:
             arr = np.asarray(arr)
             if arr.ndim == 2 and arr.shape[1] == 1:
                 return arr.reshape(-1)
@@ -245,8 +244,8 @@ class GFZStrategy(SavingStrategy):
                 logger.error(msg)
                 raise ValueError(msg)
 
-            if isinstance(value_1, np.ndarray):
-                value_1_truncated = typing.cast("NDArray[np.floating]", value_1[~time_1_in_2])
+            if isinstance(value_1, NDArray):
+                value_1_truncated = cast("NDArray[np.floating]", value_1[~time_1_in_2])
 
                 value_2 = data_dict_to_save[internal_name]
 

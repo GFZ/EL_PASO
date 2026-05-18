@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import inspect
 import logging
 from abc import ABC, abstractmethod
 from copy import deepcopy
@@ -75,6 +76,26 @@ class SavingStrategy(ABC):
     mission: str
     instrument: str
     mag_field: MagneticFieldLiteral
+
+    def __repr__(self) -> str:
+        cls = type(self)
+
+        constructor_params = inspect.signature(cls.__init__).parameters
+
+        args = []
+
+        for name in constructor_params:
+            if name == "self":
+                continue
+
+            if hasattr(self, name):
+                value = getattr(self, name)
+                args.append(f"{name}={value!r}")
+
+        return f"{cls.__name__}({', '.join(args)})"
+
+    def __str__(self) -> str:
+        return self.__repr__()
 
     @abstractmethod
     def get_time_intervals_to_save(self, start_time: datetime, end_time: datetime) -> list[tuple[datetime, datetime]]:
@@ -235,4 +256,4 @@ class SavingStrategy(ABC):
                 [self.data_standard.get_standard_name(internal_name) for internal_name in output_file.names_to_save]
             )
 
-        return all_standard_names
+        return list(set(all_standard_names))
