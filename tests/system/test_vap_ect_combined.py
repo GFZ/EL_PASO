@@ -8,12 +8,12 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
 
-import numpy as np
 import pytest
 from swvo.io.RBMDataSet import RBMDataSet
 
-from el_paso.dataset.data_set_implementations import DataOrgDataSet
-from examples.VanAllenProbes.process_ect_combined import process_ect_combined
+import el_paso as ep
+from el_paso.dataset import DataOrgDataSet
+from el_paso.recipes.rbsp import process_ect_combined
 
 
 @pytest.mark.parametrize(
@@ -71,37 +71,44 @@ def test_rbsp_ect_combined_snapshot(
                 shutil.copytree(processed_data_path, Path(__file__).parent / "data" / "processed", dirs_exist_ok=True)
 
         case "h5":
-            out_path = processed_data_path / "RBSP" / "rbspa" / f"rbspa_ect_combined_{start_date:%Y%m%d}to{end_date:%Y%m%d}_{mag_field}.h5"
+            out_path = (
+                processed_data_path
+                / "RBSP"
+                / "rbspa"
+                / f"rbspa_ect_combined_{start_date:%Y%m%d}to{end_date:%Y%m%d}_{mag_field}.h5"
+            )
             assert out_path.exists()
 
             if renew_solution:
                 shutil.copy(out_path, Path(__file__).parent / "data" / "processed" / "RBSP" / "rbspa")
 
         case "netcdf":
-            out_path = processed_data_path / "RBSP" / "rbspa" / f"rbspa_ect_combined_{start_date:%Y%m%d}to{end_date:%Y%m%d}_{mag_field}.nc"
+            out_path = (
+                processed_data_path
+                / "RBSP"
+                / "rbspa"
+                / f"rbspa_ect_combined_{start_date:%Y%m%d}to{end_date:%Y%m%d}_{mag_field}.nc"
+            )
             assert out_path.exists()
 
             if renew_solution:
                 shutil.copy(out_path, Path(__file__).parent / "data" / "processed" / "RBSP" / "rbspa")
 
     if save_strategy == "dataorg":
-        rbsp_proc = RBMDataSet(
+        rbsp_proc = DataOrgDataSet(
+            saving_strategy=ep.saving_strategies.DataOrgStrategy(
+                str(tmpdir), "RBSP", "rbspa", "ect_combined", mag_field
+            ),
             start_time=start_time,
             end_time=end_time,
-            folder_path=tmpdir,
-            satellite="RBSPA",
-            instrument="ect_combined",
-            mfm=mag_field,
         )
 
-        rbsp_true = RBMDataSet(
+        rbsp_true = DataOrgDataSet(
+            saving_strategy=ep.saving_strategies.DataOrgStrategy(
+                str(Path(__file__).parent / "data" / "processed"), "RBSP", "rbspa", "ect_combined", mag_field
+            ),
             start_time=start_time,
             end_time=end_time,
-            folder_path=Path(__file__).parent / "data" / "processed",
-            satellite="RBSPA",
-            instrument="ect_combined",
-            mfm=mag_field,
-            preferred_extension="mat",
         )
     elif save_strategy == "netcdf":
         rbsp_proc = DataOrgDataSet(
@@ -129,5 +136,4 @@ def test_rbsp_ect_combined_snapshot(
     # np.testing.assert_array_almost_equal(rbsp_proc.InvMu, rbsp_true.InvMu)
     # np.testing.assert_array_almost_equal(rbsp_proc.Lstar, rbsp_true.Lstar)
     # np.testing.assert_allclose(rbsp_proc.time, rbsp_true.time)
-
-    assert rbsp_proc == rbsp_true
+    assert rbsp_proc == rbsp_true, rbsp_proc.get_different_variables(rbsp_true)
