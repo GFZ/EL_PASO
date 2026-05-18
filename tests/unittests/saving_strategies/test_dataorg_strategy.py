@@ -106,7 +106,7 @@ def test_monthly_strategy_saves_mocked_variables_to_netcdf_with_data_standards(
         mission=MISSION,
         satellite=SATELLITE,
         instrument=INSTRUMENT,
-        kext=MAG_FIELD,
+        mag_field=MAG_FIELD,
     )
     ep.save(
         variables,

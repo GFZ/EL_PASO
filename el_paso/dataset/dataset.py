@@ -82,6 +82,7 @@ class DataSet:
         self._preferred_ext = preferred_extension
 
         self.saving_strategy = saving_strategy
+        self.possible_variables = self.saving_strategy.get_all_standard_names()
 
         # For dict-based loading, modify satellite properties
         self._file_loading_mode = True
@@ -344,7 +345,6 @@ class DataSet:
         possible_var_names = self.saving_strategy.get_all_standard_names()
 
         for var_name in set(possible_var_names):
-
             self_var = getattr(self, var_name)
             other_var = getattr(other, var_name)
 

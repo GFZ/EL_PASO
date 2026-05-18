@@ -105,7 +105,7 @@ def test_data_org_dataset_loads_saved_monthly_nc_and_rejects_invalid_variable(
         instrument="MAGED",
         mag_field="T89",
         file_format=formats,
-        data_standard=ep.data_standards.DataOrgStandard,
+        data_standard=ep.data_standards.DataOrgStandard(),
     )
 
     ep.save(
@@ -117,11 +117,7 @@ def test_data_org_dataset_loads_saved_monthly_nc_and_rejects_invalid_variable(
     )
 
     dataset = DataOrgDataSet(
-        mission="GOES",
-        satellite="primary",
-        instrument="MAGED",
-        mag_field="T89",
-        base_path=str(tmp_path),
+        saving_strategy=strategy,
         start_time=start_time,
         end_time=end_time,
         preferred_extension=formats,
@@ -160,7 +156,7 @@ def test_data_org_dataset_loads_saved_monthly_nc_and_rejects_invalid_variable(
     np.testing.assert_equal(dataset.energy_channels, expected_energy_channels)
     np.testing.assert_equal(dataset.alpha_local, expected_alpha_local)
     np.testing.assert_equal(dataset.alpha_eq_model, expected_alpha_eq_model)
-    np.testing.assert_equal(dataset.B_local, expected_b_local)
+    np.testing.assert_equal(dataset.B_sat, expected_b_local)
     np.testing.assert_equal(dataset.B_eq, expected_b_eq)
     np.testing.assert_equal(dataset.InvK, expected_invk)
     np.testing.assert_equal(dataset.InvMu, expected_invmu)
