@@ -142,7 +142,6 @@ class DataSet:
                 "Call `update_from_dict()` before accessing it."
             )
             raise AttributeError(msg)
-
         if levenstein_info["min_distance"] <= 2:  # noqa: PLR2004
             msg = f"{self.__class__.__name__} object has no attribute {name}. Maybe you meant {levenstein_info['var_name']}?"  # noqa: E501
         else:

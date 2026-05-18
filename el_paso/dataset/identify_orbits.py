@@ -6,26 +6,27 @@
 from __future__ import annotations
 
 import typing
-from datetime import datetime
-from typing import Literal, NamedTuple
+from typing import TYPE_CHECKING, Literal, NamedTuple
 
 import numpy as np
 import pandas as pd
-from numpy.typing import NDArray
 from scipy.interpolate import make_splrep
 from scipy.signal import find_peaks
 
-from swvo.io.RBMDataSet import RBMDataSet
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+
+    from el_paso.dataset import DataSet
 
 
-class Trajectory(NamedTuple):
+class Trajectory(NamedTuple):  # noqa: D101
     start: int
     end: int
     direction: Literal["inbound", "outbound"]
 
 
 def _identify_orbits(
-    time: list[datetime], distance: NDArray[np.floating], minimal_distance: int, *, apply_smoothing: bool
+    time: NDArray, distance: NDArray[np.floating], minimal_distance: int, *, apply_smoothing: bool
 ) -> list[Trajectory]:
     distance_filled = pd.Series(distance).interpolate(method="linear", limit_direction="both").to_numpy()
 
@@ -44,7 +45,6 @@ def _identify_orbits(
     orbits: list[Trajectory] = [Trajectory(0, int(extrema[0]), in_out_bound_label)]
 
     for i in range(1, len(extrema)):
-        # print(diffs[extrema[i - 1]:extrema[i]])
         in_out_bound_label = "inbound" if np.median(diffs[extrema[i - 1] : extrema[i]]) < 0 else "outbound"
 
         orbits.append(Trajectory(extrema[i - 1] + 1, extrema[i], in_out_bound_label))
@@ -55,8 +55,8 @@ def _identify_orbits(
     return orbits
 
 
-def identify_orbits(
-    self: RBMDataSet,
+def identify_orbits(  # noqa: D103
+    self: DataSet,
     orbit_type: Literal["R", "L*"] = "R",
     minimal_distance: int = 60,
     *,

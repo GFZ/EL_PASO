@@ -5,20 +5,22 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Literal
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 import pandas as pd
-from numpy.typing import NDArray
 from scipy.interpolate import interp1d
 
-from swvo.io.RBMDataSet import RBMDataSet
-from swvo.io.RBMDataSet.identify_orbits import Trajectory
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+
+    from el_paso.dataset import DataSet
+    from el_paso.dataset.identify_orbits import Trajectory
 
 
 def _linearize_trajectories(
-    time: list[datetime],
+    time: NDArray[datetime],  # ty:ignore[invalid-type-arguments]
     distance: np.ndarray,
     trajectories: list[Trajectory],
 ) -> tuple[NDArray[np.floating], list[datetime]]:
@@ -74,11 +76,11 @@ def _linearize_trajectories(
         last_diff = lin_x_axis[-2] - lin_x_axis[-3] if n > 2 else 0
         lin_x_axis[-1] = lin_x_axis[-2] + last_diff
 
-    return lin_x_axis, [datetime.fromtimestamp(ts) for ts in bend_time_axis]
+    return lin_x_axis, [datetime.fromtimestamp(ts, tz=timezone.utc) for ts in bend_time_axis]
 
 
-def linearize_trajectories(
-    self: RBMDataSet,
+def linearize_trajectories(  # noqa: D103
+    self: DataSet,
     trajectories: list[Trajectory],
     orbit_type: Literal["R", "L*"] = "R",
 ) -> tuple[NDArray[np.floating], list[datetime]]:

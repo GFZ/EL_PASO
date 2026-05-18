@@ -4,8 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
-import shutil
 
+import shutil
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
@@ -144,7 +144,7 @@ def test_monthly_strategy_saves_mocked_variables_to_netcdf_with_data_standards(
             var_attrs = metadata.get(internal_name, {})
             assert set(var_attrs) >= _STANDARD_META_KEYS
             assert var_attrs["source_files"] == "mocked_input.cdf"
-    shutil.rmtree(tmp_path)
+    # shutil.rmtree(tmp_path)
 
 
 def test_append_works_for_monthly_strategy() -> None:
