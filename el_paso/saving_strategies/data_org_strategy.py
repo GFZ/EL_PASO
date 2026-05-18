@@ -18,6 +18,7 @@ from scipy.io import savemat
 import el_paso as ep
 from el_paso.data_standards import DataOrgStandard
 from el_paso.saving_strategy import OutputFile, SavingStrategy
+from el_paso.typing import StandardName
 
 if typing.TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -65,8 +66,8 @@ class DataOrgStrategy(SavingStrategy):
         mission: str,
         satellite: str,
         instrument: str,
-        kext: str,
-        data_standard: type[DataStandard[typing.Any]] | None = None,
+        mag_field: ep.typing.MagneticFieldLiteral,
+        data_standard: DataStandard[StandardName] | None = None,
     ) -> None:
         """Initializes the data organization strategy.
 
@@ -81,15 +82,12 @@ class DataOrgStrategy(SavingStrategy):
         self.mission = mission
         self.satellite = satellite
         self.instrument = instrument
-        if not data_standard:
-            self.data_standard = DataOrgStandard()
-        else:
-            self.data_standard = data_standard()
+        self.data_standard = data_standard or DataOrgStandard()
 
         # for backwards compatibility
-        if kext == "TS04":
-            kext = "T04s"
-        self.kext = kext
+        if mag_field == "TS04":
+            mag_field = "T04s"
+        self.mag_field = mag_field
 
         self.output_files = [
             OutputFile("flux", ["Epoch", "FEDU"]),
@@ -201,7 +199,7 @@ class DataOrgStrategy(SavingStrategy):
         file_name = self.get_file_name_stem() + f"_{start_year_month_day}to{end_year_month_day}_{output_file.name}"
 
         if output_file.name in ["alpha_and_energy", "lstar", "lm", "invmu_and_invk", "mlt", "bfield", "R0"]:
-            file_name += f"_n4_4_{self.kext}"
+            file_name += f"_n4_4_{self.mag_field}"
 
         file_name += "_ver4.mat"
 

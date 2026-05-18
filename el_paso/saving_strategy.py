@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from el_paso.processing.magnetic_field_utils import MagneticFieldLiteral
-    from el_paso.typing import DataStandard, InternalName, SavedDataDict
+    from el_paso.typing import DataStandard, InternalName, SavedDataDict, StandardName
 
 
 class OutputFile(NamedTuple):
@@ -69,7 +69,7 @@ class SavingStrategy(ABC):
     """
 
     output_files: list[OutputFile]
-    data_standard: DataStandard
+    data_standard: DataStandard[StandardName]
     base_data_path: Path
     satellite: str
     mission: str
@@ -210,7 +210,7 @@ class SavingStrategy(ABC):
         return target_variables
 
     def get_output_file(
-        self, *, standard_name: str | None = None, internal_name: InternalName | None = None
+        self, *, standard_name: StandardName | None = None, internal_name: InternalName | None = None
     ) -> OutputFile | None:
         if internal_name is None:
             if standard_name is None:
@@ -226,3 +226,13 @@ class SavingStrategy(ABC):
                 return output_file
 
         return None
+
+    def get_all_standard_names(self) -> list[StandardName]:
+        all_standard_names: list[StandardName] = []
+
+        for output_file in self.output_files:
+            all_standard_names.extend(
+                [self.data_standard.get_standard_name(internal_name) for internal_name in output_file.names_to_save]
+            )
+
+        return all_standard_names

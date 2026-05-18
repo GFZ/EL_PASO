@@ -65,7 +65,7 @@ GFZVarNames: TypeAlias = Literal[
     "Lstar",
     "Lm",
     "B_eq",
-    "B_local",
+    "B_sat",
     "R0",
     "InvMu",
     "InvK",

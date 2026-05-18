@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import el_paso as ep
 from el_paso.dataset.dataset import DataSet
 
 if TYPE_CHECKING:
@@ -57,11 +56,11 @@ class DataOrgDataSet(DataSet):
     InvK: NDArray[np.float64]
     InvV: NDArray[np.float64]
     Lstar: NDArray[np.float64]
+    Lm: NDArray[np.float64]
     Flux: NDArray[np.float64]
     PSD: NDArray[np.float64]
     MLT: NDArray[np.float64]
-    B_SM: NDArray[np.float64]
-    B_total: NDArray[np.float64]
+    B_eq: NDArray[np.float64]
     B_sat: NDArray[np.float64]
     xGEO: NDArray[np.float64]  # noqa: N815
     P: NDArray[np.float64]
@@ -70,15 +69,10 @@ class DataOrgDataSet(DataSet):
 
     def __init__(
         self,
-        mission: str,
-        satellite: str,
-        instrument: str,
-        mag_field: str,
-        base_path: str,
+        saving_strategy: SavingStrategy,
         start_time: dt.datetime | None = None,
         end_time: dt.datetime | None = None,
         preferred_extension: MFSFormats = "nc",
-        saving_strategy_type: type[SavingStrategy] = ep.saving_strategies.MonthlyFileStrategy,
         *,
         verbose: bool = True,
         enable_dict_loading: bool = False,
@@ -109,25 +103,13 @@ class DataOrgDataSet(DataSet):
                 dictionary-backed sources in addition to files. Defaults to
                 ``False``.
         """
-        self._mission = mission
-        self._satellite = satellite
-        self._instrument = instrument
-        self._mag_field = mag_field
-        self._base_path = base_path
+        self.saving_strategy = saving_strategy
         self._start_time = start_time
         self._end_time = end_time
         self._preferred_ext = preferred_extension
         self._verbose = verbose
         self._enable_dict_loading = enable_dict_loading
-        self.saving_strategy = saving_strategy_type(
-            self._base_path,  # ty:ignore[too-many-positional-arguments]
-            self._mission,
-            self._satellite,
-            self._instrument,
-            mag_field=self._mag_field,  # ty:ignore[unknown-argument]
-            data_standard=ep.data_standards.DataOrgStandard,  # ty:ignore[unknown-argument]
-            file_format=self._preferred_ext,  # ty:ignore[unknown-argument]
-        )
+
         super().__init__(
             self.saving_strategy,
             self._start_time,

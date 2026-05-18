@@ -131,10 +131,10 @@ def process_ect_combined(
         ("B_eq", mag_field),
         ("R_eq", mag_field),
         ("PA_eq", mag_field),
-        ("Lstar", mag_field),
-        ("Lm", mag_field),
+        # ("Lstar", mag_field),
+        # ("Lm", mag_field),
         ("invMu", mag_field),
-        ("invK", mag_field),
+        # ("invK", mag_field),
     ]
 
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
@@ -153,7 +153,7 @@ def process_ect_combined(
         variables["FEDU"], variables["Energy"], particle_species="electron"
     )
 
-    variables_to_save: dict[ep.InternalName, ep.Variable] = {
+    variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
         "Epoch": binned_time_variable,
         "FEDU": variables["FEDU"],
         "Energy_FEDU": variables["Energy"],
@@ -161,20 +161,20 @@ def process_ect_combined(
         "Alpha_Eq": magnetic_field_variables["PA_eq_" + mag_field],
         "R_Eq": magnetic_field_variables["R_eq_" + mag_field],
         "MLT": magnetic_field_variables["MLT_" + mag_field],
-        "L_m": magnetic_field_variables["Lm_" + mag_field],
-        "L_star": magnetic_field_variables["Lstar_" + mag_field],
+        # "L_m": magnetic_field_variables["Lm_" + mag_field],
+        # "L_star": magnetic_field_variables["Lstar_" + mag_field],
         "B_Calc": magnetic_field_variables["B_local_" + mag_field],
         "B_Eq": magnetic_field_variables["B_eq_" + mag_field],
         "PSD": psd_variable,
         "InvMu": magnetic_field_variables["invMu_" + mag_field],
-        "InvK": magnetic_field_variables["invK_" + mag_field],
+        # "InvK": magnetic_field_variables["invK_" + mag_field],
         "Position": variables["xGEO"],
         }
 
     match save_strategy:
         case "dataorg":
             saving_strategy = ep.saving_strategies.DataOrgStrategy(
-                processed_data_path, "RBSP", "rbsp" + sat_str, "ect_combined", mag_field, ".mat"
+                processed_data_path, "RBSP", "rbsp" + sat_str, "ect_combined", mag_field,
             )
 
         case "h5":

@@ -55,7 +55,7 @@ class MonthlyFileStrategy(SavingStrategy):
         instrument: str,
         mag_field: MagneticFieldLiteral,
         file_format: MFSFormats = "h5",
-        data_standard: type[DataStandard] = ep.data_standards.PRBEMStandard,
+        data_standard: DataStandard | None = None,
     ) -> None:
         """Initialize a monthly file saving strategy.
 
@@ -81,7 +81,7 @@ class MonthlyFileStrategy(SavingStrategy):
         self.mag_field = mag_field
         self.file_format = ep.utils.normalize_file_format(file_format)
 
-        self.data_standard = data_standard()
+        self.data_standard = data_standard or ep.data_standards.PRBEMStandard()
 
         self.output_files = [
             OutputFile("full", self._get_output_file_entries(), save_incomplete=True),

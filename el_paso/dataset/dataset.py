@@ -240,7 +240,8 @@ class DataSet:
         if requested_name == "datetime":
             requested_name = self.saving_strategy.data_standard.get_standard_name("Epoch")
 
-        output_file = self.saving_strategy.get_output_file(standard_name=requested_name)
+        output_file = self.saving_strategy.get_output_file(standard_name=requested_name)  # ty:ignore[invalid-argument-type]
+
         if requested_name == "datetime" and output_file is None:
             time_key = self.saving_strategy.data_standard.get_standard_name("Epoch")
             output_file = next(
@@ -259,11 +260,14 @@ class DataSet:
         # 2. Iterate through date ranges
         for time_start, time_end in self._date_list:
             full_file_path = self.saving_strategy.get_file_path(time_start, time_end, output_file)
-            if self._verbose:
-                logger.info(f"Loading {full_file_path}")
-            file_content = self._loaders[(ep.utils.normalize_file_format(full_file_path.suffix))](full_file_path)
 
-            if not file_content:
+            if full_file_path.exists():
+                file_content = self._loaders[(ep.utils.normalize_file_format(full_file_path.suffix))](full_file_path)
+
+                if self._verbose:
+                    logger.info(f"Loading {full_file_path}")
+            elif self._verbose:
+                logger.info(f"Tried to load {full_file_path}, but it does not exist")
                 continue
 
             time_key = self.saving_strategy.data_standard.get_standard_name("Epoch")
@@ -319,12 +323,7 @@ class DataSet:
 
         if self.saving_strategy.data_standard != other.saving_strategy.data_standard:
             return False
-        if (
-            self._file_loading_mode != other._file_loading_mode
-            or self._satellite != other._satellite
-            or self._instrument != other._instrument
-            or self._mfm != other._mfm
-        ):
+        if (self._file_loading_mode != other._file_loading_mode):
             return False
 
         different_vars = self.get_different_variables(other)
@@ -344,31 +343,27 @@ class DataSet:
         """  # noqa: E501
         different_vars: list[str] = []
 
-        self_vars = self.get_loaded_variables()
-        other_vars = other.get_loaded_variables()
+        possible_var_names = self.saving_strategy.get_all_standard_names()
 
-        for var in set(self_vars + other_vars):
-            if var not in other_vars or var not in self_vars:
-                different_vars.append(var)
-                continue
+        for var_name in set(possible_var_names):
 
-            self_var = getattr(self, var)
-            other_var = getattr(other, var)
+            self_var = getattr(self, var_name)
+            other_var = getattr(other, var_name)
 
             if not isinstance(other_var, type(self_var)):
-                different_vars.append(var)
+                different_vars.append(var_name)
                 continue
 
             if isinstance(self_var, list):
                 if len(self_var) != len(other_var) or any(a != b for a, b in zip(self_var, other_var, strict=True)):
-                    different_vars.append(var)
+                    different_vars.append(var_name)
                     continue
             elif isinstance(self_var, np.ndarray):
                 if self_var.shape != other_var.shape or not np.allclose(self_var, other_var, equal_nan=True):
-                    different_vars.append(var)
+                    different_vars.append(var_name)
                     continue
             elif self_var != other_var:
-                different_vars.append(var)
+                different_vars.append(var_name)
                 continue
 
         return different_vars
