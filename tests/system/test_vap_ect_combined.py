@@ -12,7 +12,7 @@ import pytest
 from swvo.io.RBMDataSet import RBMDataSet
 
 import el_paso as ep
-from el_paso.dataset import DataOrgDataSet
+from el_paso.dataset import GFZDataSet
 from el_paso.recipes.rbsp import process_ect_combined
 
 
@@ -95,23 +95,23 @@ def test_rbsp_ect_combined_snapshot(
                 shutil.copy(out_path, Path(__file__).parent / "data" / "processed" / "RBSP" / "rbspa")
 
     if save_strategy == "dataorg":
-        rbsp_proc = DataOrgDataSet(
-            saving_strategy=ep.saving_strategies.DataOrgStrategy(
+        rbsp_proc = GFZDataSet(
+            saving_strategy=ep.saving_strategies.GFZStrategy(
                 str(tmpdir), "RBSP", "rbspa", "ect_combined", mag_field
             ),
             start_time=start_time,
             end_time=end_time,
         )
 
-        rbsp_true = DataOrgDataSet(
-            saving_strategy=ep.saving_strategies.DataOrgStrategy(
+        rbsp_true = GFZDataSet(
+            saving_strategy=ep.saving_strategies.GFZStrategy(
                 str(Path(__file__).parent / "data" / "processed"), "RBSP", "rbspa", "ect_combined", mag_field
             ),
             start_time=start_time,
             end_time=end_time,
         )
     elif save_strategy == "netcdf":
-        rbsp_proc = DataOrgDataSet(
+        rbsp_proc = GFZDataSet(
             start_time=start_time,
             end_time=end_time,
             base_path=str(tmpdir),

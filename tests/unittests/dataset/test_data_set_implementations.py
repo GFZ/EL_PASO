@@ -15,7 +15,7 @@ import pytest
 from astropy import units as u  # type: ignore[reportMissingTypeStubs]
 
 import el_paso as ep
-from el_paso.dataset import DataOrgDataSet
+from el_paso.dataset import GFZDataSet
 from el_paso.dataset.utils import matlab2python, python2matlab
 
 if TYPE_CHECKING:
@@ -105,7 +105,7 @@ def test_data_org_dataset_loads_saved_monthly_nc_and_rejects_invalid_variable(
         instrument="MAGED",
         mag_field="T89",
         file_format=formats,
-        data_standard=ep.data_standards.DataOrgStandard(),
+        data_standard=ep.data_standards.GFZStandard(),
     )
 
     ep.save(
@@ -116,7 +116,7 @@ def test_data_org_dataset_loads_saved_monthly_nc_and_rejects_invalid_variable(
         time_var=variables["Epoch"],
     )
 
-    dataset = DataOrgDataSet(
+    dataset = GFZDataSet(
         saving_strategy=strategy,
         start_time=start_time,
         end_time=end_time,
@@ -173,7 +173,7 @@ def test_data_org_dataset_loads_saved_monthly_nc_and_rejects_invalid_variable(
     with pytest.raises(AttributeError, match="Maybe you meant "):
         dataset.lstar  # Levenstein variable check  # noqa: B018
 
-    with pytest.raises(AttributeError, match="DataOrgDataSet object has no attribute somethingrandom"):
+    with pytest.raises(AttributeError, match="GFZDataSet object has no attribute somethingrandom"):
         dataset.somethingrandom  # this does not exist as a variable  # noqa: B018
 
     # shutil.rmtree(tmp_path)

@@ -147,7 +147,7 @@ def process_hope_electrons(
     psd_var = ep.processing.compute_phase_space_density(variables["FEDU"], variables["Energy"], "electron")
 
     for single_mag_field in mag_field:
-        saving_strategy = ep.saving_strategies.DataOrgStrategy(
+        saving_strategy = ep.saving_strategies.GFZStrategy(
             processed_data_path, "RBSP", "rbsp" + sat_str, "hope", single_mag_field, ".mat"
         )
 

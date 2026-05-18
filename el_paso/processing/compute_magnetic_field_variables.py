@@ -82,7 +82,7 @@ def compute_magnetic_field_variables(
             species of particle (e.g., "electron", "proton"). Required if "invMu"
             is requested. Defaults to None.
         irbem_lib_path (str | Path): Optional. The file path to the IRBEM library (e.g., "libirbem.so"). Defaults to a
-        path relative to the el_paso package.
+            path relative to the el_paso package.
 
     Returns:
         dict[str, Variable]: A dictionary where keys are the computed variable

@@ -173,12 +173,12 @@ def process_ect_combined(
     }
 
     data_standard_instance = (
-        ep.data_standards.DataOrgStandard() if data_standard == "dataorg" else ep.data_standards.PRBEMStandard()
+        ep.data_standards.GFZStandard() if data_standard == "dataorg" else ep.data_standards.PRBEMStandard()
     )
 
     match save_strategy:
         case "dataorg":
-            saving_strategy = ep.saving_strategies.DataOrgStrategy(
+            saving_strategy = ep.saving_strategies.GFZStrategy(
                 processed_data_path,
                 "RBSP",
                 "rbsp" + sat_str,

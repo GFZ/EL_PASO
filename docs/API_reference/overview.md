@@ -62,7 +62,7 @@ This section provides a detailed reference for all modules, classes, and functio
 
 ## Saving standards
 
-[DataOrgStrategy](saving_strategies/data_org.md)
+[GFZStrategy](saving_strategies/gfz.md)
 
 [MonthlyFileStrategy](saving_strategies/monthly.md)
 
@@ -70,6 +70,6 @@ This section provides a detailed reference for all modules, classes, and functio
 
 ## Data Standards
 
-[DataOrgStandard](data_standards/data_org.md)
+[GFZStandard](data_standards/gfz.md)
 
 [PRBEMStandard](data_standards/prbem.md)

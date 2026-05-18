@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from el_paso.data_standards.data_org_standard import DataOrgStandard
+from el_paso.data_standards.gfz_standard import GFZStandard
 from el_paso.data_standards.prbem_standard import PRBEMStandard
 
-__all__ = ["DataOrgStandard", "PRBEMStandard"]
+__all__ = ["GFZStandard", "PRBEMStandard"]

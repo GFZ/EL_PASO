@@ -21,8 +21,8 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias
 
 if TYPE_CHECKING:
     from el_paso.data_standard import ConsistencyCheck, DataStandard, VariableInfo
-    from el_paso.data_standards import DataOrgStandard, PRBEMStandard
-    from el_paso.saving_strategies.data_org_strategy import DataOrgStrategy
+    from el_paso.data_standards import GFZStandard, PRBEMStandard
+    from el_paso.saving_strategies.gfz_strategy import GFZStrategy
     from el_paso.saving_strategies.density_netcdf_strategy import DensityNetCDFStrategy
     from el_paso.saving_strategies.monthly_strategy import MonthlyFileStrategy
     from el_paso.saving_strategies.single_file_strategy import SingleFileStrategy
@@ -92,8 +92,8 @@ class FileWriter(Protocol):  # noqa: D101
 
 _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     "ConsistencyCheck": ("el_paso.data_standard", "ConsistencyCheck"),
-    "DataOrgStandard": ("el_paso.data_standards", "DataOrgStandard"),
-    "DataOrgStrategy": ("el_paso.saving_strategies.data_org_strategy", "DataOrgStrategy"),
+    "GFZStandard": ("el_paso.data_standards", "GFZStandard"),
+    "GFZStrategy": ("el_paso.saving_strategies.gfz_strategy", "GFZStrategy"),
     "DataStandard": ("el_paso.data_standard", "DataStandard"),
     "DensityNetCDFStrategy": ("el_paso.saving_strategies.density_netcdf_strategy", "DensityNetCDFStrategy"),
     "MonthlyFileStrategy": ("el_paso.saving_strategies.monthly_strategy", "MonthlyFileStrategy"),
@@ -125,8 +125,8 @@ def __dir__() -> list[str]:
 
 __all__ = [
     "ConsistencyCheck",
-    "DataOrgStandard",
-    "DataOrgStrategy",
+    "GFZStandard",
+    "GFZStrategy",
     "DataStandard",
     "DensityNetCDFStrategy",
     "FileLoader",

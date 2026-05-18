@@ -16,20 +16,19 @@ import numpy as np
 from scipy.io import savemat
 
 import el_paso as ep
-from el_paso.data_standards import DataOrgStandard
+from el_paso.data_standards import GFZStandard
 from el_paso.saving_strategy import OutputFile, SavingStrategy
-from el_paso.typing import StandardName
 
 if typing.TYPE_CHECKING:
     from numpy.typing import NDArray
 
     from el_paso import Variable
-    from el_paso.typing import DataStandard, InternalName, SavedDataDict
+    from el_paso.typing import DataStandard, InternalName, SavedDataDict, StandardName
 
 logger = logging.getLogger(__name__)
 
 
-class DataOrgStrategy(SavingStrategy):
+class GFZStrategy(SavingStrategy):
     """A concrete saving strategy for saving data based on the satellite mission into separate monthly files.
 
     This strategy implements the data standard used at GFZ in the past.
@@ -59,6 +58,7 @@ class DataOrgStrategy(SavingStrategy):
     output_files: list[OutputFile]
 
     file_path: Path
+    _ds = GFZStandard()
 
     def __init__(
         self,
@@ -67,7 +67,7 @@ class DataOrgStrategy(SavingStrategy):
         satellite: str,
         instrument: str,
         mag_field: ep.typing.MagneticFieldLiteral,
-        data_standard: DataStandard[StandardName] | None = None,
+        data_standard: DataStandard[StandardName] = _ds,
     ) -> None:
         """Initializes the data organization strategy.
 
@@ -76,13 +76,13 @@ class DataOrgStrategy(SavingStrategy):
             mission (str): The mission name.
             satellite (str): The satellite name.
             instrument (str): The instrument name.
-            kext (str): The model extension type. "TS04" is remapped to "T04s".
+            mag_field (str): The model extension type. "TS04" is remapped to "T04s".
         """
         self.base_data_path = Path(base_data_path)
         self.mission = mission
         self.satellite = satellite
         self.instrument = instrument
-        self.data_standard = data_standard or DataOrgStandard()
+        self.data_standard = data_standard
 
         # for backwards compatibility
         if mag_field == "TS04":
@@ -110,7 +110,7 @@ class DataOrgStrategy(SavingStrategy):
         """Standardizes a variable's units and dimensions based on its predefined name.
 
         This method acts as a proxy, delegating the actual standardization logic
-        to the `DataOrgStandard` instance. It ensures that data conforms to the
+        to the `GFZStandard` instance. It ensures that data conforms to the
         specified standard before it is saved.
 
         Parameters:
@@ -151,7 +151,7 @@ class DataOrgStrategy(SavingStrategy):
         time_intervals: list[tuple[datetime, datetime]] = []
 
         if start_time is None or end_time is None:
-            msg = "start_time and end_time must be provided for DataOrgStrategy!"
+            msg = "start_time and end_time must be provided for GFZStrategy!"
             logger.error(msg)
             raise ValueError(msg)
 

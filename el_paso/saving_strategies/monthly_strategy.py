@@ -29,6 +29,7 @@ if TYPE_CHECKING:
         InternalName,
         MFSFormats,
         SavedDataDict,
+        StandardName,
         Variable,
     )
 
@@ -47,6 +48,8 @@ class MonthlyFileStrategy(SavingStrategy):
     output_files: list[OutputFile]
     dependency_dict: dict[InternalName, list[str]]
 
+    _ds = ep.data_standards.PRBEMStandard()
+
     def __init__(
         self,
         base_data_path: str | Path,
@@ -55,18 +58,19 @@ class MonthlyFileStrategy(SavingStrategy):
         instrument: str,
         mag_field: MagneticFieldLiteral,
         file_format: MFSFormats = "h5",
-        data_standard: DataStandard | None = None,
+        data_standard: DataStandard[StandardName] = _ds,
     ) -> None:
         """Initialize a monthly file saving strategy.
 
         Parameters:
             base_data_path (str | Path): Directory where monthly files are written.
-            file_name_stem (str): Prefix used in generated monthly file names.
+            mission (str): Mission name, used in file path and name generation.
+            satellite (str): Satellite name, used in file path and name generation.
+            instrument (str): Instrument name, used in file path and name generation.
             mag_field (MagneticFieldLiteral): Magnetic field model name. Monthly files use one model.
             file_format (MFSFormats): One of ``"nc"``, ``"cdf"``, ``"h5"``, or ``"mat"``.
                 A leading dot is also accepted.
-            data_standard (DataStandardClass): Standardization implementation. Defaults to
-                [`el_paso.data_standards.PRBEMStandard`][]
+            data_standard (DataStandard): Instance of the data standard implementation
 
         Attributes:
             output_files: List of output file configurations, with variable names
@@ -81,7 +85,7 @@ class MonthlyFileStrategy(SavingStrategy):
         self.mag_field = mag_field
         self.file_format = ep.utils.normalize_file_format(file_format)
 
-        self.data_standard = data_standard or ep.data_standards.PRBEMStandard()
+        self.data_standard = data_standard
 
         self.output_files = [
             OutputFile("full", self._get_output_file_entries(), save_incomplete=True),

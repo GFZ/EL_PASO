@@ -101,7 +101,7 @@ def test_monthly_strategy_saves_mocked_variables_to_netcdf_with_data_standards(
     SATELLITE = "primary"
     INSTRUMENT = "MAGED"
     MAG_FIELD = "T89"
-    strategy = ep.saving_strategies.DataOrgStrategy(
+    strategy = ep.saving_strategies.GFZStrategy(
         base_data_path=tmp_path,
         mission=MISSION,
         satellite=SATELLITE,

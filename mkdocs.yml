@@ -68,12 +68,12 @@ nav:
           - Scripts: API_reference/utilities/scripts.md
           - Units: API_reference/utilities/units.md
       - Saving Strategies:
-          - DataOrg Strategy: API_reference/saving_strategies/data_org.md
+          - DataOrg Strategy: API_reference/saving_strategies/gfz.md
           - Monthly File Strategy: API_reference/saving_strategies/monthly.md
           - Single File Strategy: API_reference/saving_strategies/single_file.md
       - Data Standards:
           - PRBEM Standard: API_reference/data_standards/prbem.md
-          - DataOrg Standard: API_reference/data_standards/data_org.md
+          - DataOrg Standard: API_reference/data_standards/gfz.md
   - Tutorial Notebooks:
       - Data Downloading and Extraction: tutorials/1_download_data_and_extracting_variables.ipynb
       - Variable Processing: tutorials/2_variable_class.ipynb

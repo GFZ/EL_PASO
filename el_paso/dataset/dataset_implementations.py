@@ -13,10 +13,10 @@ if TYPE_CHECKING:
     from el_paso.typing import MFSFormats, SavingStrategy
 
 
-class DataOrgDataSet(DataSet):
-    """A concrete implementation of DataSet for the DataOrgStandard.
+class GFZDataSet(DataSet):
+    """A concrete implementation of DataSet for the GFZStandard.
 
-    Represents a dataset with variables defined by the DataOrgStandard,
+    Represents a dataset with variables defined by the GFZStandard,
     providing structured access to space physics measurements including
     particle fluxes, phase space densities, magnetic field data, and
     adiabatic invariants.
@@ -77,7 +77,7 @@ class DataOrgDataSet(DataSet):
         verbose: bool = True,
         enable_dict_loading: bool = False,
     ) -> None:
-        """Initializes a DataOrgDataSet instance.
+        """Initializes a GFZDataSet instance.
 
         Constructs the saving strategy, invokes the parent DataSet initializer,
         and populates the list of possible variables from class annotations.
@@ -120,7 +120,7 @@ class DataOrgDataSet(DataSet):
         )
 
         possible_vars: list[str] = []
-        for attr_name in getattr(DataOrgDataSet, "__annotations__", {}):
+        for attr_name in getattr(GFZDataSet, "__annotations__", {}):
             if attr_name.startswith("_"):
                 continue
             if attr_name not in possible_vars:

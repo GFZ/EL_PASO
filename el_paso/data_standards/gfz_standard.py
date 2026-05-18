@@ -10,7 +10,7 @@ from el_paso.data_standard import ConsistencyCheck, DataStandard, VariableInfo
 from el_paso.typing import GFZVarNames
 
 
-class DataOrgStandard(DataStandard[GFZVarNames]):
+class GFZStandard(DataStandard[GFZVarNames]):
     """A data standard used historically at the GFZ German Research Centre for Geosciences.
 
     This standard defines rules for a set of canonical variable names by converting them
@@ -19,7 +19,7 @@ class DataOrgStandard(DataStandard[GFZVarNames]):
     """
 
     def __init__(self) -> None:
-        """Initializes the DataOrgStandard with a ConsistencyCheck object."""
+        """Initializes the GFZStandard with a ConsistencyCheck object."""
         self.consistency_check = ConsistencyCheck()
 
         self.variable_infos = {

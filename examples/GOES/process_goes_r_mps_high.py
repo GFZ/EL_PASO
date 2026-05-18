@@ -173,7 +173,7 @@ def process_goes_r_mps_high(
             "InvK": magnetic_field_variables["invK_T89"],
         }
 
-        saving_strategy = ep.saving_strategies.DataOrgStrategy(
+        saving_strategy = ep.saving_strategies.GFZStrategy(
             processed_data_path,
             mission="GOES",
             satellite=sat_str,

@@ -11,7 +11,7 @@ from typing import Literal
 import pytest
 
 import el_paso as ep
-from el_paso.dataset import DataOrgDataSet
+from el_paso.dataset import GFZDataSet
 from el_paso.recipes.arase import process_mepe_level_3
 
 
@@ -56,13 +56,13 @@ def test_arase_mepe_snapshot(
             if renew_solution:
                 shutil.copytree(processed_data_path, Path(__file__).parent / "data" / "processed", dirs_exist_ok=True)
 
-            arase_proc = DataOrgDataSet(
-                ep.saving_strategies.DataOrgStrategy(tmpdir, "Arase", "arase", "mepe", mag_field),
+            arase_proc = GFZDataSet(
+                ep.saving_strategies.GFZStrategy(tmpdir, "Arase", "arase", "mepe", mag_field),
                 start_time=start_time,
                 end_time=end_time,
             )
-            arase_true = DataOrgDataSet(
-                ep.saving_strategies.DataOrgStrategy(tmpdir, "Arase", "arase", "mepe", mag_field),
+            arase_true = GFZDataSet(
+                ep.saving_strategies.GFZStrategy(tmpdir, "Arase", "arase", "mepe", mag_field),
                 start_time=start_time,
                 end_time=end_time,
             )
@@ -74,12 +74,12 @@ def test_arase_mepe_snapshot(
             if renew_solution:
                 shutil.copy(out_path, Path(__file__).parent / "data" / "processed" / "ARASE" / "arase")
 
-            arase_proc = DataOrgDataSet(
+            arase_proc = GFZDataSet(
                 ep.saving_strategies.MonthlyFileStrategy(tmpdir, "Arase", "arase", "mepe", mag_field),
                 start_time=start_time,
                 end_time=end_time,
             )
-            arase_true = DataOrgDataSet(
+            arase_true = GFZDataSet(
                 ep.saving_strategies.MonthlyFileStrategy(tmpdir, "Arase", "arase", "mepe", mag_field),
                 start_time=start_time,
                 end_time=end_time,
@@ -92,12 +92,12 @@ def test_arase_mepe_snapshot(
             if renew_solution:
                 shutil.copy(out_path, Path(__file__).parent / "data" / "processed" / "ARASE" / "arase")
 
-            arase_proc = DataOrgDataSet(
+            arase_proc = GFZDataSet(
                 ep.saving_strategies.MonthlyFileStrategy(tmpdir, "Arase", "arase", "mepe", mag_field),
                 start_time=start_time,
                 end_time=end_time,
             )
-            arase_true = DataOrgDataSet(
+            arase_true = GFZDataSet(
                 ep.saving_strategies.MonthlyFileStrategy(tmpdir, "Arase", "arase", "mepe", mag_field),
                 start_time=start_time,
                 end_time=end_time,

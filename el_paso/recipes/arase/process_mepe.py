@@ -212,7 +212,7 @@ def process_mepe_level_3(
             mag_field_save = "OP77"
 
     data_standard_instance = (
-        ep.data_standards.DataOrgStandard() if data_standard == "dataorg" else ep.data_standards.PRBEMStandard()
+        ep.data_standards.GFZStandard() if data_standard == "dataorg" else ep.data_standards.PRBEMStandard()
     )
 
     variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
@@ -228,7 +228,7 @@ def process_mepe_level_3(
 
     match save_strategy:
         case "DataOrg":
-            saving_strategy = ep.saving_strategies.DataOrgStrategy(
+            saving_strategy = ep.saving_strategies.GFZStrategy(
                 processed_data_path, "ARASE", "arase", "mepe", mag_field_save, data_standard_instance,
             )
 

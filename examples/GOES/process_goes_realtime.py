@@ -211,7 +211,7 @@ def process_goes_real_time(
     }
 
     if save_strategy in ("dataorg", "both"):
-        dataorg_strategy = ep.saving_strategies.DataOrgStrategy(
+        gfz_strategy = ep.saving_strategies.GFZStrategy(
             processed_data_path,
             mission="GOES",
             satellite=sat_str,
@@ -220,7 +220,7 @@ def process_goes_real_time(
             file_format=".pickle",
         )
 
-        ep.save(dataorg_vars, dataorg_strategy, start_time, end_time, time_var=binned_time_var, append=True)
+        ep.save(dataorg_vars, gfz_strategy, start_time, end_time, time_var=binned_time_var, append=True)
 
     if save_strategy in ("netcdf", "both"):
         netcdf_strategy = ep.saving_strategies.MonthlyNetCDFStrategy(

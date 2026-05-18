@@ -152,7 +152,7 @@ def process_arase_xep_real_time(
             "Position": variables_combined["xGEO"],
         }
 
-        saving_strategy = ep.saving_strategies.DataOrgStrategy(
+        saving_strategy = ep.saving_strategies.GFZStrategy(
             processed_data_path,
             mission="Arase",
             satellite="Arase",

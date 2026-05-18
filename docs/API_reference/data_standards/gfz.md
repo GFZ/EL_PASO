@@ -5,7 +5,7 @@ SPDX-FileContributor: Bernhard Haas
 SPDX-License-Identifier: Apache-2.0
 -->
 
-::: el_paso.saving_strategies.data_org_strategy.DataOrgStrategy
+::: el_paso.data_standards.gfz_standard.GFZStandard
     options:
       members:
         - __init__

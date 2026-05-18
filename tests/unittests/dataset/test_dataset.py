@@ -105,7 +105,7 @@ def mock_dataset(request, tmp_path: Path) -> DataSet:
         instrument="MAGED",
         mag_field="T89",
         file_format=formats,
-        data_standard=ep.data_standards.DataOrgStandard(),
+        data_standard=ep.data_standards.GFZStandard(),
     )
 
     ep.save(
@@ -208,7 +208,7 @@ def test_all_variables_in_dir(mock_dataset: DataSet):
 
     mock_dataset._load_variable("time")  # trigger file loading to populate variables
 
-    for var in ep.data_standards.DataOrgStandard().variable_infos.values():
+    for var in ep.data_standards.GFZStandard().variable_infos.values():
         assert var.standard_name in mock_dataset.__dir__()
 
 
