@@ -13,9 +13,9 @@ build-backend = "setuptools.build_meta"
 name = "el_paso"
 version = "1.0.3rc0"
 description = "EL-PASO is a Python framework designed to streamline the download, processing, and saving of satellite particle observation data."
-authors = [{name="Bernhard Haas", email="bhaas@gfz.de"}]
+authors = [{ name = "Bernhard Haas", email = "bhaas@gfz.de" }]
 readme = "README.md"
-requires-python=">=3.11"
+requires-python = ">=3.11"
 dependencies = [
     "astropy>=7.2.0",
     "cdflib==1.3.8",
@@ -70,3 +70,7 @@ push = true
 [tool.bumpver.file_patterns]
 "pyproject.toml" = ['version = "{version}"']
 "el_paso/__init__.py" = ['__version__ = "{version}"']
+
+[tool.ty.src]
+exclude = ["el_paso/saving_strategies/density_netcdf_strategy.py"]
+include = ["el_paso/**/*.py", "tests/**/*.py"]
