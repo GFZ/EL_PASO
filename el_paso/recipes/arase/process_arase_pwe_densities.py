@@ -14,15 +14,13 @@ from typing import Literal
 
 import numpy as np
 from astropy import units as u
-from get_arase_orbit_variables import (
-    get_arase_orbit_level_2_variables,
-)
 
 import el_paso as ep
 from el_paso.processing.magnetic_field_utils.irbem import Coords
+from el_paso.recipes.arase.get_arase_orbit_variables import get_arase_orbit_level_2_variables
 
 
-def process_pwe_density(
+def process_arase_pwe_density(
     start_time: datetime,
     end_time: datetime,
     irbem_lib_path: str | Path,
@@ -160,7 +158,7 @@ if __name__ == "__main__":
     end_time = datetime(2017, 9, 30, 23, 59, tzinfo=timezone.utc)
 
     with tempfile.TemporaryDirectory() as tmp_dir:
-        process_pwe_density(
+        process_arase_pwe_density(
             start_time,
             end_time,
             "../../libirbem.so",

@@ -23,10 +23,9 @@ from el_paso.recipes.arase import (
 )
 
 
-def process_mepe_level_3(
+def process_arase_mepe(
     start_time: datetime,
     end_time: datetime,
-    irbem_lib_path: str | Path,
     mag_field: Literal["T89", "TS04", "OP77Q"],
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
@@ -40,7 +39,6 @@ def process_mepe_level_3(
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     logging.getLogger().setLevel(logging.INFO)
 
-    irbem_lib_path = Path(irbem_lib_path)
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
 
@@ -169,7 +167,7 @@ def process_mepe_level_3(
             datetime.fromtimestamp(t, tz=timezone.utc) for t in binned_time_variable.get_data(ep.units.posixtime)
         ]
 
-        geo_data = Coords(lib_path=irbem_lib_path).transform(
+        geo_data = Coords().transform(
             time=datetimes,
             pos=orb_variables["pos_sm"].get_data().astype(np.float64),
             sysaxes_in=ep.IRBEM_SYSAXIS_SM,
@@ -192,7 +190,6 @@ def process_mepe_level_3(
             time_var=binned_time_variable,
             xgeo_var=pos_geo_var,
             variables_to_compute=variables_to_compute,
-            irbem_lib_path=str(irbem_lib_path),
             irbem_options=irbem_options,
             num_cores=num_cores,
             pa_local_var=mepe_variables["Pitch_angle"],
@@ -227,19 +224,36 @@ def process_mepe_level_3(
     }
 
     match save_strategy:
-        case "DataOrg":
+        case "dataorg":
             saving_strategy = ep.saving_strategies.GFZStrategy(
-                processed_data_path, "ARASE", "arase", "mepe", mag_field_save, data_standard_instance,
+                processed_data_path,
+                "ARASE",
+                "arase",
+                "mepe",
+                mag_field_save,
+                data_standard_instance,
             )
 
         case "h5":
             saving_strategy = ep.saving_strategies.MonthlyFileStrategy(
-                processed_data_path, "Arase", "arase", "mepe", mag_field=mag_field, file_format="h5",
+                processed_data_path,
+                "Arase",
+                "arase",
+                "mepe",
+                mag_field=mag_field,
+                file_format="h5",
+                data_standard=data_standard_instance,
             )
 
         case "netcdf":
             saving_strategy = ep.saving_strategies.MonthlyFileStrategy(
-                processed_data_path, "Arase", "arase", "mepe", mag_field=mag_field, file_format="nc",
+                processed_data_path,
+                "Arase",
+                "arase",
+                "mepe",
+                mag_field=mag_field,
+                file_format="nc",
+                data_standard=data_standard_instance,
             )
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
@@ -250,10 +264,9 @@ if __name__ == "__main__":
     end_time = datetime(2017, 9, 30, 23, 59, tzinfo=timezone.utc)
 
     with tempfile.TemporaryDirectory() as tmp_dir:
-        process_mepe_level_3(
+        process_arase_mepe(
             start_time,
             end_time,
-            "../../libirbem.so",
             "T89",
             raw_data_path=tmp_dir,
             processed_data_path=".",

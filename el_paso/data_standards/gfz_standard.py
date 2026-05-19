@@ -59,7 +59,7 @@ class GFZStandard(DataStandard[GFZVarNames]):
             ),
             "B_Eq": VariableInfo[GFZVarNames]("B_eq", "Calculated magnetic field at the equator.", u.nT, ["Epoch"]),
             "B_Calc": VariableInfo[GFZVarNames](
-                "B_local", "Calculated magnetic field at the satellite location.", u.nT, ["Epoch"]
+                "B_total", "Calculated magnetic field at the satellite location.", u.nT, ["Epoch"]
             ),
             "R_Eq": VariableInfo[GFZVarNames](
                 "R0", "Radial distance of the satellite location mapped to the equator.", ep.units.RE, ["Epoch"]

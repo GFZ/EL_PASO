@@ -1,1 +1,1 @@
-from el_paso.recipes.rbsp.process_ect_combined import process_ect_combined
+from el_paso.recipes.rbsp.process_rbsp_ect_combined import process_rbsp_ect_combined

@@ -14,11 +14,10 @@ from astropy import units as u
 import el_paso as ep
 
 
-def process_ect_combined(
+def process_rbsp_ect_combined(
     start_time: datetime,
     end_time: datetime,
     sat_str: Literal["a", "b"],
-    irbem_lib_path: str | Path,
     mag_field: Literal["T89", "T96", "TS04", "OP77"],
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
@@ -30,7 +29,6 @@ def process_ect_combined(
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     logging.getLogger().setLevel(logging.INFO)
 
-    irbem_lib_path = Path(irbem_lib_path)
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
 
@@ -142,7 +140,6 @@ def process_ect_combined(
         time_var=binned_time_variable,
         xgeo_var=variables["xGEO"],
         variables_to_compute=variables_to_compute,
-        irbem_lib_path=str(irbem_lib_path),
         irbem_options=irbem_options,
         num_cores=num_cores,
         pa_local_var=variables["Pitch_angle"],
@@ -216,11 +213,10 @@ if __name__ == "__main__":
     start_time = datetime(2017, 4, 20, tzinfo=timezone.utc)
     end_time = datetime(2017, 4, 24, tzinfo=timezone.utc)
 
-    process_ect_combined(
+    process_rbsp_ect_combined(
         start_time,
         end_time,
         "a",
-        "../../libirbem.so",
         "T89",
         raw_data_path=".",
         processed_data_path=".",

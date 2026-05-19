@@ -67,7 +67,7 @@ class GFZDataSet(DataSet):
     PSD: NDArray[np.float64]
     MLT: NDArray[np.float64]
     B_eq: NDArray[np.float64]
-    B_local: NDArray[np.float64]
+    B_total: NDArray[np.float64]
     xGEO: NDArray[np.float64]  # noqa: N815
     P: NDArray[np.float64]
     R0: NDArray[np.float64]

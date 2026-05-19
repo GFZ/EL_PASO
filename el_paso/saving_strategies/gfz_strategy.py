@@ -96,7 +96,7 @@ class GFZStrategy(SavingStrategy):
             OutputFile("psd", ["Epoch", "PSD"]),
             OutputFile("xGEO", ["Epoch", "Position"]),
             OutputFile("invmu_and_invk", ["Epoch", "InvMu", "InvK"]),
-            OutputFile("bfield", ["Epoch", "B_Eq", "B_Calc"]),
+            OutputFile("bfield", ["Epoch", "B_Calc"]),
             OutputFile("R0", ["Epoch", "R_Eq"]),
         ]
 
@@ -275,8 +275,6 @@ class GFZStrategy(SavingStrategy):
         Raises:
             NotImplementedError: If the file format specified by the file extension is not supported.
         """
-        logger.info(f"Saving file {file_path.name}...")
-
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
         if file_path.exists() and append:
@@ -289,4 +287,5 @@ class GFZStrategy(SavingStrategy):
             else:
                 standard_dict[self.data_standard.get_standard_name(key)] = value
 
+        logger.info(f"Saving file: {file_path}")
         savemat(str(file_path), standard_dict)

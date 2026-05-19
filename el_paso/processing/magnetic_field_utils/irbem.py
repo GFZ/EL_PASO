@@ -22,6 +22,7 @@ import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
 
+import el_paso as ep
 from el_paso.processing.magnetic_field_utils.construct_maginput import MagInputKeys
 
 __author__ = "Mykhaylo Shumko"
@@ -937,7 +938,7 @@ class Coords:
     Fortran routines of the IRBEM-LIB.
     """
 
-    def __init__(self, *, lib_path: str | Path | None = None) -> None:
+    def __init__(self, *, lib_path: str | Path = Path(ep.__file__).parent / ".." / "libirbem.so") -> None:
         """Initializes the Coords object and loads the IRBEM shared library.
 
         Args:

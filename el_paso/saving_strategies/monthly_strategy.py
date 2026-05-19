@@ -173,7 +173,11 @@ class MonthlyFileStrategy(SavingStrategy):
         """Generate the monthly file path for the configured format."""
         start_year_month_day = interval_start.strftime("%Y%m%d")
         end_year_month_day = interval_end.strftime("%Y%m%d")
-        file_name = f"{self.get_file_name_stem()}_{start_year_month_day}to{end_year_month_day}_{self.mag_field}{self.file_format}"  # noqa: E501
+        file_name = (
+            f"{self.get_file_name_stem()}_{start_year_month_day}to{end_year_month_day}_"
+            f"{self.mag_field}{self.file_format}"
+        )
+
         return self.get_file_path_stem() / file_name
 
     def standardize_variable(
