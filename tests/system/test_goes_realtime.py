@@ -7,7 +7,8 @@ import shutil
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from el_paso import Instrument, RBMDataSet, Satellite
+from el_paso.dataset import GFZDataSet
+from el_paso.saving_strategies import MonthlyFileStrategy
 from examples.GOES.process_goes_realtime import process_goes_real_time
 
 
@@ -40,22 +41,18 @@ def test_goes_realtime_snapshot(
     if renew_solution:
         shutil.copy(out_path, Path(__file__).parent / "data" / "processed" / "GOES" / "primary")
 
-    goes_proc = RBMDataSet(
+    goes_proc = GFZDataSet(
         start_time=start_time,
         end_time=end_time,
-        folder_path=processed_data_path,
-        satellite=Satellite("goes_primary", "GOES"),
-        instrument=Instrument("mps_high"),
-        mfm="T89",
+        saving_strategy=MonthlyFileStrategy(processed_data_path, "GOES", "goes_primary", "mps_high", "T89", "nc"),
     )
 
-    goes_true = RBMDataSet(
+    goes_true = GFZDataSet(
         start_time=start_time,
         end_time=end_time,
-        folder_path=Path(__file__).parent / "data" / "processed",
-        satellite=Satellite("goes_primary", "GOES"),
-        instrument=Instrument("mps_high"),
-        mfm="T89",
+        saving_strategy=MonthlyFileStrategy(
+            Path(__file__).parent / "data" / "processed", "GOES", "goes_primary", "mps_high", "T89", "nc"
+        ),
     )
 
     assert goes_proc == goes_true, f"Different variables: {goes_proc.get_different_variables(goes_true)}"

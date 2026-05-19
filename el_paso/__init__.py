@@ -16,7 +16,7 @@ IRBEM_SYSAXIS_MAG = 6
 IRBEM_SYSAXIS_SPH = 7  # (geo in spherical)
 
 # package wide variables
-_release_mode = False
+_release_mode: bool = False
 _release_msg: str = ""
 
 from el_paso.release_mode import activate_release_mode, get_release_msg, is_in_release_mode

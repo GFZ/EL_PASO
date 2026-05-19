@@ -96,7 +96,7 @@ class GFZStrategy(SavingStrategy):
             OutputFile("psd", ["Epoch", "PSD"]),
             OutputFile("xGEO", ["Epoch", "Position"]),
             OutputFile("invmu_and_invk", ["Epoch", "InvMu", "InvK"]),
-            OutputFile("bfield", ["Epoch", "B_Calc"]),
+            OutputFile("bfield", ["Epoch", "B_Eq", "B_Calc"]),
             OutputFile("R0", ["Epoch", "R_Eq"]),
         ]
 
