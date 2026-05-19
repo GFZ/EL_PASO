@@ -6,14 +6,11 @@
 
 from __future__ import annotations
 
-import calendar
 import logging
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional, cast
 
 import numpy as np
-from numpy.typing import NDArray
 from scipy.io import savemat
 
 import el_paso as ep
@@ -21,6 +18,10 @@ from el_paso.data_standards import GFZStandard
 from el_paso.saving_strategy import OutputFile, SavingStrategy
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
+    from numpy.typing import NDArray
+
     from el_paso import Variable
     from el_paso.typing import DataStandard, InternalName, SavedDataDict, StandardName
 
@@ -223,16 +224,17 @@ class GFZStrategy(SavingStrategy):
                 logger.error(msg)
                 raise ValueError(msg)
 
-            if isinstance(value_1, NDArray):
+            if isinstance(value_1, np.ndarray):
                 value_1_truncated = cast("NDArray[np.floating]", value_1[~time_1_in_2])
 
                 value_2 = data_dict_to_save[internal_name]
 
                 value_1_truncated = _normalize_1d(value_1_truncated)
                 value_2 = _normalize_1d(value_2)
-
                 concatenated_value = (
-                    value_2 if value_1_truncated.size == 0 else np.insert(value_1_truncated, idx_to_insert, value_2)
+                    value_2
+                    if value_1_truncated.size == 0
+                    else np.insert(value_1_truncated, idx_to_insert, value_2, axis=0)
                 )
 
                 if key == time_key and len(np.unique(concatenated_value)) != len(concatenated_value):
