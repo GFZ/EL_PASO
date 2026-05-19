@@ -44,7 +44,6 @@ class GFZDataSet(DataSet):
         MLT (NDArray[np.float64]): Magnetic local time array in hours.
         B_SM (NDArray[np.float64]): Magnetic field vector in Solar Magnetic (SM) coordinates.
         B_total (NDArray[np.float64]): Total magnetic field magnitude array in nT.
-        B_local (NDArray[np.float64]): Magnetic field magnitude at the satellite location in nT.
         xGEO (NDArray[np.float64]): Position vector in Geocentric (GEO) coordinates.
         P (NDArray[np.float64]): Pressure array.
         R0 (NDArray[np.float64]): Equatorial crossing distance array in Earth radii.

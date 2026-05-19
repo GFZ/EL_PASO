@@ -137,7 +137,7 @@ def test_data_org_dataset_loads_saved_monthly_nc_and_rejects_invalid_variable(
     expected_energy_channels = np.asarray(variables["Energy_FEDU"].get_data())[time_mask, ...]
     expected_alpha_local = np.deg2rad(np.asarray(variables["Alpha"].get_data())[time_mask, ...])
     expected_alpha_eq_model = np.deg2rad(np.asarray(variables["Alpha_Eq"].get_data())[time_mask, ...])
-    expected_b_local = np.asarray(variables["B_Calc"].get_data())[time_mask, ...]
+    expected_b_total = np.asarray(variables["B_Calc"].get_data())[time_mask, ...]
     expected_b_eq = np.asarray(variables["B_Eq"].get_data())[time_mask, ...]
     expected_invk = np.asarray(variables["InvK"].get_data())[time_mask, ...]
     expected_invmu = np.asarray(variables["InvMu"].get_data())[time_mask, ...]
@@ -156,7 +156,7 @@ def test_data_org_dataset_loads_saved_monthly_nc_and_rejects_invalid_variable(
     np.testing.assert_equal(dataset.energy_channels, expected_energy_channels)
     np.testing.assert_equal(dataset.alpha_local, expected_alpha_local)
     np.testing.assert_equal(dataset.alpha_eq_model, expected_alpha_eq_model)
-    np.testing.assert_equal(dataset.B_local, expected_b_local)
+    np.testing.assert_equal(dataset.B_total, expected_b_total)
     np.testing.assert_equal(dataset.B_eq, expected_b_eq)
     np.testing.assert_equal(dataset.InvK, expected_invk)
     np.testing.assert_equal(dataset.InvMu, expected_invmu)
