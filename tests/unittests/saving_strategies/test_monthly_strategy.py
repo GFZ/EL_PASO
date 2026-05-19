@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import shutil
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Callable, Literal  # noqa: UP035
 
@@ -24,12 +23,12 @@ if TYPE_CHECKING:
 
 def _mock_monthly_variables() -> dict[InternalName, ep.Variable]:
     """Create mocked monthly product variables without running processing code."""
-    time_size = 144
+    time_size = 145
     energy_size = 3
     alpha_size = 4
 
     start_time = datetime(2013, 1, 1, tzinfo=timezone.utc)
-    datetimes = [start_time + i * np.timedelta64(6000, "s") for i in range(time_size)]
+    datetimes = [start_time + i * np.timedelta64(3600, "s") for i in range(time_size)]
     epoch = np.array([python2matlab(i) for i in datetimes])
 
     variables: dict[InternalName, ep.Variable] = {
@@ -160,13 +159,6 @@ def test_monthly_strategy_saves_mocked_variables_to_netcdf_with_data_standards(
         var_attrs = metadata.get(var_key, {})
         assert meta_keys_check(var_attrs.keys())
         assert var_attrs.get("unit", "unknown") != "unknown"
-
-    # if isinstance(data_standard(), ep.data_standards.PRBEMStandard):
-    #     shutil.copy2(output_path, "/home/jhawar/EL_PASO_GH/monthly/PRBEM/GOES/primary/")
-    # else:
-    #     shutil.copy2(output_path, "/home/jhawar/EL_PASO_GH/monthly/GFZ/GOES/primary/")
-    # shutil.rmtree(tmp_path)
-
 
 def test_append_works_for_monthly_strategy(tmp_path: Path) -> None:
     pytest.skip("Append functionality for monthly strategy is not yet implemented.")

@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -121,7 +122,7 @@ def mock_dataset(request, tmp_path: Path) -> DataSet:
         start_time=start_time,
         end_time=end_time,
         preferred_extension=formats,
-        verbose=False,
+        verbose=True,
     )
 
 
@@ -243,6 +244,26 @@ def test_all_variables_in_dir(mock_dataset: DataSet):
 
     for var in ep.data_standards.GFZStandard().variable_infos.values():
         assert var.standard_name in mock_dataset.__dir__()
+
+
+def test_accessing_second_variable_does_not_reload_file(mock_dataset: DataSet, caplog: pytest.LogCaptureFixture):
+    with caplog.at_level(logging.INFO):
+        _ = mock_dataset.energy_channels
+
+    assert "/GOES/primary/primary_maged_20130101to20130131_T89" in caplog.text
+    log_count_after_first_load = caplog.text.count("/GOES/primary/primary_maged_20130101to20130131_T89")
+
+    with (
+        caplog.at_level(logging.INFO),
+        mock.patch.object(mock_dataset, "_load_variable", wraps=mock_dataset._load_variable) as mock_load,
+    ):
+        _ = [getattr(mock_dataset, var) for var in mock_dataset.get_loaded_variables()]
+        assert mock_load.call_count == 0, (
+            "_load_variable should not be called again, variables was already loaded on first access"
+        )
+        assert caplog.text.count("/GOES/primary/primary_maged_20130101to20130131_T89") == log_count_after_first_load, (
+            "File should not have been loaded again"
+        )
 
 
 # def test_disable_dict_loading_mode(mock_dataset: DataSet):

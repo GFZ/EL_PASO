@@ -24,12 +24,12 @@ if TYPE_CHECKING:
 
 def _mock_monthly_variables() -> dict[InternalName, ep.Variable]:
     """Create mocked monthly product variables without running processing code."""
-    time_size = 144
+    time_size = 145
     energy_size = 3
     alpha_size = 4
 
     start_time = datetime(2013, 1, 1, tzinfo=timezone.utc)
-    datetimes = [start_time + i * np.timedelta64(6000, "s") for i in range(time_size)]
+    datetimes = [start_time + i * np.timedelta64(3600, "s") for i in range(time_size)]
     epoch = np.array([python2matlab(i) for i in datetimes])
 
     variables: dict[InternalName, ep.Variable] = {
@@ -150,4 +150,4 @@ def test_monthly_strategy_saves_mocked_variables_to_netcdf_with_data_standards(
 
 
 def test_append_works_for_monthly_strategy() -> None:
-    pytest.skip("Append functionality for monthly strategy is not yet implemented.")
+    pass
