@@ -204,6 +204,39 @@ def test_load_variable_real_file(mock_dataset: DataSet):
     assert isinstance(mock_dataset.alpha_local, np.ndarray), "'alpha_local' should be a NumPy array."
 
 
+def test_setattr_sets_standard_variable_without_file_loading(tmp_path: Path) -> None:
+    strategy = ep.saving_strategies.MonthlyFileStrategy(
+        base_data_path=tmp_path,
+        mission="GOES",
+        satellite="primary",
+        instrument="MAGED",
+        mag_field="T89",
+        file_format="nc",
+        data_standard=ep.data_standards.GFZStandard(),
+    )
+    start = datetime(2013, 1, 1, tzinfo=timezone.utc)
+    end = datetime(2013, 1, 2, tzinfo=timezone.utc)
+    dataset = DataSet(strategy, start, end, verbose=False)
+    flux = np.array([[1.0, 2.0, 3.0]])
+    dataset.Flux = flux
+    np.testing.assert_array_equal(dataset.Flux, flux)
+
+    with pytest.raises(AttributeError, match="Cannot set attribute 'NonExistentVariable'. It is not part of ."):  # noqa: RUF043
+        dataset.NonExistentVariable = 1
+    with pytest.raises(AttributeError, match="Cannot set attribute 'flux'. Maybe you meant 'Flux'?"):  # noqa: RUF043
+        dataset.flux = 1
+
+
+def test_setattr_overrides_file_loaded_standard_variable(mock_dataset: DataSet) -> None:
+    mock_dataset.load("Flux")
+    loaded_flux = mock_dataset.Flux.copy()
+    replacement_flux = np.full_like(loaded_flux, 42.0)
+
+    mock_dataset.Flux = replacement_flux
+
+    np.testing.assert_array_equal(mock_dataset.Flux, replacement_flux)
+
+
 def test_all_variables_in_dir(mock_dataset: DataSet):
 
     mock_dataset._load_variable("time")  # trigger file loading to populate variables

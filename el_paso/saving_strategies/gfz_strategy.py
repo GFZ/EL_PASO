@@ -21,7 +21,6 @@ from el_paso.data_standards import GFZStandard
 from el_paso.saving_strategy import OutputFile, SavingStrategy
 
 if TYPE_CHECKING:
-
     from el_paso import Variable
     from el_paso.typing import DataStandard, InternalName, SavedDataDict, StandardName
 
@@ -147,27 +146,7 @@ class GFZStrategy(SavingStrategy):
         Raises:
             ValueError: If either `start_time` or `end_time` is not provided.
         """
-        time_intervals: list[tuple[datetime, datetime]] = []
-
-        if start_time is None or end_time is None:
-            msg = "start_time and end_time must be provided for GFZStrategy!"
-            logger.error(msg)
-            raise ValueError(msg)
-
-        current_time = start_time.replace(day=1)
-        while current_time <= end_time:
-            year = current_time.year
-            month = current_time.month
-            eom_day = calendar.monthrange(year, month)[1]
-
-            month_start = datetime(year, month, 1, 0, 0, 0, tzinfo=timezone.utc)
-            month_end = datetime(year, month, eom_day, 23, 59, 59, tzinfo=timezone.utc)
-            time_intervals.append((month_start, month_end))
-            current_time = (
-                datetime(year + 1, 1, 1, tzinfo=timezone.utc)
-                if month == 12
-                else datetime(year, month + 1, 1, tzinfo=timezone.utc)
-            )
+        time_intervals: list[tuple[datetime, datetime]] = ep.utils.get_monthly_datetime_intervals(start_time, end_time)
 
         return time_intervals
 
@@ -191,7 +170,7 @@ class GFZStrategy(SavingStrategy):
         Returns:
             Path: The generated file path.
         """
-        interval = self.get_time_intervals_to_save(interval_start, interval_end)[0]
+        interval = ep.utils.get_monthly_datetime_intervals(interval_start, interval_end)[0]
         start_year_month_day = interval[0].strftime("%Y%m%d")
         end_year_month_day = interval[1].strftime("%Y%m%d")
 

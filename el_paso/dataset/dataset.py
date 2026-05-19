@@ -43,22 +43,32 @@ logger = logging.getLogger(__name__)
 class DataSet:
     """DataSet class supporting .mat, and .nc file formats.
 
-    This unified class handles loading data from multiple
-    file formats. It can load data either from files or from a dictionary.
-
-    For file-based loading, provide `start_time`, `end_time`, and `folder_path`.
-    For dictionary-based loading, initialize without these parameters and use `update_from_dict()`.
+    This unified class handles loading data from multiple file formats and
+    dictionary-backed sources. Dictionary updates are always allowed and replace
+    existing values for standard variables.
     """
+
+    _internal_attrs = frozenset(
+        {
+            "_verbose",
+            "_preferred_ext",
+            "saving_strategy",
+            "possible_variables",
+            "_start_time",
+            "_end_time",
+            "_date_list",
+            "_loaders",
+        }
+    )
 
     def __init__(
         self,
         saving_strategy: SavingStrategy,
-        start_time: dt.datetime | None = None,
-        end_time: dt.datetime | None = None,
+        start_time: dt.datetime,
+        end_time: dt.datetime,
         preferred_extension: MFSFormats = "nc",
         *,
         verbose: bool = True,
-        enable_dict_loading: bool = False,
     ) -> None:
         """Initializes a DataSet instance.
 
@@ -67,17 +77,12 @@ class DataSet:
 
         Args:
             saving_strategy (SavingStrategy): Instance of the saving strategy used to save the data.
-            start_time (dt.datetime | None): Beginning of the time range to load.
-                If ``None``, no lower bound is applied. Defaults to ``None``.
-            end_time (dt.datetime | None): End of the time range to load.
-                If ``None``, no upper bound is applied. Defaults to ``None``.
+            start_time (dt.datetime): Beginning of the time range to load.
+            end_time (dt.datetime): End of the time range to load.
             preferred_extension (MFSFormats): File format to prefer when reading
                 and writing data. Defaults to ``"nc"`` (NetCDF).
             verbose (bool): If ``True``, print progress and diagnostic messages.
                 Defaults to ``True``.
-            enable_dict_loading (bool): If ``True``, allow loading data from
-                dictionary-backed sources in addition to files. Defaults to
-                ``False``.
         """
         self._verbose = verbose
         self._preferred_ext = preferred_extension
@@ -89,31 +94,21 @@ class DataSet:
             "P",
             "InvV",
         ]  # add computed properties and datetime
+        assert end_time > start_time, "end_time must be after start_time"
 
-        # For dict-based loading, modify satellite properties
-        self._file_loading_mode = True
-        if start_time is None and end_time is None:
-            self._file_loading_mode = False
-        else:
-            # File loading mode: need all parameters
-            if start_time is None or end_time is None:
-                msg = "For file-based loading, start_time and end_time must be provided"
-                raise ValueError(msg)
+        start_time = enforce_utc_timezone(start_time)
+        end_time = enforce_utc_timezone(end_time)
 
-            start_time = enforce_utc_timezone(start_time)
-            end_time = enforce_utc_timezone(end_time)
+        self._start_time = start_time
+        self._end_time = end_time
+        self._date_list = ep.utils.get_monthly_datetime_intervals(start_time, end_time)
 
-            self._start_time = start_time
-            self._end_time = end_time
-            self._date_list = self.saving_strategy.get_time_intervals_to_save(start_time, end_time)
-            self._enable_dict_loading = enable_dict_loading
-
-            self._loaders: dict[str, FormatLoader] = {
-                ".mat": ep.utils.load_mat_data,
-                ".h5": ep.utils.load_h5_data,
-                ".nc": ep.utils.load_netcdf_data,
-                ".cdf": ep.utils.load_cdf_data,
-            }
+        self._loaders: dict[str, FormatLoader] = {
+            ".mat": ep.utils.load_mat_data,
+            ".h5": ep.utils.load_h5_data,
+            ".nc": ep.utils.load_netcdf_data,
+            ".cdf": ep.utils.load_cdf_data,
+        }
 
     def __repr__(self) -> str:  # noqa: D105
         cls = type(self)
@@ -131,6 +126,29 @@ class DataSet:
                 args.append(f"{name}={value!r}")
 
         return f"{cls.__name__}({', '.join(args)})"
+
+    def __setattr__(self, name: str, value: object) -> None:  # noqa: D105
+        if name.startswith("_"):
+            object.__setattr__(self, name, value)
+            return
+
+        if name in self._internal_attrs:
+            object.__setattr__(self, name, value)
+            return
+
+        possible_variables = getattr(self, "possible_variables", None)
+
+        if possible_variables is not None and name in possible_variables:
+            object.__setattr__(self, name, value)
+            return
+
+        _, levenstein_info = self.find_similar_variable(name)
+        if levenstein_info["min_distance"] <= 2:
+            msg = f"Cannot set attribute '{name}'. Maybe you meant '{levenstein_info['var_name']}'?"
+        else:
+            msg = f"Cannot set attribute '{name}'. It is not part of {self.saving_strategy.data_standard}."
+
+        raise AttributeError(msg)
 
     def __str__(self) -> str:  # noqa: D105
         return self.__repr__()
@@ -160,14 +178,11 @@ class DataSet:
         # check if a sat variable is requested
         # if we find a similar word, suggest that to the user
         sat_variable, levenstein_info = self.find_similar_variable(name)
-        if sat_variable is not None and self._file_loading_mode:
+        if sat_variable is not None and hasattr(self, "_date_list"):
             self._load_variable(sat_variable)
             return getattr(self, name)
-        if not self._file_loading_mode and name in self.possible_variables:
-            msg = (
-                f"Attribute '{name}' exists in `VariableLiteral` but has not been set. "
-                "Call `update_from_dict()` before accessing it."
-            )
+        if name in self.possible_variables:
+            msg = f"Attribute '{name}' exists in {self.saving_strategy.data_standard} but has not been set. "
             raise AttributeError(msg)
         if levenstein_info["min_distance"] <= 2:
             msg = f"{self.__class__.__name__} object has no attribute {name}. Maybe you meant {levenstein_info['var_name']}?"  # noqa: E501
@@ -202,41 +217,6 @@ class DataSet:
                 levenstein_info["var_name"] = var
 
         return sat_variable, levenstein_info
-
-    def update_from_dict(self, source_dict: dict[str, NDArray[np.floating] | list[dt.datetime]]) -> DataSet:
-        """Get data from data dictionary and update the object.
-
-        Parameters
-        ----------
-        source_dict : dict[str, VariableLiteral]
-            Dictionary containing the data to be loaded into the object.
-
-        Returns:
-        -------
-        DataSet
-            The updated DataSet object.
-
-        Raises:
-        ------
-        VariableNotFoundError
-            If a key in the `source_dict` is not a valid `VariableLiteral`.
-        RuntimeError
-            If the DataSet is in file loading mode and dictionary loading is not enabled.
-
-        """
-        if self._file_loading_mode and not self._enable_dict_loading:
-            msg = "DataSet is in file loading mode. Cannot update from dictionary. To use dictionary-based loading, set `enable_dict_loading=True` during initialization."  # noqa: E501
-            raise RuntimeError(msg)
-        for key, value in source_dict.items():
-            _, levenstein_info = self.find_similar_variable(key)
-            msg = f"Key '{key}' is not a valid {self.saving_strategy.data_standard} variable."
-            if key in self.possible_variables:
-                setattr(self, key, value)
-            elif levenstein_info["min_distance"] <= 2:
-                raise KeyError(msg + f" Maybe you meant '{levenstein_info['var_name']}'?")
-            else:
-                raise KeyError(msg)
-        return self
 
     def get_satellite_name(self) -> str:
         return self.saving_strategy.satellite
@@ -345,7 +325,6 @@ class DataSet:
 
     def assert_equal(self, other: DataSet) -> None:
         """Assert that two DataSet objects are equal."""
-
         assert self.saving_strategy.data_standard == other.saving_strategy.data_standard, (
             "Data standards are different:\n"
             f"{self.saving_strategy.data_standard!r} != {other.saving_strategy.data_standard!r}"

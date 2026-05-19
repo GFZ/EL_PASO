@@ -161,6 +161,10 @@ def test_monthly_strategy_saves_mocked_variables_to_netcdf_with_data_standards(
         assert meta_keys_check(var_attrs.keys())
         assert var_attrs.get("unit", "unknown") != "unknown"
 
+    # if isinstance(data_standard(), ep.data_standards.PRBEMStandard):
+    #     shutil.copy2(output_path, "/home/jhawar/EL_PASO_GH/monthly/PRBEM/GOES/primary/")
+    # else:
+    #     shutil.copy2(output_path, "/home/jhawar/EL_PASO_GH/monthly/GFZ/GOES/primary/")
     # shutil.rmtree(tmp_path)
 
 

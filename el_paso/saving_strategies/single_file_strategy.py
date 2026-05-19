@@ -109,6 +109,12 @@ class SingleFileStrategy(SavingStrategy):
         if format_writers:
             self._writers.update(format_writers)
 
+    def get_file_path_stem(self):
+        pass
+
+    def get_file_name_stem(self):
+        pass
+
     def get_time_intervals_to_save(self, start_time: datetime, end_time: datetime) -> list[tuple[datetime, datetime]]:
         """Returns the entire time range as a single interval.
 
@@ -277,7 +283,6 @@ class SingleFileStrategy(SavingStrategy):
         Raises:
             NotImplementedError: If the file format is not registered or supported,
                 or if append is requested for formats that don't support it.
-            RuntimeError: If the .pickle format is attempted to be used (deprecated).
             Any exception raised by the format writer function.
 
         Supported Built-in Formats:
@@ -290,14 +295,6 @@ class SingleFileStrategy(SavingStrategy):
 
         file_path.parent.mkdir(parents=True, exist_ok=True)
         format_name = file_path.suffix.lower()
-
-        if format_name == ".pickle":
-            msg = (
-                "Pickle format has been removed from `SingleFileStrategy` and will be soon "
-                "removed from `SavingStrategy` as well (already deprecated)."
-            )
-            logger.error(msg)
-            raise RuntimeError(msg)
 
         # Look up the writer in the dispatch table
         writer = self._writers.get(format_name)

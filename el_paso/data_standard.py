@@ -4,8 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
-import inspect
 
+import inspect
 import logging
 from abc import ABC
 from dataclasses import dataclass, field
@@ -102,6 +102,11 @@ class DataStandard(ABC, Generic[T_co]):
         self.consistency_check.check(variable.get_data().shape, variable_info.dependencies, internal_name)
 
         return variable
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, DataStandard):
+            return NotImplemented
+        return type(self) is type(other) and self.variable_infos == other.variable_infos
 
 
 class _SizeAttr(NamedTuple):

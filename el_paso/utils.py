@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
+import calendar
 
 import logging
 import re
@@ -709,3 +710,31 @@ def write_cdf_file(file_path: Path, data_dict: DataDict, data_standard: DataStan
         msg = f"Failed to write CDF file {file_path}: {e}"
         logger.exception(msg)
         raise RuntimeError(msg) from e
+
+
+def get_monthly_datetime_intervals(  # noqa: D103
+    start_time: datetime | None, end_time: datetime | None
+) -> list[tuple[datetime, datetime]]:
+
+    time_intervals: list[tuple[datetime, datetime]] = []
+
+    if start_time is None or end_time is None:
+        msg = "start_time and end_time must be provided!"
+        logger.error(msg)
+        raise ValueError(msg)
+
+    current_time = start_time.replace(day=1)
+    while current_time <= end_time:
+        year = current_time.year
+        month = current_time.month
+        eom_day = calendar.monthrange(year, month)[1]
+
+        month_start = datetime(year, month, 1, 0, 0, 0, tzinfo=timezone.utc)
+        month_end = datetime(year, month, eom_day, 23, 59, 59, tzinfo=timezone.utc)
+        time_intervals.append((month_start, month_end))
+        current_time = (
+            datetime(year + 1, 1, 1, tzinfo=timezone.utc)
+            if month == 12
+            else datetime(year, month + 1, 1, tzinfo=timezone.utc)
+        )
+    return time_intervals

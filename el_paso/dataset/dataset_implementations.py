@@ -76,12 +76,11 @@ class GFZDataSet(DataSet):
     def __init__(
         self,
         saving_strategy: SavingStrategy,
-        start_time: dt.datetime | None = None,
-        end_time: dt.datetime | None = None,
+        start_time: dt.datetime,
+        end_time: dt.datetime,
         preferred_extension: MFSFormats = "nc",
         *,
         verbose: bool = True,
-        enable_dict_loading: bool = False,
     ) -> None:
         """Initializes a GFZDataSet instance.
 
@@ -90,24 +89,18 @@ class GFZDataSet(DataSet):
 
         Parameters:
             saving_strategy (SavingStrategy): Instance of the saving strategy used to resolve file paths.
-            start_time (dt.datetime | None): Beginning of the time range to load.
-                If ``None``, no lower bound is applied. Defaults to ``None``.
-            end_time (dt.datetime | None): End of the time range to load.
-                If ``None``, no upper bound is applied. Defaults to ``None``.
+            start_time (dt.datetime): Beginning of the time range to load.
+            end_time (dt.datetime): End of the time range to load.
             preferred_extension (MFSFormats): File format to prefer when reading
                 and writing data. Defaults to ``"nc"`` (NetCDF).
             verbose (bool): If ``True``, print progress and diagnostic messages.
                 Defaults to ``True``.
-            enable_dict_loading (bool): If ``True``, allow loading data from
-                dictionary-backed sources in addition to files. Defaults to
-                ``False``.
         """
         self.saving_strategy = saving_strategy
         self._start_time = start_time
         self._end_time = end_time
         self._preferred_ext = preferred_extension
         self._verbose = verbose
-        self._enable_dict_loading = enable_dict_loading
 
         if isinstance(self.saving_strategy, GFZStrategy):
             self._preferred_ext = "mat"
@@ -127,7 +120,6 @@ class GFZDataSet(DataSet):
             self._end_time,
             self._preferred_ext,
             verbose=self._verbose,
-            enable_dict_loading=self._enable_dict_loading,
         )
 
 
@@ -187,12 +179,11 @@ class PRBEMDataSet(DataSet):
     def __init__(
         self,
         saving_strategy: SavingStrategy,
-        start_time: dt.datetime | None = None,
-        end_time: dt.datetime | None = None,
+        start_time: dt.datetime,
+        end_time: dt.datetime,
         preferred_extension: MFSFormats = "nc",
         *,
         verbose: bool = True,
-        enable_dict_loading: bool = False,
     ) -> None:
         """Initializes a PRBEMDataSet instance.
 
@@ -203,24 +194,18 @@ class PRBEMDataSet(DataSet):
             saving_strategy_type (type[SavingStrategy]): Class (not instance) of
                 the saving strategy used to resolve file paths. Defaults to
                 ``ep.saving_strategies.MonthlyFileStrategy``.
-            start_time (dt.datetime | None): Beginning of the time range to load.
-                If ``None``, no lower bound is applied. Defaults to ``None``.
-            end_time (dt.datetime | None): End of the time range to load.
-                If ``None``, no upper bound is applied. Defaults to ``None``.
+            start_time (dt.datetime): Beginning of the time range to load.
+            end_time (dt.datetime): End of the time range to load.
             preferred_extension (MFSFormats): File format to prefer when reading
                 and writing data. Defaults to ``"nc"`` (NetCDF).
             verbose (bool): If ``True``, print progress and diagnostic messages.
                 Defaults to ``True``.
-            enable_dict_loading (bool): If ``True``, allow loading data from
-                dictionary-backed sources in addition to files. Defaults to
-                ``False``.
         """
         self.saving_strategy = saving_strategy
         self._start_time = start_time
         self._end_time = end_time
         self._preferred_ext = preferred_extension
         self._verbose = verbose
-        self._enable_dict_loading = enable_dict_loading
 
         if not isinstance(self.saving_strategy.data_standard, PRBEMStandard):
             msg = f"PRBEMDataSet requires a saving strategy with  `PRBEMStandard`, but got {type(self.saving_strategy.data_standard).__name__}"  # noqa: E501
@@ -233,5 +218,4 @@ class PRBEMDataSet(DataSet):
             self._end_time,
             self._preferred_ext,
             verbose=self._verbose,
-            enable_dict_loading=self._enable_dict_loading,
         )

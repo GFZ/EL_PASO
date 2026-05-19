@@ -17,7 +17,7 @@ import el_paso as ep
 rng = np.random.default_rng(1337)
 
 
-@pytest.mark.parametrize("file_format", [".mat", ".pickle", ".h5"])
+@pytest.mark.parametrize("file_format", [".mat", ".h5", ".nc", ".cdf"])
 @pytest.mark.basic
 def test_basic_single_file_strategy(tmp_path: Path, file_format: str) -> None:
     variables_to_save: dict[ep.typing.InternalName, Any] = {
@@ -36,3 +36,5 @@ def test_basic_single_file_strategy(tmp_path: Path, file_format: str) -> None:
     )
 
     assert save_path.exists()
+
+    print(save_path)
