@@ -14,7 +14,7 @@ from astropy import units as u
 import el_paso as ep
 
 # Define a common reference time point
-REF_DATETIME = datetime(2023, 10, 27, 10, 0, 0, tzinfo=timezone.utc)
+REF_DATETIME = datetime(2023, 10, 27, 10, 0, 0, 99999, tzinfo=timezone.utc)
 
 # Create Astropy quantities for the reference time in each unit
 REF_POSIXTIME_QUANTITY = u.Quantity(REF_DATETIME.timestamp(), ep.units.posixtime)

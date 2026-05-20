@@ -151,7 +151,7 @@ def test_dataset_equality_rejects_data_saved_with_different_standards(tmp_path: 
 
 @pytest.mark.basic
 @pytest.mark.parametrize("file_format", ["nc", "h5", "cdf", "mat"])
-@pytest.mark.parametrize("data_standard", [ep.data_standards.GFZStandard, ep.data_standards.PRBEMStandard])
+@pytest.mark.parametrize("data_standard", [ep.data_standards.PRBEMStandard, ep.data_standards.GFZStandard])
 def test_dataset_equality_accepts_data_saved_with_different_strategies_but_same_standards(
     tmp_path: Path, file_format: MFSFormats, data_standard: type[DataStandard]
 ) -> None:
@@ -159,16 +159,15 @@ def test_dataset_equality_accepts_data_saved_with_different_strategies_but_same_
     start_time = datetime(2013, 1, 1, tzinfo=timezone.utc)
     end_time = datetime(2013, 1, 2, tzinfo=timezone.utc)
 
-    gfz_strategy = ep.saving_strategies.MonthlyFileStrategy(
+    gfz_strategy = ep.saving_strategies.GFZStrategy(
         base_data_path=tmp_path / "gfz",
         mission="GOES",
         satellite="primary",
         instrument="MAGED",
         mag_field="T89",
-        file_format=file_format,
         data_standard=data_standard(),
     )
-    prbem_strategy = ep.saving_strategies.MonthlyFileStrategy(
+    mfs_strategy = ep.saving_strategies.MonthlyFileStrategy(
         base_data_path=tmp_path / "prbem",
         mission="GOES",
         satellite="primary",
@@ -178,7 +177,7 @@ def test_dataset_equality_accepts_data_saved_with_different_strategies_but_same_
         data_standard=data_standard(),
     )
 
-    for strategy in (gfz_strategy, prbem_strategy):
+    for strategy in (gfz_strategy, mfs_strategy):
         ep.save(
             variables,
             strategy,
@@ -196,18 +195,20 @@ def test_dataset_equality_accepts_data_saved_with_different_strategies_but_same_
         preferred_extension=file_format,
         verbose=False,
     )
-    prbem_strategy_dataset = DataSet(
-        saving_strategy=prbem_strategy,
+    mfs_strategy_dataset = DataSet(
+        saving_strategy=mfs_strategy,
         start_time=start_time,
         end_time=end_time,
         preferred_extension=file_format,
         verbose=False,
     )
 
+    assert gfz_strategy_dataset.datetime == mfs_strategy_dataset.datetime
+
     gfz_strategy_dataset.load(gfz_strategy.data_standard.get_standard_name("FEDU"))
-    prbem_strategy_dataset.load(prbem_strategy.data_standard.get_standard_name("FEDU"))
+    mfs_strategy_dataset.load(mfs_strategy.data_standard.get_standard_name("FEDU"))
 
     assert gfz_strategy.data_standard.get_standard_name("FEDU") in gfz_strategy_dataset.get_loaded_variables()
-    assert prbem_strategy.data_standard.get_standard_name("FEDU") in prbem_strategy_dataset.get_loaded_variables()
-    assert gfz_strategy_dataset == prbem_strategy_dataset
-    gfz_strategy_dataset.assert_equal(prbem_strategy_dataset)
+    assert mfs_strategy.data_standard.get_standard_name("FEDU") in mfs_strategy_dataset.get_loaded_variables()
+    gfz_strategy_dataset.assert_equal(mfs_strategy_dataset)
+    assert gfz_strategy_dataset == mfs_strategy_dataset
