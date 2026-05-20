@@ -25,9 +25,12 @@ ignore = [
     "C901",
     "PLR0912",
     "PLR0915",
-    "PLR2004"
+    "PLR2004",
+    "D105",
+    "N802",
+    "N999",
 ]
-exclude = ["*.ipynb", "IRBEM/*", "setup.py"]
+exclude = ["*.ipynb", "setup.py", "el_paso/recipes/*"]
 
 [lint.pydocstyle]
 convention = "google"

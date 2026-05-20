@@ -112,7 +112,7 @@ class DataSet:
             ".cdf": ep.utils.load_cdf_data,
         }
 
-    def __repr__(self) -> str:  # noqa: D105
+    def __repr__(self) -> str:
         cls = type(self)
 
         constructor_params = inspect.signature(cls.__init__).parameters
@@ -129,7 +129,7 @@ class DataSet:
 
         return f"{cls.__name__}({', '.join(args)})"
 
-    def __setattr__(self, name: str, value: object) -> None:  # noqa: D105
+    def __setattr__(self, name: str, value: object) -> None:
         if name.startswith("_"):
             object.__setattr__(self, name, value)
             return
@@ -152,10 +152,10 @@ class DataSet:
 
         raise AttributeError(msg)
 
-    def __str__(self) -> str:  # noqa: D105
+    def __str__(self) -> str:
         return self.__repr__()
 
-    def __getattr__(self, name: str) -> NDArray[np.float64]:  # noqa: D105
+    def __getattr__(self, name: str) -> NDArray[np.float64]:
         # Avoid recursion for internal attributes
         if name.startswith("_"):
             msg = f"'{self.__class__.__name__}' object has no attribute '{name}'"
@@ -344,7 +344,7 @@ class DataSet:
             str(var) for var in different_vars
         )
 
-    def __eq__(self, other: object) -> bool:  # noqa: D105
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, DataSet):
             msg = f"Cannot compare DataSet with object of type {type(other)}"
             logger.error(msg)

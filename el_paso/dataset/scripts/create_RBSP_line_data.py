@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Iterable, Literal, Optional  # noqa: UP035
 
 import numpy as np
+from swvo.io.RBMDataSet import RBMDataSet
 
 from el_paso.dataset.interp_functions import TargetType
 
@@ -48,8 +49,8 @@ def create_RBSP_line_data(
         target_al (float | Iterable[float]): Target local pitch angle or iterable of local pitch angles in degrees.
         target_type (TargetType | Literal["TargetPairs", "TargetMeshGrid"]): Strategy used to combine energy and pitch
                         angle targets.
-        energy_offset_threshold (float, optional): Maximum allowed relative energy offset between requested and available
-                        energies. Defaults to ``0.1``.
+        energy_offset_threshold (float, optional): Maximum allowed relative energy offset between requested and \
+                        available energies. Defaults to ``0.1``.
         instruments (Optional[list[str]], optional): Instruments to include in the processing. If ``None``,
                         defaults to ``["HOPE", "MAGEIS", "REPT"]``.
         satellites (Optional[list[str]], optional): RBSP satellites to use.
@@ -68,7 +69,7 @@ def create_RBSP_line_data(
         FileNotFoundError: If required RBSP data files cannot be found.
         RuntimeError: If no valid datasets could be created for the requested interval.
     """
-    # Instruments represents also the priority of the instrument for overlapping energies. The first instrument will be prefered.
+    # Instruments represents also the priority of the instrument for overlapping energies. The first instrument will be prefered.  # noqa: E501
 
     instruments = instruments or ["HOPE", "MAGEIS", "REPT"]
     satellites = satellites or ["RBSPA", "RBSPB"]
@@ -119,20 +120,18 @@ def create_RBSP_line_data(
 
         for e, target_en_single in enumerate(target_en):
             if verbose:
-                print(f"Energy offset for target [{e}] ({target_en_single:.2e} MeV):")
+                pass
 
             energy_offsets = np.empty((len(instruments),))
 
-            for i, instrument in enumerate(instruments):
+            for i, _instrument in enumerate(instruments):
                 energy_offsets[i] = np.nanmin(
                     np.abs(rbm_data[i].energy_channels_no_time - target_en_single),
                     axis=None,
                 )
 
                 if verbose:
-                    print(
-                        f"\t{instrument.name}:\tabsolute: {energy_offsets[i]:.2e}, \trelative: {energy_offsets[i] / target_en_single:.2e}"
-                    )
+                    pass
 
                 # initiate the RBMDataSet for the result
                 if e == 0 and i == 0:
@@ -155,17 +154,15 @@ def create_RBSP_line_data(
 
             energy_offsets_relative = energy_offsets / target_en_single
             if np.all(np.abs(energy_offsets_relative) > energy_offset_threshold):
-                raise ValueError(
-                    f"For the given energy target ({target_en_single:.2e} MeV), no suitable energy channel was found for a threshold of {energy_offset_threshold:.02f}!"
-                )
+                msg = f"For the given energy target ({target_en_single:.2e} MeV), no suitable energy channel"
+                "was found for a threshold of {energy_offset_threshold:.02f}!"
+                raise ValueError(msg)
 
             min_offset_instrument = np.argmax(np.abs(energy_offsets_relative) <= energy_offset_threshold)
             list_instruments_used.append(instruments[min_offset_instrument])
 
             if verbose:
-                print(
-                    f"Choosing {instruments[min_offset_instrument].value} with an offset of {energy_offsets_relative[min_offset_instrument] * 100:.1f}%\n"
-                )
+                pass
 
             closest_en_idx = np.nanargmin(
                 np.abs(rbm_data[min_offset_instrument].energy_channels_no_time - target_en_single)

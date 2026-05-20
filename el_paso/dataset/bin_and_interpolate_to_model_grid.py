@@ -6,21 +6,26 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from datetime import datetime
 from functools import partial
 from multiprocessing import Pool
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 from icecream import ic
 from matplotlib import pyplot as plt
-from numpy.typing import NDArray
-from swvo.io.RBMDataSet import RBMDataSet
 from tqdm import tqdm
 
+if TYPE_CHECKING:
+    from datetime import datetime
 
-def bin_and_interpolate_to_model_grid(
+    from numpy.typing import NDArray
+    from swvo.io.RBMDataSet import RBMDataSet
+
+# TODO(SJ or BH): fix the RBMDataSet  # noqa: FIX002, TD003
+
+
+def bin_and_interpolate_to_model_grid(  # noqa: D103
     self: RBMDataSet,
     sim_time: list[datetime],
     grid_R: NDArray[np.float64],
@@ -172,8 +177,6 @@ def _bin_in_space(
     grid_R: NDArray[np.float64],
     grid_P: NDArray[np.float64] | None = None,
 ) -> NDArray[np.float64]:
-    print("\tBin in space...")
-
     if grid_P is not None:
         grid_P_1d = grid_P[:, 0, 0, 0]
         grid_R_1d = grid_R[0, :, 0, 0]
@@ -252,10 +255,6 @@ def _bin_in_space(
             number_of_observations[it, 0, r_idx, :, :] += np.where(np.isnan(psd_in[it, :, :]), 0, 1)
             psd_binned[it, 0, r_idx, :, :] += np.where(np.isnan(psd_in[it, :, :]), 0, np.log10(psd_in[it, :, :]))
 
-        # # ic(number_of_observations[it, :, :, 0, 0])
-        # ic(np.power(10, np.nanmax(psd_binned[it, :, :, 0, 0])))
-        # ic(np.power(10, np.nanmax(psd_binned[it, :, :, 0, 0] / number_of_observations[it, :, :, 0, 0])))
-
     psd_binned = np.where(psd_binned == 0, np.nan, psd_binned)
 
     return np.power(10, psd_binned / number_of_observations)
@@ -268,8 +267,6 @@ def _interpolate_in_V_K(
     grid_V: NDArray[np.float64],
     grid_K: NDArray[np.float64],
 ) -> NDArray[np.float64]:
-    print("\tInterpolate in V and K...")
-
     grid_K_1d = grid_K[0, 0, 0, :]
 
     func = partial(_parallel_func_VK, grid_K_1d, grid_V, K_data, V_data, psd_in)
@@ -396,14 +393,14 @@ def _parallel_func_VK(
 
 
 @dataclass
-class DebugPlotSettings:
+class DebugPlotSettings:  # noqa: D101
     folder_path: Path
     satellite_name: str
-    target_V: float | None = None
-    target_K: float | None = None
+    target_V: float | None = None  # noqa: N815
+    target_K: float | None = None  # noqa: N815
 
 
-def plot_debug_figures_plasmasphere(
+def plot_debug_figures_plasmasphere(  # noqa: D103
     data_set: RBMDataSet,
     psd_binned: NDArray[np.float64],
     sim_time: NDArray[np.object_],
@@ -411,8 +408,6 @@ def plot_debug_figures_plasmasphere(
     grid_R: NDArray[np.float64],
     debug_plot_settings: DebugPlotSettings,
 ) -> None:
-    print("\tPlot debug features...")
-
     dt = sim_time[1] - sim_time[0]
 
     fig = plt.figure(figsize=(19.20, 8))
@@ -423,17 +418,11 @@ def plot_debug_figures_plasmasphere(
     for it, sim_time_curr in enumerate(tqdm(sim_time)):
         sat_time_idx = np.argwhere(np.abs(np.asarray(data_set.datetime) - sim_time_curr) <= dt / 2)
 
-        # R_idx = np.argwhere(np.abs(grid_R[0, :, 0, 0] - R_or_Lstar_arr[sat_time_idx]))
-
         ax0 = fig.add_subplot(121, projection="polar")
         ax1 = fig.add_subplot(122)
 
         # plot satellite trajectory on PxR grid
-        # [x_sat, y_sat] = pol2cart(self.P, self.R)
-
-        # ic(data_set.P[sat_time_idx])
-        # ic(R_or_Lstar_arr[sat_time_idx])
-
+        # [x_sat, y_sat] = pol2cart(self.P, self.R)  # noqa: ERA001
         ax0.scatter(
             data_set.P[sat_time_idx],
             R_or_Lstar_arr[sat_time_idx],
@@ -472,15 +461,13 @@ def plot_debug_figures_plasmasphere(
 
         fig.savefig(Path(debug_plot_settings.folder_path) / f"{debug_plot_settings.satellite_name}_{sim_time_curr}.png")
 
-        # ic(np.log10(psd_binned[it,:,:,V_idx,K_idx]))
-
         fig.clf()
 
         if np.any(data_set.P[sat_time_idx] < 0.1):
             ic(psd_binned[it, 0, :, :, :])
 
 
-def plot_debug_figures(
+def plot_debug_figures(  # noqa: D103
     data_set: RBMDataSet,
     psd_binned: NDArray[np.float64],
     sim_time: NDArray[np.object_],
@@ -491,8 +478,6 @@ def plot_debug_figures(
     mu_or_V: Literal["Mu", "V"],
     debug_plot_settings: DebugPlotSettings,
 ) -> None:
-    print("\tPlot debug features...")
-
     dt = sim_time[1] - sim_time[0]
 
     fig = plt.figure(figsize=(19.20, 5))
@@ -525,7 +510,7 @@ def plot_debug_figures(
         ax2 = fig.add_subplot(133)
 
         # plot satellite trajectory on PxR grid
-        # [x_sat, y_sat] = pol2cart(self.P, self.R)
+        # [x_sat, y_sat] = pol2cart(self.P, self.R)  # noqa: ERA001
 
         ax0.scatter(
             data_set.P[sat_time_idx],
@@ -608,7 +593,6 @@ def plot_debug_figures(
             fig.colorbar(pc, ax=ax2)
         else:
             grid_X, grid_Y = np.meshgrid(sim_time, grid_R[0, :, 0, 0])
-            print(np.log10(psd_binned[:, 0, :, V_idx, K_idx]))
             pc = ax2.pcolormesh(
                 grid_X,
                 grid_Y,
@@ -628,7 +612,5 @@ def plot_debug_figures(
             fig.colorbar(pc, ax=ax2)
 
         fig.savefig(Path(debug_plot_settings.folder_path) / f"{debug_plot_settings.satellite_name}_{sim_time_curr}.png")
-
-        # ic(np.log10(psd_binned[it,:,:,V_idx,K_idx]))
 
         fig.clf()

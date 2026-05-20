@@ -394,7 +394,7 @@ def _get_invariant_mu(
 
 
 @timed_function("Invariant K calculation")
-def _get_invariant_K(  # noqa: N802
+def _get_invariant_K(
     xgeo_var: Variable,
     time_var: Variable,
     pa_local_var: Variable,

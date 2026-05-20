@@ -109,10 +109,10 @@ class SingleFileStrategy(SavingStrategy):
         if format_writers:
             self._writers.update(format_writers)
 
-    def get_file_path_stem(self):
+    def get_file_path_stem(self) -> None:  # ty:ignore[invalid-method-override]
         pass
 
-    def get_file_name_stem(self):
+    def get_file_name_stem(self) -> None:  # ty:ignore[invalid-method-override]
         pass
 
     def get_time_intervals_to_save(self, start_time: datetime, end_time: datetime) -> list[tuple[datetime, datetime]]:

@@ -3,7 +3,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-# ruff: noqa: N999
 
 import numpy as np
 from astropy import units as u  # type: ignore[reportMissingTypeStubs]
@@ -11,7 +10,7 @@ from astropy import units as u  # type: ignore[reportMissingTypeStubs]
 import el_paso as ep
 
 
-def compute_invariant_K(  # noqa: N802
+def compute_invariant_K(
     bmirr: ep.Variable,
     xj: ep.Variable,
 ) -> ep.Variable:

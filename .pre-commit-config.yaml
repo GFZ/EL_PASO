@@ -20,12 +20,6 @@ repos:
     hooks:
       - id: reuse
 
-  - repo: https://github.com/northisup/pyright-pretty
-    rev: v0.1.0
-    hooks:
-      - id: pyright-pretty
-        files: el_paso/.*
-
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.13.0
     hooks:
