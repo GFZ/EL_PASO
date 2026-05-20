@@ -8,13 +8,14 @@
 
 from __future__ import annotations
 
-import datetime as dt
 import inspect
 import logging
+from datetime import timezone
 from typing import TYPE_CHECKING, Any, cast
 
 import distance
 import numpy as np
+from astropy.time import Time
 from swvo.io.utils import enforce_utc_timezone
 
 import el_paso as ep
@@ -24,6 +25,8 @@ from el_paso.dataset.utils import (
 )
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from numpy.typing import NDArray
 
     from el_paso.typing import (
@@ -64,8 +67,8 @@ class DataSet:
     def __init__(
         self,
         saving_strategy: SavingStrategy,
-        start_time: dt.datetime,
-        end_time: dt.datetime,
+        start_time: datetime,
+        end_time: datetime,
         preferred_extension: MFSFormats = "nc",
         *,
         verbose: bool = True,
@@ -77,8 +80,8 @@ class DataSet:
 
         Args:
             saving_strategy (SavingStrategy): Instance of the saving strategy used to save the data.
-            start_time (dt.datetime): Beginning of the time range to load.
-            end_time (dt.datetime): End of the time range to load.
+            start_time (datetime): Beginning of the time range to load.
+            end_time (datetime): End of the time range to load.
             preferred_extension (MFSFormats): File format to prefer when reading
                 and writing data. Defaults to ``"nc"`` (NetCDF).
             verbose (bool): If ``True``, print progress and diagnostic messages.
@@ -246,6 +249,7 @@ class DataSet:
 
         output_file = self.saving_strategy.get_output_file(standard_name=requested_name)  # ty:ignore[invalid-argument-type]
 
+        # useful when using GFZStrategy, when multiple files are there.
         if requested_name == "datetime" and output_file is None:
             time_key = self.saving_strategy.data_standard.get_standard_name("Epoch")
             output_file = next(
@@ -279,13 +283,11 @@ class DataSet:
             # 4. Process Datetimes
             raw_times = file_content[time_key]
 
-            if self.saving_strategy.data_standard.variable_infos["Epoch"].unit == ep.units.posixtime:
-                datetimes = np.asarray(
-                    [dt.datetime.fromtimestamp(t.astype(np.int64), tz=dt.timezone.utc) for t in raw_times]
-                )
-            elif self.saving_strategy.data_standard.variable_infos["Epoch"].unit == ep.units.datenum:
-                # Matlab logic
-                datetimes = np.asarray([matlab2python(t) for t in raw_times])
+            time_unit = self.saving_strategy.data_standard.variable_infos["Epoch"].unit
+
+            posix_times = (raw_times * time_unit).to_value(ep.units.posixtime)
+            times = Time(posix_times, format="unix", scale="utc")
+            datetimes = times.to_datetime(timezone=timezone.utc)
 
             file_content["datetime"] = datetimes  # ty:ignore[invalid-assignment]
             correct_time_idx = (datetimes >= self._start_time) & (datetimes <= self._end_time)
@@ -330,8 +332,8 @@ class DataSet:
             f"{self.saving_strategy.data_standard!r} != {other.saving_strategy.data_standard!r}"
         )
 
-        self_standard_names = self.saving_strategy.get_all_standard_names()
-        other_standard_names = other.saving_strategy.get_all_standard_names()
+        self_standard_names = sorted(self.saving_strategy.get_all_standard_names())
+        other_standard_names = sorted(other.saving_strategy.get_all_standard_names())
 
         assert self_standard_names == other_standard_names, (
             f"Standard names in saving strategies are different:\n{self_standard_names!r}!={other_standard_names!r}"

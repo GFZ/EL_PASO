@@ -51,7 +51,12 @@ def posixtime_to_datenum(posixtime_array: NDArray[np.floating]) -> NDArray[np.fl
     matlab_datenum_offset = 366  # Difference between MATLAB's and Python's reference dates
     return np.array(
         [
-            dt.toordinal() + dt.hour / 24 + dt.minute / 1440 + dt.second / 86400 + matlab_datenum_offset
+            dt.toordinal()
+            + dt.hour / 24
+            + dt.minute / 1440
+            + dt.second / 86400
+            + dt.microsecond / 86400000000
+            + matlab_datenum_offset
             for dt in dt_array
         ]
     )
