@@ -16,7 +16,7 @@ def _compute_pitch_angles_for_telescopes(
     tele_alpha_angles: NDArray[np.floating],
     tele_beta_angles: NDArray[np.floating],
 ) -> NDArray[np.floating]:
-    if b_tele_aligned.shape[1] != 3:  # noqa: PLR2004
+    if b_tele_aligned.shape[1] != 3:
         msg = "Magnetic field input must be a vector with 3 components!"
         raise ValueError(msg)
 

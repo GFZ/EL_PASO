@@ -159,7 +159,7 @@ def _construct_file_list(
     return file_paths, time_intervals
 
 
-def _extract_data_from_files(  # noqa: C901, PLR0912
+def _extract_data_from_files(
     files_list: list[Path],
     extraction_infos: Iterable[ExtractionInfo],
     pd_read_csv_kwargs: dict[str, Any] | None,

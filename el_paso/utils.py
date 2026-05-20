@@ -4,8 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
-import calendar
 
+import calendar
 import logging
 import re
 import time
@@ -260,12 +260,12 @@ def show_process_bar_for_map_async(map_result: MapResult[Any], chunksize: int) -
         map_result (MapResult): The result object from `Pool.map_async()`.
         chunksize (int): The chunk size used in the `map_async` call.
     """
-    init = cast("int", map_result._number_left) * chunksize  # noqa: SLF001 # ty:ignore[unresolved-attribute]
+    init = cast("int", map_result._number_left) * chunksize  # ty:ignore[unresolved-attribute]
     with tqdm.tqdm(total=init) as t:
         while True:
             if map_result.ready():
                 break
-            t.n = init - map_result._number_left * chunksize  # noqa: SLF001  # ty:ignore[unresolved-attribute]
+            t.n = init - map_result._number_left * chunksize  # ty:ignore[unresolved-attribute]
             t.refresh()
             time.sleep(1)
 
@@ -436,7 +436,7 @@ def write_mat_file(file_path: Path, data_dict: DataDict, data_standard: DataStan
         mat_var_name = path.replace("/", "__")
 
         value_to_write = value
-        if isinstance(value, np.ndarray) and value.ndim == 2 and value.shape[1] == 1:  # noqa: PLR2004
+        if isinstance(value, np.ndarray) and value.ndim == 2 and value.shape[1] == 1:
             value_to_write = value.reshape(-1)
 
         mat_dict[mat_var_name] = value_to_write
@@ -480,7 +480,7 @@ def write_h5_file(file_path: Path, data_dict: SavedDataDict, data_standard: Data
 
             # Normalize 2D arrays with shape (n, 1) back to 1D for consistency with other formats
             value_to_write = value
-            if isinstance(value, np.ndarray) and value.ndim == 2 and value.shape[1] == 1:  # noqa: PLR2004
+            if isinstance(value, np.ndarray) and value.ndim == 2 and value.shape[1] == 1:
                 value_to_write = value.reshape(-1)
 
             data_set = curr_hierarchy.create_dataset(
@@ -534,7 +534,7 @@ def _write_data_to_netcdf_file(file: nC.Dataset | nC.Group, data_dict: DataDict,
         )
 
         value_to_write = value_array
-        if len(dimensions) == 1 and value_array.ndim == 2 and value_array.shape[1] == 1:  # noqa: PLR2004
+        if len(dimensions) == 1 and value_array.ndim == 2 and value_array.shape[1] == 1:
             value_to_write = value_array.reshape(-1)
 
         if len(dimensions) == 0:
@@ -624,7 +624,7 @@ def _is_empty_cdf_attribute(value: Any) -> bool:  # noqa: ANN401
     return getattr(value, "size", None) == 0
 
 
-def write_cdf_file(file_path: Path, data_dict: DataDict, data_standard: DataStandard) -> None:  # noqa: C901, PLR0912, PLR0915
+def write_cdf_file(file_path: Path, data_dict: DataDict, data_standard: DataStandard) -> None:
     """Write a CDF file, resolving standard variable paths and embedding metadata."""
     try:
         cdf_file = cdflib.cdfwrite.CDF(str(file_path), delete=True)
@@ -643,7 +643,7 @@ def write_cdf_file(file_path: Path, data_dict: DataDict, data_standard: DataStan
                 path = data_standard.get_standard_name(internal_name)
                 cdf_var_name = path
                 value_to_write = var_data
-                if isinstance(var_data, np.ndarray) and var_data.ndim == 2 and var_data.shape[1] == 1:  # noqa: PLR2004
+                if isinstance(var_data, np.ndarray) and var_data.ndim == 2 and var_data.shape[1] == 1:
                     value_to_write = var_data.reshape(-1)
 
                 var_data_array = np.asarray(value_to_write)

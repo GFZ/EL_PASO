@@ -13,7 +13,7 @@ from el_paso.physics import ParticleLiteral, en2pc, rest_energy
 def compute_invariant_mu(
     energy_var: ep.Variable,
     alpha_local_var: ep.Variable,
-    B_local_var: ep.Variable,  # noqa: N803
+    B_local_var: ep.Variable,
     particle_species: ParticleLiteral,
 ) -> ep.Variable:
     r"""Computes the first adiabatic invariant (mu) for given particle species.
@@ -52,7 +52,7 @@ def compute_invariant_mu(
     alpha_local = alpha_local_var.get_data(u.radian)
     magnetic_field = B_local_var.get_data(u.G)
 
-    if energy.ndim != 2 or alpha_local.ndim != 2 or magnetic_field.ndim != 1:  # noqa: PLR2004
+    if energy.ndim != 2 or alpha_local.ndim != 2 or magnetic_field.ndim != 1:
         msg = (
             "Input variables must have the correct dimensions: energy (2D), alpha_local (2D), and magnetic_field (1D)."
         )

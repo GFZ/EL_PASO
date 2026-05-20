@@ -16,9 +16,8 @@ import numpy as np
 from icecream import ic
 from matplotlib import pyplot as plt
 from numpy.typing import NDArray
-from tqdm import tqdm
-
 from swvo.io.RBMDataSet import RBMDataSet
+from tqdm import tqdm
 
 
 def bin_and_interpolate_to_model_grid(

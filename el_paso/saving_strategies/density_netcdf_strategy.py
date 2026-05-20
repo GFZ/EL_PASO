@@ -6,13 +6,14 @@
 
 from __future__ import annotations
 
-import typing
-from typing import Literal
+import logging
+from typing import TYPE_CHECKING, Literal, Optional
 
+from el_paso.data_standards import PRBEMStandard
 from el_paso.saving_strategies.monthly_strategy import MonthlyFileStrategy
 from el_paso.saving_strategy import OutputFile
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from pathlib import Path
 
     import numpy as np
@@ -20,6 +21,9 @@ if typing.TYPE_CHECKING:
     import el_paso as ep
     from el_paso.data_standard import DataStandard
     from el_paso.processing.magnetic_field_utils import MagneticFieldLiteral
+    from el_paso.typing import StandardName
+
+logger = logging.getLogger(__name__)
 
 
 class DensityNetCDFStrategy(MonthlyFileStrategy):
@@ -47,10 +51,11 @@ class DensityNetCDFStrategy(MonthlyFileStrategy):
     def __init__(
         self,
         base_data_path: str | Path,
-        file_name_stem: str,
+        mission: str,
+        instrument: str,
         mag_field: MagneticFieldLiteral,
         satellite: Literal["RBSP", "Other"] = "Other",
-        data_standard: DataStandard | None = None,
+        data_standard: Optional[DataStandard[StandardName]] = None,
     ) -> None:
         """Initializes the monthly NetCDF saving strategy.
 
@@ -68,10 +73,13 @@ class DensityNetCDFStrategy(MonthlyFileStrategy):
                 If `None`, `ep.data_standards.PRBEMStandard` is used by default.
         """
         self.mag_field = mag_field
+        self.data_standard = data_standard or PRBEMStandard()
 
         super().__init__(
             base_data_path=base_data_path,
-            file_name_stem=file_name_stem,
+            satellite=satellite,
+            mission=mission,
+            instrument=instrument,
             mag_field=self.mag_field,
             file_format="nc",
             data_standard=data_standard,
@@ -154,6 +162,6 @@ class DensityNetCDFStrategy(MonthlyFileStrategy):
         Returns:
             ep.Variable: The standardized variable.
         """
-        return self.standard.standardize_variable(
+        return self.data_standard.standardize_variable(
             name_in_file, variable, reset_consistency_check=first_call_of_interval
         )

@@ -21,7 +21,6 @@ from swvo.io.utils import enforce_utc_timezone
 import el_paso as ep
 from el_paso.dataset.utils import (
     join_var,
-    matlab2python,
 )
 
 if TYPE_CHECKING:

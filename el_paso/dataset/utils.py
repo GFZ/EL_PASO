@@ -24,7 +24,7 @@ def join_var(var1: NDArray[np.generic], var2: NDArray[np.generic]) -> NDArray[np
 
 def round_seconds(obj: datetime) -> datetime:
     """Round datetime object to the nearest second."""
-    if obj.microsecond >= 500_000:  # noqa: PLR2004
+    if obj.microsecond >= 500_000:
         obj += timedelta(seconds=1)
     return obj.replace(microsecond=0)
 

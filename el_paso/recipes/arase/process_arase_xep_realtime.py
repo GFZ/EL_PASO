@@ -134,7 +134,6 @@ def process_arase_xep_real_time(
     )
 
     if save_strategy in ("dataorg", "both"):
-
         variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
             "Epoch": binned_time_var,
             "FEDU": FEDU_var,
@@ -148,7 +147,7 @@ def process_arase_xep_real_time(
             "B_Eq": magnetic_field_variables["B_eq_T89"],
             "PSD": psd_var,
             "InvMu": magnetic_field_variables["invMu_T89"],
-            "InvK":  magnetic_field_variables["invK_T89"],
+            "InvK": magnetic_field_variables["invK_T89"],
             "Position": variables_combined["xGEO"],
         }
 
@@ -170,7 +169,6 @@ def process_arase_xep_real_time(
         )
 
     if save_strategy in ("netcdf", "both"):
-
         saving_strategy = ep.saving_strategies.MonthlyFileStrategy(
             base_data_path=Path(processed_data_path),
             mission="Arase",

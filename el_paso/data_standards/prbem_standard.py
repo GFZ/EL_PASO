@@ -36,19 +36,19 @@ class PRBEMStandard(DataStandard[PRBEMName]):
                 dependencies=["Epoch", "Energy_FEDU", "Alpha"],
             ),
             "Alpha": VariableInfo[PRBEMName](
-                "Alpha", "Local pitch angle the instrument is looking at", u.deg, dependencies=["Epoch","Alpha"]
+                "Alpha", "Local pitch angle the instrument is looking at", u.deg, dependencies=["Epoch", "Alpha"]
             ),
             "Alpha_Eq": VariableInfo[PRBEMName](
                 "Alpha_Eq",
                 "Computed equatorial pitch angle the instrument is looking from Alpha, B_Calc and B_Eq",
                 u.deg,
-                dependencies=["Epoch","Alpha"],
+                dependencies=["Epoch", "Alpha"],
             ),
             "Energy_FEDU": VariableInfo[PRBEMName](
                 "Energy_FEDU",
                 "Central energy of unidirectional differential electron flux",
                 u.MeV,
-                dependencies=["Epoch","Energy_FEDU"],
+                dependencies=["Epoch", "Energy_FEDU"],
             ),
             "Position": VariableInfo[PRBEMName](
                 "Position",
@@ -95,7 +95,5 @@ class PRBEMStandard(DataStandard[PRBEMName]):
                 (u.m * u.kg * u.m / u.s) ** (-3),
                 ["Epoch", "Energy_FEDU", "Alpha"],
             ),
-            "MLT": VariableInfo[PRBEMName](
-                "MLT", "Magnetic local time at the satellite location.", u.hour, ["Epoch"]
-            ),
+            "MLT": VariableInfo[PRBEMName]("MLT", "Magnetic local time at the satellite location.", u.hour, ["Epoch"]),
         }

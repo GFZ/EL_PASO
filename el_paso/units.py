@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 import cdflib
 import numpy as np
 from astropy import units as u
-from astropy.constants import R_earth  # type:ignore [reportAttributeAccessIssue]
+from astropy.constants import R_earth  # ty:ignore[unresolved-import]
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -77,7 +77,7 @@ def datenum_to_posixtime(datenum_array: NDArray[np.floating]) -> NDArray[np.floa
 def tt2000_to_datenum(tt2000_val: NDArray[np.floating]) -> NDArray[np.floating]:
     """Converts tt2000 nanoseconds to MATLAB datenum days via POSIX time."""
     posix_val = cdflib.cdfepoch.unixtime(tt2000_val.astype(np.int64))
-    return posixtime_to_datenum(posix_val)  # type: ignore[reportArgumentType]
+    return posixtime_to_datenum(posix_val)  # ty:ignore[invalid-argument-type]
 
 
 def datenum_to_tt2000(datenum_val: NDArray[np.floating]) -> NDArray[np.floating]:

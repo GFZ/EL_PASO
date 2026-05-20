@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import logging
 import sys
-import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
@@ -23,7 +22,6 @@ from el_paso.recipes.arase.get_arase_orbit_variables import get_arase_orbit_leve
 def process_arase_pwe_density(
     start_time: datetime,
     end_time: datetime,
-    irbem_lib_path: str | Path,
     mag_field: Literal["T89", "TS04", "OP77Q"],
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
@@ -33,7 +31,6 @@ def process_arase_pwe_density(
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     logging.getLogger().setLevel(logging.INFO)
 
-    irbem_lib_path = Path(irbem_lib_path)
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
 
@@ -105,7 +102,7 @@ def process_arase_pwe_density(
 
     datetimes = [datetime.fromtimestamp(t, tz=timezone.utc) for t in binned_time_variable.get_data(ep.units.posixtime)]
 
-    geo_data = Coords(lib_path=irbem_lib_path).transform(
+    geo_data = Coords().transform(
         time=datetimes,
         pos=orb_variables["pos_sm"].get_data().astype(np.float64),
         sysaxes_in=ep.IRBEM_SYSAXIS_SM,
@@ -125,7 +122,6 @@ def process_arase_pwe_density(
         time_var=binned_time_variable,
         xgeo_var=pos_geo_var,
         variables_to_compute=variables_to_compute,
-        irbem_lib_path=str(irbem_lib_path),
         irbem_options=irbem_options,
         num_cores=num_cores,
     )
@@ -136,7 +132,9 @@ def process_arase_pwe_density(
 
     saving_strategy = ep.saving_strategies.DensityNetCDFStrategy(
         base_data_path=processed_data_path,
-        file_name_stem="arase_pwe_density",
+        mission="Arase",
+        satellite="Other",
+        instrument="PWE",
         mag_field=mag_field,
     )
 
@@ -150,20 +148,21 @@ def process_arase_pwe_density(
         "xGEO_eq": magnetic_field_variables["xGEO_eq_" + mag_field],
     }
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)  # ty:ignore[invalid-argument-type]
 
 
 if __name__ == "__main__":
     start_time = datetime(2017, 9, 1, tzinfo=timezone.utc)
-    end_time = datetime(2017, 9, 30, 23, 59, tzinfo=timezone.utc)
+    end_time = datetime(2017, 9, 1, 23, 59, tzinfo=timezone.utc)
 
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        process_arase_pwe_density(
-            start_time,
-            end_time,
-            "../../libirbem.so",
-            "T89",
-            raw_data_path=".",
-            processed_data_path=".",
-            num_cores=32,
-        )
+    import os
+
+    print(os.getcwd())
+    process_arase_pwe_density(
+        start_time,
+        end_time,
+        "T89",
+        raw_data_path="./data",
+        processed_data_path="./data",
+        num_cores=32,
+    )

@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-# ruff: noqa: N802, N806
+# ruff: noqa: N802
 
 import logging
 from dataclasses import dataclass

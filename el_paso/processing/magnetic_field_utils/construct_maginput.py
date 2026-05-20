@@ -104,7 +104,7 @@ def construct_maginput(
     end_time = datetime.fromtimestamp(time[-1], tz=timezone.utc)
 
     if indices_solar_wind is None:
-        indices_solar_wind: dict[SW_Index, ep.Variable] = {}
+        indices_solar_wind = {}
 
     kext = magnetic_field.kext()
 

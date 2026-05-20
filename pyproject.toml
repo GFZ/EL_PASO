@@ -73,5 +73,8 @@ push = true
 "el_paso/__init__.py" = ['__version__ = "{version}"']
 
 [tool.ty.src]
-exclude = ["el_paso/saving_strategies/density_netcdf_strategy.py"]
+exclude = [
+    "el_paso/saving_strategies/density_netcdf_strategy.py",
+    "el_paso/dataset/scripts/create_RBSP_line_data.py",
+]
 include = ["el_paso/**/*.py", "tests/**/*.py"]

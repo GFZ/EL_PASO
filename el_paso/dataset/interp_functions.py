@@ -10,7 +10,7 @@ from collections.abc import Iterable
 from enum import Enum
 from functools import partial
 from multiprocessing import Pool
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, TypeAlias, cast
 
 import numpy as np
 from tqdm import tqdm
@@ -24,6 +24,9 @@ if TYPE_CHECKING:
 class TargetType(Enum):  # noqa: D101
     TargetPairs = 0
     TargetMeshGrid = 1
+
+
+TARGETS: TypeAlias = list[tuple[float | int, float | int]]
 
 
 def _linear_interp(
@@ -99,6 +102,7 @@ def interp_flux(  # noqa: D103
     target_type: TargetType | Literal["TargetPairs", "TargetMesh"],
     n_threads: int = 10,
 ) -> NDArray[np.float64]:
+
     if not isinstance(target_en, Iterable):
         target_en = [target_en]
     if not isinstance(target_al, Iterable):
@@ -113,10 +117,10 @@ def interp_flux(  # noqa: D103
         ), "For TargetType.Pairs, the target vectors must have the same size!"
 
         result_arr = np.empty((len(self.time), len(target_en)))  # ty:ignore[invalid-argument-type]
-        targets = list(zip(target_en, target_al, strict=False))
+        targets = cast("TARGETS", list(zip(target_en, target_al, strict=False)))
     else:
         result_arr = np.empty((len(self.time), len(target_en), len(target_al)))  # ty:ignore[invalid-argument-type]
-        targets = list(itertools.product(target_en, target_al))
+        targets = cast("TARGETS", list(itertools.product(target_en, target_al)))
 
     func = partial(
         _interp_flux_parallel,
@@ -294,10 +298,10 @@ def interp_psd(
     if target_type == TargetType.TargetPairs:
         assert len(target_mu) == len(target_K), "For TargetType.Pairs, mu and K vectors must have the same size!"  # ty:ignore[invalid-argument-type]
         result_arr = np.empty((len(self.time), len(target_mu)))  # ty:ignore[invalid-argument-type]
-        targets = list(zip(target_mu, target_K, strict=False))
+        targets = cast("TARGETS", list(zip(target_mu, target_K, strict=False)))
     else:
         result_arr = np.empty((len(self.time), len(target_mu), len(target_K)))  # ty:ignore[invalid-argument-type]
-        targets = list(itertools.product(target_mu, target_K))
+        targets = cast("TARGETS", list(itertools.product(target_mu, target_K)))
 
     # ensure needed fields are loaded (triggers lazy loader if any)
     _ = self.PSD

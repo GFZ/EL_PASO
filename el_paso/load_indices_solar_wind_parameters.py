@@ -48,7 +48,7 @@ def load_indices_solar_wind_parameters(
 ) -> dict[SW_Index, ep.Variable]: ...
 
 
-def load_indices_solar_wind_parameters(  # noqa: C901, PLR0912, PLR0915
+def load_indices_solar_wind_parameters(
     start_time: datetime,
     end_time: datetime,
     requested_outputs: Iterable[SW_Index],
@@ -444,7 +444,7 @@ def _calculate_w_parameters(
     w_params = np.full((len(sw_speed), 6), 0.0)
 
     cutoff_value = -10  # same as in Tsyganenko's code
-    sw_density_with_He = sw_density * 1.16  # same as in Tsyganenko's code  # noqa: N806
+    sw_density_with_He = sw_density * 1.16  # same as in Tsyganenko's code
     sw_density_normed = sw_density_with_He / 5.0
     sw_speed_normed = sw_speed / 400.0
     b_south_normed = b_south / 5.0

@@ -3,7 +3,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-# ruff: noqa: N806
 
 from __future__ import annotations
 
@@ -115,7 +114,7 @@ def compute_magnetic_field_variables(
         )
         raise FileNotFoundError(msg)
 
-    if len(irbem_options) != 5:  # noqa: PLR2004
+    if len(irbem_options) != 5:
         msg = f"irbem_options must be a list with exactly 5 entries! Got: {irbem_options}"
         raise ValueError(msg)
 

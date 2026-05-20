@@ -43,7 +43,7 @@ class TimeBinMethod(Enum):
     Repeat = "Repeat"
     Unique = "Unique"
 
-    def __call__(self, data: NDArray[np.generic], drop_percent: float = 0) -> NDArray[np.generic]:  # noqa: C901, PLR0912
+    def __call__(self, data: NDArray[np.generic], drop_percent: float = 0) -> NDArray[np.generic]:
         """Applies the binning method to the provided data.
 
         Args:
@@ -106,7 +106,7 @@ class TimeBinMethod(Enum):
 
 
 @timed_function()
-def bin_by_time(  # noqa: C901
+def bin_by_time(
     time_variable: ep.Variable,
     variables: dict[str, ep.Variable],
     time_bin_method_dict: dict[str, TimeBinMethod],

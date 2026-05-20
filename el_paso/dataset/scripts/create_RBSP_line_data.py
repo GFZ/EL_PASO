@@ -5,20 +5,18 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from datetime import datetime
 from pathlib import Path
-from typing import Iterable, Literal
+from typing import TYPE_CHECKING, Iterable, Literal, Optional  # noqa: UP035
 
 import numpy as np
 
-from swvo.io.RBMDataSet import (
-    InstrumentEnum,
-    MfmEnum,
-    RBMDataSet,
-    SatelliteEnum,
-    SatelliteLike,
-    TargetType,
-)
+from el_paso.dataset.interp_functions import TargetType
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from el_paso.dataset import DataSet
+    from el_paso.typing import MagneticFieldLiteral
 
 
 def create_RBSP_line_data(
@@ -29,59 +27,51 @@ def create_RBSP_line_data(
     target_al: float | Iterable[float],
     target_type: TargetType | Literal["TargetPairs", "TargetMeshGrid"],
     energy_offset_threshold: float = 0.1,
-    instruments: list[InstrumentEnum] | None = None,
-    satellites: list[SatelliteLike] | SatelliteLike | None = None,
-    mfm: MfmEnum = MfmEnum.T89,
+    instruments: Optional[list[str]] = None,
+    satellites: Optional[list[str]] = None,
+    mfm: MagneticFieldLiteral = "T89",
     *,
     adjust_targets: bool = True,
     verbose: bool = True,
-) -> tuple[list[RBMDataSet], list[InstrumentEnum]]:
+) -> tuple[list[DataSet], list[str]]:
+    """Create RBSP line data for specified energy and pitch angle targets.
+
+    Loads and processes RBSP particle data for the requested time interval and
+    extracts line data corresponding to the specified target energies and local
+    pitch angles.
+
+    Args:
+        start_time (datetime): Start time of the data interval.
+        end_time (datetime): End time of the data interval.
+        data_server_path (Path): Path to the data server containing the RBSP datasets.
+        target_en (float | Iterable[float]): Target energy or iterable of target energies in MeV.
+        target_al (float | Iterable[float]): Target local pitch angle or iterable of local pitch angles in degrees.
+        target_type (TargetType | Literal["TargetPairs", "TargetMeshGrid"]): Strategy used to combine energy and pitch
+                        angle targets.
+        energy_offset_threshold (float, optional): Maximum allowed relative energy offset between requested and available
+                        energies. Defaults to ``0.1``.
+        instruments (Optional[list[str]], optional): Instruments to include in the processing. If ``None``,
+                        defaults to ``["HOPE", "MAGEIS", "REPT"]``.
+        satellites (Optional[list[str]], optional): RBSP satellites to use.
+                        If ``None``, defaults to ``["RBSPA", "RBSPB"]``.
+        mfm (MagneticFieldLiteral, optional): Magnetic field model used for calculations. Defaults to ``"T89"``.
+        adjust_targets (bool, optional): If ``True``, targets are adjusted to the closest available values.
+                        If ``False``, values are interpolated. Defaults to ``True``.
+        verbose (bool, optional): If ``True``, print progress and diagnostic information during processing.
+                        Defaults to ``True``.
+
+    Returns:
+        tuple[list[DataSet], list[str]]: Tuple containing the processed datasets and the list of instruments used.
+
+    Raises:
+        ValueError: If the provided target configuration is invalid.
+        FileNotFoundError: If required RBSP data files cannot be found.
+        RuntimeError: If no valid datasets could be created for the requested interval.
     """
-    Create RBSP line data for given time, energy, and alpha local targets.
-
-    Parameters
-    ----------
-    start_time : datetime
-        Start time of the data to be loaded.
-    end_time : datetime
-        End time of the data to be loaded.
-    data_server_path : Path
-        Path to the data server where the RBSP data is stored.
-    target_en : float or Iterable[float]
-        Target energy in MeV or list of target energies in MeV.
-    target_al : float or Iterable[float]
-        Target alpha local in degrees or list of target alpha locals in degrees.
-    target_type : TargetType or Literal["TargetPairs", "TargetMeshGrid"]
-        Type of target data to create. Can be either TargetPairs or TargetMeshGrid.
-    energy_offset_threshold : float, optional
-        Threshold for the energy offset in relative units (default is 0.1).
-    instruments : list[InstrumentEnum] or None, optional
-        List of instruments to use for the data. If None, defaults to HOPE, MAGEIS, and REPT.
-    satellites : list[SatelliteLike] or SatelliteLike or None, optional
-        List of satellites to use for the data. If None, defaults to RBSPA and RBSPB.
-    mfm : MfmEnum, optional
-        Magnetic field model to use for the data. Default is MfmEnum.T89.
-    adjust_targets : bool, optional
-        If True, the targets will be adjusted to the closest available energy and alpha local values.
-        If False, the targets will be interpolated from the available data. Default is True.
-    verbose : bool, optional
-        If True, print verbose output during processing. Default is True.
-
-    Returns
-    -------
-    tuple[list[RBMDataSet], list[InstrumentEnum]]
-        A tuple containing a list of RBMDataSet objects with the line data and a list of instruments used.
-
-    """
-
     # Instruments represents also the priority of the instrument for overlapping energies. The first instrument will be prefered.
 
-    instruments = instruments or [
-        InstrumentEnum.HOPE,
-        InstrumentEnum.MAGEIS,
-        InstrumentEnum.REPT,
-    ]
-    satellites = satellites or [SatelliteEnum.RBSPA, SatelliteEnum.RBSPB]  # ty :ignore[invalid-assignment]
+    instruments = instruments or ["HOPE", "MAGEIS", "REPT"]
+    satellites = satellites or ["RBSPA", "RBSPB"]
 
     # pass and check args
     if isinstance(data_server_path, str):
@@ -91,7 +81,7 @@ def create_RBSP_line_data(
     if not isinstance(target_en, Iterable):
         target_en = [target_en]
     if not isinstance(satellites, Iterable) or isinstance(satellites, str):
-        satellites = [satellites]  # ty :ignore[invalid-assignment]
+        satellites = [satellites]
     if isinstance(target_type, str):
         target_type = TargetType[target_type]
 
@@ -101,8 +91,8 @@ def create_RBSP_line_data(
     result_arr = []
     list_instruments_used = []
 
-    for satellite in satellites:  # ty :ignore[not-iterable]
-        rbm_data: list[RBMDataSet] = []
+    for satellite in satellites:
+        rbm_data: list[DataSet] = []
 
         for i, instrument in enumerate(instruments):
             rbm_data.append(
