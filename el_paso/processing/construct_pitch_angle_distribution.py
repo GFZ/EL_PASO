@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import numpy as np
-from astropy import units as u  # type: ignore[reportMissingTypeStubs]
+from astropy import units as u
 
 import el_paso as ep
 

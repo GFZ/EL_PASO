@@ -9,9 +9,9 @@ from datetime import timezone as tz
 from typing import Any
 
 import numpy as np
-from astropy import units as u  # type: ignore[reportMissingTypeStubs]
+from astropy import units as u
 from numpy.typing import NDArray
-from sscws.sscws import CoordinateSystem, SscWs  # type: ignore[reportMissingTypeStubs]
+from sscws.sscws import CoordinateSystem, SscWs
 
 import el_paso as ep
 
@@ -75,7 +75,7 @@ def get_real_time_tipsod(timestamps: NDArray[np.floating], sat_name: str, coord_
     coord_systems_dict = {"GEO": "Geo", "GM": "Gm", "GSE": "Gse", "GSM": "Gsm", "SM": "Sm", "J2000": "GeiJ2000"}
     result = typing.cast(
         "Any", ssc.get_locations([sat_name], time_range, coords=[CoordinateSystem(coord_systems_dict[coord_system])])
-    )  # type: ignore[reportUnknownMemberType]
+    )
 
     try:
         # Extract X, Y, Z coordinates and corresponding times

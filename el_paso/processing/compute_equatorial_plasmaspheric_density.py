@@ -7,7 +7,7 @@ import logging
 import typing
 from typing import Literal
 
-import astropy.units as u  # type: ignore[reportMissingTypeStubs]
+import astropy.units as u
 import numpy as np
 
 import el_paso as ep
@@ -61,9 +61,9 @@ def compute_equatorial_plasmaspheric_density(
     r_local = typing.cast("NDArray[np.float32]", r_local)
     r_eq = typing.cast("NDArray[np.float32]", r_eq)
 
-    density_data = density_var.get_data(u.cm ** (-3)).astype(np.float64)  # type: ignore[reportUnknownMemberType]
+    density_data = density_var.get_data(u.cm ** (-3)).astype(np.float64)
 
-    mapped_density_var = ep.Variable(original_unit=u.cm ** (-3))  # type: ignore[reportUnknownMemberType]
+    mapped_density_var = ep.Variable(original_unit=u.cm ** (-3))
     mapped_density_var.metadata.source_files = density_var.metadata.source_files
 
     match method:
@@ -81,6 +81,6 @@ def compute_equatorial_plasmaspheric_density(
                 "Sheeley et al. 2001) and alpha=1 outside the plasmasphere."
             )
 
-    mapped_density_var.set_data(density_eq_data, u.cm ** (-3))  # type: ignore[reportUnknownMemberType]
+    mapped_density_var.set_data(density_eq_data, u.cm ** (-3))
 
     return mapped_density_var

@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Literal, NamedTuple
 
 import numpy as np
-from astropy import units as u  # type: ignore[reportMissingTypeStubs]
+from astropy import units as u
 
 import el_paso as ep
 import el_paso.processing.magnetic_field_utils as mag_utils

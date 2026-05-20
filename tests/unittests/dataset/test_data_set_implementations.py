@@ -6,13 +6,12 @@
 
 from __future__ import annotations
 
-import shutil
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
-from astropy import units as u  # type: ignore[reportMissingTypeStubs]
+from astropy import units as u
 
 import el_paso as ep
 from el_paso.dataset import GFZDataSet
@@ -175,5 +174,3 @@ def test_data_org_dataset_loads_saved_monthly_nc_and_rejects_invalid_variable(
 
     with pytest.raises(AttributeError, match="GFZDataSet object has no attribute somethingrandom"):
         dataset.somethingrandom  # this does not exist as a variable  # noqa: B018
-
-    # shutil.rmtree(tmp_path)

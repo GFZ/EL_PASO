@@ -38,7 +38,7 @@ def inspect_cdf_file(file_path: str) -> None:
         vdr_info = cdf_file.varinq(var)
         var_data = cdf_file.varget(var)
 
-        var_shape = var_data.shape  # type: ignore[reportAttributeAccessIssue]
+        var_shape = var_data.shape
 
         units = var_attrs_full.get("UNITS", "")
 

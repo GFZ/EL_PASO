@@ -15,8 +15,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
-import cdflib  # type: ignore[reportMissingTypeStubs]
-import h5py  # type: ignore[reportMissingTypeStubs]
+import cdflib
+import h5py
 import numpy as np
 import pandas as pd
 
@@ -26,7 +26,7 @@ from el_paso.utils import enforce_utc_timezone, fill_str_template_with_time, get
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from astropy import units as u  # type: ignore[reportMissingTypeStubs]
+    from astropy import units as u
     from numpy.typing import DTypeLike, NDArray
 
 logger = logging.getLogger(__name__)
@@ -232,15 +232,15 @@ def _extract_data_from_ascii(
 ) -> dict[str | int, NDArray[np.generic]]:
     pd_read_csv_kwargs = pd_read_csv_kwargs if pd_read_csv_kwargs is not None else {}
 
-    file_df = pd.read_csv(file_path, **pd_read_csv_kwargs)  # type: ignore[reportUnknownMemberType]
+    file_df = pd.read_csv(file_path, **pd_read_csv_kwargs)
 
     data: dict[str | int, NDArray[np.generic]] = {}
 
     for info in extraction_infos:
         if isinstance(info.name_or_column, int):
-            data[info.name_or_column] = file_df.iloc[:, info.name_or_column].to_numpy()  # type: ignore[reportUnknownMemberType]
-        elif isinstance(info.name_or_column, str):  # type: ignore[reportUnnecessaryIsInstance]
-            data[info.name_or_column] = file_df.loc[:, info.name_or_column].to_numpy()  # type: ignore[reportUnknownMemberType]
+            data[info.name_or_column] = file_df.iloc[:, info.name_or_column].to_numpy()
+        elif isinstance(info.name_or_column, str):
+            data[info.name_or_column] = file_df.loc[:, info.name_or_column].to_numpy()
         else:
             msg = f"Encountered invalid name_or_column value: {info.name_or_column}! Must be int or str!"
             raise TypeError(msg)
@@ -263,11 +263,11 @@ def _extract_data_from_json(
     for info in extraction_infos:
         if info.name_or_column in json_df:
             if info.dependent_variables is None:
-                data[info.name_or_column] = np.array(pd.unique(json_df[info.name_or_column]))  # type: ignore[reportUnknownMemberType]
+                data[info.name_or_column] = np.array(pd.unique(json_df[info.name_or_column]))
             else:
-                dependent_data = [json_df[dep_var_name] for dep_var_name in info.dependent_variables]  # type: ignore[reportUnknownMemberType]
+                dependent_data = [json_df[dep_var_name] for dep_var_name in info.dependent_variables]
 
-                unique_values: list[NDArray[np.generic]] = [pd.unique(dep) for dep in dependent_data]  # type: ignore[reportUnknownMemberType]
+                unique_values: list[NDArray[np.generic]] = [pd.unique(dep) for dep in dependent_data]
                 shape = tuple(len(uq) for uq in unique_values)
 
                 # Determine the correct dtype for the data_array based on the column data type
@@ -280,7 +280,7 @@ def _extract_data_from_json(
                     for i, idx in enumerate(indices):
                         mask &= dependent_data[i] == unique_values[i][idx]
                     if mask.any():
-                        data_array[indices] = json_df[info.name_or_column][mask].to_numpy()[0]  # type: ignore[reportUnknownMemberType]
+                        data_array[indices] = json_df[info.name_or_column][mask].to_numpy()[0]
 
                 data[info.name_or_column] = data_array
         else:
@@ -310,7 +310,7 @@ def _extract_data_from_cdf(
                 var_content = np.array([var_content])
 
             if np.issubdtype(var_content.dtype, np.floating) and "FILLVAL" in cdf_file.varattsget(info.name_or_column):
-                fill_value = cdf_file.attget("FILLVAL", info.name_or_column).Data  # type: ignore[reportUnknownMemberType]
+                fill_value = cdf_file.attget("FILLVAL", info.name_or_column).Data
                 var_content[var_content == fill_value] = np.nan
 
             variable_data[info.name_or_column] = var_content

@@ -7,17 +7,16 @@ from datetime import datetime, timedelta
 
 import numpy as np
 
-from el_paso.dataset.identify_orbits import _identify_orbits  # type: ignore[reportPrivateUsage]
+from el_paso.dataset.identify_orbits import _identify_orbits
 
 
 def test_identify_orbits_clean_abs_sin():
     """Test orbital identification with a perfect abs(sin) wave."""
-
     x = np.arange(0, 3 * np.pi, 3 * np.pi / 100)
     distance = np.abs(np.sin(x))
-    time = [datetime(2026, 1, 1) + timedelta(seconds=i) for i in range(len(x))]
+    time = [datetime(2026, 1, 1) + timedelta(seconds=i) for i in range(len(x))]  # noqa: DTZ001
 
-    orbits = _identify_orbits(time, distance, minimal_distance=3, apply_smoothing=False)
+    orbits = _identify_orbits(time, distance, minimal_distance=3, apply_smoothing=False)  # ty:ignore[invalid-argument-type]
 
     assert len(orbits) == 6
 
@@ -47,11 +46,11 @@ def test_identify_orbits_clean_abs_sin():
 
 
 def test_identify_orbits_noisy_all_extrema() -> None:
-    np.random.seed(42)
+    np.random.seed(42)  # noqa: NPY002
     x = np.arange(0, 3 * np.pi, 3 * np.pi / 100)
-    distance = np.abs(np.sin(x)) + np.random.normal(0, 0.01, 100)
-    time = [datetime(2026, 1, 1) + timedelta(seconds=i) for i in range(100)]
+    distance = np.abs(np.sin(x)) + np.random.normal(0, 0.01, 100)  # noqa: NPY002
+    time = [datetime(2026, 1, 1) + timedelta(seconds=i) for i in range(100)]  # noqa: DTZ001
 
-    orbits = _identify_orbits(time, distance, 20, apply_smoothing=True)
+    orbits = _identify_orbits(time, distance, 20, apply_smoothing=True)  # ty:ignore[invalid-argument-type]
 
     assert len(orbits) == 6

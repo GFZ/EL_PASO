@@ -190,7 +190,7 @@ def _requests_download(
             stream=True,
             timeout=10,
             auth=HTTPDigestAuth(*authentification_info),
-        )  # type: ignore[reportUnknownMemberType]
+        )
 
         if response.status_code == ERROR_NOT_FOUND:
             msg = f"File not found on server: {url}"
@@ -211,7 +211,7 @@ def _requests_download(
 
 @cache
 def _get_page_content(url: str, authentification_info: tuple[str, str]) -> requests.Response | None:
-    response_of_content = requests.get(url, stream=True, timeout=10, auth=HTTPDigestAuth(*authentification_info))  # type: ignore[reportUnknownMemberType]
+    response_of_content = requests.get(url, stream=True, timeout=10, auth=HTTPDigestAuth(*authentification_info))
 
     if response_of_content.status_code == ERROR_NOT_FOUND:
         msg = f"File not found on server: {url}"

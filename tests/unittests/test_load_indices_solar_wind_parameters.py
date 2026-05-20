@@ -12,8 +12,6 @@ import pytest
 
 import el_paso as ep
 
-# ruff: noqa: PLR2004
-
 
 def test_calculate_w_parameters() -> None:
     start_time = datetime(2015, 3, 17, 0, 0, tzinfo=timezone.utc)
@@ -27,7 +25,7 @@ def test_calculate_w_parameters() -> None:
     assert w_params.shape[1] == 6
 
     for i in range(6):
-        assert np.max(w_params[:, i]) == pytest.approx(true_max_values[i], abs=0.05)  # type: ignore[reportUnknownMemberType]
+        assert np.max(w_params[:, i]) == pytest.approx(true_max_values[i], abs=0.05)
 
 
 @pytest.mark.visual
@@ -50,7 +48,7 @@ def test_w_parameters_comparison() -> None:
 
     assert w_params_calc.shape == w_params_website.shape
 
-    _, axes = plt.subplots(3, 2, figsize=(12, 10), sharex=True)  # type: ignore[reportUnknownMemberType]
+    _, axes = plt.subplots(3, 2, figsize=(12, 10), sharex=True)
     axes = axes.flatten()
 
     for i in range(6):
@@ -63,4 +61,4 @@ def test_w_parameters_comparison() -> None:
 
     axes[-1].set_xlabel("Index")
     plt.tight_layout()
-    plt.savefig(f"{Path(__file__).parent / 'test_w_parameters_comparison.png'}")  # type: ignore[reportUnknownMemberType]
+    plt.savefig(f"{Path(__file__).parent / 'test_w_parameters_comparison.png'}")

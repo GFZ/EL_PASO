@@ -10,7 +10,7 @@ from typing import Any
 
 import numpy as np
 import pytest
-from astropy import units as u  # type: ignore[reportMissingTypeStubs]
+from astropy import units as u
 
 import el_paso as ep
 
@@ -36,5 +36,3 @@ def test_basic_single_file_strategy(tmp_path: Path, file_format: str) -> None:
     )
 
     assert save_path.exists()
-
-    print(save_path)

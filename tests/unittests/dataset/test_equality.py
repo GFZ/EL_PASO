@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
-from astropy import units as u  # type: ignore[reportMissingTypeStubs]
+from astropy import units as u
 
 import el_paso as ep
 from el_paso.dataset import DataSet

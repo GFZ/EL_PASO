@@ -241,7 +241,7 @@ if __name__ == "__main__":
             dt_end,
             sat_str,
             args.irbem_lib_path,
-            ["T89", "OP77"],  # type: ignore[reportArgumentType]
+            ["T89", "OP77"],
             raw_data_path=".",
             processed_data_path=".",
             num_cores=8,

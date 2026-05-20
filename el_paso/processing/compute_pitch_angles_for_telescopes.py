@@ -5,7 +5,7 @@
 #
 
 import numpy as np
-from astropy import units as u  # type: ignore[reportMissingTypeStubs]
+from astropy import units as u
 from numpy.typing import NDArray
 
 import el_paso as ep

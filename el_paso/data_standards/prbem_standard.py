@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import logging
 
-from astropy import units as u  # type: ignore[reportMissingTypeStubs]
+from astropy import units as u
 
 import el_paso as ep
 from el_paso.data_standard import ConsistencyCheck, DataStandard, VariableInfo

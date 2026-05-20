@@ -110,7 +110,7 @@ def create_RBSP_line_data(
 
             # strip of time dimention
             if rbm_data[i].energy_channels.shape[0] == len(rbm_data[i].time):
-                rbm_data[i].energy_channels_no_time = np.nanmean(rbm_data[i].energy_channels, axis=0)  # ty:ignore[unresolved-attribute]
+                rbm_data[i].energy_channels_no_time = np.nanmean(rbm_data[i].energy_channels, axis=0)
             else:
                 rbm_data[i].energy_channels_no_time = rbm_data[i].energy_channels  # ty:ignore[unresolved-attribute]
             if rbm_data[i].alpha_local.shape[0] == len(rbm_data[i].time):

@@ -12,7 +12,7 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, NamedTuple
 
 import numpy as np
-from astropy import units as u  # type: ignore[reportMissingTypeStubs]
+from astropy import units as u
 
 from el_paso import Variable
 

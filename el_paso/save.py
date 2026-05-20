@@ -144,7 +144,7 @@ def _sanitize_metadata_dict(metadata_dict: dict[Any, Any]) -> dict[Any, Any]:
     for key, value in metadata_dict.items():
         if isinstance(value, dict):
             # Recursively sanitize nested dictionaries
-            sanitized_dict[key] = _sanitize_metadata_dict(value)  # type: ignore[reportUnknownArgumentType]
+            sanitized_dict[key] = _sanitize_metadata_dict(value)
         elif value is None:
             # Replace None with an empty numpy array
             sanitized_dict[key] = np.array([])

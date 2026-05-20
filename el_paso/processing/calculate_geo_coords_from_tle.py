@@ -9,8 +9,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
-from astropy import units as u  # type: ignore[reportMissingTypeStubs]
-from skyfield.api import EarthSatellite, load  # type: ignore[reportMissingTypeStubs]
+from astropy import units as u
+from skyfield.api import EarthSatellite, load
 
 import el_paso as ep
 
@@ -51,7 +51,7 @@ def calculate_geo_coords_from_tle(
         geocentric = satellite.at(timescale.from_datetime(tle_time))
 
         tle_times.append(tle_time)
-        geo_coordinates.append(geocentric.xyz.km)  # type: ignore[reportArgumentType]
+        geo_coordinates.append(geocentric.xyz.km)
 
     result = np.asarray(geo_coordinates, dtype=np.float64)
 

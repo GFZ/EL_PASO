@@ -15,9 +15,9 @@ from typing import Literal, overload
 import numpy as np
 import pandas as pd
 import requests
-import scipy as sp  # type: ignore[reportMissingTypeStubs]
-import swvo.io as swvo_io  # type: ignore[reportMissingTypeStubs]
-from astropy import units as u  # type: ignore[reportMissingTypeStubs]
+import scipy as sp
+import swvo.io as swvo_io
+from astropy import units as u
 from numpy.typing import NDArray
 
 import el_paso as ep
@@ -174,7 +174,7 @@ def load_indices_solar_wind_parameters(
                     "speed",
                     u.km * u.s**-1,
                     target_time_variable,
-                    "linear",  # type: ignore[reportUnknownArgumentType]
+                    "linear",
                 )
 
             case "SW_density":
@@ -508,10 +508,10 @@ def _get_w_parameters_tsyganenko(target_time_variable: ep.Variable) -> dict[str,
 
         response.raise_for_status()
 
-        df = pd.read_csv(  # type: ignore[reportUnknownMemberType]
+        df = pd.read_csv(
             StringIO(response.text),
             names=["Year", "Day", "Hour", "Min", "W1", "W2", "W3", "W4", "W5", "W6"],
-            usecols=(0, 1, 2, 3, 17, 18, 19, 20, 21, 22),  # type: ignore[reportUnknownMemberType]
+            usecols=(0, 1, 2, 3, 17, 18, 19, 20, 21, 22),
             sep=r"\s+",
         )
 

@@ -58,13 +58,13 @@ def activate_release_mode(
     date_now = datetime.now(timezone.utc).now()
     date_now_str = date_now.strftime("%d-%b-%Y")
 
-    ep._release_msg = (  # type: ignore[Private]
+    ep._release_msg = (
         f"This variable was processed using the EL-PASO release mode on {date_now_str}.\n"
         f"User name: {user_name}, email address: {email_address}.\n"
         f"EL-PASO version: {el_paso_version}, git commit: {commit_hash}."
     )
 
-    ep._release_mode = True  # type: ignore[Private]
+    ep._release_mode = True
 
 
 def is_in_release_mode() -> bool:
@@ -73,7 +73,7 @@ def is_in_release_mode() -> bool:
     Returns:
         bool: `True` if release mode is active, `False` otherwise.
     """
-    return ep._release_mode  # type: ignore[Private]
+    return ep._release_mode
 
 
 def get_release_msg() -> str:
@@ -85,4 +85,4 @@ def get_release_msg() -> str:
     Returns:
         str: The release mode message if active, otherwise an empty string.
     """
-    return ep._release_msg  # type: ignore[Private]
+    return ep._release_msg

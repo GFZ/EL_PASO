@@ -9,7 +9,7 @@ import logging
 from typing import TYPE_CHECKING
 
 import numpy as np
-from astropy import units as u  # type: ignore[reportMissingTypeStubs]
+from astropy import units as u
 from matplotlib import pyplot as plt
 
 from el_paso.utils import timed_function
@@ -39,31 +39,31 @@ def _fold_pitch_angles_and_flux(
     folded_flux = np.full((n_time, n_energy, len(unique_angles)), np.nan)
 
     if produce_statistic_plot:
-        fig, axes = plt.subplots(len(unique_angles), n_energy, figsize=(5 * n_energy, 5 * len(unique_angles)))  # type: ignore[reportUnknownMemberType]
+        fig, axes = plt.subplots(len(unique_angles), n_energy, figsize=(5 * n_energy, 5 * len(unique_angles)))
 
     for i, angle in enumerate(unique_angles):
         mask = folded_pitch_angles != angle
 
         mask = np.repeat(mask[:, np.newaxis, :], n_energy, axis=1)
 
-        masked_flux = np.ma.masked_array(flux, mask=mask)  # type: ignore[reportUnknownMemberType]
+        masked_flux = np.ma.masked_array(flux, mask=mask)
 
         if produce_statistic_plot:
-            diff = np.log10(masked_flux) - np.log10(np.flip(masked_flux, axis=2))  # type: ignore[reportUnknownArgumentType]
+            diff = np.log10(masked_flux) - np.log10(np.flip(masked_flux, axis=2))
             for ie in range(n_energy):
                 diff_energy = diff[:, ie, :].flatten()
                 mask_diff = diff_energy > 0
 
-                axes[i, ie].hist(diff_energy[mask_diff].compressed(), bins=10)  # type: ignore[reportUnknownArgumentType]
-                axes[i, ie].set_title(f"Energy = {ie}, alpha = {angle}")  # type: ignore[reportUnknownArgumentType]
+                axes[i, ie].hist(diff_energy[mask_diff].compressed(), bins=10)
+                axes[i, ie].set_title(f"Energy = {ie}, alpha = {angle}")
 
-        folded_flux[:, :, i] = np.nanmean(masked_flux, axis=2)  # type: ignore[reportUnknownArgumentType]
+        folded_flux[:, :, i] = np.nanmean(masked_flux, axis=2)
 
     # add time dimension
     unique_angles = np.tile(unique_angles.reshape(1, -1), (n_time, 1))
 
     if produce_statistic_plot:
-        fig.savefig("folded_pitch_angle_statistics.png")  # type: ignore[reportUnknownArgumentType]
+        fig.savefig("folded_pitch_angle_statistics.png")
 
     return folded_flux, unique_angles
 

@@ -823,7 +823,7 @@ class MagFields:
         time = copy.deepcopy(time)
         time = np.atleast_1d(np.asarray(time))
 
-        position = dict(copy.deepcopy(position))  # type: ignore[no-matching-overload]
+        position = dict(copy.deepcopy(position))
         position["x1"] = np.atleast_1d(np.asarray(position["x1"]))
         position["x2"] = np.atleast_1d(np.asarray(position["x2"]))
         position["x3"] = np.atleast_1d(np.asarray(position["x3"]))
@@ -1038,7 +1038,7 @@ class Coords:
                 "ERROR: Unknown coordinate system! Choose from GDZ, GEO, GSM, GSE, SM, GEI, MAG, SPH, RLL."
             )
             return ctypes.c_int(SYSAXES_STR_TO_INT[sysaxes])
-        if isinstance(sysaxes, int):  # type: ignore[reportUnnecessaryIsInstance]
+        if isinstance(sysaxes, int):
             return ctypes.c_int(sysaxes)
         msg = "Error, coordinate axis can only be a string or int!"
         raise ValueError(msg)

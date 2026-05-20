@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Literal, overload
 
 import numpy as np
-from astropy import units as u  # type: ignore[reportMissingTypeStubs]
+from astropy import units as u
 
 import el_paso as ep
 from el_paso.utils import enforce_utc_timezone
@@ -124,7 +124,7 @@ class Variable:
 
         if self.metadata.unit != target_unit:
             data_with_unit = u.Quantity(self._data, self.metadata.unit)
-            self._data = typing.cast("NDArray[np.generic]", data_with_unit.to_value(target_unit))  # type: ignore[reportUnknownMemberType]
+            self._data = typing.cast("NDArray[np.generic]", data_with_unit.to_value(target_unit))
 
             self.metadata.unit = target_unit
 
@@ -158,7 +158,7 @@ class Variable:
             msg = f"Unit conversion is only supported for numeric types! Encountered for variable {self}."
             raise TypeError(msg)
 
-        return typing.cast("NDArray[np.generic]", u.Quantity(self._data, self.metadata.unit).to_value(target_unit))  # type: ignore[reportUnknownMemberType]
+        return typing.cast("NDArray[np.generic]", u.Quantity(self._data, self.metadata.unit).to_value(target_unit))
 
     def set_data(self, data: NDArray[np.generic], unit: Literal["same"] | str | u.UnitBase) -> None:  # noqa: PYI051
         """Sets the data and optionally updates the unit of the variable.
@@ -177,7 +177,7 @@ class Variable:
         if isinstance(unit, str):
             if unit != "same":
                 self.metadata.unit = u.Unit(unit)
-        elif isinstance(unit, u.UnitBase):  # type: ignore[reportUnknownMemberType]
+        elif isinstance(unit, u.UnitBase):
             self.metadata.unit = unit
         else:
             msg = "unit must be either a str or a astropy unit!"
