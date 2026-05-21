@@ -18,7 +18,7 @@ from el_paso.dataset.utils import python2matlab
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from el_paso.typing import DataStandard, InternalName
+    from el_paso.typing import DataStandard, InternalName, StandardName
 
 
 def _mock_monthly_variables() -> dict[InternalName, ep.Variable]:
@@ -228,7 +228,7 @@ def _mock_monthly_variables_for_append() -> dict[InternalName, ep.Variable]:
 @pytest.mark.parametrize(("output_format", "meta_keys_check"), _FORMAT_PARAMS)
 def test_append_data(
     tmp_path: Path,
-    data_standard: type[DataStandard],
+    data_standard: type[DataStandard[StandardName]],
     output_format: Literal["nc", "h5", "cdf", "mat"],
     meta_keys_check: Callable[[set[str]], bool],
 ) -> None:
@@ -305,6 +305,26 @@ def test_append_data(
         saved_variable = loaded_data[var_key]
         assert saved_variable.shape[1:] == variables[internal_name].get_data().shape[1:]
         assert saved_variable.shape[0] == 217
+
+        # test that the first 96 entries (corresponding to the first save) are unchanged and the next 121 entries (corresponding to the appended data) are correctly appended  # noqa: E501
+        assert np.all(loaded_data[data_standard().get_standard_name("L_star")][:96] == 5.5)
+        assert np.all(loaded_data[data_standard().get_standard_name("L_star")][96:] == 8.5)
+
+        assert np.all(
+            loaded_data[data_standard().get_standard_name("FEDU")][:96]
+            == np.arange(145 * 3 * 4, dtype=float).reshape(145, 3, 4)[:96, :, :]
+        )
+        assert np.all(
+            loaded_data[data_standard().get_standard_name("FEDU")][96:]
+            == np.arange(121 * 3 * 4, dtype=float).reshape(121, 3, 4) * 2.0
+        )
+
+        assert np.all(loaded_data[data_standard().get_standard_name("PSD")][:96] == 3.5)
+        assert np.all(loaded_data[data_standard().get_standard_name("PSD")][96:] == 8.5)
+        assert np.all(loaded_data[data_standard().get_standard_name("R_Eq")][:96] == 6.0)
+        assert np.all(loaded_data[data_standard().get_standard_name("R_Eq")][96:] == 5.0)
+        assert np.all(loaded_data[data_standard().get_standard_name("MLT")][:96] == 12.0)
+        assert np.all(loaded_data[data_standard().get_standard_name("MLT")][96:] == 5.0)
         var_attrs = metadata.get(var_key, {})
         assert meta_keys_check(var_attrs.keys())
         assert var_attrs.get("unit", "unknown") != "unknown"
