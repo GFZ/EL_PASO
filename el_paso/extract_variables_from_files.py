@@ -8,12 +8,11 @@ from __future__ import annotations
 import json
 import logging
 import re
-import typing
 import warnings
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Callable, Literal, cast  # noqa: UP035
 
 import cdflib
 import h5py
@@ -52,6 +51,7 @@ def extract_variables_from_files(
     file_name_stem: str,
     extraction_infos: Iterable[ExtractionInfo],
     pd_read_csv_kwargs: dict[str, Any] | None = None,
+    custom_extractors: dict[str, Callable] | None = None,
 ) -> dict[str, Variable]:
     """Extract variable data from files with any file format.
 
@@ -63,6 +63,7 @@ def extract_variables_from_files(
         file_name_stem (str): The stem of the file name to match files.
         extraction_infos (Iterable[ExtractionInfo]): Information about which variables to extract and how.
         pd_read_csv_kwargs (dict[str, Any], optional): Additional keyword arguments to pass to pandas.read_csv.
+        custom_extractors (dict[str, Callable], optional): A dictionary mapping file suffixes to custom extractor functions.
 
     Returns:
         dict[str, Variable]: A dictionary mapping result keys to extracted Variable objects.
@@ -70,7 +71,7 @@ def extract_variables_from_files(
     Raises:
         ValueError: If no files are found for extraction.
 
-    """
+    """  # noqa: E501
     logger.info("Extracting variables ...")
 
     if pd_read_csv_kwargs is None:
@@ -81,6 +82,7 @@ def extract_variables_from_files(
 
     if start_time > end_time:
         msg = "start_time must be before end_time!"
+        logger.error(msg)
         raise ValueError(msg)
 
     data_path = Path(data_path)
@@ -89,9 +91,10 @@ def extract_variables_from_files(
 
     if len(files_list) == 0:
         msg = f"No file found to extract variables! Search at: {data_path / file_name_stem}"
+        logger.error(msg)
         raise ValueError(msg)
 
-    variable_data = _extract_data_from_files(files_list, extraction_infos, pd_read_csv_kwargs)
+    variable_data = _extract_data_from_files(files_list, extraction_infos, pd_read_csv_kwargs, custom_extractors)
 
     # create variables based on the extraction_infos
     variables: dict[str, Variable] = {}
@@ -102,6 +105,7 @@ def extract_variables_from_files(
                 dict_key = info.name_or_column
             else:
                 msg = "Result key cannot be inferred from a integer column! Please provide a result_key!"
+                logger.error(msg)
                 raise ValueError(msg)
         else:
             dict_key = info.result_key
@@ -145,12 +149,14 @@ def _construct_file_list(
 
         case "monthly":
             msg = "Monthly file cadence is not implemented yet!"
+            logger.error(msg)
             raise NotImplementedError(msg)
 
         case "single_file":
             file_path_current = _fill_file_name_and_check_version(start_time, file_path)
             if file_path_current is None:
                 msg = f"No file found under the specified path: {file_path}. Please check your data_path."
+                logger.error(msg)
                 raise FileNotFoundError(msg)
 
             file_paths.append(file_path_current)
@@ -163,28 +169,49 @@ def _extract_data_from_files(
     files_list: list[Path],
     extraction_infos: Iterable[ExtractionInfo],
     pd_read_csv_kwargs: dict[str, Any] | None,
+    custom_extractors: dict[str, Callable] | None,
 ) -> dict[str | int, NDArray[np.generic]]:
+    extraction_infos = tuple(extraction_infos)
+
     variable_data = {info.name_or_column: np.array([]) for info in extraction_infos}
 
+    custom_extractor_msg = f" If you have a custom extractor, pass it via the `custom_extractors` argument with the key '{files_list[0].suffix}'."  # noqa: E501
+
+    EXTRACTOR_MAP: dict[str, Callable[..., dict[str | int, NDArray[np.generic]]]] = {
+        ".cdf": lambda path: _extract_data_from_cdf(path, extraction_infos),
+        ".txt": lambda path: _extract_data_from_ascii(path, extraction_infos, pd_read_csv_kwargs),
+        ".asc": lambda path: _extract_data_from_ascii(path, extraction_infos, pd_read_csv_kwargs),
+        ".csv": lambda path: _extract_data_from_ascii(path, extraction_infos, pd_read_csv_kwargs),
+        ".tab": lambda path: _extract_data_from_ascii(path, extraction_infos, pd_read_csv_kwargs),
+        ".dat": lambda path: _extract_data_from_ascii(path, extraction_infos, pd_read_csv_kwargs),
+        ".h5": lambda path: _extract_data_from_h5(path, extraction_infos),
+        ".json": lambda path: _extract_data_from_json(path, extraction_infos),
+    }
+
+    unsupported_formats = {
+        ".nc": "NetCDF reading is not supported yet!",
+        ".mat": "MATLAB reading is not supported yet!",
+    }
+
     for file_path in files_list:
-        match file_path.suffix:
-            case ".cdf":
-                new_data = _extract_data_from_cdf(str(file_path), tuple(extraction_infos))
-            case ".txt" | ".asc" | ".csv" | ".tab" | ".dat":
-                new_data = _extract_data_from_ascii(str(file_path), tuple(extraction_infos), pd_read_csv_kwargs)
-            case ".nc":
-                msg = "NetCDF reading is not supported yet!"
-                raise NotImplementedError(msg)
-            case ".h5":
-                new_data = _extract_data_from_h5(str(file_path), tuple(extraction_infos))
-            case ".json":
-                new_data = _extract_data_from_json(str(file_path), tuple(extraction_infos))
-            case ".mat":
-                msg = "MATLAB .mat file reading is not supported yet!"
-                raise NotImplementedError(msg)
-            case _:
-                msg = f"Unsupported file extension: {file_path.suffix}"
-                raise ValueError(msg)
+        suffix = file_path.suffix
+
+        if custom_extractors is not None and suffix in custom_extractors:
+            extractor = custom_extractors[suffix]
+            new_data = extractor(str(file_path), extraction_infos)
+
+        elif suffix in EXTRACTOR_MAP:
+            new_data = EXTRACTOR_MAP[suffix](str(file_path))
+
+        elif suffix in unsupported_formats:
+            msg = unsupported_formats[suffix] + custom_extractor_msg.format(suffix=suffix)
+            logger.error(msg)
+            raise NotImplementedError(msg)
+
+        else:
+            msg = f"Unsupported file extension: {suffix}"
+            logger.error(msg)
+            raise ValueError(msg)
 
         # Update the data content of variables
         for info in extraction_infos:
@@ -304,7 +331,7 @@ def _extract_data_from_cdf(
         if info.name_or_column in cdfinfo.zVariables:
             # Retrieve data corresponding to the variable name from the CDF file
             var_content = cdf_file.varget(info.name_or_column)  # ty:ignore[invalid-argument-type]
-            var_content = typing.cast("NDArray[Any]", var_content)
+            var_content = cast("NDArray[Any]", var_content)
 
             if isinstance(var_content, str):
                 var_content = np.array([var_content])
@@ -335,13 +362,15 @@ def _extract_data_from_h5(
                 entry_data = file[info.name_or_column]
                 if isinstance(entry_data, h5py.Datatype):
                     msg = f"Encountered invalid DataType while extracting variables for entry: {info.name_or_column}"
+                    logger.error(msg)
                     raise TypeError(msg)
 
                 if isinstance(entry_data, h5py.Group):
                     msg = "Groups for h5 files has not been implemented!"
+                    logger.error(msg)
                     raise NotImplementedError(msg)
 
-                var_content = typing.cast("NDArray[np.generic]|str", entry_data[...])
+                var_content = cast("NDArray[np.generic]|str", entry_data[...])
                 if isinstance(var_content, str):
                     # If the content is a string, convert it to a numpy array
                     var_content = np.array([var_content])
