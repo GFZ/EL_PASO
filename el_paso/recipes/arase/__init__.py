@@ -1,3 +1,8 @@
+# SPDX-FileCopyrightText: 2025 GFZ Helmholtz Centre for Geosciences
+# SPDX-FileContributor: Bernhard Haas
+#
+# SPDX-License-Identifier: Apache-2.0
+
 from el_paso.recipes.arase.get_arase_orbit_variables import (
     get_arase_orbit_level_2_variables,
     get_arase_orbit_level_3_variables,
