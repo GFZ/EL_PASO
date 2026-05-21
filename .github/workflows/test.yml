@@ -36,7 +36,7 @@ jobs:
           pip install coveralls coverage pytest-cov
 
       - name: Run tests
-        run: python -m coverage run --source el_paso -m pytest tests -m basic
+        run: python -m coverage run --source el_paso -m pytest -rf tests -m basic
       - name: Run Coveralls
         if: ${{ success() && matrix.python-version == '3.11' }}
         run: |
