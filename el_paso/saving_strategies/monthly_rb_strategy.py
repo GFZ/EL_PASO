@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class MonthlyFileStrategy(SavingStrategy):
+class MonthlyRBStrategy(SavingStrategy):
     """Save PRBEM-standard data into one monthly file per interval.
 
     The strategy supports NetCDF, CDF, HDF5, and MATLAB output through a format

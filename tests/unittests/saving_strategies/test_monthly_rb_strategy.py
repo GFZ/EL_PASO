@@ -96,9 +96,9 @@ def check_metadata(keys: set[str]):
 
 _FORMAT_PARAMS = [
     ("nc", check_metadata(_STANDARD_META_KEYS)),
-    # ("h5", check_metadata(_STANDARD_META_KEYS)),
-    # ("cdf", check_metadata(_STANDARD_META_KEYS)),  # this also contains "Compress" hence ">=" check
-    # ("mat", check_metadata(_STANDARD_META_KEYS)),
+    ("h5", check_metadata(_STANDARD_META_KEYS)),
+    ("cdf", check_metadata(_STANDARD_META_KEYS)),  # this also contains "Compress" hence ">=" check
+    ("mat", check_metadata(_STANDARD_META_KEYS)),
 ]
 
 
@@ -118,7 +118,7 @@ def test_monthly_strategy_saves_mocked_variables_to_netcdf_with_data_standards(
     SATELLITE = "primary"
     INSTRUMENT = "MAGED"
     MAG_FIELD = "T89"
-    strategy = ep.saving_strategies.MonthlyFileStrategy(
+    strategy = ep.saving_strategies.MonthlyRBStrategy(
         base_data_path=tmp_path,
         mission=MISSION,
         satellite=SATELLITE,
@@ -242,7 +242,7 @@ def test_append_data(
     SATELLITE = "primary"
     INSTRUMENT = "MAGED"
     MAG_FIELD = "T89"
-    strategy = ep.saving_strategies.MonthlyFileStrategy(
+    strategy = ep.saving_strategies.MonthlyRBStrategy(
         base_data_path=tmp_path,
         mission=MISSION,
         satellite=SATELLITE,
@@ -267,7 +267,7 @@ def test_append_data(
     SATELLITE = "primary"
     INSTRUMENT = "MAGED"
     MAG_FIELD = "T89"
-    strategy = ep.saving_strategies.MonthlyFileStrategy(
+    strategy = ep.saving_strategies.MonthlyRBStrategy(
         base_data_path=tmp_path,
         mission=MISSION,
         satellite=SATELLITE,

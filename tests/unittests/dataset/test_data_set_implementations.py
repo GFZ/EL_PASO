@@ -97,7 +97,7 @@ def test_data_org_dataset_loads_saved_monthly_nc_and_rejects_invalid_variable(
     start_time = datetime(2013, 1, 1, tzinfo=timezone.utc)
     end_time = datetime(2013, 1, 2, tzinfo=timezone.utc)
 
-    strategy = ep.saving_strategies.MonthlyFileStrategy(
+    strategy = ep.saving_strategies.MonthlyRBStrategy(
         base_data_path=tmp_path,
         mission="GOES",
         satellite="primary",

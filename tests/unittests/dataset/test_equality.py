@@ -94,7 +94,7 @@ def test_dataset_equality_rejects_data_saved_with_different_standards(tmp_path: 
     start_time = datetime(2013, 1, 1, tzinfo=timezone.utc)
     end_time = datetime(2013, 1, 2, tzinfo=timezone.utc)
 
-    gfz_strategy = ep.saving_strategies.MonthlyFileStrategy(
+    gfz_strategy = ep.saving_strategies.MonthlyRBStrategy(
         base_data_path=tmp_path / "gfz",
         mission="GOES",
         satellite="primary",
@@ -103,7 +103,7 @@ def test_dataset_equality_rejects_data_saved_with_different_standards(tmp_path: 
         file_format=file_format,
         data_standard=ep.data_standards.GFZStandard(),
     )
-    prbem_strategy = ep.saving_strategies.MonthlyFileStrategy(
+    prbem_strategy = ep.saving_strategies.MonthlyRBStrategy(
         base_data_path=tmp_path / "prbem",
         mission="GOES",
         satellite="primary",
@@ -167,7 +167,7 @@ def test_dataset_equality_accepts_data_saved_with_different_strategies_but_same_
         mag_field="T89",
         data_standard=data_standard(),
     )
-    mfs_strategy = ep.saving_strategies.MonthlyFileStrategy(
+    mfs_strategy = ep.saving_strategies.MonthlyRBStrategy(
         base_data_path=tmp_path / "prbem",
         mission="GOES",
         satellite="primary",

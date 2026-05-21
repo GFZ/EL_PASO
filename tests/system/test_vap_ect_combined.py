@@ -97,7 +97,7 @@ def test_rbsp_ect_combined_snapshot(
             rbsp_proc = GFZDataSet(
                 start_time=start_time,
                 end_time=end_time,
-                saving_strategy=ep.saving_strategies.MonthlyFileStrategy(
+                saving_strategy=ep.saving_strategies.MonthlyRBStrategy(
                     tmpdir,
                     "RBSP",
                     "rbspa",
@@ -111,7 +111,7 @@ def test_rbsp_ect_combined_snapshot(
             rbsp_true = GFZDataSet(
                 start_time=start_time,
                 end_time=end_time,
-                saving_strategy=ep.saving_strategies.MonthlyFileStrategy(
+                saving_strategy=ep.saving_strategies.MonthlyRBStrategy(
                     Path(__file__).parent / "data" / "processed",
                     "RBSP",
                     "rbspa",

@@ -9,8 +9,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Literal, Optional
 
-from el_paso.data_standards import PRBEMStandard
-from el_paso.saving_strategies.monthly_strategy import MonthlyFileStrategy
+from el_paso.saving_strategies.monthly_rb_strategy import MonthlyRBStrategy
 from el_paso.saving_strategy import OutputFile
 
 if TYPE_CHECKING:
@@ -26,10 +25,10 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class DensityNetCDFStrategy(MonthlyFileStrategy):
+class DensityNetCDFStrategy(MonthlyRBStrategy):
     """Saving strategy for writing plasma density and related data to monthly NetCDF files.
 
-    This strategy extends `MonthlyFileStrategy` but implements saving to the NetCDF
+    This strategy extends `MonthlyRBStrategy` but implements saving to the NetCDF
     format (`.nc`), primarily targeting the time-series of density, position, and
     coordinate variables (e.g., L-star, MLT).
 
@@ -73,7 +72,7 @@ class DensityNetCDFStrategy(MonthlyFileStrategy):
                 If `None`, `ep.data_standards.PRBEMStandard` is used by default.
         """
         self.mag_field = mag_field
-        self.data_standard = data_standard or PRBEMStandard()
+        self.data_standard = data_standard or ep.data_standards.PRBEMStandard()
 
         super().__init__(
             base_data_path=base_data_path,

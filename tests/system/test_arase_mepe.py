@@ -52,14 +52,14 @@ def test_arase_mepe_snapshot(
         shutil.copy(out_path, Path(__file__).parent / "data" / "processed" / "ARASE" / "arase")
 
     arase_proc = GFZDataSet(
-        ep.saving_strategies.MonthlyFileStrategy(
+        ep.saving_strategies.MonthlyRBStrategy(
             tmpdir, "ARASE", "arase", "mepe", mag_field, data_standard=ep.data_standards.GFZStandard(), file_format="nc"
         ),
         start_time=start_time,
         end_time=end_time,
     )
     arase_true = GFZDataSet(
-        ep.saving_strategies.MonthlyFileStrategy(
+        ep.saving_strategies.MonthlyRBStrategy(
             Path(__file__).parent / "data" / "processed",
             "Arase",
             "arase",

@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from el_paso.data_standards import GFZStandard, PRBEMStandard
     from el_paso.saving_strategies.density_netcdf_strategy import DensityNetCDFStrategy
     from el_paso.saving_strategies.gfz_strategy import GFZStrategy
-    from el_paso.saving_strategies.monthly_strategy import MonthlyFileStrategy
+    from el_paso.saving_strategies.monthly_rb_strategy import MonthlyRBStrategy
     from el_paso.saving_strategies.single_file_strategy import SingleFileStrategy
     from el_paso.saving_strategy import OutputFile, SavingStrategy
     from el_paso.variable import Variable, VariableMetadata
@@ -135,7 +135,7 @@ __all__ = [
     "InternalName",
     "MFSFormats",
     "MagneticFieldLiteral",
-    "MonthlyFileStrategy",
+    "MonthlyRBStrategy",
     "OutputFile",
     "PRBEMName",
     "PRBEMStandard",
