@@ -49,7 +49,7 @@ def compute_magnetic_field_variables(
     energy_var: Variable | None = None,
     particle_species: Literal["electron", "proton"] | None = None,
     *,
-    irbem_lib_path: str | Path = Path(ep.__file__).parent / ".." / "libirbem.so",
+    irbem_lib_path: str | Path = Path(ep.__file__).parent / "libirbem.so",
 ) -> dict[str, Variable]:
     """Computes various magnetic field-related variables using the IRBEM library.
 
