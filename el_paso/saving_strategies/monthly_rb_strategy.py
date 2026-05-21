@@ -18,7 +18,6 @@ import netCDF4 as nC
 import numpy as np
 
 import el_paso as ep
-from el_paso.data_standards import PRBEMStandard
 from el_paso.saving_strategy import OutputFile, SavingStrategy
 
 if TYPE_CHECKING:
@@ -69,8 +68,7 @@ class MonthlyRBStrategy(SavingStrategy):
             mag_field (MagneticFieldLiteral): Magnetic field model name. Monthly files use one model.
             file_format (MFSFormats): One of ``"nc"``, ``"cdf"``, ``"h5"``, or ``"mat"``.
                 A leading dot is also accepted.
-            data_standard (DataStandard): Instance of the data standard implementation. Deafults to
-                `ep.data_standards.PRBEMStandard()`
+            data_standard (DataStandard): Instance of the data standard implementation.
 
         Attributes:
             output_files: List of output file configurations, with variable names
@@ -312,10 +310,6 @@ class MonthlyRBStrategy(SavingStrategy):
 
             if key not in new_data:
                 merged[key] = existing_data_internal[key]
-                continue
-
-            if key.startswith("custom/"):
-                merged[key] = new_data[key]
                 continue
 
             v1 = _normalize_1d(np.asarray(existing_data_internal[key]))
