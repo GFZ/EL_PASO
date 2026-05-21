@@ -5,10 +5,12 @@
 from datetime import datetime, timezone
 
 import numpy as np
+import pytest
 
 from el_paso.dataset import utils
 
 
+@pytest.mark.basic
 def test_join_var():
     a = np.array([1, 2])
     b = np.array([3, 4])
@@ -16,6 +18,7 @@ def test_join_var():
     np.testing.assert_array_equal(result, [1, 2, 3, 4])
 
 
+@pytest.mark.basic
 def test_round_seconds():
     dt1 = datetime(2024, 1, 1, 12, 0, 0, 600_000, tzinfo=timezone.utc)
     dt2 = datetime(2024, 1, 1, 12, 0, 0, 300_000, tzinfo=timezone.utc)
@@ -23,6 +26,7 @@ def test_round_seconds():
     assert utils.round_seconds(dt2).second == 0
 
 
+@pytest.mark.basic
 def test_python2matlab_and_matlab2python_roundtrip():
     dt1 = datetime(2024, 4, 16, 15, 30, 0, tzinfo=timezone.utc)
     matlab_time = utils.python2matlab(dt1)
@@ -32,6 +36,7 @@ def test_python2matlab_and_matlab2python_roundtrip():
     assert dt2.day == dt1.day
 
 
+@pytest.mark.basic
 def test_matlab2python_iterable():
     dt1 = datetime(2024, 4, 16, 15, 30, 0, tzinfo=timezone.utc)
     matlab_time = utils.python2matlab(dt1)
@@ -40,6 +45,7 @@ def test_matlab2python_iterable():
     assert dt2[0] == dt1
 
 
+@pytest.mark.basic
 def test_pol2cart_and_cart2pol():
     theta = np.array([0, np.pi / 2, np.pi])
     radius = np.array([1, 1, 1])
