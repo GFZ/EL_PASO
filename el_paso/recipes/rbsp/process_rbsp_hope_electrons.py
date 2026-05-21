@@ -19,20 +19,16 @@ if TYPE_CHECKING:
     from el_paso.processing import MagFieldVarTypes
 
 
-def process_hope_electrons(
+def process_rbsp_hope_electrons(
     start_time: datetime,
     end_time: datetime,
     sat_str: Literal["a", "b"],
-    irbem_lib_path: str | Path,
-    mag_field: Literal["T89", "T96", "TS04"] | list[Literal["T89", "T96", "TS04"]],
+    mag_field: Literal["T89", "T96", "TS04"],
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
     num_cores: int = 4,
 ) -> None:
-    if not isinstance(mag_field, list):
-        mag_field = [mag_field]
 
-    irbem_lib_path = Path(irbem_lib_path)
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
 
@@ -115,28 +111,22 @@ def process_hope_electrons(
     # Calculate magnetic field variables
     irbem_options = [1, 1, 4, 4, 0]
 
-    vars_to_compute: list[tuple[MagFieldVarTypes, str]] = []
-
-    for single_mag_field in mag_field:
-        vars_to_compute.extend(
-            [
-                ("B_local", single_mag_field),
-                ("MLT", single_mag_field),
-                ("B_eq", single_mag_field),
-                ("R_eq", single_mag_field),
-                ("PA_eq", single_mag_field),
-                ("Lstar", single_mag_field),
-                ("Lm", single_mag_field),
-                ("invK", single_mag_field),
-                ("invMu", single_mag_field),
-            ]
-        )
+    vars_to_compute: ep.typing.VariableRequest = [
+        ("B_local", mag_field),
+        ("MLT", mag_field),
+        ("B_eq", mag_field),
+        ("R_eq", mag_field),
+        ("PA_eq", mag_field),
+        ("Lstar", mag_field),
+        ("Lm", mag_field),
+        ("invK", mag_field),
+        ("invMu", mag_field),
+    ]
 
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
         time_var=binned_time_variable,
         xgeo_var=variables["xGEO"],
         variables_to_compute=vars_to_compute,
-        irbem_lib_path=str(irbem_lib_path),
         irbem_options=irbem_options,
         num_cores=num_cores,
         pa_local_var=variables["Pitch_angle"],
@@ -146,59 +136,34 @@ def process_hope_electrons(
 
     psd_var = ep.processing.compute_phase_space_density(variables["FEDU"], variables["Energy"], "electron")
 
-    for single_mag_field in mag_field:
-        saving_strategy = ep.saving_strategies.GFZStrategy(
-            processed_data_path, "RBSP", "rbsp" + sat_str, "hope", single_mag_field, ".mat"
-        )
-
-        variables_to_save = {
-            "time": binned_time_variable,
-            "Flux": variables["FEDU"],
-            "xGEO": variables["xGEO"],
-            "energy_channels": variables["Energy"],
-            "alpha_local": variables["Pitch_angle"],
-            "alpha_eq_model": magnetic_field_variables["PA_eq_" + single_mag_field],
-            "Lstar": magnetic_field_variables["Lstar_" + single_mag_field],
-            "MLT": magnetic_field_variables["MLT_" + single_mag_field],
-            "Lm": magnetic_field_variables["Lm_" + single_mag_field],
-            "R0": magnetic_field_variables["R_eq_" + single_mag_field],
-            "InvK": magnetic_field_variables["invK_" + single_mag_field],
-            "InvMu": magnetic_field_variables["invMu_" + single_mag_field],
-            "B_eq": magnetic_field_variables["B_eq_" + single_mag_field],
-            "B_local": magnetic_field_variables["B_local_" + single_mag_field],
-            "PSD": psd_var,
-        }
-
-        ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
-
-    saving_strategy = ep.saving_strategies.MonthlyNetCDFStrategy(
-        base_data_path=processed_data_path, file_name_stem=f"rbsp{sat_str}_hope", mag_field=mag_field
-    )
-
-    variables_to_save = {
-        "time": binned_time_variable,
-        "flux/FEDU": variables["FEDU"],
-        "position/xGEO": variables["xGEO"],
-        "flux/energy": variables["Energy"],
-        "flux/alpha_local": variables["Pitch_angle"],
-        "psd/PSD": psd_var,
+    variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+        "Epoch": binned_time_variable,
+        "FEDU": variables["FEDU"],
+        "Position": variables["xGEO"],
+        "Energy_FEDU": variables["Energy"],
+        "Alpha": variables["Pitch_angle"],
+        "Alpha_Eq": magnetic_field_variables["PA_eq_" + mag_field],
+        "L_star": magnetic_field_variables["Lstar_" + mag_field],
+        "MLT": magnetic_field_variables["MLT_" + mag_field],
+        "L_m": magnetic_field_variables["Lm_" + mag_field],
+        "R_Eq": magnetic_field_variables["R_eq_" + mag_field],
+        "InvK": magnetic_field_variables["invK_" + mag_field],
+        "InvMu": magnetic_field_variables["invMu_" + mag_field],
+        "B_Eq": magnetic_field_variables["B_eq_" + mag_field],
+        "B_Calc": magnetic_field_variables["B_local_" + mag_field],
+        "PSD": psd_var,
     }
 
-    for single_mag_field in mag_field:
-        variables_to_save |= {
-            "flux/alpha_eq": magnetic_field_variables["PA_eq_" + single_mag_field],
-            f"position/{single_mag_field}/Lstar": magnetic_field_variables["Lstar_" + single_mag_field],
-            f"position/{single_mag_field}/MLT": magnetic_field_variables["MLT_" + single_mag_field],
-            f"position/{single_mag_field}/Lm": magnetic_field_variables["Lm_" + single_mag_field],
-            f"position/{single_mag_field}/R0": magnetic_field_variables["R_eq_" + single_mag_field],
-            f"psd/{single_mag_field}/inv_K": magnetic_field_variables["invK_" + single_mag_field],
-            f"psd/{single_mag_field}/inv_mu": magnetic_field_variables["invMu_" + single_mag_field],
-            f"mag_field/{single_mag_field}/B_eq": magnetic_field_variables["B_eq_" + single_mag_field],
-            f"mag_field/{single_mag_field}/B_local": magnetic_field_variables["B_local_" + single_mag_field],
-        }
+    saving_strategy = ep.saving_strategies.MonthlyRBStrategy(
+        base_data_path=processed_data_path,
+        mission="RBSP",
+        satellite="rbsp" + sat_str,
+        instrument="hope",
+        mag_field=mag_field,
+        data_standard=ep.data_standards.GFZStandard(),
+    )
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
-
 
 if __name__ == "__main__":
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
@@ -236,12 +201,11 @@ if __name__ == "__main__":
 
     #    with tempfile.TemporaryDirectory() as tmpdir:
     for sat_str in ["a", "b"]:
-        process_hope_electrons(
+        process_rbsp_hope_electrons(
             dt_start,
             dt_end,
-            sat_str,
-            args.irbem_lib_path,
-            ["T89", "OP77"],
+            sat_str,  # ty:ignore[invalid-argument-type]
+            "T89",
             raw_data_path=".",
             processed_data_path=".",
             num_cores=8,

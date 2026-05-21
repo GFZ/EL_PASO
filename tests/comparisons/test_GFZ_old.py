@@ -25,14 +25,14 @@ mag_field_list = ["TS04", "T89"]
 @pytest.mark.parametrize("sat_str", sat_str_list)
 @pytest.mark.parametrize("mag_field", mag_field_list)
 @pytest.mark.visual
-def test_gfz_old(sat_str: Literal["a", "b"], mag_field: Literal["T89", "TS04"]):  # noqa: PLR0915
+def test_gfz_old(sat_str: Literal["a", "b"], mag_field: Literal["T89", "TS04"]):
     start_time = datetime(2013, 3, 17, tzinfo=timezone.utc)
     end_time = start_time + timedelta(days=0, hours=23, minutes=59)
 
     Path("tests/comparisons/raw_data").mkdir(exist_ok=True)
     Path("tests/comparisons/processed_data").mkdir(exist_ok=True)
 
-    process_hope_electrons(
+    process_rbsp_hope_electrons(
         start_time,
         end_time,
         sat_str,

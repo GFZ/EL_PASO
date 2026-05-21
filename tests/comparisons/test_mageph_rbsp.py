@@ -15,12 +15,11 @@ from astropy import units as u
 from matplotlib import pyplot as plt
 from swvo.io.dst import DSTOMNI
 from swvo.io.kp import KpOMNI
+from swvo.io.RBMDataSet import InstrumentEnum, MfmEnum, RBMDataSet
 
 import el_paso as ep
-from el_paso import InstrumentEnum, MfmEnum, RBMDataSet
-from examples.VanAllenProbes.process_hope_electrons import process_hope_electrons
+from el_paso.recipes.rbsp import process_rbsp_hope_electrons
 
-# ruff: noqa: PLR2004
 
 sat_str_list = ["a", "b"]
 mag_field_list = ["TS04", "T89"]

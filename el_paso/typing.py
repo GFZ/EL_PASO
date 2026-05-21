@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias
 if TYPE_CHECKING:
     from el_paso.data_standard import ConsistencyCheck, DataStandard, VariableInfo
     from el_paso.data_standards import GFZStandard, PRBEMStandard
+    from el_paso.processing.compute_magnetic_field_variables import VariableRequest
     from el_paso.saving_strategies.density_netcdf_strategy import DensityNetCDFStrategy
     from el_paso.saving_strategies.gfz_strategy import GFZStrategy
     from el_paso.saving_strategies.monthly_rb_strategy import MonthlyRBStrategy
@@ -147,4 +148,5 @@ __all__ = [
     "Variable",
     "VariableInfo",
     "VariableMetadata",
+    "VariableRequest",
 ]
