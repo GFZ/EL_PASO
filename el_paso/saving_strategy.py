@@ -22,8 +22,7 @@ if TYPE_CHECKING:
     from datetime import datetime
     from pathlib import Path
 
-    from el_paso.processing.magnetic_field_utils import MagneticFieldLiteral
-    from el_paso.typing import DataStandard, InternalName, SavedDataDict, StandardName
+    from el_paso.typing import DataStandard, InternalName, MagneticFieldLiteral, SavedDataDict, StandardName
 
 
 class OutputFile(NamedTuple):

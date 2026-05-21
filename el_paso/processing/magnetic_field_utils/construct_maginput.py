@@ -6,13 +6,13 @@
 import logging
 from datetime import datetime, timezone
 from functools import cache
-from typing import Literal
 
 import numpy as np
 from numpy.typing import NDArray
 
 import el_paso as ep
 from el_paso.load_indices_solar_wind_parameters import SW_Index
+from el_paso.typing import MagInputKeys
 
 from .mag_field_enum import MagneticField, kext
 
@@ -63,10 +63,6 @@ MAGINPUT_TO_INDEX: dict[SW_Index, int | list[int]] = {
     "G3": 9,
     "W_params": list(range(10, 16)),
 }
-
-MagInputKeys = Literal[
-    "Kp", "Dst", "dens", "velo", "Pdyn", "ByIMF", "BzIMF", "G1", "G2", "G3", "W1", "W2", "W3", "W4", "W5", "W6", "AL"
-]
 
 
 @cache

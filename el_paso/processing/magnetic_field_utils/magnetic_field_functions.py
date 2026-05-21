@@ -20,28 +20,12 @@ import el_paso as ep
 from el_paso.processing.magnetic_field_utils.construct_maginput import MagInputKeys
 from el_paso.processing.magnetic_field_utils.irbem import Coords, MagFields
 from el_paso.processing.magnetic_field_utils.mag_field_enum import MagneticField
+from el_paso.typing import MagFieldVarTypes
 from el_paso.utils import show_process_bar_for_map_async, timed_function
 
 logger = logging.getLogger(__name__)
 
 FORTRAN_BAD_VALUE = np.float64(-1.0e31)
-
-MagFieldVarTypes = Literal[
-    "B_local",
-    "B_fofl",
-    "B_eq",
-    "B_mirr",
-    "xGEO_eq",
-    "MLT",
-    "R_eq",
-    "MLT_eq",
-    "Lstar",
-    "Lm",
-    "PA_eq",
-    "invMu",
-    "invK",
-    "XJ",
-]
 
 
 def create_var_name(var_type: MagFieldVarTypes, mag_field: MagneticField) -> str:

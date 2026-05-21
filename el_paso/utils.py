@@ -412,7 +412,7 @@ def normalize_file_format(file_format: str) -> str:
         normalized = f".{normalized}"
 
     if normalized not in {".nc", ".cdf", ".h5", ".mat"}:
-        msg = "MonthlyFileStrategy supports only 'nc', 'cdf', 'h5', and 'mat' formats."
+        msg = "MonthlyRBStrategy supports only 'nc', 'cdf', 'h5', and 'mat' formats."
         raise ValueError(msg)
 
     return normalized
@@ -715,7 +715,6 @@ def write_cdf_file(file_path: Path, data_dict: DataDict, data_standard: DataStan
 def get_monthly_datetime_intervals(  # noqa: D103
     start_time: datetime | None, end_time: datetime | None
 ) -> list[tuple[datetime, datetime]]:
-
     time_intervals: list[tuple[datetime, datetime]] = []
 
     if start_time is None or end_time is None:

@@ -198,7 +198,7 @@ class PRBEMDataSet(DataSet):
         Parameters:
             saving_strategy_type (type[SavingStrategy]): Class (not instance) of
                 the saving strategy used to resolve file paths. Defaults to
-                ``ep.saving_strategies.MonthlyFileStrategy``.
+                ``ep.saving_strategies.MonthlyRBStrategy``.
             start_time (dt.datetime): Beginning of the time range to load.
             end_time (dt.datetime): End of the time range to load.
             preferred_extension (MFSFormats): File format to prefer when reading

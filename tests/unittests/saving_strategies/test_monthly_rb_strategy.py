@@ -104,7 +104,7 @@ _FORMAT_PARAMS = [
 @pytest.mark.basic
 @pytest.mark.parametrize("data_standard", [ep.data_standards.GFZStandard, ep.data_standards.PRBEMStandard])
 @pytest.mark.parametrize(("output_format", "meta_keys_check"), _FORMAT_PARAMS)
-def test_monthly_strategy_saves_mocked_variables_to_netcdf_with_data_standards(
+def test_monthly_rb_strategy_saves_mocked_variables_to_netcdf_with_data_standards(
     tmp_path: Path,
     data_standard: type[DataStandard],
     output_format: Literal["nc", "h5", "cdf", "mat"],

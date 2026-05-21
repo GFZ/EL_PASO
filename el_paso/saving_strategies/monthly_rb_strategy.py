@@ -21,12 +21,12 @@ import el_paso as ep
 from el_paso.saving_strategy import OutputFile, SavingStrategy
 
 if TYPE_CHECKING:
-    from el_paso.processing.magnetic_field_utils import MagneticFieldLiteral
     from el_paso.typing import (
         DataStandard,
         FileLoader,
         FileWriter,
         InternalName,
+        MagneticFieldLiteral,
         MFSFormats,
         SavedDataDict,
         StandardName,
@@ -140,7 +140,7 @@ class MonthlyRBStrategy(SavingStrategy):
         time_intervals: list[tuple[datetime, datetime]] = []
 
         if start_time is None or end_time is None:
-            msg = "start_time and end_time must be provided for MonthlyFileStrategy!"
+            msg = "start_time and end_time must be provided for MonthlyRBStrategy!"
             raise ValueError(msg)
 
         current_time = start_time.replace(day=1)
@@ -229,7 +229,7 @@ class MonthlyRBStrategy(SavingStrategy):
         loader = self._loaders.get(format_name)
         writer = self._writers.get(format_name)
         if loader is None or writer is None:
-            msg = f"Appending to '{format_name}' files is not supported by MonthlyFileStrategy."
+            msg = f"Appending to '{format_name}' files is not supported by MonthlyRBStrategy."
             logger.error(msg)
             raise NotImplementedError(msg)
 

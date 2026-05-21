@@ -18,22 +18,23 @@ from astropy import units as u
 import el_paso as ep
 import el_paso.processing.magnetic_field_utils as mag_utils
 from el_paso import Variable
+from el_paso.typing import MagFieldVarTypes, MagneticFieldLiteral
 from el_paso.utils import make_dict_hashable, timed_function
 
 logger = logging.getLogger(__name__)
 
-VariableRequest = Sequence[tuple[mag_utils.MagFieldVarTypes, mag_utils.MagneticFieldLiteral | mag_utils.MagneticField]]
+VariableRequest = Sequence[tuple[MagFieldVarTypes, MagneticFieldLiteral | mag_utils.MagneticField]]
 
 
 class MagFieldVar(NamedTuple):
     """A named tuple to represent a request for a magnetic field variable.
 
     Attributes:
-        type (mag_utils.MagFieldVarTypes): The type of magnetic field variable to compute (e.g., "B_local", "Lstar").
+        type (MagFieldVarTypes): The type of magnetic field variable to compute (e.g., "B_local", "Lstar").
         mag_field (str | mag_utils.MagneticField): The magnetic field model to use for the computation .
     """
 
-    type: mag_utils.MagFieldVarTypes
+    type: MagFieldVarTypes
     mag_field: str | mag_utils.MagneticField
 
 
@@ -62,7 +63,7 @@ def compute_magnetic_field_variables(
         xgeo_var (Variable): A Variable object containing geocentric (XGEO)
             coordinates. Expected to be a 2D array (time, 3) where the last
             dimension represents X, Y, Z coordinates.
-        variables_to_compute (Sequence[tuple[mag_utils.MagFieldVarTypes, str | mag_utils.MagneticField]]):
+        variables_to_compute (Sequence[tuple[MagFieldVarTypes, str | mag_utils.MagneticField]]):
             A sequence of tuples, where each tuple specifies a variable to compute. The first element is the
             variable type (e.g., "Lstar"), and the second is the magnetic field model to use (e.g., "IGRF").
         irbem_options (list[int]): A list of 5 integer options for the IRBEM library
@@ -180,7 +181,7 @@ def compute_magnetic_field_variables(
 
 
 def _get_result(
-    var_type: mag_utils.MagFieldVarTypes,
+    var_type: MagFieldVarTypes,
     xgeo_var: Variable,
     time_var: Variable,
     pa_local_var: Variable,
@@ -192,7 +193,7 @@ def _get_result(
     """Helper function to get the result for a specific magnetic field variable.
 
     Args:
-        var_type (mag_utils.MagFieldVarTypes): The type of magnetic field variable to compute.
+        var_type (MagFieldVarTypes): The type of magnetic field variable to compute.
         xgeo_var (Variable): Variable containing geocentric (XGEO) coordinates.
         time_var (Variable): Variable containing time data.
         pa_local_var (Variable): Variable containing local pitch angles.

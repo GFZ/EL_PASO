@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Literal, Optional
 
+import el_paso as ep
 from el_paso.saving_strategies.monthly_rb_strategy import MonthlyRBStrategy
 from el_paso.saving_strategy import OutputFile
 
@@ -17,7 +18,6 @@ if TYPE_CHECKING:
 
     import numpy as np
 
-    import el_paso as ep
     from el_paso.data_standard import DataStandard
     from el_paso.processing.magnetic_field_utils import MagneticFieldLiteral
     from el_paso.typing import StandardName

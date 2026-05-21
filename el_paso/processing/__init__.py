@@ -16,10 +16,8 @@ from el_paso.processing.construct_pitch_angle_distribution import construct_pitc
 from el_paso.processing.convert_string_to_datetime import convert_string_to_datetime
 from el_paso.processing.fold_pitch_angles_and_flux import fold_pitch_angles_and_flux
 from el_paso.processing.get_real_time_tipsod import get_real_time_tipsod
-from el_paso.processing.magnetic_field_utils import MagFieldVarTypes
 
 __all__ = [
-    "MagFieldVarTypes",
     "TimeBinMethod",
     "VariableRequest",
     "bin_by_time",

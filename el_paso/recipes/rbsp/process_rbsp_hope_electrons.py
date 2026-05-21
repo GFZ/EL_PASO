@@ -16,7 +16,7 @@ from astropy import units as u
 import el_paso as ep
 
 if TYPE_CHECKING:
-    from el_paso.processing import MagFieldVarTypes
+    from el_paso.typing import MagFieldVarTypes
 
 
 def process_rbsp_hope_electrons(
@@ -28,7 +28,6 @@ def process_rbsp_hope_electrons(
     processed_data_path: str | Path = ".",
     num_cores: int = 4,
 ) -> None:
-
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
 
@@ -164,6 +163,7 @@ def process_rbsp_hope_electrons(
     )
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
+
 
 if __name__ == "__main__":
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))

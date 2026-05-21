@@ -10,6 +10,7 @@ SPDX-License-Identifier: Apache-2.0
 This section provides a detailed reference for all modules, classes, and functions in `el_paso`.
 
 ## Core classes
+
 [DataStandard](data_standard.md)
 
 [SavingStrategy](saving_strategy.md)
@@ -17,6 +18,7 @@ This section provides a detailed reference for all modules, classes, and functio
 [Variable](variable.md)
 
 ## Core functions
+
 [download](download.md)
 
 [extract_variables_from_files](extract_variables_from_files.md)
@@ -59,12 +61,11 @@ This section provides a detailed reference for all modules, classes, and functio
 
 [convert_string_to_datetime](processing/convert_string_to_datetime.md)
 
-
 ## Saving standards
 
 [GFZStrategy](saving_strategies/gfz.md)
 
-[MonthlyFileStrategy](saving_strategies/monthly.md)
+[MonthlyRBStrategy](saving_strategies/monthly.md)
 
 [SingleFileStrategy](saving_strategies/single_file.md)
 

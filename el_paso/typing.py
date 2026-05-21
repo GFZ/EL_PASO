@@ -76,6 +76,25 @@ GFZVarNames: TypeAlias = Literal[
 StandardName: TypeAlias = PRBEMName | GFZVarNames | Literal["metadata"]
 
 MagneticFieldLiteral: TypeAlias = Literal["T89", "T01", "T01s", "TS04", "TS05", "T04s", "T96", "OP77Q", "OP77"]
+MagInputKeys: TypeAlias = Literal[
+    "Kp", "Dst", "dens", "velo", "Pdyn", "ByIMF", "BzIMF", "G1", "G2", "G3", "W1", "W2", "W3", "W4", "W5", "W6", "AL"
+]
+MagFieldVarTypes: TypeAlias = Literal[
+    "B_local",
+    "B_fofl",
+    "B_eq",
+    "B_mirr",
+    "xGEO_eq",
+    "MLT",
+    "R_eq",
+    "MLT_eq",
+    "Lstar",
+    "Lm",
+    "PA_eq",
+    "invMu",
+    "invK",
+    "XJ",
+]
 MFSFormats: TypeAlias = Literal["nc", "cdf", "h5", "mat", ".nc", ".cdf", ".h5", ".mat"]
 TimeInterval: TypeAlias = tuple[datetime, datetime]
 SavedDataDict: TypeAlias = dict[InternalName | Literal["metadata"], Any]
@@ -97,7 +116,7 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     "GFZStrategy": ("el_paso.saving_strategies.gfz_strategy", "GFZStrategy"),
     "DataStandard": ("el_paso.data_standard", "DataStandard"),
     "DensityNetCDFStrategy": ("el_paso.saving_strategies.density_netcdf_strategy", "DensityNetCDFStrategy"),
-    "MonthlyFileStrategy": ("el_paso.saving_strategies.monthly_strategy", "MonthlyFileStrategy"),
+    "MonthlyRBStrategy": ("el_paso.saving_strategies.monthly_rb_strategy", "MonthlyRBStrategy"),
     "OutputFile": ("el_paso.saving_strategy", "OutputFile"),
     "PRBEMStandard": ("el_paso.data_standards", "PRBEMStandard"),
     "SavingStrategy": ("el_paso.saving_strategy", "SavingStrategy"),
@@ -135,6 +154,8 @@ __all__ = [
     "GFZVarNames",
     "InternalName",
     "MFSFormats",
+    "MagFieldVarTypes",
+    "MagInputKeys",
     "MagneticFieldLiteral",
     "MonthlyRBStrategy",
     "OutputFile",
