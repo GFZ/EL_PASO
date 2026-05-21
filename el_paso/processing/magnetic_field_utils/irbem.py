@@ -938,7 +938,7 @@ class Coords:
     Fortran routines of the IRBEM-LIB.
     """
 
-    def __init__(self, *, lib_path: str | Path = Path(ep.__file__).parent / ".." / "libirbem.so") -> None:
+    def __init__(self, *, lib_path: str | Path = Path(ep.__file__).parent / "libirbem.so") -> None:
         """Initializes the Coords object and loads the IRBEM shared library.
 
         Args:
