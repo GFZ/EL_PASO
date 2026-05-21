@@ -38,7 +38,7 @@ jobs:
 
       - name: Check libirbem.so is present
         run: |
-          test -f libirbem.so && echo "libirbem.so found" || { echo "libirbem.so NOT found" >&2; exit 1; }
+          test -f el_paso/libirbem.so && echo "libirbem.so found" || { echo "libirbem.so NOT found" >&2; exit 1; }
 
       - name: Test import
         run: |
