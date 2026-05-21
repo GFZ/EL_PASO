@@ -273,8 +273,9 @@ class DataSet:
 
                 if self._verbose:
                     logger.info(f"Loading {full_file_path}")
-            elif self._verbose:
-                logger.warning(f"Tried to load {full_file_path}, but it does not exist")
+            else:
+                if self._verbose:
+                    logger.warning(f"Tried to load {full_file_path}, but it does not exist")
                 continue
 
             time_key = self.saving_strategy.data_standard.get_standard_name("Epoch")

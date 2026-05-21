@@ -235,7 +235,7 @@ def process_arase_mepe(
             )
 
         case "h5":
-            saving_strategy = ep.saving_strategies.MonthlyFileStrategy(
+            saving_strategy = ep.saving_strategies.MonthlyRBStrategy(
                 processed_data_path,
                 "Arase",
                 "arase",
@@ -246,7 +246,7 @@ def process_arase_mepe(
             )
 
         case "netcdf":
-            saving_strategy = ep.saving_strategies.MonthlyFileStrategy(
+            saving_strategy = ep.saving_strategies.MonthlyRBStrategy(
                 processed_data_path,
                 "Arase",
                 "arase",

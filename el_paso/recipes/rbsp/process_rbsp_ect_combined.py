@@ -185,7 +185,7 @@ def process_rbsp_ect_combined(
             )
 
         case "h5":
-            saving_strategy = ep.saving_strategies.MonthlyFileStrategy(
+            saving_strategy = ep.saving_strategies.MonthlyRBStrategy(
                 processed_data_path,
                 mission="RBSP",
                 satellite=f"rbsp{sat_str}",
@@ -196,7 +196,7 @@ def process_rbsp_ect_combined(
             )
 
         case "netcdf":
-            saving_strategy = ep.saving_strategies.MonthlyFileStrategy(
+            saving_strategy = ep.saving_strategies.MonthlyRBStrategy(
                 processed_data_path,
                 mission="RBSP",
                 satellite=f"rbsp{sat_str}",

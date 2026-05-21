@@ -169,12 +169,13 @@ def process_arase_xep_real_time(
         )
 
     if save_strategy in ("netcdf", "both"):
-        saving_strategy = ep.saving_strategies.MonthlyFileStrategy(
+        saving_strategy = ep.saving_strategies.MonthlyRBStrategy(
             base_data_path=Path(processed_data_path),
             mission="Arase",
             satellite="arase",
             instrument="xep",
             mag_field="T89",
+            data_standard=ep.data_standards.GFZStandard(),
         )
 
         ep.save(

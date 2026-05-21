@@ -499,17 +499,17 @@ def write_h5_file(file_path: Path, data_dict: SavedDataDict, data_standard: Data
 
 def _write_data_to_netcdf_file(file: nC.Dataset | nC.Group, data_dict: DataDict, data_standard: DataStandard) -> None:
     """Write variables to a NetCDF file or group."""
-    for mfs_name, value in data_dict.items():
-        if mfs_name == "metadata":
+    for internal_name, value in data_dict.items():
+        if internal_name == "metadata":
             continue
 
         value_array = np.asarray(value)
         if value_array.size == 0:
             continue
 
-        path = data_standard.get_standard_name(mfs_name)
+        standard_name = data_standard.get_standard_name(internal_name)
 
-        path_parts = path.split("/")
+        path_parts = standard_name.split("/")
         groups = path_parts[:-1]
         dataset_name = path_parts[-1]
 
@@ -520,7 +520,7 @@ def _write_data_to_netcdf_file(file: nC.Dataset | nC.Group, data_dict: DataDict,
             else:
                 curr_hierarchy = curr_hierarchy.groups[group]
 
-        dimensions = data_standard.get_dependencies(mfs_name)
+        dimensions = data_standard.get_dependencies(internal_name)
         data_set = cast(
             "nC.Variable[Any]",
             curr_hierarchy.createVariable(
@@ -545,7 +545,7 @@ def _write_data_to_netcdf_file(file: nC.Dataset | nC.Group, data_dict: DataDict,
         metadata_dict = data_dict.get("metadata", {})
         metadata = {}
         if isinstance(metadata_dict, dict):
-            metadata = metadata_dict.get(path, metadata_dict.get(mfs_name, {}))
+            metadata = metadata_dict.get(internal_name, metadata_dict.get(internal_name, {}))
 
         if not isinstance(metadata, dict):
             continue

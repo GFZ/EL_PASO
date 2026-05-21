@@ -32,7 +32,7 @@ GEOCOORDS_DICT: dict[Literal["primary", "secondary"], np.ndarray] = {
 }
 
 
-def _remove_unit_from_energy_channels(energy_channels: list[str]) -> NDArray[np.int32]:
+def _remove_unit_from_energy_channels(energy_channels: NDArray[np.generic]) -> NDArray[np.int32]:
     """Remove the unit from the energy ranges."""
     return np.asarray([int(i.replace(" keV", "")) for i in energy_channels if "keV" in i])
 
@@ -42,7 +42,6 @@ def process_goes_real_time(
     sat_str: Literal["primary", "secondary"],
     processed_data_path: str | Path,
     raw_data_path: str | Path,
-    irbem_lib_path: str | Path,
     start_time: datetime,
     end_time: datetime,
     save_strategy: Literal["dataorg", "netcdf", "both"] = "netcdf",
@@ -163,7 +162,6 @@ def process_goes_real_time(
         pa_local_var=variables["PA_local_FEDU"],
         particle_species="electron",
         variables_to_compute=variables_to_compute,
-        irbem_lib_path=irbem_lib_path,
         irbem_options=[1, 1, 4, 4, 0],
         num_cores=num_cores,
     )
@@ -175,61 +173,45 @@ def process_goes_real_time(
 
     psd_var = ep.processing.compute_phase_space_density(FEDU_var, variables["Energy"], particle_species="electron")
 
-    dataorg_vars = {
-        "time": binned_time_var,
-        "Flux": FEDU_var,
-        "xGEO": variables["xGEO"],
-        "energy_channels": variables["Energy"],
-        "alpha_local": variables["PA_local_FEDU"],
+    vars_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+        "Epoch": binned_time_var,
+        "FEDU": FEDU_var,
+        "Position": variables["xGEO"],
+        "Energy_FEDU": variables["Energy"],
+        "Alpha": variables["PA_local_FEDU"],
         "PSD": psd_var,
-        "alpha_eq_model": magnetic_field_variables["PA_eq_T89"],
+        "Alpha_Eq": magnetic_field_variables["PA_eq_T89"],
         "MLT": magnetic_field_variables["MLT_T89"],
-        "Lstar": magnetic_field_variables["Lstar_T89"],
-        "R0": magnetic_field_variables["R_eq_T89"],
-        "B_eq": magnetic_field_variables["B_eq_T89"],
-        "B_local": magnetic_field_variables["B_local_T89"],
+        "L_star": magnetic_field_variables["Lstar_T89"],
+        "R_Eq": magnetic_field_variables["R_eq_T89"],
+        "B_Eq": magnetic_field_variables["B_eq_T89"],
+        "B_Calc": magnetic_field_variables["B_local_T89"],
         "InvMu": magnetic_field_variables["invMu_T89"],
         "InvK": magnetic_field_variables["invK_T89"],
     }
 
-    netcdf_vars = {
-        "time": binned_time_var,
-        "flux/FEDU": FEDU_var,
-        "flux/energy": variables["Energy"],
-        "flux/alpha_local": variables["PA_local_FEDU"],
-        "flux/alpha_eq": magnetic_field_variables["PA_eq_T89"],
-        "position/T89/R0": magnetic_field_variables["R_eq_T89"],
-        "position/T89/MLT": magnetic_field_variables["MLT_T89"],
-        "position/T89/Lm": magnetic_field_variables["Lm_T89"],
-        "position/T89/Lstar": magnetic_field_variables["Lstar_T89"],
-        "mag_field/T89/B_local": magnetic_field_variables["B_local_T89"],
-        "mag_field/T89/B_eq": magnetic_field_variables["B_eq_T89"],
-        "psd/PSD": psd_var,
-        "psd/T89/inv_mu": magnetic_field_variables["invMu_T89"],
-        "psd/T89/inv_K": magnetic_field_variables["invK_T89"],
-        "position/xGEO": variables["xGEO"],
-    }
-
     if save_strategy in ("dataorg", "both"):
-        gfz_strategy = ep.saving_strategies.GFZStrategy(
+        strategy = ep.saving_strategies.GFZStrategy(
             processed_data_path,
             mission="GOES",
-            satellite=sat_str,
-            instrument="MAGED",
-            kext="T89",
-            file_format=".pickle",
+            satellite="goes_" + sat_str,
+            instrument="mps-high",
+            mag_field="T89",
+            data_standard=ep.data_standards.GFZStandard(),
         )
-
-        ep.save(dataorg_vars, gfz_strategy, start_time, end_time, time_var=binned_time_var, append=True)
 
     if save_strategy in ("netcdf", "both"):
-        netcdf_strategy = ep.saving_strategies.MonthlyNetCDFStrategy(
-            base_data_path=Path(processed_data_path) / "GOES" / sat_str,
-            file_name_stem=f"{sat_str}_MAGED",
+        strategy = ep.saving_strategies.MonthlyRBStrategy(
+            base_data_path=Path(processed_data_path),
+            mission="GOES",
+            satellite="goes_" + sat_str,
+            instrument="mps-high",
             mag_field="T89",
+            file_format=".nc",
+            data_standard=ep.data_standards.GFZStandard(),
         )
 
-        ep.save(netcdf_vars, netcdf_strategy, start_time, end_time, time_var=binned_time_var, append=True)
+    ep.save(vars_to_save, strategy, start_time, end_time, time_var=binned_time_var, append=True)
 
 
 if __name__ == "__main__":
@@ -238,10 +220,9 @@ if __name__ == "__main__":
 
     for sat in ["primary", "secondary"]:
         process_goes_real_time(
-            sat_str=sat,
+            sat_str=sat,  # ty:ignore[invalid-argument-type]
             raw_data_path="goes/raw/",
             processed_data_path="goes/processed/",
-            irbem_lib_path="../../libirbem.so",
             start_time=start_time,
             end_time=end_time,
             num_cores=64,

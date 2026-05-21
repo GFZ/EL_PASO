@@ -12,7 +12,7 @@ import shutil
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, Optional
+from typing import TYPE_CHECKING, Any, Literal
 
 import netCDF4 as nC
 import numpy as np
@@ -56,8 +56,8 @@ class MonthlyRBStrategy(SavingStrategy):
         satellite: str,
         instrument: str,
         mag_field: MagneticFieldLiteral,
-        file_format: MFSFormats = "h5",
-        data_standard: Optional[DataStandard[StandardName]] = None,
+        data_standard: DataStandard[StandardName],
+        file_format: MFSFormats = "nc",
     ) -> None:
         """Initialize a monthly file saving strategy.
 
@@ -83,9 +83,8 @@ class MonthlyRBStrategy(SavingStrategy):
         self.satellite = satellite
         self.instrument = instrument
         self.mag_field = mag_field
+        self.data_standard = data_standard
         self.file_format = ep.utils.normalize_file_format(file_format)
-
-        self.data_standard = data_standard or PRBEMStandard()
 
         self.output_files = [
             OutputFile("full", self._get_output_file_entries(), save_incomplete=True),
@@ -204,9 +203,12 @@ class MonthlyRBStrategy(SavingStrategy):
             raise NotImplementedError(msg)
 
         if file_path.exists() and append:
+            logger.info(f"Appending and saving to existing file: {file_path.resolve()}")
             self.append_data(file_path, dict_to_save)
-            logger.info(f"Saving file {file_path.resolve()}")
             return
+
+        logger.info(f"Saving file: {file_path.resolve()}")
+
         writer(file_path, dict_to_save, self.data_standard)
 
     def append_data(self, file_path: Path, data_dict_to_save: SavedDataDict) -> SavedDataDict:
