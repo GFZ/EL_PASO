@@ -12,7 +12,7 @@ import shutil
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Literal, Optional
 
 import netCDF4 as nC
 import numpy as np
@@ -220,13 +220,7 @@ class MonthlyFileStrategy(SavingStrategy):
             msg = f"Cannot append: file does not exist: {file_path}"
             raise FileNotFoundError(msg)
 
-        time_key = self.data_standard.get_standard_name("Epoch")
-
-        if time_key not in data_dict_to_save:
-            msg = f"Cannot append: missing {time_key} in data_dict_to_save."
-            raise KeyError(msg)
-
-        new_time = np.asarray(data_dict_to_save[time_key])
+        new_time = np.asarray(data_dict_to_save["Epoch"])
         if int(new_time.shape[0]) == 0:
             logger.info(f"No new time data to insert for {file_path.name}")
             return data_dict_to_save
@@ -246,7 +240,7 @@ class MonthlyFileStrategy(SavingStrategy):
         existing_data = loader(file_path)
 
         logger.info(f"Merging and sorting data for {file_path.name}")
-        merged_data = self._merge_and_sort_data(existing_data, data_dict_to_save)  # ty:ignore[invalid-argument-type]
+        merged_data = self._merge_and_sort_data(existing_data, data_dict_to_save)
 
         with tempfile.NamedTemporaryFile(suffix=format_name, delete=False, dir=file_path.parent) as tmp_file:
             tmp_path = Path(tmp_file.name)
@@ -268,7 +262,7 @@ class MonthlyFileStrategy(SavingStrategy):
 
     def _merge_and_sort_data(
         self,
-        existing_data: SavedDataDict,
+        existing_data: dict[StandardName | Literal["metadata"], Any],
         new_data: SavedDataDict,
     ) -> SavedDataDict:
         """Merge two dictionaries along the time axis, replacing duplicate times."""
@@ -279,47 +273,50 @@ class MonthlyFileStrategy(SavingStrategy):
                 return arr.reshape(-1)
             return arr
 
-        time_key = self.data_standard.get_standard_name("Epoch")
+        existing_data_internal: SavedDataDict = {}
+        for name, value in existing_data.items():
+            if name == "metadata":
+                existing_data_internal["metadata"] = value
+            else:
+                internal_name = self.data_standard.get_internal_name(name)
+                if internal_name is None:
+                    msg = f"Could not find necessary internal name for variable: {name}"
+                    raise ValueError(msg)
+                existing_data_internal[internal_name] = value
 
-        if time_key not in existing_data or np.asarray(existing_data[time_key]).size == 0:
-            return new_data
-
-        if time_key not in new_data or np.asarray(new_data[time_key]).size == 0:
-            return existing_data
-
-        existing_time = _normalize_1d(existing_data[time_key])
-        new_time = _normalize_1d(new_data[time_key])
+        existing_time = _normalize_1d(existing_data_internal["Epoch"])
+        new_time = _normalize_1d(new_data["Epoch"])
         mask_keep_existing = ~np.isin(existing_time, new_time)
         insert_idx = int(np.searchsorted(existing_time, new_time[0]))
 
         merged: SavedDataDict = {}
-        existing_metadata = existing_data.get("metadata", {})
+        existing_metadata = existing_data_internal.get("metadata", {})
         new_metadata = new_data.get("metadata", {})
         if isinstance(existing_metadata, dict) and isinstance(new_metadata, dict):
             merged["metadata"] = {**existing_metadata, **new_metadata}
         elif "metadata" in new_data:
             merged["metadata"] = new_metadata
-        elif "metadata" in existing_data:
+        elif "metadata" in existing_data_internal:
             merged["metadata"] = existing_metadata
 
-        all_keys = set(existing_data.keys()) | set(new_data.keys())
+        all_keys = set(existing_data_internal.keys()) | set(new_data.keys())
         for key in all_keys:
             if key == "metadata" or key.startswith("__"):
                 continue
 
-            if key not in existing_data:
+            if key not in existing_data_internal:
                 merged[key] = new_data[key]
                 continue
 
             if key not in new_data:
-                merged[key] = existing_data[key]
+                merged[key] = existing_data_internal[key]
                 continue
 
             if key.startswith("custom/"):
                 merged[key] = new_data[key]
                 continue
 
-            v1 = _normalize_1d(np.asarray(existing_data[key]))
+            v1 = _normalize_1d(np.asarray(existing_data_internal[key]))
             v2 = _normalize_1d(np.asarray(new_data[key]))
 
             if v1.ndim != v2.ndim:
@@ -335,7 +332,7 @@ class MonthlyFileStrategy(SavingStrategy):
             v1_trunc = v1[mask_keep_existing]
             merged_val = v2 if v1_trunc.size == 0 else np.insert(v1_trunc, insert_idx, v2, axis=0)
 
-            if key == time_key:
+            if key == "Epoch":
                 t = np.asarray(merged_val)
                 if len(np.unique(t)) != len(t):
                     msg = "Time values are not unique after merge for key 'time'"
