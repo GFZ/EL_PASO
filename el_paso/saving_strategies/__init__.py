@@ -12,7 +12,6 @@ from el_paso.saving_strategies.single_file_strategy import SingleFileStrategy
 __all__ = [
     "DensityNetCDFStrategy",
     "GFZStrategy",
-    "MFSFormats",
     "MonthlyRBStrategy",
     "SingleFileStrategy",
 ]

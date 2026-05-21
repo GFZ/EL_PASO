@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from el_paso.typing import InternalName, StandardName, Variable
 
 
-logger = logging.getLogger("__name__")
+logger = logging.getLogger(__name__)
 
 T_co = TypeVar("T_co", bound=str, covariant=True)
 
@@ -156,8 +156,8 @@ class ConsistencyCheck:
             if self.lengths[dim_name_or_size].size != provided_len:
                 msg = (
                     f"Length mismatch! {dim_name_or_size} length of variable "
-                    f"{self.lengths[dim_name_or_size].name}: {self.lengths[dim_name_or_size].size}",
-                    f"and of variable {var_name}: {provided_len}",
+                    f"{self.lengths[dim_name_or_size].name}: {self.lengths[dim_name_or_size].size} "
+                    f"and of variable {var_name}: {provided_len}"
                 )
                 raise ValueError(msg)
         else:

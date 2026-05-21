@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING, Callable, Literal  # noqa: UP035
 import numpy as np
 import pytest
 from astropy import units as u  # type: ignore[reportMissingTypeStubs]
-from icecream import ic
 
 import el_paso as ep
 from el_paso.dataset.utils import python2matlab
@@ -233,8 +232,6 @@ def test_append_data(
     output_format: Literal["nc", "h5", "cdf", "mat"],
     meta_keys_check: Callable[[set[str]], bool],
 ) -> None:
-
-    ic(data_standard().get_standard_name("Epoch"))
     variables = _mock_monthly_variables()
     start_time = datetime(2013, 1, 1, tzinfo=timezone.utc)
     end_time = datetime(2013, 1, 7, tzinfo=timezone.utc)
