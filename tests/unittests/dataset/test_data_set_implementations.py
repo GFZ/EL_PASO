@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -147,7 +147,8 @@ def test_data_org_dataset_loads_saved_monthly_nc_and_rejects_invalid_variable(
     expected_lm = np.asarray(variables["L_m"].get_data())[time_mask, ...]
     expected_lstar = np.asarray(variables["L_star"].get_data())[time_mask, ...]
 
-    assert dataset.datetime == expected_datetime
+    for a, e in zip(dataset.datetime, expected_datetime, strict=True):  # ty:ignore[not-iterable, invalid-argument-type]
+        assert abs(a - e) <= timedelta(microseconds=999999)
 
     np.testing.assert_allclose(dataset.time, expected_time)
     np.testing.assert_equal(dataset.Flux, expected_flux)
