@@ -188,7 +188,7 @@ def _requests_download(
         response = requests.get(
             f"{url}/{latest_file_name}",
             stream=True,
-            timeout=10,
+            timeout=30,
             auth=HTTPDigestAuth(*authentification_info),
         )
 
