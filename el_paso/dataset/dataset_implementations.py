@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     import numpy as np
     from numpy.typing import NDArray
 
-    from el_paso.typing import MFSFormats, SavingStrategy
+    from el_paso.typing import GFZMetaData, MFSFormats, PRBEMMetaData, SavingStrategy
 
 
 logger = logging.getLogger(__name__)
@@ -77,6 +77,7 @@ class GFZDataSet(DataSet):
     P: NDArray[np.float64]
     R0: NDArray[np.float64]
     density: NDArray[np.float64]
+    metadata: GFZMetaData
 
     def __init__(
         self,
@@ -111,7 +112,7 @@ class GFZDataSet(DataSet):
             self._preferred_ext = "mat"
             logger.warning(
                 "Overriding `preferred_extension` to 'mat' since `GFZStrategy` is used, which only supports .mat files."
-                "Ignoring provided `preferred_extension` value."
+                " Ignoring provided `preferred_extension` value."
             )
 
         if not isinstance(self.saving_strategy.data_standard, GFZStandard):
@@ -180,6 +181,7 @@ class PRBEMDataSet(DataSet):
     R_Eq: NDArray[np.float64]
     InvMu: NDArray[np.float64]
     InvK: NDArray[np.float64]
+    metadata: PRBEMMetaData
 
     def __init__(
         self,

@@ -19,6 +19,7 @@ from astropy.time import Time
 from swvo.io.utils import enforce_utc_timezone
 
 import el_paso as ep
+from el_paso.dataset.metadata import DatasetMetadata
 from el_paso.dataset.utils import (
     join_var,
 )
@@ -54,12 +55,14 @@ class DataSet:
         {
             "_verbose",
             "_preferred_ext",
+            "metadata",
             "saving_strategy",
             "possible_variables",
             "_start_time",
             "_end_time",
             "_date_list",
             "_loaders",
+            "_currently_loading",
         }
     )
 
@@ -88,6 +91,7 @@ class DataSet:
         """
         self._verbose = verbose
         self._preferred_ext = preferred_extension
+        self._currently_loading: set[str] = set()
 
         self.saving_strategy = saving_strategy
         self.possible_variables = [
@@ -95,6 +99,7 @@ class DataSet:
             "datetime",
             "P",
             "InvV",
+            "metadata",
         ]  # add computed properties and datetime
         assert end_time > start_time, "end_time must be after start_time"
 
@@ -104,6 +109,7 @@ class DataSet:
         self._start_time = start_time
         self._end_time = end_time
         self._date_list = ep.utils.get_monthly_datetime_intervals(start_time, end_time)
+        self.metadata = DatasetMetadata(self)
 
         self._loaders: dict[str, FormatLoader] = {
             ".mat": ep.utils.load_mat_data,
@@ -158,6 +164,13 @@ class DataSet:
     def __getattr__(self, name: str) -> NDArray[np.float64]:
         # Avoid recursion for internal attributes
         if name.startswith("_"):
+            msg = f"'{self.__class__.__name__}' object has no attribute '{name}'"
+            raise AttributeError(msg)
+
+        # Guard: if we're already in the middle of loading this variable, bail
+        # out immediately. Use __dict__ directly to avoid re-entering __getattr__.
+        currently_loading = self.__dict__.get("_currently_loading", set())
+        if name in currently_loading:
             msg = f"'{self.__class__.__name__}' object has no attribute '{name}'"
             raise AttributeError(msg)
 
@@ -231,6 +244,20 @@ class DataSet:
 
     def _load_variable(self, requested_name: str) -> None:
         """Load variable from .mat, or .nc files."""
+        # Re-entrancy guard: if this variable is already being loaded further up
+        # the call stack, return immediately to break the cycle.
+        currently_loading: set[str] = self.__dict__.setdefault("_currently_loading", set())
+        if requested_name in currently_loading:
+            return
+        currently_loading.add(requested_name)
+
+        try:
+            self._load_variable_impl(requested_name)
+        finally:
+            currently_loading.discard(requested_name)
+
+    def _load_variable_impl(self, requested_name: str) -> None:
+        """Internal implementation of variable loading (called by _load_variable)."""
         loaded_var_arrs: dict[str, NDArray[np.number]] = {}
         var_names_stored: list[str] = []
         original_requested_name = requested_name
@@ -296,6 +323,11 @@ class DataSet:
             # 5. Filter and Join Arrays
             for key, var_arr in file_content.items():
                 # Skip non-numeric metadata (excluding our new datetime)
+                if key == "metadata":
+                    if isinstance(var_arr, dict):
+                        for metadata_name, metadata_value in var_arr.items():
+                            setattr(self.metadata, metadata_name, metadata_value)
+                    continue
                 if key != "datetime" and (
                     not isinstance(var_arr, np.ndarray) or not np.issubdtype(var_arr.dtype, np.number)
                 ):
@@ -322,8 +354,14 @@ class DataSet:
             self.datetime = []
 
         for var_name in var_names_stored:
+            # Assign the data array onto the dataset
             val = list(loaded_var_arrs[var_name]) if var_name == "datetime" else loaded_var_arrs[var_name]
-            setattr(self, var_name, val)  # set standard name
+            setattr(self, var_name, val)
+
+            # Assign per-variable metadata onto self.metadata
+            var_info = self.saving_strategy.data_standard.variable_infos.get(var_name)  # ty:ignore[invalid-argument-type]
+            if var_info is not None:
+                setattr(self.metadata, var_name, var_info)
 
     def get_loaded_variables(self) -> list[str]:
         """Get a list of currently loaded variable names."""
@@ -376,6 +414,8 @@ class DataSet:
         different_vars: list[str] = []
 
         for var_name in self.possible_variables:
+            if var_name == "metadata":
+                continue
             self_var = getattr(self, var_name)
             other_var = getattr(other, var_name)
 

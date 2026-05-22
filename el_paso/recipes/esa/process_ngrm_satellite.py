@@ -242,6 +242,14 @@ def process_ngrm_electron_fluxes(
         "PSD": psd_var,
     }
 
+    from el_paso.typing import InternalName
+
+    variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+        "Epoch": variables["Epoch"],
+        "FEDU": variables["FEDU"],
+        "Position": variables["xGEO"],
+    }
+
     if save_strategy in ("gfz", "both"):
         strategy = ep.saving_strategies.GFZStrategy(
             processed_data_path,

@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias
 if TYPE_CHECKING:
     from el_paso.data_standard import ConsistencyCheck, DataStandard, VariableInfo
     from el_paso.data_standards import GFZStandard, PRBEMStandard
+    from el_paso.dataset.metadata import GFZMetaData, PRBEMMetaData
     from el_paso.processing.compute_magnetic_field_variables import VariableRequest
     from el_paso.saving_strategies.density_netcdf_strategy import DensityNetCDFStrategy
     from el_paso.saving_strategies.gfz_strategy import GFZStrategy
@@ -124,6 +125,8 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     "Variable": ("el_paso.variable", "Variable"),
     "VariableInfo": ("el_paso.data_standard", "VariableInfo"),
     "VariableMetadata": ("el_paso.variable", "VariableMetadata"),
+    "GFZMetaData": ("el_paso.dataset.metadata_types", "GFZMetaData"),
+    "PRBEMMetaData": ("el_paso.dataset.metadata_types", "PRBEMMetaData"),
 }
 
 
@@ -149,6 +152,7 @@ __all__ = [
     "DensityNetCDFStrategy",
     "FileLoader",
     "FileWriter",
+    "GFZMetaData",
     "GFZStandard",
     "GFZStrategy",
     "GFZVarNames",
@@ -159,6 +163,7 @@ __all__ = [
     "MagneticFieldLiteral",
     "MonthlyRBStrategy",
     "OutputFile",
+    "PRBEMMetaData",
     "PRBEMName",
     "PRBEMStandard",
     "SavedDataDict",
