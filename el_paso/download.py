@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import gzip
+import json
 import logging
 import os
 import re
@@ -37,7 +38,7 @@ def download(
     download_arguments_prefixes: str = "",
     download_arguments_suffixes: str = "",
     method: Literal["request", "wget", "esa_swe"] = "request",
-    authentification_info: tuple[str, str] = ("", ""),
+    authentication_info: tuple[str, str] = ("", ""),
     rename_file_name_stem: str | None = None,
     *,
     sort_raw_files_by_time: bool = False,
@@ -63,7 +64,7 @@ def download(
                                                      (used with wget). Defaults to "".
         method (Literal["request", "wget"], optional): Download method to use. Either "request" (Python requests) or
                                                        "wget" (system wget). Defaults to "request".
-        authentification_info (tuple[str, str], optional): Tuple of (username, password) for authentication.
+        authentication_info (tuple[str, str], optional): Tuple of (username, password) for authentication.
                                                            Defaults to ("", "").
         rename_file_name_stem (str | None, optional): If provided, rename the downloaded file to this stem.
                                                       Defaults to None.
@@ -97,7 +98,7 @@ def download(
                     save_path,
                     download_url,
                     file_name_stem,
-                    authentification_info,
+                    authentication_info,
                     rename_file_name_stem,
                     skip_existing=skip_existing,
                     sort_raw_files_by_time=sort_raw_files_by_time,
@@ -108,7 +109,7 @@ def download(
                 )
             case "esa_swe":
                 _esa_swe_download(
-                    authentification_info,
+                    authentication_info,
                     download_url,
                     start_time=curr_time,
                     end_time=next_time,
@@ -143,7 +144,7 @@ def _requests_download(
     save_path: Path,
     download_url: str,
     file_name_stem: str,
-    authentification_info: tuple[str, str],
+    authentication_info: tuple[str, str],
     rename_file_name_stem: str | None,
     *,
     skip_existing: bool,
@@ -161,7 +162,7 @@ def _requests_download(
     file_name_stem = fill_str_template_with_time(file_name_stem, current_time)
 
     try:
-        response_of_content = _get_page_content(url, authentification_info)
+        response_of_content = _get_page_content(url, authentication_info)
 
         if response_of_content is None:
             return
@@ -189,7 +190,7 @@ def _requests_download(
             f"{url}/{latest_file_name}",
             stream=True,
             timeout=30,
-            auth=HTTPDigestAuth(*authentification_info),
+            auth=HTTPDigestAuth(*authentication_info),
         )
 
         if response.status_code == ERROR_NOT_FOUND:
@@ -210,8 +211,8 @@ def _requests_download(
 
 
 @cache
-def _get_page_content(url: str, authentification_info: tuple[str, str]) -> requests.Response | None:
-    response_of_content = requests.get(url, stream=True, timeout=10, auth=HTTPDigestAuth(*authentification_info))
+def _get_page_content(url: str, authentication_info: tuple[str, str]) -> requests.Response | None:
+    response_of_content = requests.get(url, stream=True, timeout=10, auth=HTTPDigestAuth(*authentication_info))
 
     if response_of_content.status_code == ERROR_NOT_FOUND:
         msg = f"File not found on server: {url}"
@@ -247,7 +248,7 @@ def _wget_download(
 
 
 def _esa_swe_download(
-    authentification_info: tuple[str, str],
+    authentication_info: tuple[str, str],
     download_url: str,
     start_time: datetime,
     end_time: datetime,
@@ -260,15 +261,15 @@ def _esa_swe_download(
         msg = "'rename_file_name_stem' is required for method 'esa_swe'!"
         raise ValueError(msg)
 
-    if authentification_info[0] == "" or authentification_info[1] == "":
-        msg = "'authentification_info' must be provided for method 'esa_swe'!"
+    if authentication_info[0] == "" or authentication_info[1] == "":
+        msg = "'authentication_info' must be provided for method 'esa_swe'!"
         raise ValueError(msg)
 
     if "https://swe.ssa.esa.int/hapi/" in download_url:
         start_time_str = start_time.isoformat(timespec="seconds").split("+")[0] + "Z"
         end_time_str = end_time.isoformat(timespec="seconds").split("+")[0] + "Z"
 
-        download_url = f"{download_url}&time.min={start_time_str}&time.max={end_time_str}&format=csv"
+        download_url = f"{download_url}&start={start_time_str}&stop={end_time_str}&format=csv"
         token_scope = "swe_hapiserver"  # noqa: S105
 
     elif "https://sso-csr-ucl-ac-be.content.swe.s2p.esa.int/" in download_url:
@@ -289,14 +290,16 @@ def _esa_swe_download(
         return
 
     try:
-        access_token = _get_esa_swe_access_token(authentification_info[0], authentification_info[1], token_scope)
-
+        access_token = _get_esa_swe_access_token(authentication_info[0], authentication_info[1], token_scope)
         data_response = requests.get(
             download_url,
             headers={"Authorization": f"Bearer {access_token}"},
             timeout=30,
             stream=True,
         )
+        if token_scope == "swe_hapiserver" and '"code":1201' in data_response.text:  # noqa: S105
+            logger.error(f"HAPI server error 1201: {json.loads(data_response.text)['status']['message']}")
+            return
         data_response.raw.decode_content = False
 
         if data_response.status_code == ERROR_NOT_FOUND:
@@ -319,8 +322,8 @@ def _esa_swe_download(
 
         logger.info(f"Downloaded successfully: {save_path / save_file_name}")
 
-    except requests.exceptions.RequestException as e:
-        logger.info(f"Error downloading file from {download_url}: {e}")
+    except requests.exceptions.RequestException:
+        logger.exception(f"Error downloading file from {download_url}")
 
 
 @cache
