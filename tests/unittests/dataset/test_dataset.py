@@ -205,6 +205,24 @@ class TestDataSet:  # noqa: D101
             np.ndarray,
         ), "'alpha_local' should be a NumPy array."
 
+    def test_datetime_access_with_missing_files_returns_empty_value(self, tmp_path: Path) -> None:
+        strategy = ep.saving_strategies.MonthlyRBStrategy(
+            base_data_path=tmp_path,
+            mission="GOES",
+            satellite="primary",
+            instrument="MAGED",
+            mag_field="T89",
+            file_format="nc",
+            data_standard=ep.data_standards.GFZStandard(),
+        )
+        start_time = datetime(2013, 1, 1, tzinfo=timezone.utc)
+        end_time = datetime(2013, 1, 2, tzinfo=timezone.utc)
+
+        dataset = DataSet(strategy, start_time, end_time, verbose=False)
+
+        assert dataset.datetime == []
+        assert "datetime" in dataset.get_loaded_variables()
+
     def test_setattr_sets_standard_variable_without_file_loading(
         self,
         tmp_path: Path,

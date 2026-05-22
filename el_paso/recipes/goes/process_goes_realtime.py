@@ -44,13 +44,11 @@ def process_goes_real_time(
     raw_data_path: str | Path,
     start_time: datetime,
     end_time: datetime,
-    save_strategy: Literal["dataorg", "netcdf", "both"] = "netcdf",
+    save_strategy: Literal["gfz", "netcdf", "both"] = "netcdf",
     num_cores: int = 32,
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
 ) -> None:
-    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     # Part 1: specify source files to extract variables
-
     data_path_stem = f"{raw_data_path}/GOES/YYYY/MM/{sat_str}/"
     rename_file_name_stem = f"{sat_str}_YYYYMMDD.json"
     url = f"https://services.swpc.noaa.gov/json/goes/{sat_str}/"
@@ -190,7 +188,7 @@ def process_goes_real_time(
         "InvK": magnetic_field_variables["invK_T89"],
     }
 
-    if save_strategy in ("dataorg", "both"):
+    if save_strategy in ("gfz", "both"):
         strategy = ep.saving_strategies.GFZStrategy(
             processed_data_path,
             mission="GOES",

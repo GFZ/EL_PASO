@@ -26,7 +26,7 @@ class Trajectory(NamedTuple):  # noqa: D101
 
 
 def _identify_orbits(
-    time: NDArray, distance: NDArray[np.floating], minimal_distance: int, *, apply_smoothing: bool
+    time: list, distance: NDArray[np.floating], minimal_distance: int, *, apply_smoothing: bool
 ) -> list[Trajectory]:
     distance_filled = pd.Series(distance).interpolate(method="linear", limit_direction="both").to_numpy()
 

@@ -29,13 +29,12 @@ import el_paso as ep
 def process_arase_xep_real_time(
     processed_data_path: str | Path,
     download_data_dir: str | Path,
-    irbem_lib_path: str | Path,
     start_time: datetime,
     end_time: datetime,
     erg_user: str | None = None,
     erg_password: str | None = None,
     num_cores: int = 32,
-    save_strategy: Literal["dataorg", "netcdf"] = "netcdf",
+    save_strategy: Literal["gfz", "netcdf", "both"] = "netcdf",
     *,
     download: bool = True,
     skip_existing: bool = True,
@@ -62,7 +61,6 @@ def process_arase_xep_real_time(
         download_data_dir,
         start_time,
         end_time,
-        irbem_lib_path,
         erg_user,
         erg_password,
         download=download,
@@ -117,7 +115,6 @@ def process_arase_xep_real_time(
         pa_local_var=variables_combined["PA_local_FEDU"],
         particle_species="electron",
         variables_to_compute=variables_to_compute,
-        irbem_lib_path=str(irbem_lib_path),
         irbem_options=[1, 1, 4, 4, 0],
         num_cores=num_cores,
     )
@@ -133,24 +130,24 @@ def process_arase_xep_real_time(
         FEDU_var, variables_combined["Energy_FEDO"], particle_species="electron"
     )
 
-    if save_strategy in ("dataorg", "both"):
-        variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
-            "Epoch": binned_time_var,
-            "FEDU": FEDU_var,
-            "Energy_FEDU": variables_combined["Energy_FEDO"],
-            "Alpha": variables_combined["PA_local_FEDU"],
-            "Alpha_Eq": magnetic_field_variables["PA_eq_T89"],
-            "R_Eq": magnetic_field_variables["R_eq_T89"],
-            "MLT": magnetic_field_variables["MLT_T89"],
-            "L_star": magnetic_field_variables["Lstar_T89"],
-            "B_Calc": magnetic_field_variables["B_local_T89"],
-            "B_Eq": magnetic_field_variables["B_eq_T89"],
-            "PSD": psd_var,
-            "InvMu": magnetic_field_variables["invMu_T89"],
-            "InvK": magnetic_field_variables["invK_T89"],
-            "Position": variables_combined["xGEO"],
-        }
+    variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+        "Epoch": binned_time_var,
+        "FEDU": FEDU_var,
+        "Energy_FEDU": variables_combined["Energy_FEDO"],
+        "Alpha": variables_combined["PA_local_FEDU"],
+        "Alpha_Eq": magnetic_field_variables["PA_eq_T89"],
+        "R_Eq": magnetic_field_variables["R_eq_T89"],
+        "MLT": magnetic_field_variables["MLT_T89"],
+        "L_star": magnetic_field_variables["Lstar_T89"],
+        "B_Calc": magnetic_field_variables["B_local_T89"],
+        "B_Eq": magnetic_field_variables["B_eq_T89"],
+        "PSD": psd_var,
+        "InvMu": magnetic_field_variables["invMu_T89"],
+        "InvK": magnetic_field_variables["invK_T89"],
+        "Position": variables_combined["xGEO"],
+    }
 
+    if save_strategy in ("gfz", "both"):
         saving_strategy = ep.saving_strategies.GFZStrategy(
             processed_data_path,
             mission="Arase",
@@ -214,7 +211,7 @@ def _get_xep_variables(
             save_path=data_path_stem,
             file_cadence="daily",
             download_url=url,
-            authentification_info=(erg_user, erg_password),
+            authentication_info=(erg_user, erg_password),
             file_name_stem=file_name_stem,
             skip_existing=skip_existing,
         )
@@ -296,7 +293,6 @@ def _get_orb_variables(
     download_data_dir: str | Path,
     start_time: datetime,
     end_time: datetime,
-    irbem_lib_path: str | Path,
     erg_user: str,
     erg_password: str,
     *,
@@ -314,7 +310,7 @@ def _get_orb_variables(
             save_path=data_path_stem,
             file_cadence="daily",
             download_url=url,
-            authentification_info=(erg_user, erg_password),
+            authentication_info=(erg_user, erg_password),
             file_name_stem=file_name_stem,
             skip_existing=skip_existing,
         )
@@ -347,7 +343,7 @@ def _get_orb_variables(
         )
     ).T.astype(np.float64)
 
-    model_coord = ep.processing.magnetic_field_utils.Coords(lib_path=irbem_lib_path)
+    model_coord = ep.processing.magnetic_field_utils.Coords()
 
     xgeo_arr = model_coord.transform(list(datetimes), xsm_arr, ep.IRBEM_SYSAXIS_SM, ep.IRBEM_SYSAXIS_GEO)
     orb_variables["xGEO"] = ep.Variable(data=xgeo_arr, original_unit=ep.units.RE)

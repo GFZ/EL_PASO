@@ -22,8 +22,8 @@ def process_rbsp_ect_combined(
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
     cadence: timedelta = timedelta(minutes=5),
-    save_strategy: Literal["dataorg", "h5", "netcdf"] = "dataorg",
-    data_standard: Literal["dataorg", "PRBEM"] = "dataorg",
+    save_strategy: Literal["gfz", "h5", "netcdf"] = "gfz",
+    data_standard: Literal["gfz", "PRBEM"] = "gfz",
     num_cores: int = 4,
 ) -> None:
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
@@ -170,11 +170,11 @@ def process_rbsp_ect_combined(
     }
 
     data_standard_instance = (
-        ep.data_standards.GFZStandard() if data_standard == "dataorg" else ep.data_standards.PRBEMStandard()
+        ep.data_standards.GFZStandard() if data_standard == "gfz" else ep.data_standards.PRBEMStandard()
     )
 
     match save_strategy:
-        case "dataorg":
+        case "gfz":
             saving_strategy = ep.saving_strategies.GFZStrategy(
                 processed_data_path,
                 "RBSP",

@@ -233,6 +233,7 @@ class DataSet:
         """Load variable from .mat, or .nc files."""
         loaded_var_arrs: dict[str, NDArray[np.number]] = {}
         var_names_stored: list[str] = []
+        original_requested_name = requested_name
 
         # 1. Handle Computed Values
         if requested_name == "InvV":
@@ -243,13 +244,13 @@ class DataSet:
             self.P = ((self.MLT + 12) / 12 * np.pi) % (2 * np.pi)
             return
 
-        if requested_name == "datetime":
+        if original_requested_name == "datetime":
             requested_name = self.saving_strategy.data_standard.get_standard_name("Epoch")
 
         output_file = self.saving_strategy.get_output_file(standard_name=requested_name)  # ty:ignore[invalid-argument-type]
 
         # useful when using GFZStrategy, when multiple files are there.
-        if requested_name == "datetime" and output_file is None:
+        if original_requested_name == "datetime" and output_file is None:
             time_key = self.saving_strategy.data_standard.get_standard_name("Epoch")
             output_file = next(
                 (
@@ -316,6 +317,9 @@ class DataSet:
         # 6. Final Assignment to Self
         if requested_name not in var_names_stored:
             setattr(self, requested_name, np.asarray([]))
+
+        if original_requested_name == "datetime" and "datetime" not in var_names_stored:
+            self.datetime = []
 
         for var_name in var_names_stored:
             val = list(loaded_var_arrs[var_name]) if var_name == "datetime" else loaded_var_arrs[var_name]

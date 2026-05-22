@@ -246,7 +246,7 @@ class GFZStrategy(SavingStrategy):
         return data_dict_to_save
 
     def append_data(self, file_path: Path, data_dict_to_save: SavedDataDict) -> SavedDataDict:
-        """Appends new data to an existing DataOrg file.
+        """Appends new data to an existing GFZ file.
 
         Existing data is loaded from the file, overlapping time stamps are replaced
         by the new block, and the merged dictionary is returned for the caller to

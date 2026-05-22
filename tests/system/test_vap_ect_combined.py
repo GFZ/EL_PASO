@@ -18,16 +18,16 @@ from el_paso.recipes.rbsp import process_rbsp_ect_combined
 @pytest.mark.parametrize(
     ("mag_field", "save_strategy"),
     [
-        pytest.param("T89", "dataorg", marks=pytest.mark.basic),
-        ("OP77", "dataorg"),
-        ("T96", "dataorg"),
-        ("TS04", "dataorg"),
+        pytest.param("T89", "gfz", marks=pytest.mark.basic),
+        ("OP77", "gfz"),
+        ("T96", "gfz"),
+        ("TS04", "gfz"),
         pytest.param("T89", "netcdf", marks=pytest.mark.basic),
     ],
 )
 def test_rbsp_ect_combined_snapshot(
     mag_field: Literal["T89", "TS04", "OP77", "T96"],
-    save_strategy: Literal["dataorg", "netcdf"],
+    save_strategy: Literal["gfz", "netcdf"],
     tmpdir: Path,
     *,
     renew_solution: bool,
@@ -53,7 +53,7 @@ def test_rbsp_ect_combined_snapshot(
     end_date = end_time.replace(day=30)
 
     match save_strategy:
-        case "dataorg":
+        case "gfz":
             out_path = (
                 processed_data_path
                 / "RBSP"

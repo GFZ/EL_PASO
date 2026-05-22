@@ -31,8 +31,8 @@ def process_arase_mepe(
     processed_data_path: str | Path = ".",
     num_cores: int = 4,
     cadence: timedelta = timedelta(minutes=5),
-    save_strategy: Literal["dataorg", "h5", "netcdf"] = "dataorg",
-    data_standard: Literal["dataorg", "prbem"] = "dataorg",
+    save_strategy: Literal["gfz", "h5", "netcdf"] = "gfz",
+    data_standard: Literal["gfz", "prbem"] = "gfz",
     *,
     use_level_3_orbit_data: bool = True,
 ) -> None:
@@ -209,7 +209,7 @@ def process_arase_mepe(
             mag_field_save = "OP77"
 
     data_standard_instance = (
-        ep.data_standards.GFZStandard() if data_standard == "dataorg" else ep.data_standards.PRBEMStandard()
+        ep.data_standards.GFZStandard() if data_standard == "gfz" else ep.data_standards.PRBEMStandard()
     )
 
     variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
@@ -224,7 +224,7 @@ def process_arase_mepe(
     }
 
     match save_strategy:
-        case "dataorg":
+        case "gfz":
             saving_strategy = ep.saving_strategies.GFZStrategy(
                 processed_data_path,
                 "ARASE",
@@ -271,5 +271,5 @@ if __name__ == "__main__":
             raw_data_path=tmp_dir,
             processed_data_path=".",
             num_cores=32,
-            save_strategy="dataorg",
+            save_strategy="gfz",
         )

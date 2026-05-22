@@ -19,6 +19,8 @@ from astropy.coordinates import GCRS, ITRS, CartesianRepresentation
 import el_paso as ep
 from el_paso.utils import timed_function
 
+logger = logging.getLogger(__name__)
+
 CHI2_BAD_QUALITY_THRESHOLD = 2
 EPT_ENERGY_LIMITS = [0.5, 0.6, 0.7, 0.8, 1.0, 2.4, 8.0]
 
@@ -36,7 +38,6 @@ def process_ngrm_electron_fluxes(
     satellite: Literal["EDRS-C", "S6-MF", "MTG-S1", "MTG-I1"],
     raw_data_path: str | Path,
     processed_data_path: str | Path,
-    irbem_lib_path: str | Path,
     start_time: datetime,
     end_time: datetime,
     num_cores: int = 32,
@@ -44,6 +45,7 @@ def process_ngrm_electron_fluxes(
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
     client_id: str | None = None,
     client_secret: str | None = None,
+    save_strategy: Literal["gfz", "netcdf", "both"] = "netcdf",
 ) -> None:
     data_path_stem = f"{raw_data_path}/{satellite}/YYYY/MM/"
     file_name_stem = f"{satellite}_ngrm_YYYYMMDD_L1d.csv"
@@ -69,7 +71,7 @@ def process_ngrm_electron_fluxes(
         download_url=SATELLITE_TO_ID[satellite],
         file_name_stem="",
         rename_file_name_stem=file_name_stem,
-        authentification_info=(client_id, client_secret),
+        authentication_info=(client_id, client_secret),
         method="esa_swe",
         skip_existing=skip_existing,
     )
@@ -113,16 +115,19 @@ def process_ngrm_electron_fluxes(
         ep.ExtractionInfo(result_key="z_ECI", name_or_column="Z", unit=u.km),
         ep.ExtractionInfo(result_key="L", name_or_column="L", unit=ep.units.RE),
     ]
-
-    variables = ep.extract_variables_from_files(
-        start_time,
-        end_time,
-        file_cadence="daily",
-        data_path=data_path_stem,
-        file_name_stem=file_name_stem,
-        extraction_infos=extraction_infos,
-        pd_read_csv_kwargs={"index_col": False},
-    )
+    try:
+        variables = ep.extract_variables_from_files(
+            start_time,
+            end_time,
+            file_cadence="daily",
+            data_path=data_path_stem,
+            file_name_stem=file_name_stem,
+            extraction_infos=extraction_infos,
+            pd_read_csv_kwargs={"index_col": False},
+        )
+    except Exception as e:
+        logger.exception(f"Error extracting variables for {satellite}")
+        return
 
     time_format = "%Y-%m-%dT%H:%M:%S.%fZ" if satellite in ["MTG-I1", "MTG-S1"] else "%Y-%m-%dT%H:%M:%SZ"
 
@@ -143,7 +148,7 @@ def process_ngrm_electron_fluxes(
     coords_ITRS = coords_ECI.transform_to(ITRS(obstime=datetimes))
     xgeo_data = np.stack((coords_ITRS.x, coords_ITRS.y, coords_ITRS.z)).T
 
-    variables["xGEO"] = ep.Variable(data=xgeo_data.value, original_unit=u.km)
+    variables["xGEO"] = ep.Variable(data=xgeo_data.value, original_unit=u.km)  # ty:ignore[unresolved-attribute]
     del variables["x_ECI"], variables["y_ECI"], variables["z_ECI"]
 
     # create flux variable
@@ -207,7 +212,6 @@ def process_ngrm_electron_fluxes(
         pa_local_var=variables["PA_local_FEDU"],
         particle_species="electron",
         variables_to_compute=variables_to_compute,
-        irbem_lib_path=str(irbem_lib_path),
         irbem_options=[1, 1, 4, 4, 0],
         num_cores=num_cores,
     )
@@ -221,32 +225,45 @@ def process_ngrm_electron_fluxes(
 
     psd_var = ep.processing.compute_phase_space_density(FEDU_var, variables["Energy"], particle_species="electron")
 
-    variables_to_save = {
-        "time": binned_time_var,
-        "flux/FEDU": FEDU_var,
-        "flux/FEDO": variables["FEDO"],
-        "flux/energy": variables["Energy"],
-        "flux/alpha_local": variables["PA_local_FEDU"],
-        "flux/alpha_eq": magnetic_field_variables["PA_eq_T89"],
-        "position/T89/R0": magnetic_field_variables["R_eq_T89"],
-        "position/T89/MLT": magnetic_field_variables["MLT_eq_T89"],
-        "position/T89/Lm": magnetic_field_variables["Lm_T89"],
-        "position/T89/Lstar": magnetic_field_variables["Lstar_T89"],
-        "mag_field/T89/B_local": magnetic_field_variables["B_local_T89"],
-        "mag_field/T89/B_eq": magnetic_field_variables["B_eq_T89"],
-        "position/xGEO": variables["xGEO"],
-        "psd/PSD": psd_var,
+    variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+        "Epoch": binned_time_var,
+        "FEDU": FEDU_var,
+        "FEDO": variables["FEDO"],
+        "Energy_FEDU": variables["Energy"],
+        "Alpha": variables["PA_local_FEDU"],
+        "Alpha_Eq": magnetic_field_variables["PA_eq_T89"],
+        "R_Eq": magnetic_field_variables["R_eq_T89"],
+        "MLT": magnetic_field_variables["MLT_eq_T89"],
+        "L_m": magnetic_field_variables["Lm_T89"],
+        "L_star": magnetic_field_variables["Lstar_T89"],
+        "B_Calc": magnetic_field_variables["B_local_T89"],
+        "B_Eq": magnetic_field_variables["B_eq_T89"],
+        "Position": variables["xGEO"],
+        "PSD": psd_var,
     }
 
-    saving_strategy = ep.saving_strategies.MonthlyNetCDFStrategy(
-        base_data_path=Path(processed_data_path) / "NGRM" / satellite.lower(),
-        file_name_stem=f"{satellite.lower()}_NGRM",
-        mag_field="T89",
-        data_standard=ep.data_standards.PRBEMStandard(),
-    )
-    append = True
+    if save_strategy in ("gfz", "both"):
+        strategy = ep.saving_strategies.GFZStrategy(
+            processed_data_path,
+            mission="NGRM",
+            satellite=f"{satellite.lower()}_NGRM",
+            instrument="NGRM",
+            mag_field="T89",
+            data_standard=ep.data_standards.GFZStandard(),
+        )
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=append)
+    if save_strategy in ("netcdf", "both"):
+        strategy = ep.saving_strategies.MonthlyRBStrategy(
+            base_data_path=Path(processed_data_path),
+            mission="NGRM",
+            satellite=f"{satellite.lower()}_NGRM",
+            instrument="NGRM",
+            mag_field="T89",
+            file_format=".nc",
+            data_standard=ep.data_standards.GFZStandard(),
+        )
+
+    ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_var, append=True)
 
 
 if __name__ == "__main__":
@@ -268,13 +285,6 @@ if __name__ == "__main__":
         default=datetime(2026, 3, 20, 23, 59, 59, tzinfo=timezone.utc).isoformat(),
         required=False,
     )
-    parser.add_argument(
-        "--irbem_lib_path",
-        type=str,
-        help="Path towards the compiled IRBEM library..",
-        default="../../libirbem.so",
-        required=False,
-    )
 
     args = parser.parse_args()
 
@@ -286,7 +296,6 @@ if __name__ == "__main__":
         satellite="EDRS-C",
         start_time=dt_start,
         end_time=dt_end,
-        irbem_lib_path=args.irbem_lib_path,
         raw_data_path=".",
         processed_data_path=".",
         num_cores=64,

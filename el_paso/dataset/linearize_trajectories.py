@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 
 def _linearize_trajectories(
-    time: NDArray[datetime],  # ty:ignore[invalid-type-arguments]
+    time: list[datetime],
     distance: np.ndarray,
     trajectories: list[Trajectory],
 ) -> tuple[NDArray[np.floating], list[datetime]]:

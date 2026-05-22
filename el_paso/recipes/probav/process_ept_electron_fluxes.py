@@ -25,7 +25,6 @@ EPT_ENERGY_LIMITS = [0.5, 0.6, 0.7, 0.8, 1.0, 2.4, 8.0]
 def process_ept_electron_fluxes(
     raw_data_path: str | Path,
     processed_data_path: str | Path,
-    irbem_lib_path: str | Path,
     start_time: datetime,
     end_time: datetime,
     num_cores: int = 32,
@@ -33,6 +32,7 @@ def process_ept_electron_fluxes(
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
     client_id: str | None = None,
     client_secret: str | None = None,
+    save_strategy: typing.Literal["gfz", "netcdf", "both"] = "netcdf",
 ) -> None:
     if client_id is None:
         client_id = os.environ.get("CLIENT_ID")
@@ -61,7 +61,7 @@ def process_ept_electron_fluxes(
         download_url=url,
         file_name_stem="",
         rename_file_name_stem=rename_file_name_stem,
-        authentification_info=(client_id, client_secret),
+        authentication_info=(client_id, client_secret),
         skip_existing=skip_existing,
     )
 
@@ -175,7 +175,7 @@ def process_ept_electron_fluxes(
             variables["lon"].get_data(u.degree),
         )
     ).T.astype(np.float64)
-    model_coord = ep.processing.magnetic_field_utils.Coords(lib_path=irbem_lib_path)
+    model_coord = ep.processing.magnetic_field_utils.Coords()
 
     epoch_datetime = [datetime.fromtimestamp(t, tz=timezone.utc) for t in binned_time_var.get_data()]
     xgeo_arr = model_coord.transform(epoch_datetime, xsph_arr, ep.IRBEM_SYSAXIS_SPH, ep.IRBEM_SYSAXIS_GEO)
@@ -201,37 +201,48 @@ def process_ept_electron_fluxes(
         pa_local_var=variables["PA_local"],
         particle_species="electron",
         variables_to_compute=variables_to_compute,
-        irbem_lib_path=str(irbem_lib_path),
         irbem_options=[1, 1, 4, 4, 0],
         num_cores=num_cores,
     )
 
     variables |= magnetic_field_variables
 
-    variables_to_save = {
-        "time": binned_time_var,
-        "flux/FEDU": variables["FEDU"],
-        "flux/energy": variables["Energy_FEDU"],
-        "flux/alpha_local": variables["PA_local"],
-        "flux/alpha_eq": magnetic_field_variables["PA_eq_T89"],
-        "position/T89/R0": magnetic_field_variables["R_eq_T89"],
-        "position/T89/MLT": magnetic_field_variables["MLT_eq_T89"],
-        "position/T89/Lm": magnetic_field_variables["Lm_T89"],
-        "position/T89/Lstar": magnetic_field_variables["Lstar_T89"],
-        "mag_field/T89/B_local": magnetic_field_variables["B_local_T89"],
-        "mag_field/T89/B_eq": magnetic_field_variables["B_eq_T89"],
-        "position/xGEO": variables["xGEO"],
+    variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+        "Epoch": binned_time_var,
+        "FEDU": variables["FEDU"],
+        "Energy_FEDU": variables["Energy_FEDU"],
+        "Alpha": variables["PA_local"],
+        "Alpha_Eq": magnetic_field_variables["PA_eq_T89"],
+        "R_Eq": magnetic_field_variables["R_eq_T89"],
+        "MLT": magnetic_field_variables["MLT_eq_T89"],
+        "L_m": magnetic_field_variables["Lm_T89"],
+        "L_star": magnetic_field_variables["Lstar_T89"],
+        "B_Calc": magnetic_field_variables["B_local_T89"],
+        "B_Eq": magnetic_field_variables["B_eq_T89"],
+        "Position": variables["xGEO"],
     }
 
-    saving_strategy = ep.saving_strategies.MonthlyNetCDFStrategy(
-        base_data_path=Path(processed_data_path) / "PROBAV" / "probav",
-        file_name_stem="probav_EPT",
-        mag_field="T89",
-        data_standard=ep.data_standards.PRBEMStandard(),
-    )
-    append = True
+    if save_strategy in ("gfz", "both"):
+        strategy = ep.saving_strategies.GFZStrategy(
+            processed_data_path,
+            mission="PROBAV",
+            satellite=f"probav_EPT",
+            instrument="PROBAV",
+            mag_field="T89",
+            data_standard=ep.data_standards.GFZStandard(),
+        )
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=append)
+    if save_strategy in ("netcdf", "both"):
+        strategy = ep.saving_strategies.MonthlyRBStrategy(
+            base_data_path=Path(processed_data_path),
+            mission="PROBAV",
+            satellite=f"probav_EPT",
+            instrument="PROBAV",
+            mag_field="T89",
+            file_format=".nc",
+            data_standard=ep.data_standards.GFZStandard(),
+        )
+    ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_var, append=True)
 
 
 if __name__ == "__main__":
@@ -253,13 +264,6 @@ if __name__ == "__main__":
         default=datetime(2024, 5, 15, 23, 59, 59, tzinfo=timezone.utc).isoformat(),
         required=False,
     )
-    parser.add_argument(
-        "--irbem_lib_path",
-        type=str,
-        help="Path towards the compiled IRBEM library..",
-        default="../../libirbem.so",
-        required=False,
-    )
 
     args = parser.parse_args()
 
@@ -270,7 +274,6 @@ if __name__ == "__main__":
     process_ept_electron_fluxes(
         start_time=dt_start,
         end_time=dt_end,
-        irbem_lib_path=args.irbem_lib_path,
         raw_data_path=".",
         processed_data_path=".",
         num_cores=64,

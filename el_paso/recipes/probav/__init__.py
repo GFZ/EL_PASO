@@ -3,4 +3,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from el_paso.recipes.esa.process_ngrm_satellite import process_ngrm_electron_fluxes as process_ngrm_electron_fluxes
+from el_paso.recipes.probav.process_ept_electron_fluxes import (
+    process_ept_electron_fluxes as process_ept_electron_fluxes,
+)
