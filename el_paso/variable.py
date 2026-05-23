@@ -4,8 +4,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
-from icecream.icecream import _
-from el_paso.typing import StandardName
 
 import typing
 from dataclasses import dataclass, field
@@ -20,6 +18,8 @@ from el_paso.utils import enforce_utc_timezone
 
 if typing.TYPE_CHECKING:
     from numpy.typing import NDArray
+
+    from el_paso.typing import StandardName
 
 
 @dataclass
