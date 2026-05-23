@@ -16,7 +16,7 @@ from astropy import units as u
 import el_paso as ep
 
 if TYPE_CHECKING:
-    from el_paso.typing import MagFieldVarTypes
+    from el_paso.processing import MagFieldVarTypes
 
 
 def process_rbsp_hope_electrons(
@@ -26,8 +26,9 @@ def process_rbsp_hope_electrons(
     mag_field: Literal["T89", "T96", "TS04"],
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
-    num_cores: int = 4,
+    num_cores: int = 32,
 ) -> None:
+
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
 
@@ -164,7 +165,6 @@ def process_rbsp_hope_electrons(
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
 
-
 if __name__ == "__main__":
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     logging.getLogger().setLevel(logging.INFO)
@@ -183,14 +183,7 @@ if __name__ == "__main__":
         "--end_time",
         type=str,
         help="End time in valid dateparse format. Example: YYYY-MM-DDTHH:MM:SS.",
-        default=datetime(2017, 4, 1, 4, 30, 59, tzinfo=timezone.utc).isoformat(),
-        required=False,
-    )
-    parser.add_argument(
-        "--irbem_lib_path",
-        type=str,
-        help="Path towards the compiled IRBEM library..",
-        default="../../libirbem.so",
+        default=datetime(2017, 4, 1, 0, 5, 59, tzinfo=timezone.utc).isoformat(),
         required=False,
     )
 
@@ -200,13 +193,14 @@ if __name__ == "__main__":
     dt_end = dateutil.parser.parse(args.end_time)
 
     #    with tempfile.TemporaryDirectory() as tmpdir:
-    for sat_str in ["a", "b"]:
+    # for sat_str in ["a", "b"]:
+    for sat_str in ["a"]:
         process_rbsp_hope_electrons(
             dt_start,
             dt_end,
             sat_str,  # ty:ignore[invalid-argument-type]
-            "T89",
-            raw_data_path=".",
-            processed_data_path=".",
-            num_cores=8,
+            "TS04",
+            raw_data_path="/home/bhaas/el_paso_processing/raw/",
+            processed_data_path="/home/bhaas/el_paso_processing/data_processed/hope/",
+            num_cores=1,
         )
