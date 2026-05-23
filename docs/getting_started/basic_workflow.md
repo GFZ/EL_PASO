@@ -10,7 +10,7 @@ SPDX-License-Identifier: Apache-2.0
 The workflow of EL-PASO consists of four main steps:
 
     1. Download of raw data files
-    2. Extract data from downloaded files and store it as 'Variables'
+    2. Extract data from downloaded files and store it as `el_paso.Variables`
     3. Process the extracted variables and compute derived values
     4. Save variables in a pre-defined data standard and file format
 
