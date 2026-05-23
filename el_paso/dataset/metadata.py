@@ -48,6 +48,7 @@ class DatasetMetadata:
                 source_files=metadata_dict.get("source_files", []),
                 description=metadata_dict.get("description", ""),
                 processing_notes=metadata_dict.get("processing_notes", ""),
+                standard_name=metadata_dict.get("standard_name", ""),
             )
 
             for key, attr_value in metadata_dict.items():
@@ -79,6 +80,14 @@ class DatasetMetadata:
 
                     if name in self.__dict__:
                         return self.__dict__[name]
+                if name == "datetime":
+                    epoch_standard = dataset.saving_strategy.data_standard.get_standard_name("Epoch")
+                    epoch_meta = cast("VariableMetadata", self.__dict__.get(epoch_standard))
+                    epoch_meta.add_processing_note("Computed datetime from Epoch.")
+                    epoch_meta.description = "Python datetime objects converted from Epoch variable. This variable is notel_paso/recipes/dmsp/process_dmsp_ssj_electrons.py saved to disk but computed on the fly when requested."  # noqa: E501
+                    if epoch_meta is not None:
+                        object.__setattr__(self, "datetime", epoch_meta)
+                        return epoch_meta
 
                 # Valid variable but no metadata found
                 return {}
@@ -95,8 +104,15 @@ class DatasetMetadata:
         """Return metadata for all loaded variables as a dict."""
         return {name: value for name, value in self.__dict__.items() if not name.startswith("_")}
 
+    def to_dict(self) -> dict[str, Any]:
+        """Alias for `as_dict()` to provide a more intuitive method name for users."""
+        return self.as_dict()
+
     def __repr__(self) -> str:
-        return repr(self.as_dict())
+        return repr(self.to_dict())
+
+    def __str__(self) -> str:
+        return self.__repr__()
 
     def __setattr__(self, name: str, value: object) -> None:
         if name.startswith("_"):

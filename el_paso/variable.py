@@ -4,6 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
+from icecream.icecream import _
+from el_paso.typing import StandardName
 
 import typing
 from dataclasses import dataclass, field
@@ -91,6 +93,7 @@ class Variable:
         data: NDArray[np.generic] | None = None,
         description: str = "",
         processing_notes: str = "",
+        standard_name: StandardName = "",  # ty:ignore[invalid-parameter-default]
     ) -> None:
         """Initializes a Variable instance.
 
@@ -100,6 +103,7 @@ class Variable:
                 numpy array if None.
             description (str): A description of the variable. Defaults to "".
             processing_notes (str): Notes on how the data was processed. Defaults to "".
+            standard_name (StandardName): The standard name of the variable. Defaults to "".
         """
         self._data = np.array([]) if data is None else data
 
@@ -107,6 +111,7 @@ class Variable:
             unit=original_unit,
             description=description,
             processing_notes=processing_notes,
+            standard_name=standard_name,
         )
 
     def __repr__(self) -> str:

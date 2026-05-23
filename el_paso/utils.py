@@ -342,6 +342,7 @@ def load_netcdf_data(file_path: Path) -> dict[StandardName, Any]:
                 "processing_notes": getattr(variable, "history", "unknown"),
                 "description": getattr(variable, "description", "unknown"),
                 "original_cadence_seconds": getattr(variable, "original_cadence_seconds", "unknown"),
+                "standard_name": getattr(variable, "standard_name", "unknown"),
             }
 
         for group_name, subgroup in group.groups.items():
@@ -398,7 +399,13 @@ def load_mat_data(file_path: Path) -> dict[StandardName, Any]:
             if not isinstance(attrs, dict):
                 continue
             data["metadata"][var_key] = {
-                k: v.item() if isinstance(v, np.ndarray) and v.ndim == 0 else str(v) if isinstance(v, np.ndarray) else v
+                k: v.item()
+                if isinstance(v, np.ndarray) and v.ndim == 0
+                else v.tolist()
+                if isinstance(v, np.ndarray) and v.size != 0
+                else ""
+                if isinstance(v, np.ndarray) and v.size == 0
+                else v
                 for k, v in attrs.items()
             }
 
@@ -451,6 +458,7 @@ def write_mat_file(file_path: Path, data_dict: DataDict, data_standard: DataStan
                 "processing_notes": variable_meta.get("processing_notes", "unknown"),
                 "description": variable_meta.get("description", "unknown"),
                 "original_cadence_seconds": variable_meta.get("original_cadence_seconds", "unknown"),
+                "standard_name": variable_meta.get("standard_name", "unknown"),
             }
 
     if mat_metadata:
@@ -555,6 +563,7 @@ def _write_data_to_netcdf_file(file: nC.Dataset | nC.Group, data_dict: DataDict,
         data_set.history = metadata.get("processing_notes", "unknown")
         data_set.description = metadata.get("description", "unknown")
         data_set.original_cadence_seconds = metadata.get("original_cadence_seconds", "unknown")
+        data_set.standard_name = metadata.get("standard_name", "unknown")
 
 
 def write_netcdf_file(file_path: Path, data_dict: DataDict, data_standard: DataStandard) -> None:
@@ -693,6 +702,7 @@ def write_cdf_file(file_path: Path, data_dict: DataDict, data_standard: DataStan
                         "processing_notes": "processing_notes",
                         "description": "description",
                         "original_cadence_seconds": "original_cadence_seconds",
+                        "standard_name": "standard_name",
                     }.items():
                         value = metadata.get(nc_key)
                         if value is None or _is_empty_cdf_attribute(value):

@@ -116,6 +116,7 @@ def _get_data_dict_to_save(
             "source_files": variable.metadata.source_files,
             "description": variable.metadata.description,
             "processing_notes": variable.metadata.processing_notes,
+            "standard_name": variable.metadata.standard_name or save_name,
         }
 
     # Add metadata to the dictionary

@@ -325,8 +325,16 @@ class DataSet:
                 # Skip non-numeric metadata (excluding our new datetime)
                 if key == "metadata":
                     if isinstance(var_arr, dict):
-                        for metadata_name, metadata_value in var_arr.items():
-                            setattr(self.metadata, metadata_name, metadata_value)
+                        for metadata_key, metadata_value in var_arr.items():
+                            try:
+                                metadata_key_to_set = self.saving_strategy.data_standard.get_standard_name(metadata_key)
+                            except KeyError:
+                                metadata_key_to_set = metadata_key
+                            setattr(
+                                self.metadata,
+                                metadata_key_to_set,
+                                metadata_value,
+                            )
                     continue
                 if key != "datetime" and (
                     not isinstance(var_arr, np.ndarray) or not np.issubdtype(var_arr.dtype, np.number)
@@ -357,11 +365,6 @@ class DataSet:
             # Assign the data array onto the dataset
             val = list(loaded_var_arrs[var_name]) if var_name == "datetime" else loaded_var_arrs[var_name]
             setattr(self, var_name, val)
-
-            # Assign per-variable metadata onto self.metadata
-            var_info = self.saving_strategy.data_standard.variable_infos.get(var_name)  # ty:ignore[invalid-argument-type]
-            if var_info is not None:
-                setattr(self.metadata, var_name, var_info)
 
     def get_loaded_variables(self) -> list[str]:
         """Get a list of currently loaded variable names."""

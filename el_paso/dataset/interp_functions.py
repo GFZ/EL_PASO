@@ -102,7 +102,6 @@ def interp_flux(  # noqa: D103
     target_type: TargetType | Literal["TargetPairs", "TargetMesh"],
     n_threads: int = 10,
 ) -> NDArray[np.float64]:
-
     if not isinstance(target_en, Iterable):
         target_en = [target_en]
     if not isinstance(target_al, Iterable):
