@@ -113,20 +113,21 @@ class FileWriter(Protocol):  # noqa: D101
 
 _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     "ConsistencyCheck": ("el_paso.data_standard", "ConsistencyCheck"),
-    "GFZStandard": ("el_paso.data_standards", "GFZStandard"),
+    "GFZStandard": ("el_paso.data_standards.gfz_standard", "GFZStandard"),
     "GFZStrategy": ("el_paso.saving_strategies.gfz_strategy", "GFZStrategy"),
     "DataStandard": ("el_paso.data_standard", "DataStandard"),
     "DensityNetCDFStrategy": ("el_paso.saving_strategies.density_netcdf_strategy", "DensityNetCDFStrategy"),
     "MonthlyRBStrategy": ("el_paso.saving_strategies.monthly_rb_strategy", "MonthlyRBStrategy"),
     "OutputFile": ("el_paso.saving_strategy", "OutputFile"),
-    "PRBEMStandard": ("el_paso.data_standards", "PRBEMStandard"),
+    "PRBEMStandard": ("el_paso.data_standards.prbem_standard", "PRBEMStandard"),
+    "VariableRequest": ("el_paso.processing.compute_magnetic_field_variables", "VariableRequest"),
     "SavingStrategy": ("el_paso.saving_strategy", "SavingStrategy"),
     "SingleFileStrategy": ("el_paso.saving_strategies.single_file_strategy", "SingleFileStrategy"),
     "Variable": ("el_paso.variable", "Variable"),
     "VariableInfo": ("el_paso.data_standard", "VariableInfo"),
     "VariableMetadata": ("el_paso.variable", "VariableMetadata"),
-    "GFZMetaData": ("el_paso.dataset.metadata_types", "GFZMetaData"),
-    "PRBEMMetaData": ("el_paso.dataset.metadata_types", "PRBEMMetaData"),
+    "GFZMetaData": ("el_paso.dataset.metadata", "GFZMetaData"),
+    "PRBEMMetaData": ("el_paso.dataset.metadata", "PRBEMMetaData"),
 }
 
 
@@ -143,7 +144,7 @@ def __getattr__(name: str) -> object:
 
 
 def __dir__() -> list[str]:
-    return sorted([*globals(), *_LAZY_EXPORTS])
+    return __all__ + [k for k in globals() if k.startswith("__") and k.endswith("__")]
 
 
 __all__ = [
