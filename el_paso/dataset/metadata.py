@@ -83,11 +83,24 @@ class DatasetMetadata:
                 if name == "datetime":
                     epoch_standard = dataset.saving_strategy.data_standard.get_standard_name("Epoch")
                     epoch_meta = cast("VariableMetadata", self.__dict__.get(epoch_standard))
-                    epoch_meta.add_processing_note("Computed datetime from Epoch.")
-                    epoch_meta.description = "Python datetime objects converted from Epoch variable. This variable is notel_paso/recipes/dmsp/process_dmsp_ssj_electrons.py saved to disk but computed on the fly when requested."  # noqa: E501
+                    # Create a separate metadata object for `datetime` so we do not modify the original Epoch metadata
                     if epoch_meta is not None:
-                        object.__setattr__(self, "datetime", epoch_meta)
-                        return epoch_meta
+                        datetime_meta = VariableMetadata(
+                            unit=epoch_meta.unit,
+                            original_cadence_seconds=epoch_meta.original_cadence_seconds,
+                            source_files=list(epoch_meta.source_files),
+                            description=(
+                                "Python datetime objects converted from Epoch variable. "
+                                "This variable is not saved to disk but computed on the fly when requested."
+                            ),
+                            processing_notes=epoch_meta.processing_notes,
+                            standard_name=epoch_meta.standard_name,
+                        )
+
+                        datetime_meta.add_processing_note("Computed datetime from Epoch.")
+
+                        object.__setattr__(self, "datetime", datetime_meta)
+                        return datetime_meta
 
                 # Valid variable but no metadata found
                 return {}
