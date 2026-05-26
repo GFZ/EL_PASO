@@ -36,3 +36,35 @@ def test_basic_single_file_strategy(tmp_path: Path, file_format: str) -> None:
     )
 
     assert save_path.exists()
+
+
+def test_save_raises_for_invalid_value_type(tmp_path: Path) -> None:
+    variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+        "FEDU": ep.Variable(original_unit=u.dimensionless_unscaled, data=rng.normal((20, 21))),
+        "Epoch": 1,
+    }  # ty:ignore[invalid-assignment]
+    strategy = ep.saving_strategies.SingleFileStrategy(file_path=tmp_path / "test.mat")
+
+    with pytest.raises(TypeError, match="must map each internal name to an ep.Variable"):  # noqa: RUF043
+        ep.save(
+            variables_to_save,
+            strategy,
+            start_time=datetime(2013, 1, 1, tzinfo=timezone.utc),
+            end_time=datetime(2013, 1, 2, tzinfo=timezone.utc),
+        )
+
+
+def test_save_raises_for_invalid_internal_name(tmp_path: Path) -> None:
+    variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+        "FEDU": ep.Variable(original_unit=u.dimensionless_unscaled, data=rng.normal((20, 21))),
+        "xGEO": ep.Variable(original_unit=u.dimensionless_unscaled, data=rng.normal((20, 3))),
+    }  # ty:ignore[invalid-assignment]
+    strategy = ep.saving_strategies.SingleFileStrategy(file_path=tmp_path / "test.mat")
+
+    with pytest.raises(KeyError, match="contains invalid internal name keys"):
+        ep.save(
+            variables_to_save,
+            strategy,
+            start_time=datetime(2013, 1, 1, tzinfo=timezone.utc),
+            end_time=datetime(2013, 1, 2, tzinfo=timezone.utc),
+        )
