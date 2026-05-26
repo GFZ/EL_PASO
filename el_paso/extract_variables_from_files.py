@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any, Callable, Literal, cast  # noqa: UP035
 
 import cdflib
 import h5py
+import netCDF4
 import numpy as np
 import pandas as pd
 
@@ -185,11 +186,11 @@ def _extract_data_from_files(
         ".tab": lambda path: _extract_data_from_ascii(path, extraction_infos, pd_read_csv_kwargs),
         ".dat": lambda path: _extract_data_from_ascii(path, extraction_infos, pd_read_csv_kwargs),
         ".h5": lambda path: _extract_data_from_h5(path, extraction_infos),
+        ".nc": lambda path: _extract_data_from_netcdf(path, extraction_infos),
         ".json": lambda path: _extract_data_from_json(path, extraction_infos),
     }
 
     unsupported_formats = {
-        ".nc": "NetCDF reading is not supported yet!",
         ".mat": "MATLAB reading is not supported yet!",
     }
 
@@ -366,7 +367,8 @@ def _extract_data_from_h5(
                     raise TypeError(msg)
 
                 if isinstance(entry_data, h5py.Group):
-                    msg = "Groups for h5 files has not been implemented!"
+                    msg = "Groups for h5 files has not been implemented! You can implement it as a custom extractor and"
+                    " pass it via the `custom_extractors` argument."
                     logger.error(msg)
                     raise NotImplementedError(msg)
 
@@ -385,6 +387,37 @@ def _extract_data_from_h5(
                 )
 
         return variable_data
+
+
+def _extract_data_from_netcdf(
+    file_path: str, extraction_infos: tuple[ExtractionInfo, ...]
+) -> dict[str | int, NDArray[np.generic]]:
+    variable_data: dict[str | int, NDArray[np.generic]] = {}
+
+    with netCDF4.Dataset(file_path) as file:
+        if file.groups:
+            msg = "Groups for nc files has not been implemented! You can implement it as a custom extractor and"
+            " pass it via the `custom_extractors` argument."
+            logger.error(msg)
+            raise NotImplementedError(msg)
+
+        entries: list[str] = list(file.variables.keys())
+
+        for info in extraction_infos:
+            if info.name_or_column in entries:
+                entry_data = file[info.name_or_column]  # ty: ignore[invalid-argument-type]
+                var_content = np.asarray([entry_data]).squeeze()
+                variable_data[info.name_or_column] = var_content
+            else:
+                logger.warning(
+                    (
+                        f"Data with name {info.name_or_column} was not found in file {file_path}!"
+                        "Available entries: {entries}"
+                    ),
+                    stacklevel=2,
+                )
+
+    return variable_data
 
 
 def _find_files_with_regex(directory: Path, regex_pattern: str) -> list[Path]:

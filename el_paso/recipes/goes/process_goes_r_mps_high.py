@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from numpy.typing import NDArray
-import netCDF4
 from el_paso.typing import InternalName
 import logging
 import sys
@@ -229,7 +228,6 @@ def _get_magn_variables(
         data_path=data_path_stem,
         file_name_stem=file_name_stem,
         extraction_infos=extraction_infos,
-        custom_extractors={".nc": _extract_variables_from_netcdf},
     )
 
 
@@ -265,7 +263,6 @@ def _get_ephe_variables(
         data_path=data_path_stem,
         file_name_stem=file_name_stem,
         extraction_infos=extraction_infos,
-        custom_extractors={".nc": _extract_variables_from_netcdf},
     )
 
 
@@ -316,34 +313,7 @@ def _get_mps_high_variables(
         data_path=data_path_stem,
         file_name_stem=file_name_stem,
         extraction_infos=extraction_infos,
-        custom_extractors={".nc": _extract_variables_from_netcdf},
     )
-
-
-def _extract_variables_from_netcdf(
-    file_path: str, extraction_infos: tuple[ep.ExtractionInfo, ...]
-) -> dict[str | int, NDArray[np.generic]]:
-    # Open the h5 file
-    variable_data: dict[str | int, NDArray[np.generic]] = {}
-    with netCDF4.Dataset(file_path) as file:
-        entries: list[str] = list(file.variables.keys())
-
-        # Extract data for each variable in self.variables
-        for info in extraction_infos:
-            if info.name_or_column in entries:
-                entry_data = file[info.name_or_column]  # ty:ignore[invalid-argument-type]
-                var_content = np.asarray([entry_data]).squeeze()
-                variable_data[info.name_or_column] = var_content
-            else:
-                logger.warning(
-                    (
-                        f"Data with name {info.name_or_column} was not found in file {file_path}!"
-                        "Available entries: {entries}"
-                    ),
-                    stacklevel=2,
-                )
-
-    return variable_data
 
 
 if __name__ == "__main__":
