@@ -45,6 +45,7 @@ nav:
           - API_reference/data_standard.md
           - API_reference/saving_strategy.md
           - API_reference/variable.md
+          - API_reference/dataset/dataset.md
       - Core Functions:
           - API_reference/download.md
           - API_reference/extract_variables_from_files.md
@@ -74,12 +75,14 @@ nav:
       - Data Standards:
           - PRBEM Standard: API_reference/data_standards/prbem.md
           - GFZ Standard: API_reference/data_standards/gfz.md
+      - Datasets: API_reference/dataset/dataset_implementations.md
   - Tutorial Notebooks:
       - Data Downloading and Extraction: tutorials/1_download_data_and_extracting_variables.ipynb
       - Variable Processing: tutorials/2_variable_class.ipynb
       - Saving Strategies: tutorials/3_saving_strategies.ipynb
       - Time Binning: tutorials/4_time_binning.ipynb
       - Magnetic Field Processing: tutorials/5_magnetic_field_processing.ipynb
+      - Dataset Implementations: tutorials/6_loading_saved_dataset_using_datasets.ipynb
 
 markdown_extensions:
   - admonition

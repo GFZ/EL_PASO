@@ -30,7 +30,7 @@ ignore = [
     "N802",
     "N999",
 ]
-exclude = ["*.ipynb", "setup.py", "el_paso/recipes/*"]
+exclude = ["*.ipynb", "setup.py"]
 
 [lint.pydocstyle]
 convention = "google"

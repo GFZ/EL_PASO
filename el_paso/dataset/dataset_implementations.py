@@ -198,7 +198,7 @@ class PRBEMDataSet(DataSet):
         and populates the list of possible variables from class annotations.
 
         Parameters:
-            saving_strategy_type (type[SavingStrategy]): Class (not instance) of
+            saving_strategy (SavingStrategy):  Instance of
                 the saving strategy used to resolve file paths. Defaults to
                 ``ep.saving_strategies.MonthlyRBStrategy``.
             start_time (dt.datetime): Beginning of the time range to load.

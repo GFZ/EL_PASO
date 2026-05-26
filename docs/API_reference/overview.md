@@ -17,6 +17,8 @@ This section provides a detailed reference for all modules, classes, and functio
 
 [Variable](variable.md)
 
+[DataSet](dataset/dataset.md)
+
 ## Core functions
 
 [download](download.md)
@@ -74,3 +76,9 @@ This section provides a detailed reference for all modules, classes, and functio
 [GFZStandard](data_standards/gfz.md)
 
 [PRBEMStandard](data_standards/prbem.md)
+
+## Datasets
+
+[GFZDataSet](dataset/dataset_implementations.md#el_paso.dataset.GFZDataSet)
+
+[PRBEMDataSet](dataset/dataset_implementations.md#el_paso.dataset.PRBEMDataSet)
