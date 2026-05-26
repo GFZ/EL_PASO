@@ -61,7 +61,7 @@ class SavingStrategy(ABC):
             Selects and prepares variables to be saved in the output file, optionally truncating them to a time range.
 
         save_single_file(file_path: Path, dict_to_save: dict[str, Any], *, append: bool = False):
-            Saves the provided dictionary to a file in the specified format (.mat, .pickle, .h5, .nc),
+            Saves the provided dictionary to a file in the specified format (.mat, .h5, .nc),
             optionally appending data.
 
         append_data(file_path: Path, dict_to_save: dict[str, Any]) -> dict[str, Any]:
@@ -144,7 +144,7 @@ class SavingStrategy(ABC):
 
     @abstractmethod
     def save_single_file(self, file_path: Path, dict_to_save: SavedDataDict, *, append: bool = False) -> None:
-        """Saves the provided dictionary to a single file in one of the supported formats (.mat, .pickle, .h5, .nc).
+        """Saves the provided dictionary to a single file in one of the supported formats (.mat, .h5, .nc).
 
         Parameters:
             file_path (Path): The path where the file should be saved.

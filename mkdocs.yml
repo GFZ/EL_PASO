@@ -79,10 +79,9 @@ nav:
   - Tutorial Notebooks:
       - Data Downloading and Extraction: tutorials/1_download_data_and_extracting_variables.ipynb
       - Variable Processing: tutorials/2_variable_class.ipynb
-      - Saving Strategies: tutorials/3_saving_strategies.ipynb
+      - Saving Strategies: tutorials/3_saving_strategies_and_datasets.ipynb
       - Time Binning: tutorials/4_time_binning.ipynb
       - Magnetic Field Processing: tutorials/5_magnetic_field_processing.ipynb
-      - Dataset Implementations: tutorials/6_loading_saved_dataset_using_datasets.ipynb
 
 markdown_extensions:
   - admonition

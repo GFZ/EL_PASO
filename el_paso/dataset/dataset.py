@@ -4,7 +4,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Combined RBM Dataset class supporting .mat, .pickle, and .nc file formats."""
+"""DataSet class supporting .mat, .h5, .cdf and .nc file formats."""
 
 from __future__ import annotations
 
