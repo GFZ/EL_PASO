@@ -31,7 +31,6 @@ if TYPE_CHECKING:
 
     from el_paso.typing import (
         FileLoader,
-        InternalName,
         MFSFormats,
         SavedDataDict,
         SavingStrategy,
@@ -210,10 +209,6 @@ class DataSet:
         """Load data into memory."""
         getattr(self, name_or_var)
 
-    def get_var_by_internal_name(self, internal_name: InternalName):  # noqa: ANN201
-        standard_name = self.saving_strategy.data_standard.get_standard_name(internal_name)
-        return getattr(self, standard_name)
-
     def find_similar_variable(self, name: str) -> tuple[None | str, dict[str, Any]]:
         levenstein_info: dict[str, Any] = {"min_distance": 10, "var_name": ""}
         sat_variable = None
@@ -234,12 +229,27 @@ class DataSet:
         return sat_variable, levenstein_info
 
     def get_satellite_name(self) -> str:
+        """Get Satellite name from the saving strategy.
+
+        Returns:
+            str: Satellite name.
+        """
         return self.saving_strategy.satellite
 
     def get_satellite_and_instrument_name(self) -> str:
+        """Get the combined name of the satellite and instrument.
+
+        Returns:
+            str: Combined name of the satellite and instrument.
+        """
         return self.saving_strategy.satellite + "_" + self.saving_strategy.instrument
 
     def get_print_name(self) -> str:
+        """Get the print name of the dataset.
+
+        Returns:
+            str: The print name of the dataset.
+        """
         return self.saving_strategy.satellite + " " + self.saving_strategy.instrument
 
     def _load_variable(self, requested_name: str) -> None:

@@ -82,3 +82,11 @@ This section provides a detailed reference for all modules, classes, and functio
 [GFZDataSet](dataset/dataset_implementations.md#el_paso.dataset.GFZDataSet)
 
 [PRBEMDataSet](dataset/dataset_implementations.md#el_paso.dataset.PRBEMDataSet)
+
+## Metadata
+
+[Metadata](metadata.md)
+
+## Typing
+
+[Typing](typing.md)

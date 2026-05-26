@@ -13,6 +13,8 @@ from enum import Enum
 
 import dateutil
 
+from el_paso.typing import TimeInterval
+
 
 class ChunkType(Enum):  # noqa: D101
     DAILY = "daily"
@@ -20,10 +22,8 @@ class ChunkType(Enum):  # noqa: D101
     YEARLY = "yearly"
 
 
-def _get_time_intervals(
-    start_time: datetime, end_time: datetime, chunk_type: ChunkType
-) -> list[tuple[datetime, datetime]]:
-    time_intervals: list[tuple[datetime, datetime]] = []
+def _get_time_intervals(start_time: datetime, end_time: datetime, chunk_type: ChunkType) -> list[TimeInterval]:
+    time_intervals: list[TimeInterval] = []
 
     current_time = start_time.replace(day=1)
     while current_time <= end_time:
@@ -44,7 +44,7 @@ def _get_time_intervals(
                 time_intervals.append((month_start, month_end))
                 current_time = (
                     datetime(year + 1, 1, 1, tzinfo=timezone.utc)
-                    if month == 12  # noqa: PLR2004
+                    if month == 12
                     else datetime(year, month + 1, 1, tzinfo=timezone.utc)
                 )
 

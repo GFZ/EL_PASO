@@ -22,7 +22,14 @@ if TYPE_CHECKING:
     from datetime import datetime
     from pathlib import Path
 
-    from el_paso.typing import DataStandard, InternalName, MagneticFieldLiteral, SavedDataDict, StandardName
+    from el_paso.typing import (
+        DataStandard,
+        InternalName,
+        MagneticFieldLiteral,
+        SavedDataDict,
+        StandardName,
+        TimeInterval,
+    )
 
 
 class OutputFile(NamedTuple):
@@ -47,7 +54,7 @@ class SavingStrategy(ABC):
 
     Methods:
         get_time_intervals_to_save(start_time: datetime | None, end_time: datetime | None)
-            -> list[tuple[datetime, datetime]]:
+            -> list[TimeInterval]:
             Abstract method to determine the time intervals for saving data between start_time and end_time.
 
         get_file_path(interval_start: datetime, interval_end: datetime, output_file: OutputFile) -> Path:
@@ -97,7 +104,7 @@ class SavingStrategy(ABC):
         return self.__repr__()
 
     @abstractmethod
-    def get_time_intervals_to_save(self, start_time: datetime, end_time: datetime) -> list[tuple[datetime, datetime]]:
+    def get_time_intervals_to_save(self, start_time: datetime, end_time: datetime) -> list[TimeInterval]:
         """Generates a list of time intervals to save between the specified start and end times.
 
         Args:
@@ -107,7 +114,7 @@ class SavingStrategy(ABC):
                                         If None, intervals may end at the latest available time.
 
         Returns:
-            list[tuple[datetime, datetime]]: A list of tuples, each representing a time interval (start, end)
+            list[TimeInterval]: A list of tuples, each representing a time interval (start, end)
                                              to be saved.
         """
 

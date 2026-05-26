@@ -152,7 +152,6 @@ def test_data_org_dataset_loads_saved_monthly_nc_and_rejects_invalid_variable(
 
     np.testing.assert_allclose(dataset.time, expected_time)
     np.testing.assert_equal(dataset.Flux, expected_flux)
-    np.testing.assert_equal(dataset.get_var_by_internal_name("FEDU"), expected_flux)
     np.testing.assert_equal(dataset.energy_channels, expected_energy_channels)
     np.testing.assert_equal(dataset.alpha_local, expected_alpha_local)
     np.testing.assert_equal(dataset.alpha_eq_model, expected_alpha_eq_model)

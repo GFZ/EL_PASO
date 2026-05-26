@@ -30,6 +30,7 @@ if TYPE_CHECKING:
         MFSFormats,
         SavedDataDict,
         StandardName,
+        TimeInterval,
         Variable,
     )
 
@@ -133,11 +134,9 @@ class MonthlyRBStrategy(SavingStrategy):
         normalized = ep.utils.normalize_file_format(extension)
         self._writers[normalized] = writer
 
-    def get_time_intervals_to_save(
-        self, start_time: datetime | None, end_time: datetime | None
-    ) -> list[tuple[datetime, datetime]]:
+    def get_time_intervals_to_save(self, start_time: datetime | None, end_time: datetime | None) -> list[TimeInterval]:
         """Split the requested time range into full monthly intervals."""
-        time_intervals: list[tuple[datetime, datetime]] = []
+        time_intervals: list[TimeInterval] = []
 
         if start_time is None or end_time is None:
             msg = "start_time and end_time must be provided for MonthlyRBStrategy!"

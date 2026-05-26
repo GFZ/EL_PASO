@@ -22,7 +22,7 @@ from el_paso.saving_strategy import OutputFile, SavingStrategy
 if TYPE_CHECKING:
     from datetime import datetime
 
-    from el_paso.typing import InternalName, Variable
+    from el_paso.typing import InternalName, TimeInterval, Variable
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +115,7 @@ class SingleFileStrategy(SavingStrategy):
     def get_file_name_stem(self) -> None:  # ty:ignore[invalid-method-override]
         pass
 
-    def get_time_intervals_to_save(self, start_time: datetime, end_time: datetime) -> list[tuple[datetime, datetime]]:
+    def get_time_intervals_to_save(self, start_time: datetime, end_time: datetime) -> list[TimeInterval]:
         """Returns the entire time range as a single interval.
 
         This strategy does not split data by time; it saves everything in one go.
@@ -125,7 +125,7 @@ class SingleFileStrategy(SavingStrategy):
             end_time (datetime): The end time of the data range.
 
         Returns:
-            list[tuple[datetime, datetime]]: A list containing a single tuple with the start and end times.
+            list[TimeInterval]: A list containing a single tuple with the start and end times.
         """
         return [(start_time, end_time)]
 

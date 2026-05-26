@@ -135,7 +135,33 @@ class DatasetMetadata:
         object.__setattr__(self, name, self._coerce_metadata(value))
 
 
-class GFZMetaData(DatasetMetadata):  # noqa: D101
+class GFZMetaData(DatasetMetadata):
+    """Metadata container for GFZStandard.
+
+    Attributes:
+        datetime: VariableMetadata
+        time: VariableMetadata
+        energy_channels: VariableMetadata
+        alpha_local: VariableMetadata
+        alpha_eq_model: VariableMetadata
+        alpha_eq_real: VariableMetadata
+        InvMu: VariableMetadata
+        InvMu_real: VariableMetadata
+        InvK: VariableMetadata
+        InvV: VariableMetadata
+        Lstar: VariableMetadata
+        Lm: VariableMetadata
+        Flux: VariableMetadata
+        PSD: VariableMetadata
+        MLT: VariableMetadata
+        B_eq: VariableMetadata
+        B_total: VariableMetadata
+        xGEO: VariableMetadata
+        P: VariableMetadata
+        R0: VariableMetadata
+        density: VariableMetadata
+    """
+
     datetime: VariableMetadata
     time: VariableMetadata
     energy_channels: VariableMetadata
@@ -159,7 +185,31 @@ class GFZMetaData(DatasetMetadata):  # noqa: D101
     density: VariableMetadata
 
 
-class PRBEMMetaData(DatasetMetadata):  # noqa: D101
+class PRBEMMetaData(DatasetMetadata):
+    """Metadata container for PRBEMStandard.
+
+    Attributes:
+        datetime: VariableMetadata
+        Epoch: VariableMetadata
+        FEDU: VariableMetadata
+        FEDO: VariableMetadata
+        FEIU: VariableMetadata
+        Energy_FEDU: VariableMetadata
+        Alpha: VariableMetadata
+        Alpha_Eq: VariableMetadata
+        Position: VariableMetadata
+        B_Calc: VariableMetadata
+        B_Eq: VariableMetadata
+        L_star: VariableMetadata
+        I: VariableMetadata
+        MLT: VariableMetadata
+        L_m: VariableMetadata
+        PSD: VariableMetadata
+        R_Eq: VariableMetadata
+        InvMu: VariableMetadata
+        InvK: VariableMetadata
+    """
+
     datetime: VariableMetadata
     Epoch: VariableMetadata
     FEDU: VariableMetadata

@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from multiprocessing.pool import MapResult
 
     import el_paso as ep
-    from el_paso.typing import DataStandard, SavedDataDict, StandardName
+    from el_paso.typing import DataStandard, SavedDataDict, StandardName, TimeInterval
 
     DataDict = SavedDataDict
 
@@ -724,8 +724,8 @@ def write_cdf_file(file_path: Path, data_dict: DataDict, data_standard: DataStan
 
 def get_monthly_datetime_intervals(  # noqa: D103
     start_time: datetime | None, end_time: datetime | None
-) -> list[tuple[datetime, datetime]]:
-    time_intervals: list[tuple[datetime, datetime]] = []
+) -> list[TimeInterval]:
+    time_intervals: list[TimeInterval] = []
 
     if start_time is None or end_time is None:
         msg = "start_time and end_time must be provided!"

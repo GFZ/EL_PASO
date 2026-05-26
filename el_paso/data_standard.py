@@ -26,7 +26,9 @@ logger = logging.getLogger(__name__)
 T_co = TypeVar("T_co", bound=str, covariant=True)
 
 
-class VariableInfo(NamedTuple, Generic[T_co]):  # noqa: D101
+class VariableInfo(NamedTuple, Generic[T_co]):
+    """A named tuple to store information about a variable in a data standard."""
+
     standard_name: T_co
     description: str
     unit: u.UnitBase

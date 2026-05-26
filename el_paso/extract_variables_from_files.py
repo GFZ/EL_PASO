@@ -29,6 +29,8 @@ if TYPE_CHECKING:
     from astropy import units as u
     from numpy.typing import DTypeLike, NDArray
 
+    from el_paso.typing import TimeInterval
+
 logger = logging.getLogger(__name__)
 
 
@@ -118,9 +120,9 @@ def extract_variables_from_files(
 
 def _construct_file_list(
     start_time: datetime, end_time: datetime, file_cadence: Literal["daily", "monthly", "single_file"], file_path: Path
-) -> tuple[list[Path], list[tuple[datetime, datetime]]]:
+) -> tuple[list[Path], list[TimeInterval]]:
     file_paths: list[Path] = []
-    time_intervals: list[tuple[datetime, datetime]] = []
+    time_intervals: list[TimeInterval] = []
 
     match file_cadence:
         case "daily":

@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias
 
 if TYPE_CHECKING:
+    from el_paso import ExtractionInfo
     from el_paso.data_standard import ConsistencyCheck, DataStandard, VariableInfo
     from el_paso.data_standards import GFZStandard, PRBEMStandard
     from el_paso.dataset.metadata import GFZMetaData, PRBEMMetaData
@@ -52,8 +53,10 @@ InternalName: TypeAlias = Literal[
     "InvMu",
     "InvK",
 ]
+"""Internal EL-PASO variable names used as canonical keys across standards."""
 
 PRBEMName: TypeAlias = InternalName
+"""PRBEM-standard variable names, which match EL-PASO internal names."""
 
 GFZVarNames: TypeAlias = Literal[
     "time",
@@ -73,13 +76,29 @@ GFZVarNames: TypeAlias = Literal[
     "InvMu",
     "InvK",
 ]
+"""Variable names used by the GFZ output standard."""
 
 StandardName: TypeAlias = PRBEMName | GFZVarNames | Literal["metadata"]
+"""Any standard-facing variable name accepted by EL-PASO data standards."""
 
-MagneticFieldLiteral: TypeAlias = Literal["T89", "T01", "T01s", "TS04", "TS05", "T04s", "T96", "OP77Q", "OP77"]
+MagneticFieldLiteral: TypeAlias = Literal[
+    "T89",
+    "T01",
+    "T01s",
+    "TS04",
+    "TS05",
+    "T04s",
+    "T96",
+    "OP77Q",
+    "OP77",
+]
+"""Supported magnetic-field model identifiers."""
+
 MagInputKeys: TypeAlias = Literal[
     "Kp", "Dst", "dens", "velo", "Pdyn", "ByIMF", "BzIMF", "G1", "G2", "G3", "W1", "W2", "W3", "W4", "W5", "W6", "AL"
 ]
+"""Supported magnetic-field model input parameter names."""
+
 MagFieldVarTypes: TypeAlias = Literal[
     "B_local",
     "B_fofl",
@@ -96,19 +115,32 @@ MagFieldVarTypes: TypeAlias = Literal[
     "invK",
     "XJ",
 ]
+"""Magnetic-field variables that can be requested from the field-line service."""
+
 MFSFormats: TypeAlias = Literal["nc", "cdf", "h5", "mat", ".nc", ".cdf", ".h5", ".mat"]
+"""File formats supported by MonthlyRBStrategy."""
+
 TimeInterval: TypeAlias = tuple[datetime, datetime]
+"""Inclusive start and end datetimes for a processing or saving interval."""
+
 SavedDataDict: TypeAlias = dict[InternalName | Literal["metadata"], Any]
+"""Dictionary passed to saving backends, keyed by internal variable name or metadata."""
+
 FileLoader: TypeAlias = Callable[[Path], dict[StandardName, Any]]
+"""Callable that loads a data file into a dictionary keyed by standard variable names."""
 
 
-class FileWriter(Protocol):  # noqa: D101
+class FileWriter(Protocol):
+    """Callable interface for writing standardized EL-PASO data to disk."""
+
     def __call__(
         self,
         file_path: Path,
         data_dict: SavedDataDict,
         data_standard: DataStandard,
-    ) -> None: ...
+    ) -> None:
+        """Write `data_dict` to `file_path` using `data_standard`."""
+        ...
 
 
 _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
@@ -128,6 +160,7 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     "VariableMetadata": ("el_paso.variable", "VariableMetadata"),
     "GFZMetaData": ("el_paso.dataset.metadata", "GFZMetaData"),
     "PRBEMMetaData": ("el_paso.dataset.metadata", "PRBEMMetaData"),
+    "ExtractionInfo": ("el_paso", "ExtractionInfo"),
 }
 
 
@@ -144,6 +177,7 @@ def __getattr__(name: str) -> object:
 
 
 def __dir__() -> list[str]:
+    """Return public names exposed by this import-safe typing module."""
     return __all__ + [k for k in globals() if k.startswith("__") and k.endswith("__")]
 
 
@@ -151,6 +185,7 @@ __all__ = [
     "ConsistencyCheck",
     "DataStandard",
     "DensityNetCDFStrategy",
+    "ExtractionInfo",
     "FileLoader",
     "FileWriter",
     "GFZMetaData",

@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
     from el_paso import Variable
-    from el_paso.typing import DataStandard, InternalName, SavedDataDict, StandardName
+    from el_paso.typing import DataStandard, InternalName, SavedDataDict, StandardName, TimeInterval
 
 logger = logging.getLogger(__name__)
 
@@ -128,9 +128,7 @@ class GFZStrategy(SavingStrategy):
             internal_name, variable, reset_consistency_check=first_call_of_interval
         )
 
-    def get_time_intervals_to_save(
-        self, start_time: datetime | None, end_time: datetime | None
-    ) -> list[tuple[datetime, datetime]]:
+    def get_time_intervals_to_save(self, start_time: datetime | None, end_time: datetime | None) -> list[TimeInterval]:
         """Splits the time range into a list of full-month intervals.
 
         This method iterates from the start month to the end month, creating a new
@@ -141,13 +139,13 @@ class GFZStrategy(SavingStrategy):
             end_time (datetime | None): The end of the time range.
 
         Returns:
-            list[tuple[datetime, datetime]]: A list of tuples, where each tuple represents a
+            list[TimeInterval]: A list of tuples, where each tuple represents a
                 monthly time interval.
 
         Raises:
             ValueError: If either `start_time` or `end_time` is not provided.
         """
-        time_intervals: list[tuple[datetime, datetime]] = ep.utils.get_monthly_datetime_intervals(start_time, end_time)
+        time_intervals: list[TimeInterval] = ep.utils.get_monthly_datetime_intervals(start_time, end_time)
 
         return time_intervals
 

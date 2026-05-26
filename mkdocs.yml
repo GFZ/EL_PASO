@@ -76,6 +76,8 @@ nav:
           - PRBEM Standard: API_reference/data_standards/prbem.md
           - GFZ Standard: API_reference/data_standards/gfz.md
       - Datasets: API_reference/dataset/dataset_implementations.md
+      - Metadata: API_reference/metadata.md
+      - Typing: API_reference/typing.md
   - Tutorial Notebooks:
       - Data Downloading and Extraction: tutorials/1_download_data_and_extracting_variables.ipynb
       - Variable Processing: tutorials/2_variable_class.ipynb
@@ -94,7 +96,7 @@ plugins:
   - mkdocstrings:
       handlers:
         python:
-          paths: ["el_paso"]
+          paths: ["."]
           options:
             docstring_style: google
             show_root_heading: true
@@ -108,6 +110,7 @@ plugins:
           inventories:
             - https://docs.python.org/3/objects.inv
             - https://numpy.org/doc/stable/objects.inv
+            - https://docs.astropy.org/en/stable/objects.inv
 
   - search
   - mkdocs-jupyter:

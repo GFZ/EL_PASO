@@ -24,6 +24,8 @@ from el_paso.utils import make_dict_hashable, timed_function
 logger = logging.getLogger(__name__)
 
 VariableRequest = Sequence[tuple[MagFieldVarTypes, MagneticFieldLiteral | mag_utils.MagneticField]]
+"""Type alias for a request to compute magnetic field variables, consisting of a sequence of tuples where each tuple
+    specifies the variable type and the magnetic field model to use for its computation."""
 
 
 class MagFieldVar(NamedTuple):
