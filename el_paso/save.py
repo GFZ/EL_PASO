@@ -6,17 +6,18 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, get_args
 
 import numpy as np
 
+from el_paso.typing import InternalName, Variable
 from el_paso.utils import enforce_utc_timezone, timed_function
 
 if TYPE_CHECKING:
     from datetime import datetime
 
     from el_paso.saving_strategy import SavingStrategy
-    from el_paso.typing import InternalName, SavedDataDict, Variable
+    from el_paso.typing import SavedDataDict
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ def save(
     time_var: Variable | None = None,
     *,
     append: bool = False,
+    ignore_validation: bool = False,
 ) -> None:
     """Saves variables to files based on the specified saving strategy and time intervals.
 
@@ -49,11 +51,18 @@ def save(
             the saving strategy must handle time internally. Defaults to None.
         append (bool, optional): If `True`, data will be appended to existing files
             rather than overwriting them. Defaults to `False`.
+        ignore_validation (bool, optional): If `True`, validation of the input against the `ep.typing.InternalName`
+            variables will be skipped. Defaults to `False`.
 
     Raises:
+        TypeError: If `variables_dict` is not a dictionary of `Variable` objects.
+        KeyError: If `variables_dict` contains invalid internal variable names.
         UserWarning: If the saving process is attempted for an output file but one
             or more of its required variables are missing from `variables_dict`.
     """
+    if not ignore_validation:
+        _validate_variables_dict(variables_dict)
+
     start_time = enforce_utc_timezone(start_time)
     end_time = enforce_utc_timezone(end_time)
 
@@ -75,6 +84,30 @@ def save(
             else:
                 data_dict = _get_data_dict_to_save(target_variables)
                 saving_strategy.save_single_file(file_path, data_dict, append=append)
+
+
+def _validate_variables_dict(variables_dict: dict[InternalName, Variable]) -> None:
+    """Validates runtime types for data passed to ``save``.
+
+    This guard complements static type checking by rejecting invalid keys and
+    values even when annotations are ignored.
+    """
+    valid_internal_names = set(get_args(InternalName))
+
+    invalid_keys = [key for key in variables_dict if not isinstance(key, str) or key not in valid_internal_names]
+    if invalid_keys:
+        msg = (
+            "variables_dict contains invalid internal name keys: "
+            f"{invalid_keys}. Allowed keys are: {sorted(valid_internal_names)}"
+        )
+        raise KeyError(msg)
+
+    invalid_values = {
+        key: type(value).__name__ for key, value in variables_dict.items() if not isinstance(value, Variable)
+    }
+    if invalid_values:
+        msg = f"variables_dict must map each internal name to an ep.Variable. Invalid entries: {invalid_values}"
+        raise TypeError(msg)
 
 
 def _get_data_dict_to_save(
