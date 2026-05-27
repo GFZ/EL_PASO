@@ -36,7 +36,41 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True, slots=True, eq=False)
 class ExtractionInfo:
-    """Class to store information about the extraction of variables from a file."""
+    """Store metadata required to extract a variable from a source file.
+
+    Attributes:
+        name_or_column:
+            Name of the variable or column to extract from the source file.
+
+        unit:
+            Physical unit associated with the extracted variable.
+
+        is_time_dependent:
+            Whether the variable is time-dependent.
+
+            If ``True``, data from multiple files will be concatenated
+            along the time axis.
+
+            If ``False``, data from multiple files will be used to fill
+            missing (`np.nan`) values instead of being concatenated.
+
+        result_key:
+            Key to use for the extracted variable in the resulting
+            variables dictionary.
+
+            If ``None``, ``name_or_column`` is used as the key.
+
+        dependent_variables:
+            Names of variables that the extracted variable depends on.
+
+            This is mainly used for JSON extraction to determine how
+            extracted data should be reshaped.
+
+        np_dtype:
+            Optional NumPy dtype used to cast the extracted data.
+
+            If ``None``, the dtype is inferred from the source data.
+    """
 
     name_or_column: str | int
     unit: u.UnitBase

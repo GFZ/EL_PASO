@@ -51,28 +51,33 @@ class SavingStrategy(ABC):
 
     Attributes:
         output_files (list[OutputFile]): List of output files to be managed by the saving strategy.
+        data_standard (DataStandard[StandardName]): The data standard that defines the variable naming convention.
+        base_data_path (Path): The base path where output files will be saved.
+        satellite (str): The name of the satellite for which data is being saved.
+        mission (str): The name of the mission for which data is being saved.
+        instrument (str): The name of the instrument for which data is being saved.
+        mag_field (MagneticFieldLiteral): The magnetic field model used for saving data, if applicable.
 
     Methods:
-        get_time_intervals_to_save(start_time: datetime | None, end_time: datetime | None)
-            -> list[TimeInterval]:
+        get_time_intervals_to_save:
             Abstract method to determine the time intervals for saving data between start_time and end_time.
 
-        get_file_path(interval_start: datetime, interval_end: datetime, output_file: OutputFile) -> Path:
+        get_file_path:
             Abstract method to generate the file path for a given time interval and output file.
 
-        standardize_variable(variable: Variable, name_in_file: str) -> Variable:
+        standardize_variable:
             Abstract method to standardize a variable before saving, possibly renaming or formatting it.
 
-        get_target_variables(output_file: OutputFile, variables_dict: dict[str, Variable], time_var: Variable | None,
-                             start_time: datetime | None, end_time: datetime | None) -> dict[str, Variable] | None:
+        get_target_variables:
             Selects and prepares variables to be saved in the output file, optionally truncating them to a time range.
 
-        save_single_file(file_path: Path, dict_to_save: dict[str, Any], *, append: bool = False):
-            Saves the provided dictionary to a file in the specified format (.mat, .h5, .nc),
+        save_single_file:
+            Saves the provided dictionary to a file in the specified format (.mat, .h5, .nc, .cdf),
             optionally appending data.
 
-        append_data(file_path: Path, dict_to_save: dict[str, Any]) -> dict[str, Any]:
+        append_data:
             Abstract method to append data to an existing file; must be implemented by subclasses.
+            All subclasses may not need it, so it is not defined in the base class.
     """
 
     output_files: list[OutputFile]
