@@ -3,7 +3,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-# ruff: noqa: E402
 
 import logging
 import sys
@@ -12,18 +11,17 @@ from pathlib import Path
 
 from astropy import units as u
 
-logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
-logging.getLogger().setLevel(logging.INFO)
-
 import el_paso as ep
+
+ep.setup_logging()
 
 raw_data_path = Path()
 
-url = "https://rbsp-ect.newmexicoconsortium.org/data_pub/rbspa/ECT/level3/YYYY/"
-file_name_stem = "rbspa_ect-elec-L3_YYYYMMDD_.{6}.cdf"
+url = "https://spdf.gsfc.nasa.gov/pub/data/rbsp/rbspa/l3/ect/hope/pitchangle/rel04/YYYY/"
+file_name_stem = "rbspa_rel04_ect-hope-pa-l3_YYYYMMDD_.{6}.cdf"
 
-start_time = datetime(2017, 4, 20, tzinfo=timezone.utc)
-end_time = datetime(2017, 4, 21, tzinfo=timezone.utc)
+start_time = datetime(2017, 7, 14, tzinfo=timezone.utc)
+end_time = datetime(2017, 7, 14, 23, 59, 59, tzinfo=timezone.utc)
 
 ep.download(
     start_time,
@@ -39,18 +37,18 @@ ep.download(
 extraction_infos = [
     ep.ExtractionInfo(
         result_key="Epoch",
-        name_or_column="Epoch",
+        name_or_column="Epoch_Ele",
         unit=ep.units.cdf_epoch,
     ),
     ep.ExtractionInfo(
         result_key="Energy",
-        name_or_column="FEDU_Energy",
+        name_or_column="HOPE_ENERGY_Ele",
         unit=u.keV,
         is_time_dependent=False,
     ),
     ep.ExtractionInfo(
         result_key="Pitch_angle",
-        name_or_column="FEDU_Alpha",
+        name_or_column="PITCH_ANGLE",
         unit=u.deg,
         is_time_dependent=False,
     ),
@@ -61,7 +59,7 @@ extraction_infos = [
     ),
     ep.ExtractionInfo(
         result_key="xGEO",
-        name_or_column="Position",
+        name_or_column="Position_Ele",
         unit=u.km,
     ),
 ]
@@ -102,7 +100,6 @@ ep.processing.fold_pitch_angles_and_flux(
 
 
 irbem_options = [1, 1, 4, 4, 0]
-irbem_lib_path = Path(__file__).parent / ".." / "IRBEM" / "libirbem.so"
 mag_field = "T89"  # other options include: "TS04", "T96", "OP77", ...
 
 variables_to_compute: ep.processing.VariableRequest = [
@@ -116,7 +113,6 @@ magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
     time_var=binned_time_variable,
     xgeo_var=variables["xGEO"],
     variables_to_compute=variables_to_compute,
-    irbem_lib_path=str(irbem_lib_path),
     irbem_options=irbem_options,
     num_cores=8,
     pa_local_var=variables["Pitch_angle"],
@@ -124,21 +120,40 @@ magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
     particle_species="electron",
 )
 
-variables_to_save = {
-    "time": binned_time_variable,
-    "flux/FEDU": variables["FEDU"],
-    "flux/energy": variables["Energy"],
-    "flux/alpha_local": variables["Pitch_angle"],
-    "flux/alpha_eq": magnetic_field_variables["PA_eq_" + mag_field],
-    f"position/{mag_field}/MLT": magnetic_field_variables["MLT_" + mag_field],
-    f"mag_field/{mag_field}/B_eq": magnetic_field_variables["B_eq_" + mag_field],
-    "position/xGEO": variables["xGEO"],
+variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+    "Epoch": binned_time_variable,
+    "FEDU": variables["FEDU"],
+    "Energy_FEDU": variables["Energy"],
+    "Alpha": variables["Pitch_angle"],
+    "Alpha_Eq": magnetic_field_variables["PA_eq_" + mag_field],
+    "MLT": magnetic_field_variables["MLT_" + mag_field],
+    "B_Eq": magnetic_field_variables["B_eq_" + mag_field],
+    "Position": variables["xGEO"],
 }
+
 
 data_standard = ep.data_standards.PRBEMStandard()
 
-saving_strategy = ep.saving_strategies.MonthlyNetCDFStrategy(
-    base_data_path=".", file_name_stem="rbspa_ect_combined", mag_field=mag_field, data_standard=data_standard
+strategy_mrb = ep.saving_strategies.MonthlyRBStrategy(
+    base_data_path=".",
+    mission="RBSP",
+    satellite="RBSP_ECT",
+    instrument="ECT",
+    mag_field="T89",
+    file_format=".nc",
+    data_standard=ep.data_standards.PRBEMStandard(),
 )
 
-ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
+
+strategy_gfz = ep.saving_strategies.GFZStrategy(
+    base_data_path=".",
+    mission="RBSP",
+    satellite="RBSP_ECT",
+    instrument="ECT",
+    mag_field="T89",
+    data_standard=ep.data_standards.PRBEMStandard(),
+)
+
+
+for strategy in (strategy_mrb, strategy_gfz):
+    ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=True)
