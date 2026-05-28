@@ -35,17 +35,18 @@ poes_satellite_literal = Literal[
 ]
 
 
-def process_poes_meped_electron(
+def process_poes_ted_electron(  # noqa: D103
     satellite_str: poes_satellite_literal,
     raw_data_path: str | Path,
     processed_data_path: str | Path,
-    irbem_lib_path: str | Path,
     start_time: datetime,
     end_time: datetime,
     num_cores: int = 32,
     bin_cadence: timedelta = timedelta(minutes=5),
+    *,
+    calculate_Lm_Lstar: bool = False,
+    save_strategy: Literal["gfz", "netcdf", "both"] = "netcdf",
 ) -> None:
-
     data_path_stem = f"{raw_data_path}/YYYY/MM/{satellite_str}/"
     url = f"https://spdf.gsfc.nasa.gov/pub/data/noaa/{satellite_str}/sem2_fluxes-2sec/YYYY/"
     file_name_stem = satellite_str + "_poes-sem2_fluxes-2sec_YYYYMMDD_.{3}.cdf"
@@ -67,23 +68,23 @@ def process_poes_meped_electron(
         ),
         ep.ExtractionInfo(
             result_key="Energy",
-            name_or_column="mep_ele_int_energies",
-            unit=u.keV,
+            name_or_column="ted_ele_diff_energies",
+            unit=u.eV,
             is_time_dependent=False,
         ),
         ep.ExtractionInfo(
-            result_key="FEIU",
-            name_or_column="mep_ele_flux",
-            unit=(u.cm**2 * u.s * u.sr) ** (-1),
+            result_key="FEDU",
+            name_or_column="ted_ele_flux",
+            unit=(u.cm**2 * u.s * u.sr * u.eV) ** (-1),
         ),
         ep.ExtractionInfo(
             result_key="PA_local_t0",
-            name_or_column="meped_alpha_0_sat",
+            name_or_column="ted_alpha_0_sat",
             unit=u.deg,
         ),
         ep.ExtractionInfo(
-            result_key="PA_local_t90",
-            name_or_column="meped_alpha_90_sat",
+            result_key="PA_local_t30",
+            name_or_column="ted_alpha_30_sat",
             unit=u.deg,
         ),
         ep.ExtractionInfo(
@@ -112,34 +113,38 @@ def process_poes_meped_electron(
         extraction_infos=extraction_infos,
     )
 
+    variables["FEDU"].apply_thresholds_on_data(lower_threshold=0)
+
     time_bin_methods = {
         "Energy": ep.TimeBinMethod.Repeat,
         "alt": ep.TimeBinMethod.NanMean,
         "lat": ep.TimeBinMethod.NanMean,
         "lon": ep.TimeBinMethod.NanMean,
         "PA_local_t0": ep.TimeBinMethod.NanMean,
-        "PA_local_t90": ep.TimeBinMethod.NanMean,
-        "FEIU": ep.TimeBinMethod.NanMedian,
+        "PA_local_t30": ep.TimeBinMethod.NanMean,
+        "FEDU": ep.TimeBinMethod.NanMean,
     }
 
     binned_time_var = ep.processing.bin_by_time(
         variables["Epoch"], variables, time_bin_methods, bin_cadence, start_time=start_time, end_time=end_time
     )
 
-    variables["FEIU"].apply_thresholds_on_data(lower_threshold=0)
-    variables["FEIU"].transpose_data((0, 2, 1))
-
+    variables["FEDU"].transpose_data((0, 2, 1))
     # stack pitch angles
-    pa_arr = np.stack((variables["PA_local_t0"].get_data(u.deg), variables["PA_local_t90"].get_data(u.deg))).T.astype(np.float64)
+    pa_arr = np.stack((variables["PA_local_t0"].get_data(u.deg), variables["PA_local_t30"].get_data(u.deg))).T.astype(
+        np.float64
+    )
+    pa_arr = np.where(pa_arr > 90, 180 - pa_arr, pa_arr)
+
     variables["PA_local"] = ep.Variable(data=pa_arr, original_unit=u.deg)
 
     del variables["PA_local_t0"]
-    del variables["PA_local_t90"]
+    del variables["PA_local_t30"]
 
     xGDZ_arr = np.stack(
         (variables["alt"].get_data(), variables["lat"].get_data(), variables["lon"].get_data())
     ).T.astype(np.float64)
-    model_coord = ep.processing.magnetic_field_utils.Coords(lib_path=irbem_lib_path)
+    model_coord = ep.processing.magnetic_field_utils.Coords()
 
     # convert time_array to datetimes for transform function
     time_var_datetime = [
@@ -152,17 +157,17 @@ def process_poes_meped_electron(
     del variables["lon"]
     del variables["lat"]
 
-    variables_to_compute: ep.processing.VariableRequest = [
+    variables_to_compute: ep.typing.VariableRequest = [
         ("B_local", "T89"),
         ("B_eq", "T89"),
         ("MLT_eq", "T89"),
         ("B_eq", "T89"),
         ("R_eq", "T89"),
         ("PA_eq", "T89"),
-        ("Lstar", "T89"),
-        ("Lm", "T89"),
     ]
 
+    if calculate_Lm_Lstar:
+        variables_to_compute.extend([("Lstar", "T89"), ("Lm", "T89")])  # ty:ignore[invalid-argument-type]
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
         time_var=binned_time_var,
         xgeo_var=variables["xGEO"],
@@ -170,68 +175,74 @@ def process_poes_meped_electron(
         pa_local_var=variables["PA_local"],
         particle_species="electron",
         variables_to_compute=variables_to_compute,
-        irbem_lib_path=str(irbem_lib_path),
         irbem_options=[1, 1, 4, 4, 0],
         num_cores=num_cores,
     )
 
     variables |= magnetic_field_variables
 
-    variables_to_save = {
-        "time": binned_time_var,
-        "flux/FEIU": variables["FEIU"],
-        "flux/energy": variables["Energy"],
-        "flux/alpha_local": variables["PA_local"],
-        "flux/alpha_eq": magnetic_field_variables["PA_eq_T89"],
-        "position/T89/R0": magnetic_field_variables["R_eq_T89"],
-        "position/T89/MLT": magnetic_field_variables["MLT_eq_T89"],
-        "position/T89/Lm": magnetic_field_variables["Lm_T89"],
-        "position/T89/Lstar": magnetic_field_variables["Lstar_T89"],
-        "mag_field/T89/B_local": magnetic_field_variables["B_local_T89"],
-        "mag_field/T89/B_eq": magnetic_field_variables["B_eq_T89"],
-        "position/xGEO": variables["xGEO"],
+    variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+        "Epoch": binned_time_var,
+        "FEDU": variables["FEDU"],
+        "Energy_FEDU": variables["Energy"],
+        "Alpha": variables["PA_local"],
+        "Alpha_Eq": magnetic_field_variables["PA_eq_T89"],
+        "R_Eq": magnetic_field_variables["R_eq_T89"],
+        "MLT": magnetic_field_variables["MLT_eq_T89"],
+        "B_Calc": magnetic_field_variables["B_local_T89"],
+        "B_Eq": magnetic_field_variables["B_eq_T89"],
+        "Position": variables["xGEO"],
     }
 
-    saving_strategy = ep.saving_strategies.MonthlyNetCDFStrategy(
-        base_data_path=Path(processed_data_path) / "POES" / sat_str,
-        file_name_stem=f"{sat_str}_MEPED",
-        mag_field="T89",
-        data_standard=ep.data_standards.PRBEMStandard(),
-    )
-    append = False
+    if calculate_Lm_Lstar:
+        variables_to_save |= {
+            "L_m": magnetic_field_variables["Lm_T89"],
+            "L_star": magnetic_field_variables["Lstar_T89"],
+        }
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=append)
+    if save_strategy in ("gfz", "both"):
+        strategy = ep.saving_strategies.GFZStrategy(
+            base_data_path=Path(processed_data_path),
+            mission="POES",
+            satellite=f"{sat_str.lower()}_TED",
+            instrument="POES",
+            mag_field="T89",
+            data_standard=ep.data_standards.PRBEMStandard(),
+        )
+
+    if save_strategy in ("netcdf", "both"):
+        strategy = ep.saving_strategies.MonthlyRBStrategy(
+            base_data_path=Path(processed_data_path),
+            mission="POES",
+            satellite=f"{sat_str.lower()}_TED",
+            instrument="POES",
+            mag_field="T89",
+            file_format=".nc",
+            data_standard=ep.data_standards.PRBEMStandard(),
+        )
+
+    ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_var, append=True)
 
 
 if __name__ == "__main__":
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     logging.getLogger().setLevel(logging.INFO)
 
-    parser = argparse.ArgumentParser(
-        description="Process MEPED data from POES satellites."
-    )
+    parser = argparse.ArgumentParser(description="Process TED data from POES satellites.")
     parser.add_argument(
         "--start_time",
         type=str,
         help="Start time in valid dateparse format. Example: YYYY-MM-DDTHH:MM:SS.",
-        default=datetime(2025, 9, 28, tzinfo=timezone.utc).isoformat(),
+        default=datetime(2013, 3, 17, tzinfo=timezone.utc).isoformat(),
         required=False,
     )
     parser.add_argument(
         "--end_time",
         type=str,
         help="End time in valid dateparse format. Example: YYYY-MM-DDTHH:MM:SS.",
-        default=datetime(2025, 10, 6, 23, 59, 59, tzinfo=timezone.utc).isoformat(),
+        default=datetime(2013, 3, 17, 23, 59, 59, tzinfo=timezone.utc).isoformat(),
         required=False,
     )
-    parser.add_argument(
-        "--irbem_lib_path",
-        type=str,
-        help="Path towards the compiled IRBEM library..",
-        default="../../IRBEM/libirbem.so",
-        required=False,
-    )
-
     args = parser.parse_args()
 
     dt_start = dateutil.parser.parse(args.start_time)
@@ -239,17 +250,17 @@ if __name__ == "__main__":
 
     #    with tempfile.TemporaryDirectory() as tmpdir:
     for sat_str in get_args(poes_satellite_literal):
-        print(f"Processing {sat_str}!")
-        # try:
-        process_poes_meped_electron(
-            start_time=dt_start,
-            end_time=dt_end,
-            satellite_str=sat_str,
-            irbem_lib_path=args.irbem_lib_path,
-            raw_data_path=".",
-            processed_data_path=".",
-            num_cores=64,
-            bin_cadence=timedelta(seconds=10),
-        )
-        # except:
-        #     continue
+        logging.info(f"Processing {sat_str}!")  # noqa: LOG015
+        try:
+            process_poes_ted_electron(
+                start_time=dt_start,
+                end_time=dt_end,
+                satellite_str=sat_str,
+                raw_data_path=".",
+                processed_data_path=".",
+                num_cores=64,
+                bin_cadence=timedelta(seconds=2),
+            )
+        except:  # noqa: E722
+            logging.exception(f"Failed to process {sat_str}!")  # noqa: LOG015
+            continue

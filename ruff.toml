@@ -35,6 +35,7 @@ exclude = [
     "*.ipynb",
     "setup.py",
     "el_paso/recipes/dmsp/process_dmsp_ssj_electrons.py",
+    "el_paso/recipes/vanallenprobes/process_efw_emfisis_density_combined.py",
 ]
 
 [lint.pydocstyle]
