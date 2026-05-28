@@ -34,7 +34,7 @@ NGRM_ENERGIES = [0.18, 0.27, 0.40, 0.60, 0.88, 1.30, 1.93, 2.90, 3.40, 4.00]
 
 
 @timed_function("process_ngrm_electron_fluxes")
-def process_ngrm_electron_fluxes(
+def process_ngrm_electron_fluxes(  # noqa: D103
     satellite: Literal["EDRS-C", "S6-MF", "MTG-S1", "MTG-I1"],
     raw_data_path: str | Path,
     processed_data_path: str | Path,
@@ -125,7 +125,7 @@ def process_ngrm_electron_fluxes(
             extraction_infos=extraction_infos,
             pd_read_csv_kwargs={"index_col": False},
         )
-    except Exception as e:
+    except Exception:
         logger.exception(f"Error extracting variables for {satellite}")
         return
 
@@ -240,14 +240,6 @@ def process_ngrm_electron_fluxes(
         "B_Eq": magnetic_field_variables["B_eq_T89"],
         "Position": variables["xGEO"],
         "PSD": psd_var,
-    }
-
-    from el_paso.typing import InternalName
-
-    variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
-        "Epoch": variables["Epoch"],
-        "FEDU": variables["FEDU"],
-        "Position": variables["xGEO"],
     }
 
     if save_strategy in ("gfz", "both"):

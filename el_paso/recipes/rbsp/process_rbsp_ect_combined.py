@@ -14,7 +14,7 @@ from astropy import units as u
 import el_paso as ep
 
 
-def process_rbsp_ect_combined(
+def process_rbsp_ect_combined(  # noqa: D103
     start_time: datetime,
     end_time: datetime,
     sat_str: Literal["a", "b"],
@@ -22,8 +22,7 @@ def process_rbsp_ect_combined(
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
     cadence: timedelta = timedelta(minutes=5),
-    save_strategy: Literal["gfz", "h5", "netcdf"] = "gfz",
-    data_standard: Literal["gfz", "PRBEM"] = "gfz",
+    save_strategy: Literal["gfz", "netcdf", "both"] = "netcdf",
     num_cores: int = 4,
 ) -> None:
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
@@ -169,44 +168,28 @@ def process_rbsp_ect_combined(
         "Position": variables["xGEO"],
     }
 
-    data_standard_instance = (
-        ep.data_standards.GFZStandard() if data_standard == "gfz" else ep.data_standards.PRBEMStandard()
-    )
+    if save_strategy in ("gfz", "both"):
+        strategy = ep.saving_strategies.GFZStrategy(
+            processed_data_path,
+            "RBSP",
+            "rbsp" + sat_str,
+            "ect_combined",
+            mag_field,
+            data_standard=ep.data_standards.GFZStandard(),
+        )
 
-    match save_strategy:
-        case "gfz":
-            saving_strategy = ep.saving_strategies.GFZStrategy(
-                processed_data_path,
-                "RBSP",
-                "rbsp" + sat_str,
-                "ect_combined",
-                mag_field,
-                data_standard=data_standard_instance,
-            )
+    if save_strategy in ("netcdf", "both"):
+        strategy = ep.saving_strategies.MonthlyRBStrategy(
+            base_data_path=Path(processed_data_path),
+            mission="RBSP",
+            satellite=f"rbsp{sat_str}",
+            instrument="ect_combined",
+            mag_field=mag_field,
+            file_format="nc",
+            data_standard=ep.data_standards.GFZStandard(),
+        )
 
-        case "h5":
-            saving_strategy = ep.saving_strategies.MonthlyRBStrategy(
-                processed_data_path,
-                mission="RBSP",
-                satellite=f"rbsp{sat_str}",
-                instrument="ect_combined",
-                mag_field=mag_field,
-                file_format="h5",
-                data_standard=data_standard_instance,
-            )
-
-        case "netcdf":
-            saving_strategy = ep.saving_strategies.MonthlyRBStrategy(
-                processed_data_path,
-                mission="RBSP",
-                satellite=f"rbsp{sat_str}",
-                instrument="ect_combined",
-                mag_field=mag_field,
-                file_format="nc",
-                data_standard=data_standard_instance,
-            )
-
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
+    ep.save(variables_to_save, strategy, start_time, end_time, binned_time_variable, append=True)
 
 
 if __name__ == "__main__":

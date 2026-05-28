@@ -26,7 +26,7 @@ import el_paso as ep
 
 
 @timed_function("process_arase_xep_real_time")
-def process_arase_xep_real_time(
+def process_arase_xep_real_time(  # noqa: D103
     processed_data_path: str | Path,
     download_data_dir: str | Path,
     start_time: datetime,

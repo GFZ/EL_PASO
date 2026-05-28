@@ -3,18 +3,19 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from numpy.typing import NDArray
-from el_paso.typing import InternalName
 import logging
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 from astropy import units as u
 
 import el_paso as ep
+
+if TYPE_CHECKING:
+    from el_paso.typing import InternalName
 
 logging.captureWarnings(capture=True)
 logger = logging.getLogger(__name__)
@@ -23,7 +24,7 @@ TELE_ALPHA_ANGLES = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
 TELE_BETA_ANGLES = np.array([-35.0, 35.0, -70.0, 0, 70.0])
 
 
-def process_goes_r_mps_high(
+def process_goes_r_mps_high(  # noqa: D103
     sat_str: Literal["goes18", "goes19"],
     processed_data_path: str | Path,
     raw_data_path: str | Path,
@@ -108,7 +109,7 @@ def process_goes_r_mps_high(
 
     # fold pitch angles around 90 degree
     local_pa = local_pa_var.get_data(u.degree)
-    local_pa_folded = np.where(local_pa > 90, local_pa - 90, local_pa)  # noqa: PLR2004
+    local_pa_folded = np.where(local_pa > 90, local_pa - 90, local_pa)
     local_pa_var.set_data(local_pa_folded, unit=u.degree)
 
     # sort pitch angles in ascending order and apply to fluxes

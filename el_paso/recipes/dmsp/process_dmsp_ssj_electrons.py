@@ -102,10 +102,6 @@ def process_dmsp_ssj_electrons(
     pa_data = local_pa_var.get_data(u.deg)
     lat_data = ssj_vars["lat_geo"].get_data(u.deg)
 
-    print(datetimes)
-    print(lat_data)
-    print(pa_data[:, 0])
-
     from matplotlib import pyplot as plt
 
     plt.scatter(datetimes, lat_data, s=10, c=pa_data[:, 0])
@@ -121,7 +117,7 @@ def process_dmsp_ssj_electrons(
 
     # fold pitch angles around 90 degree
     local_pa = local_pa_var.get_data(u.degree)
-    local_pa_folded = np.where(local_pa > 90, local_pa - 90, local_pa)  # noqa: PLR2004
+    local_pa_folded = np.where(local_pa > 90, local_pa - 90, local_pa)
     local_pa_var.set_data(local_pa_folded, unit=u.degree)
 
     # sort pitch angles in ascending order and apply to fluxes

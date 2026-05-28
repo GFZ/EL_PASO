@@ -13,6 +13,7 @@ from pathlib import Path
 import dateutil
 import numpy as np
 from astropy import units as u
+from dotenv import load_dotenv
 
 import el_paso as ep
 from el_paso.utils import timed_function
@@ -20,9 +21,14 @@ from el_paso.utils import timed_function
 CHI2_BAD_QUALITY_THRESHOLD = 2
 EPT_ENERGY_LIMITS = [0.5, 0.6, 0.7, 0.8, 1.0, 2.4, 8.0]
 
+logger = logging.getLogger(__name__)
+
+
+load_dotenv()
+
 
 @timed_function("process_ept_electron_fluxes")
-def process_ept_electron_fluxes(
+def process_ept_electron_fluxes(  # noqa: D103
     raw_data_path: str | Path,
     processed_data_path: str | Path,
     start_time: datetime,
@@ -226,7 +232,7 @@ def process_ept_electron_fluxes(
         strategy = ep.saving_strategies.GFZStrategy(
             processed_data_path,
             mission="PROBAV",
-            satellite=f"probav_EPT",
+            satellite="probav_EPT",
             instrument="PROBAV",
             mag_field="T89",
             data_standard=ep.data_standards.GFZStandard(),
@@ -236,7 +242,7 @@ def process_ept_electron_fluxes(
         strategy = ep.saving_strategies.MonthlyRBStrategy(
             base_data_path=Path(processed_data_path),
             mission="PROBAV",
-            satellite=f"probav_EPT",
+            satellite="probav_EPT",
             instrument="PROBAV",
             mag_field="T89",
             file_format=".nc",
@@ -261,7 +267,7 @@ if __name__ == "__main__":
         "--end_time",
         type=str,
         help="End time in valid dateparse format. Example: YYYY-MM-DDTHH:MM:SS.",
-        default=datetime(2024, 5, 15, 23, 59, 59, tzinfo=timezone.utc).isoformat(),
+        default=datetime(2024, 5, 8, 23, 59, 59, tzinfo=timezone.utc).isoformat(),
         required=False,
     )
 

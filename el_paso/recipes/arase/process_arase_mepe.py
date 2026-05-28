@@ -23,7 +23,7 @@ from el_paso.recipes.arase import (
 )
 
 
-def process_arase_mepe(
+def process_arase_mepe(  # noqa: D103
     start_time: datetime,
     end_time: datetime,
     mag_field: Literal["T89", "TS04", "OP77Q"],

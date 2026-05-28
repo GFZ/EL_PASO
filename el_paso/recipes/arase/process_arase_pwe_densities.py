@@ -19,7 +19,7 @@ from el_paso.processing.magnetic_field_utils.irbem import Coords
 from el_paso.recipes.arase.get_arase_orbit_variables import get_arase_orbit_level_2_variables
 
 
-def process_arase_pwe_density(
+def process_arase_pwe_density(  # noqa: D103
     start_time: datetime,
     end_time: datetime,
     mag_field: Literal["T89", "TS04", "OP77Q"],
@@ -155,9 +155,6 @@ if __name__ == "__main__":
     start_time = datetime(2017, 9, 1, tzinfo=timezone.utc)
     end_time = datetime(2017, 9, 1, 23, 59, tzinfo=timezone.utc)
 
-    import os
-
-    print(os.getcwd())
     process_arase_pwe_density(
         start_time,
         end_time,

@@ -17,7 +17,7 @@ if typing.TYPE_CHECKING:
     from datetime import datetime
 
 
-def get_arase_orbit_level_2_variables(
+def get_arase_orbit_level_2_variables(  # noqa: D103
     start_time: datetime, end_time: datetime, raw_data_path: str | Path = "."
 ) -> dict[str, ep.Variable]:
     raw_data_path = Path(raw_data_path)
@@ -60,7 +60,7 @@ def get_arase_orbit_level_2_variables(
     return variables
 
 
-def get_arase_orbit_level_3_variables(
+def get_arase_orbit_level_3_variables(  # noqa: D103
     start_time: datetime,
     end_time: datetime,
     mag_field: Literal["OP77Q", "T89", "TS04"],

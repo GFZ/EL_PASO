@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
@@ -38,7 +37,7 @@ def _remove_unit_from_energy_channels(energy_channels: NDArray[np.generic]) -> N
 
 
 @timed_function("process_goes_real_time")
-def process_goes_real_time(
+def process_goes_real_time(  # noqa: D103
     sat_str: Literal["primary", "secondary"],
     processed_data_path: str | Path,
     raw_data_path: str | Path,

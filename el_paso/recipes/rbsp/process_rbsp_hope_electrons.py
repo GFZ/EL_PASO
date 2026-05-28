@@ -8,18 +8,15 @@ import logging
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
 
 import dateutil
 from astropy import units as u
 
 import el_paso as ep
 
-if TYPE_CHECKING:
-    from el_paso.processing import MagFieldVarTypes
 
-
-def process_rbsp_hope_electrons(
+def process_rbsp_hope_electrons(  # noqa: D103
     start_time: datetime,
     end_time: datetime,
     sat_str: Literal["a", "b"],
@@ -27,8 +24,8 @@ def process_rbsp_hope_electrons(
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
     num_cores: int = 32,
+    save_strategy: Literal["gfz", "netcdf", "both"] = "netcdf",
 ) -> None:
-
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
 
@@ -154,16 +151,29 @@ def process_rbsp_hope_electrons(
         "PSD": psd_var,
     }
 
-    saving_strategy = ep.saving_strategies.MonthlyRBStrategy(
-        base_data_path=processed_data_path,
-        mission="RBSP",
-        satellite="rbsp" + sat_str,
-        instrument="hope",
-        mag_field=mag_field,
-        data_standard=ep.data_standards.GFZStandard(),
-    )
+    if save_strategy in ("gfz", "both"):
+        strategy = ep.saving_strategies.GFZStrategy(
+            processed_data_path,
+            mission="RBSP",
+            satellite="rbsp" + sat_str,
+            instrument="hope",
+            mag_field=mag_field,
+            data_standard=ep.data_standards.GFZStandard(),
+        )
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
+    if save_strategy in ("netcdf", "both"):
+        strategy = ep.saving_strategies.MonthlyRBStrategy(
+            base_data_path=Path(processed_data_path),
+            mission="RBSP",
+            satellite="rbsp" + sat_str,
+            instrument="hope",
+            mag_field=mag_field,
+            file_format=".nc",
+            data_standard=ep.data_standards.GFZStandard(),
+        )
+
+    ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=True)
+
 
 if __name__ == "__main__":
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
@@ -192,15 +202,13 @@ if __name__ == "__main__":
     dt_start = dateutil.parser.parse(args.start_time)
     dt_end = dateutil.parser.parse(args.end_time)
 
-    #    with tempfile.TemporaryDirectory() as tmpdir:
-    # for sat_str in ["a", "b"]:
-    for sat_str in ["a"]:
+    for sat_str in ["a", "b"]:
         process_rbsp_hope_electrons(
             dt_start,
             dt_end,
             sat_str,  # ty:ignore[invalid-argument-type]
             "TS04",
-            raw_data_path="/home/bhaas/el_paso_processing/raw/",
-            processed_data_path="/home/bhaas/el_paso_processing/data_processed/hope/",
+            raw_data_path=".",
+            processed_data_path=".",
             num_cores=1,
         )
