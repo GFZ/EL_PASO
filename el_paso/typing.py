@@ -46,8 +46,8 @@ MagFieldVarTypes: TypeAlias = Literal[
     "L_star",
     "L_m",
     "Alpha_Eq",
-    "invMu",
-    "invK",
+    "InvMu",
+    "InvK",
     "I",
 ]
 

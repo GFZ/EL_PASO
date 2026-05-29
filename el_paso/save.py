@@ -92,13 +92,17 @@ def _validate_variables_dict(variables_dict: dict[InternalName, Variable]) -> No
     This guard complements static type checking by rejecting invalid keys and
     values even when annotations are ignored.
     """
-    valid_internal_names = set(get_args(InternalName))
+    valid_internal_names = {
+        arg
+        for names in get_args(InternalName)
+        for arg in get_args(names)
+    }
 
     invalid_keys = [key for key in variables_dict if not isinstance(key, str) or key not in valid_internal_names]
     if invalid_keys:
         msg = (
             "variables_dict contains invalid internal name keys: "
-            f"{invalid_keys}. Allowed keys are: {sorted(valid_internal_names)}"
+            f"{invalid_keys}. Allowed keys are: {valid_internal_names}"
         )
         raise KeyError(msg)
 
