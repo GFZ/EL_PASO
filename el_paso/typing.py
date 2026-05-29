@@ -32,6 +32,24 @@ if TYPE_CHECKING:
     from el_paso.saving_strategy import OutputFile, SavingStrategy
     from el_paso.variable import Variable, VariableMetadata
 
+MagFieldVarTypes: TypeAlias = Literal[
+    "Alpha_LC_Eq",
+    "Alpha_LC",
+    "B_Calc",
+    "B_fofl",
+    "B_Eq",
+    "B_mirr",
+    "xGEO_Eq",
+    "MLT",
+    "R_Eq",
+    "MLT_Eq",
+    "L_star",
+    "L_m",
+    "Alpha_Eq",
+    "invMu",
+    "invK",
+    "I",
+]
 
 InternalName: TypeAlias = Literal[
     "FEDU",
@@ -40,20 +58,14 @@ InternalName: TypeAlias = Literal[
     "Energy_FEDU",
     "Epoch",
     "Alpha",
-    "Alpha_Eq",
+    "Alpha_range",
+    "Alpha_Eq_range",
     "Position",
-    "B_Calc",
-    "B_Eq",
-    "L_star",
-    "I",
-    "MLT",
-    "L_m",
     "PSD",
-    "R_Eq",
-    "InvMu",
-    "InvK",
-]
-"""Internal EL-PASO variable names used as canonical keys across standards."""
+    "Position_geo_alt",
+    "Position_geo_lat",
+    "Position_geo_lon",
+] | MagFieldVarTypes
 
 PRBEMName: TypeAlias = InternalName
 """PRBEM-standard variable names, which match EL-PASO internal names."""
@@ -75,6 +87,13 @@ GFZVarNames: TypeAlias = Literal[
     "R0",
     "InvMu",
     "InvK",
+    "alpha_local_range",
+    "alpha_eq_range",
+    "alpha_lc",
+    "alpha_lc_eq",
+    "geo_alt",
+    "geo_lat",
+    "geo_lon",
 ]
 """Variable names used by the GFZ output standard."""
 
@@ -97,26 +116,6 @@ MagneticFieldLiteral: TypeAlias = Literal[
 MagInputKeys: TypeAlias = Literal[
     "Kp", "Dst", "dens", "velo", "Pdyn", "ByIMF", "BzIMF", "G1", "G2", "G3", "W1", "W2", "W3", "W4", "W5", "W6", "AL"
 ]
-"""Supported magnetic-field model input parameter names."""
-
-MagFieldVarTypes: TypeAlias = Literal[
-    "B_local",
-    "B_fofl",
-    "B_eq",
-    "B_mirr",
-    "xGEO_eq",
-    "MLT",
-    "R_eq",
-    "MLT_eq",
-    "Lstar",
-    "Lm",
-    "PA_eq",
-    "invMu",
-    "invK",
-    "XJ",
-]
-"""Magnetic-field variables that can be requested from the field-line service."""
-
 MFSFormats: TypeAlias = Literal["nc", "cdf", "h5", "mat", ".nc", ".cdf", ".h5", ".mat"]
 """File formats supported by MonthlyRBStrategy."""
 

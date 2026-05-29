@@ -575,10 +575,8 @@ def write_netcdf_file(file_path: Path, data_dict: DataDict, data_standard: DataS
             return
 
         dimensions = _calculate_dimensions(data_dict)
-        file.createDimension("time", None)
         for dim_name, dim_size in dimensions.items():
-            if dim_name != "time":
-                file.createDimension(dim_name, dim_size)
+            file.createDimension(dim_name, dim_size)
 
         _write_data_to_netcdf_file(file, data_dict, data_standard)
 
@@ -601,6 +599,8 @@ def _calculate_dimensions(data_dict: DataDict) -> dict[str, int]:
 
     if "Position" in data_dict and np.asarray(data_dict["Position"]).size > 0:
         dimensions["Position_components"] = 3
+
+    dimensions["min_max"] = 2
 
     return dimensions
 

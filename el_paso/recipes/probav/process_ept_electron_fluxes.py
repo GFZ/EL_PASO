@@ -190,14 +190,13 @@ def process_ept_electron_fluxes(  # noqa: D103
     del variables["rad"], variables["lon"], variables["lat"]
 
     variables_to_compute: ep.processing.VariableRequest = [
-        ("B_local", "T89"),
-        ("B_eq", "T89"),
-        ("MLT_eq", "T89"),
-        ("B_eq", "T89"),
-        ("R_eq", "T89"),
-        ("PA_eq", "T89"),
-        ("Lstar", "T89"),
-        ("Lm", "T89"),
+        ("B_Calc", "T89"),
+        ("B_Eq", "T89"),
+        ("MLT_Eq", "T89"),
+        ("R_Eq", "T89"),
+        ("Alpha_Eq", "T89"),
+        ("L_star", "T89"),
+        ("L_m", "T89"),
     ]
 
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
@@ -218,13 +217,13 @@ def process_ept_electron_fluxes(  # noqa: D103
         "FEDU": variables["FEDU"],
         "Energy_FEDU": variables["Energy_FEDU"],
         "Alpha": variables["PA_local"],
-        "Alpha_Eq": magnetic_field_variables["PA_eq_T89"],
-        "R_Eq": magnetic_field_variables["R_eq_T89"],
-        "MLT": magnetic_field_variables["MLT_eq_T89"],
-        "L_m": magnetic_field_variables["Lm_T89"],
-        "L_star": magnetic_field_variables["Lstar_T89"],
-        "B_Calc": magnetic_field_variables["B_local_T89"],
-        "B_Eq": magnetic_field_variables["B_eq_T89"],
+        "Alpha_Eq": magnetic_field_variables["Alpha_Eq_T89"],
+        "R_Eq": magnetic_field_variables["R_Eq_T89"],
+        "MLT": magnetic_field_variables["MLT_Eq_T89"],
+        "L_m": magnetic_field_variables["L_m_T89"],
+        "L_star": magnetic_field_variables["L_star_T89"],
+        "B_Calc": magnetic_field_variables["B_Calc_T89"],
+        "B_Eq": magnetic_field_variables["B_Eq_T89"],
         "Position": variables["xGEO"],
     }
 

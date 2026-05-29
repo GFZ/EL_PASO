@@ -211,7 +211,7 @@ def _get_result(
         NotImplementedError: If the requested variable type is not supported.
     """
     match var_type:
-        case "B_local":
+        case "B_Calc":
             result_dict = mag_utils.get_local_B_field(xgeo_var, time_var, irbem_input)
 
         case "B_fofl":
@@ -223,13 +223,13 @@ def _get_result(
         case "MLT":
             result_dict = mag_utils.get_MLT(xgeo_var, time_var, irbem_input)
 
-        case "R_eq" | "B_eq" | "xGEO_eq" | "MLT_eq":
+        case "R_Eq" | "B_Eq" | "xGEO_Eq" | "MLT_Eq":
             result_dict = mag_utils.get_magequator(xgeo_var, time_var, irbem_input)
 
-        case "Lstar" | "Lm" | "XJ":
+        case "L_star" | "L_m" | "I":
             result_dict = mag_utils.get_Lstar(xgeo_var, time_var, pa_local_var, irbem_input)
 
-        case "PA_eq":
+        case "Alpha_Eq":
             result_dict = _get_pa_eq(
                 xgeo_var,
                 time_var,
@@ -254,6 +254,22 @@ def _get_result(
                 xgeo_var,
                 time_var,
                 pa_local_var,
+                computed_vars,
+                irbem_input,
+            )
+
+        case "Alpha_LC_Eq":
+            result_dict = _get_eq_loss_cone_angle(
+                xgeo_var,
+                time_var,
+                computed_vars,
+                irbem_input,
+            )
+
+        case "Alpha_LC":
+            result_dict = _get_local_loss_cone_angle(
+                xgeo_var,
+                time_var,
                 computed_vars,
                 irbem_input,
             )
@@ -331,8 +347,8 @@ def _get_pa_eq(
 
     pa_local = pa_local_var.get_data(u.radian)
 
-    B_eq_name = mag_utils.create_var_name("B_eq", irbem_input.magnetic_field)
-    B_local_name = mag_utils.create_var_name("B_local", irbem_input.magnetic_field)
+    B_eq_name = mag_utils.create_var_name("B_Eq", irbem_input.magnetic_field)
+    B_local_name = mag_utils.create_var_name("B_Calc", irbem_input.magnetic_field)
 
     if B_eq_name not in computed_vars:
         computed_vars |= mag_utils.get_magequator(xgeo_var, time_var, irbem_input)
@@ -350,7 +366,7 @@ def _get_pa_eq(
         f"using {irbem_input.magnetic_field} and options: {irbem_input.irbem_options}."
     )
 
-    computed_vars[mag_utils.create_var_name("PA_eq", irbem_input.magnetic_field)] = pa_var
+    computed_vars[mag_utils.create_var_name("Alpha_Eq", irbem_input.magnetic_field)] = pa_var
 
     return computed_vars
 
@@ -381,7 +397,7 @@ def _get_invariant_mu(
     """
     logger.info("\tCalculating invariant mu ...")
 
-    B_local_name = mag_utils.create_var_name("B_local", irbem_input.magnetic_field)
+    B_local_name = mag_utils.create_var_name("B_Calc", irbem_input.magnetic_field)
 
     if B_local_name not in computed_vars:
         computed_vars |= mag_utils.get_local_B_field(xgeo_var, time_var, irbem_input)
@@ -418,7 +434,7 @@ def _get_invariant_K(
     """
     logger.info("\tCalculating invariant K ...")
 
-    xj_name = mag_utils.create_var_name("XJ", irbem_input.magnetic_field)
+    xj_name = mag_utils.create_var_name("I", irbem_input.magnetic_field)
     B_mirr_name = mag_utils.create_var_name("B_mirr", irbem_input.magnetic_field)
 
     if xj_name not in computed_vars:
@@ -432,5 +448,63 @@ def _get_invariant_K(
 
     inv_k_name = mag_utils.create_var_name("invK", irbem_input.magnetic_field)
     computed_vars[inv_k_name] = ep.processing.compute_invariant_K(B_mirr, xj)
+
+    return computed_vars
+
+@timed_function("Equatorial loss cone angle calculation")
+def _get_eq_loss_cone_angle(
+    xgeo_var: Variable,
+    time_var: Variable,
+    computed_vars: dict[str, Variable],
+    irbem_input: mag_utils.IrbemInput,
+) -> dict[str, Variable]:
+
+    logger.info("\tCalculating eq loss cone angle ...")
+
+    B_fofl_name = mag_utils.create_var_name("B_fofl", irbem_input.magnetic_field)
+    B_eq_name = mag_utils.create_var_name("B_Eq", irbem_input.magnetic_field)
+
+    if B_fofl_name not in computed_vars:
+        computed_vars |= mag_utils.get_footpoint_atmosphere(xgeo_var, time_var, irbem_input)
+    if B_eq_name not in computed_vars:
+        computed_vars |= mag_utils.get_magequator(xgeo_var, time_var, irbem_input)
+
+    # load needed data and convert to correct units
+    B_fofl = computed_vars[B_fofl_name].get_data(u.nT).astype(np.float64)
+    B_eq = computed_vars[B_eq_name].get_data(u.nT).astype(np.float64)
+
+    pa_lc_eq = np.asin(np.sqrt(B_eq / B_fofl))
+
+    pa_lc_eq_name = mag_utils.create_var_name("Alpha_LC_Eq", irbem_input.magnetic_field)
+    computed_vars[pa_lc_eq_name] = ep.Variable(data=pa_lc_eq, original_unit=u.rad)
+
+    return computed_vars
+
+@timed_function("Local loss cone angle calculation")
+def _get_local_loss_cone_angle(
+    xgeo_var: Variable,
+    time_var: Variable,
+    computed_vars: dict[str, Variable],
+    irbem_input: mag_utils.IrbemInput,
+) -> dict[str, Variable]:
+
+    logger.info("\tCalculating local loss cone angle ...")
+
+    B_fofl_name = mag_utils.create_var_name("B_fofl", irbem_input.magnetic_field)
+    B_local_name = mag_utils.create_var_name("B_Calc", irbem_input.magnetic_field)
+
+    if B_fofl_name not in computed_vars:
+        computed_vars |= mag_utils.get_footpoint_atmosphere(xgeo_var, time_var, irbem_input)
+    if B_local_name not in computed_vars:
+        computed_vars |= mag_utils.get_magequator(xgeo_var, time_var, irbem_input)
+
+    # load needed data and convert to correct units
+    B_fofl = computed_vars[B_fofl_name].get_data(u.nT).astype(np.float64)
+    B_local = computed_vars[B_local_name].get_data(u.nT).astype(np.float64)
+
+    pa_lc_local = np.asin(np.sqrt(B_local / B_fofl))
+
+    pa_lc_local_name = mag_utils.create_var_name("Alpha_LC", irbem_input.magnetic_field)
+    computed_vars[pa_lc_local_name] = ep.Variable(data=pa_lc_local, original_unit=u.rad)
 
     return computed_vars

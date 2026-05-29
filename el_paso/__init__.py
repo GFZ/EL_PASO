@@ -28,6 +28,7 @@ from el_paso.download import download
 from el_paso.extract_variables_from_files import extract_variables_from_files, ExtractionInfo
 from el_paso.load_indices_solar_wind_parameters import load_indices_solar_wind_parameters
 from el_paso.logger import setup_logging
+from el_paso import dataset
 
 
 __all__ = [

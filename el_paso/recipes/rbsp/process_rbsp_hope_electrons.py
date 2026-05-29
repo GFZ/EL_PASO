@@ -15,7 +15,6 @@ from astropy import units as u
 
 import el_paso as ep
 
-
 def process_rbsp_hope_electrons(  # noqa: D103
     start_time: datetime,
     end_time: datetime,
@@ -80,10 +79,7 @@ def process_rbsp_hope_electrons(  # noqa: D103
         extraction_infos=extraction_infos,
     )
 
-    variables["xGEO"].truncate(variables["Epoch"], start_time, end_time)
-    variables["Energy"].truncate(variables["Epoch"], start_time, end_time)
-    variables["FEDU"].truncate(variables["Epoch"], start_time, end_time)
-    variables["Epoch"].truncate(variables["Epoch"], start_time, end_time)
+    variables["FEDU"].apply_thresholds_on_data(1e-21)
 
     time_bin_methods = {
         "xGEO": ep.TimeBinMethod.NanMean,
@@ -109,13 +105,13 @@ def process_rbsp_hope_electrons(  # noqa: D103
     irbem_options = [1, 1, 4, 4, 0]
 
     vars_to_compute: ep.typing.VariableRequest = [
-        ("B_local", mag_field),
+        ("B_Calc", mag_field),
         ("MLT", mag_field),
-        ("B_eq", mag_field),
-        ("R_eq", mag_field),
-        ("PA_eq", mag_field),
-        ("Lstar", mag_field),
-        ("Lm", mag_field),
+        ("B_Eq", mag_field),
+        ("R_Eq", mag_field),
+        ("Alpha_Eq", mag_field),
+        ("L_star", mag_field),
+        ("L_m", mag_field),
         ("invK", mag_field),
         ("invMu", mag_field),
     ]
@@ -139,15 +135,15 @@ def process_rbsp_hope_electrons(  # noqa: D103
         "Position": variables["xGEO"],
         "Energy_FEDU": variables["Energy"],
         "Alpha": variables["Pitch_angle"],
-        "Alpha_Eq": magnetic_field_variables["PA_eq_" + mag_field],
-        "L_star": magnetic_field_variables["Lstar_" + mag_field],
+        "Alpha_Eq": magnetic_field_variables["Alpha_Eq_" + mag_field],
+        "L_star": magnetic_field_variables["L_star_" + mag_field],
         "MLT": magnetic_field_variables["MLT_" + mag_field],
-        "L_m": magnetic_field_variables["Lm_" + mag_field],
-        "R_Eq": magnetic_field_variables["R_eq_" + mag_field],
+        "L_m": magnetic_field_variables["L_m_" + mag_field],
+        "R_Eq": magnetic_field_variables["R_Eq_" + mag_field],
         "InvK": magnetic_field_variables["invK_" + mag_field],
         "InvMu": magnetic_field_variables["invMu_" + mag_field],
-        "B_Eq": magnetic_field_variables["B_eq_" + mag_field],
-        "B_Calc": magnetic_field_variables["B_local_" + mag_field],
+        "B_Eq": magnetic_field_variables["B_Eq_" + mag_field],
+        "B_Calc": magnetic_field_variables["B_Calc_" + mag_field],
         "PSD": psd_var,
     }
 

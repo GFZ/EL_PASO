@@ -178,12 +178,12 @@ def process_arase_mepe(  # noqa: D103
         irbem_options = [1, 1, 4, 4, 0]
 
         variables_to_compute: ep.processing.VariableRequest = [
-            ("B_local", mag_field),
+            ("B_Calc", mag_field),
             ("MLT", mag_field),
-            ("B_eq", mag_field),
-            ("R_eq", mag_field),
-            ("PA_eq", mag_field),
-            ("Lm", mag_field),
+            ("B_Eq", mag_field),
+            ("R_Eq", mag_field),
+            ("Alpha_Eq", mag_field),
+            ("L_m", mag_field),
         ]
 
         magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
@@ -195,10 +195,10 @@ def process_arase_mepe(  # noqa: D103
             pa_local_var=mepe_variables["Pitch_angle"],
         )
 
-        orb_variables["R0"] = magnetic_field_variables["R_eq_" + mag_field]
+        orb_variables["R0"] = magnetic_field_variables["R_Eq_" + mag_field]
         orb_variables["MLT"] = magnetic_field_variables["MLT_" + mag_field]
-        mepe_variables["Pa_eq"] = magnetic_field_variables["PA_eq_" + mag_field]
-        orb_variables["Lm"] = magnetic_field_variables["Lm_" + mag_field]
+        mepe_variables["Pa_eq"] = magnetic_field_variables["Alpha_Eq_" + mag_field]
+        orb_variables["Lm"] = magnetic_field_variables["L_m_" + mag_field]
 
     match mag_field:
         case "T89":

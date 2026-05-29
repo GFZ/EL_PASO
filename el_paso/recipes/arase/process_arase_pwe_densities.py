@@ -114,8 +114,8 @@ def process_arase_pwe_density(  # noqa: D103
 
     variables_to_compute: ep.processing.VariableRequest = [
         ("MLT", mag_field),
-        ("R_eq", mag_field),
-        ("xGEO_eq", mag_field),
+        ("R_Eq", mag_field),
+        ("xGEO_Eq", mag_field),
     ]
 
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
@@ -143,9 +143,9 @@ def process_arase_pwe_density(  # noqa: D103
         "density_local": pwe_variables["Density"],
         "density_eq": pwe_variables["Density_mapped_" + mag_field],
         "MLT": magnetic_field_variables["MLT_" + mag_field],
-        "R_eq": magnetic_field_variables["R_eq_" + mag_field],
+        "R_eq": magnetic_field_variables["R_Eq_" + mag_field],
         "xGEO": pos_geo_var,
-        "xGEO_eq": magnetic_field_variables["xGEO_eq_" + mag_field],
+        "xGEO_eq": magnetic_field_variables["xGEO_Eq_" + mag_field],
     }
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)  # ty:ignore[invalid-argument-type]

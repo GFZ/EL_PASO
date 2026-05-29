@@ -35,7 +35,7 @@ poes_satellite_literal = Literal[
 ]
 
 
-def process_poes_ted_electron(  # noqa: D103
+def process_poes_ted_electron(
     satellite_str: poes_satellite_literal,
     raw_data_path: str | Path,
     processed_data_path: str | Path,
@@ -138,8 +138,7 @@ def process_poes_ted_electron(  # noqa: D103
 
     variables["PA_local"] = ep.Variable(data=pa_arr, original_unit=u.deg)
 
-    del variables["PA_local_t0"]
-    del variables["PA_local_t30"]
+    del variables["PA_local_t0"], variables["PA_local_t30"]
 
     xGDZ_arr = np.stack(
         (variables["alt"].get_data(), variables["lat"].get_data(), variables["lon"].get_data())
@@ -153,21 +152,24 @@ def process_poes_ted_electron(  # noqa: D103
     xgeo_arr = model_coord.transform(time_var_datetime, xGDZ_arr, ep.IRBEM_SYSAXIS_GDZ, ep.IRBEM_SYSAXIS_GEO)
     variables["xGEO"] = ep.Variable(data=xgeo_arr, original_unit=ep.units.RE)
 
-    del variables["alt"]
-    del variables["lon"]
-    del variables["lat"]
+    geo_sph_arr = model_coord.transform(time_var_datetime, xGDZ_arr, ep.IRBEM_SYSAXIS_GDZ, ep.IRBEM_SYSAXIS_SPH)
+    variables["geo_alt"] = ep.Variable(data=geo_sph_arr[:,0], original_unit=ep.units.RE)
+    variables["geo_lat"] = ep.Variable(data=geo_sph_arr[:,1], original_unit=u.deg)
+    variables["geo_lon"] = ep.Variable(data=geo_sph_arr[:,2], original_unit=u.deg)
 
-    variables_to_compute: ep.typing.VariableRequest = [
-        ("B_local", "T89"),
-        ("B_eq", "T89"),
-        ("MLT_eq", "T89"),
-        ("B_eq", "T89"),
-        ("R_eq", "T89"),
-        ("PA_eq", "T89"),
+    variables_to_compute: ep.processing.VariableRequest = [
+        ("B_Calc", "T89"),
+        ("MLT", "T89"),
+        ("B_Eq", "T89"),
+        ("R_Eq", "T89"),
+        ("Alpha_Eq", "T89"),
+        ("Alpha_LC", "T89"),
+        ("Alpha_LC_Eq", "T89")
     ]
 
     if calculate_Lm_Lstar:
-        variables_to_compute.extend([("Lstar", "T89"), ("Lm", "T89")])  # ty:ignore[invalid-argument-type]
+        variables_to_compute.extend([("L_star", "T89"), ("L_m", "T89")])  # pyright: ignore[reportArgumentType]
+
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
         time_var=binned_time_var,
         xgeo_var=variables["xGEO"],
@@ -181,47 +183,38 @@ def process_poes_ted_electron(  # noqa: D103
 
     variables |= magnetic_field_variables
 
-    variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+    variables_to_save = {
         "Epoch": binned_time_var,
         "FEDU": variables["FEDU"],
         "Energy_FEDU": variables["Energy"],
         "Alpha": variables["PA_local"],
-        "Alpha_Eq": magnetic_field_variables["PA_eq_T89"],
-        "R_Eq": magnetic_field_variables["R_eq_T89"],
-        "MLT": magnetic_field_variables["MLT_eq_T89"],
-        "B_Calc": magnetic_field_variables["B_local_T89"],
-        "B_Eq": magnetic_field_variables["B_eq_T89"],
+        "Alpha_Eq": magnetic_field_variables["Alpha_Eq_T89"],
+        "R_Eq": magnetic_field_variables["R_Eq_T89"],
+        "MLT": magnetic_field_variables["MLT_T89"],
+        "B_Calc": magnetic_field_variables["B_Calc_T89"],
+        "B_Eq": magnetic_field_variables["B_Eq_T89"],
         "Position": variables["xGEO"],
+        "Position_geo_alt": variables["geo_alt"], 
+        "Position_geo_lat": variables["geo_lat"], 
+        "Position_geo_lon": variables["geo_lon"],
+        "Alpha_LC": magnetic_field_variables["Alpha_LC_T89"],
+        "Alpha_LC_Eq": magnetic_field_variables["Alpha_LC_Eq_T89"],
     }
 
     if calculate_Lm_Lstar:
-        variables_to_save |= {
-            "L_m": magnetic_field_variables["Lm_T89"],
-            "L_star": magnetic_field_variables["Lstar_T89"],
-        }
+        variables_to_save |= {"position/T89/Lm": magnetic_field_variables["L_m_T89"],
+                              "position/T89/Lstar": magnetic_field_variables["L_star_T89"]}
 
-    if save_strategy in ("gfz", "both"):
-        strategy = ep.saving_strategies.GFZStrategy(
-            base_data_path=Path(processed_data_path),
-            mission="POES",
-            satellite=f"{sat_str.lower()}_TED",
-            instrument="POES",
-            mag_field="T89",
-            data_standard=ep.data_standards.PRBEMStandard(),
-        )
+    saving_strategy = ep.saving_strategies.MonthlyLEORBStrategy(
+        base_data_path=Path(processed_data_path),
+        mission="POES",
+        satellite=sat_str,
+        instrument="TED",
+        mag_field="T89",
+        data_standard=ep.data_standards.GFZStandard(),
+    )
 
-    if save_strategy in ("netcdf", "both"):
-        strategy = ep.saving_strategies.MonthlyRBStrategy(
-            base_data_path=Path(processed_data_path),
-            mission="POES",
-            satellite=f"{sat_str.lower()}_TED",
-            instrument="POES",
-            mag_field="T89",
-            file_format=".nc",
-            data_standard=ep.data_standards.PRBEMStandard(),
-        )
-
-    ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_var, append=True)
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var)
 
 
 if __name__ == "__main__":
@@ -233,14 +226,14 @@ if __name__ == "__main__":
         "--start_time",
         type=str,
         help="Start time in valid dateparse format. Example: YYYY-MM-DDTHH:MM:SS.",
-        default=datetime(2013, 3, 17, tzinfo=timezone.utc).isoformat(),
+        default=datetime(2013, 12, 14, tzinfo=timezone.utc).isoformat(),
         required=False,
     )
     parser.add_argument(
         "--end_time",
         type=str,
         help="End time in valid dateparse format. Example: YYYY-MM-DDTHH:MM:SS.",
-        default=datetime(2013, 3, 17, 23, 59, 59, tzinfo=timezone.utc).isoformat(),
+        default=datetime(2013, 12, 14, 11, 59, 59, tzinfo=timezone.utc).isoformat(),
         required=False,
     )
     args = parser.parse_args()
@@ -249,18 +242,18 @@ if __name__ == "__main__":
     dt_end = dateutil.parser.parse(args.end_time)
 
     #    with tempfile.TemporaryDirectory() as tmpdir:
-    for sat_str in get_args(poes_satellite_literal):
-        logging.info(f"Processing {sat_str}!")  # noqa: LOG015
-        try:
-            process_poes_ted_electron(
-                start_time=dt_start,
-                end_time=dt_end,
-                satellite_str=sat_str,
-                raw_data_path=".",
-                processed_data_path=".",
-                num_cores=64,
-                bin_cadence=timedelta(seconds=2),
-            )
-        except:  # noqa: E722
-            logging.exception(f"Failed to process {sat_str}!")  # noqa: LOG015
-            continue
+    # for sat_str in get_args(poes_satellite_literal):
+    for sat_str in ["noaa15"]:
+        print(f"Processing {sat_str}!")
+        # try:
+        process_poes_ted_electron(
+            start_time=dt_start,
+            end_time=dt_end,
+            satellite_str=sat_str,
+            raw_data_path=".",
+            processed_data_path=".",
+            num_cores=64,
+            bin_cadence=timedelta(seconds=10),
+        )
+        # except:
+        #     continue

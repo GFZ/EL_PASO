@@ -129,14 +129,13 @@ def process_goes_r_mps_high(  # noqa: D103
 
     # Calculate magnetic field variables
     variables_to_compute: ep.processing.VariableRequest = [
-        ("B_local", "T89"),
-        ("B_eq", "T89"),
+        ("B_Calc", "T89"),
+        ("B_Eq", "T89"),
         ("MLT", "T89"),
-        ("B_eq", "T89"),
-        ("R_eq", "T89"),
-        ("PA_eq", "T89"),
-        ("Lstar", "T89"),
-        ("Lm", "T89"),
+        ("R_Eq", "T89"),
+        ("Alpha_Eq", "T89"),
+        ("L_star", "T89"),
+        ("L_m", "T89"),
         ("invMu", "T89"),
         ("invK", "T89"),
     ]
@@ -163,12 +162,12 @@ def process_goes_r_mps_high(  # noqa: D103
         "Energy_FEDU": mps_vars["diff_energy"],
         "Alpha": local_pa_var,
         "PSD": psd_var,
-        "Alpha_Eq": magnetic_field_variables["PA_eq_T89"],
+        "Alpha_Eq": magnetic_field_variables["Alpha_Eq_T89"],
         "MLT": magnetic_field_variables["MLT_T89"],
-        "L_star": magnetic_field_variables["Lstar_T89"],
-        "R_Eq": magnetic_field_variables["R_eq_T89"],
-        "B_Eq": magnetic_field_variables["B_eq_T89"],
-        "B_Calc": magnetic_field_variables["B_local_T89"],
+        "L_star": magnetic_field_variables["L_star_T89"],
+        "R_Eq": magnetic_field_variables["R_Eq_T89"],
+        "B_Eq": magnetic_field_variables["B_Eq_T89"],
+        "B_Calc": magnetic_field_variables["B_Calc_T89"],
         "InvMu": magnetic_field_variables["invMu_T89"],
         "InvK": magnetic_field_variables["invK_T89"],
     }

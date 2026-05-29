@@ -210,10 +210,10 @@ def get_magequator(xgeo_var: ep.Variable, time_var: ep.Variable, irbem_input: Ir
     )
 
     return {
-        create_var_name("B_eq", irbem_input.magnetic_field): B_eq_var,
-        create_var_name("R_eq", irbem_input.magnetic_field): R_eq_var,
-        create_var_name("MLT_eq", irbem_input.magnetic_field): mlt_eq_var,
-        create_var_name("xGEO_eq", irbem_input.magnetic_field): x_geo_var,
+        create_var_name("B_Eq", irbem_input.magnetic_field): B_eq_var,
+        create_var_name("R_Eq", irbem_input.magnetic_field): R_eq_var,
+        create_var_name("MLT_Eq", irbem_input.magnetic_field): mlt_eq_var,
+        create_var_name("xGEO_Eq", irbem_input.magnetic_field): x_geo_var,
     }
 
 
@@ -292,7 +292,7 @@ def get_footpoint_atmosphere(
     results = rs.get()
 
     for i in range(len(datetimes)):
-        B_foot[i] = results[i][0]
+        B_foot[i] = results[i]
 
     B_foot[B_foot == FORTRAN_BAD_VALUE] = np.nan
 
@@ -419,7 +419,7 @@ def get_local_B_field(xgeo_var: ep.Variable, time_var: ep.Variable, irbem_input:
     field_multi_output.blocal[field_multi_output.blocal == fortran_bad_value] = np.nan
 
     b_local_var = ep.Variable(data=field_multi_output.blocal, original_unit=u.nT)
-    return {create_var_name("B_local", irbem_input.magnetic_field): b_local_var}
+    return {create_var_name("B_Calc", irbem_input.magnetic_field): b_local_var}
 
 
 def _get_mirror_point_parallel(
@@ -674,7 +674,7 @@ def get_Lstar(
     )
 
     return {
-        create_var_name("Lm", irbem_input.magnetic_field): Lm_var,
-        create_var_name("Lstar", irbem_input.magnetic_field): Lstar_var,
-        create_var_name("XJ", irbem_input.magnetic_field): XJ_var,
+        create_var_name("L_m", irbem_input.magnetic_field): Lm_var,
+        create_var_name("L_star", irbem_input.magnetic_field): Lstar_var,
+        create_var_name("I", irbem_input.magnetic_field): XJ_var,
     }

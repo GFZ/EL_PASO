@@ -27,6 +27,15 @@ class GFZStandard(DataStandard[GFZVarNames]):
             "Position": VariableInfo[GFZVarNames](
                 "xGEO", "Position in geographic cartesian coordinates.", ep.units.RE, ["Epoch", "Position_components"]
             ),
+            "Position_geo_alt": VariableInfo[GFZVarNames](
+                "geo_alt", "Altitude in geographic cartesian coordinates.", u.km, ["Epoch"]
+            ), 
+            "Position_geo_lat": VariableInfo[GFZVarNames](
+                "geo_lat", "Latitude in geographic cartesian coordinates.", u.deg, ["Epoch"]
+            ), 
+            "Position_geo_lon": VariableInfo[GFZVarNames](
+                "geo_lon", "Longitude in geographic cartesian coordinates.", u.deg, ["Epoch"]
+            ), 
             "Energy_FEDU": VariableInfo[GFZVarNames](
                 "energy_channels", "Central energy of measured flux.", u.MeV, ["Epoch", "Energy_FEDU"]
             ),
@@ -39,8 +48,20 @@ class GFZStandard(DataStandard[GFZVarNames]):
             "Alpha": VariableInfo[GFZVarNames](
                 "alpha_local", "Local pitch angles of the particles.", u.radian, ["Epoch", "Alpha"]
             ),
+            "Alpha_range": VariableInfo[GFZVarNames](
+                "alpha_local_range", "Local pitch angle ranges of the particles.", u.radian, ["Epoch", "min_max"]
+            ),
             "Alpha_Eq": VariableInfo[GFZVarNames](
                 "alpha_eq_model", "Calculated equatorial pitch angles of the particles.", u.radian, ["Epoch", "Alpha"]
+            ),
+            "Alpha_Eq_range": VariableInfo[GFZVarNames](
+                "alpha_eq_range", "Equatorial pitch angle ranges of the particles.", u.radian, ["Epoch", "min_max"]
+            ),
+            "Alpha_LC": VariableInfo[GFZVarNames](
+                "alpha_lc", "Local loss cone size at the satellite location.", u.radian, ["Epoch"]
+            ),
+            "Alpha_LC_Eq": VariableInfo[GFZVarNames](
+                "alpha_lc_eq", "Local loss cone size at the satellite location mapped to the equator.", u.radian, ["Epoch"]
             ),
             "PSD": VariableInfo[GFZVarNames](
                 "PSD",

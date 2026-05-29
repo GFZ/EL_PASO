@@ -16,6 +16,7 @@ from swvo.io.dst import DSTOMNI
 from swvo.io.kp import KpOMNI
 from swvo.io.RBMDataSet import InstrumentEnum, MfmEnum, RBMDataSet
 
+import el_paso as ep
 from el_paso.recipes.rbsp import process_rbsp_hope_electrons
 
 sat_str_list = ["a", "b"]
@@ -32,16 +33,15 @@ def test_gfz_old(sat_str: Literal["a", "b"], mag_field: Literal["T89", "TS04"]):
     Path("tests/comparisons/raw_data").mkdir(exist_ok=True)
     Path("tests/comparisons/processed_data").mkdir(exist_ok=True)
 
-    process_rbsp_hope_electrons(
-        start_time,
-        end_time,
-        sat_str,
-        "IRBEM/libirbem.so",
-        mag_field,
-        raw_data_path="tests/comparisons/raw_data",
-        processed_data_path="tests/comparisons/processed_data",
-        num_cores=12,
-    )
+    # process_rbsp_hope_electrons(
+    #     start_time,
+    #     end_time,
+    #     sat_str,
+    #     mag_field,
+    #     raw_data_path="tests/comparisons/raw_data",
+    #     processed_data_path="tests/comparisons/processed_data",
+    #     num_cores=64,
+    # )
 
     match mag_field:
         case "T89":
@@ -49,13 +49,12 @@ def test_gfz_old(sat_str: Literal["a", "b"], mag_field: Literal["T89", "TS04"]):
         case "TS04":
             mfm_enum = MfmEnum.T04s
 
-    rbsp_data = RBMDataSet(
+    rbsp_data = ep.dataset.GFZDataSet(
         start_time=start_time,
         end_time=end_time,
-        folder_path=Path("tests/comparisons/processed_data/"),
-        satellite="RBSPA",
-        instrument=InstrumentEnum.HOPE,
-        mfm=mfm_enum,
+        saving_strategy=ep.saving_strategies.MonthlyRBStrategy(
+            Path("tests/comparisons/processed_data/"), "RBSP", "rbspb", "hope", mag_field, ep.data_standards.GFZStandard(),
+        ),
         verbose=True,
     )
 

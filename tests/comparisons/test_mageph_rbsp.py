@@ -30,22 +30,22 @@ mag_field_list = ["TS04", "T89"]
 @pytest.mark.visual
 def test_mageph_rbsp(sat_str: Literal["a", "b"], mag_field: Literal["T89", "TS04"]):  # noqa: PLR0915
     # process Lstar using el paso
-    start_time = datetime(2013, 3, 17, tzinfo=timezone.utc)
-    end_time = start_time + timedelta(days=0, hours=23, minutes=59)
+    start_time = datetime(2017, 1, 1, tzinfo=timezone.utc)
+    end_time = start_time + timedelta(days=2, hours=23, minutes=59)
 
     Path("tests/comparisons/raw_data").mkdir(exist_ok=True)
     Path("tests/comparisons/processed_data").mkdir(exist_ok=True)
 
-    process_hope_electrons(
-        start_time,
-        end_time,
-        sat_str,
-        "IRBEM/libirbem.so",
-        mag_field,
-        raw_data_path="tests/comparisons/raw_data",
-        processed_data_path="tests/comparisons/processed_data",
-        num_cores=12,
-    )
+    # process_hope_electrons(
+    #     start_time,
+    #     end_time,
+    #     sat_str,
+    #     "IRBEM/libirbem.so",
+    #     mag_field,
+    #     raw_data_path="tests/comparisons/raw_data",
+    #     processed_data_path="tests/comparisons/processed_data",
+    #     num_cores=12,
+    # )
 
     match mag_field:
         case "T89":
@@ -53,14 +53,20 @@ def test_mageph_rbsp(sat_str: Literal["a", "b"], mag_field: Literal["T89", "TS04
         case "TS04":
             mfm_enum = MfmEnum.T04s
 
-    rbsp_data = RBMDataSet(
-        start_time=start_time,
-        end_time=end_time,
-        folder_path=Path("tests/comparisons/processed_data/"),
-        satellite="RBSPA",
-        instrument=InstrumentEnum.HOPE,
-        mfm=mfm_enum,
-        verbose=True,
+    # rbsp_data = RBMDataSet(
+    #     start_time=start_time,
+    #     end_time=end_time,
+    #     folder_path=Path("tests/comparisons/processed_data/"),
+    #     satellite="RBSPA",
+    #     instrument=InstrumentEnum.HOPE,
+    #     mfm=mfm_enum,
+    #     verbose=True,
+    # )
+
+    rbsp_data = ep.dataset.GFZDataSet(
+        ep.saving_strategies.MonthlyRBStrategy("tests/comparisons/processed_data/", "RBSP", "rbspa", "hope", "TS04", ep.data_standards.GFZStandard()),
+        start_time,
+        end_time,
     )
 
     # load from mageph data
@@ -69,18 +75,18 @@ def test_mageph_rbsp(sat_str: Literal["a", "b"], mag_field: Literal["T89", "TS04
             mag_field_str_data = "T89D"
         case "TS04":
             mag_field_str_data = "TS04D"
-    file_name_stem = "rbsp" + sat_str + "_def_MagEphem_" + mag_field_str_data + "_YYYYMMDD_.{6}.h5"
+    file_name_stem = "rbsp" + sat_str + "_def_MagEphem_" + mag_field_str_data + "_YYYYMMDD_v3.0.0.h5"
 
-    ep.download(
-        start_time,
-        end_time,
-        save_path="tests/comparisons/raw_data",
-        download_url=f"https://rbsp-ect.newmexicoconsortium.org/data_pub/rbsp{sat_str}/MagEphem/definitive/YYYY/",
-        file_name_stem=file_name_stem,
-        file_cadence="daily",
-        method="request",
-        skip_existing=True,
-    )
+    # ep.download(
+    #     start_time,
+    #     end_time,
+    #     save_path="tests/comparisons/raw_data",
+    #     download_url=f"https://rbsp-ect.newmexicoconsortium.org/data_pub/rbsp{sat_str}/MagEphem/definitive/YYYY/",
+    #     file_name_stem=file_name_stem,
+    #     file_cadence="daily",
+    #     method="request",
+    #     skip_existing=True,
+    # )
 
     extraction_infos = [
         ep.ExtractionInfo(
@@ -106,7 +112,7 @@ def test_mageph_rbsp(sat_str: Literal["a", "b"], mag_field: Literal["T89", "TS04
     ]
 
     variables = ep.extract_variables_from_files(
-        start_time, end_time, "daily", "tests/comparisons/raw_data", file_name_stem, extraction_infos
+        start_time, end_time, "daily", "/home/bhaas/data/RBSPA_MagEphem2017", file_name_stem, extraction_infos
     )
 
     timestamps = [
