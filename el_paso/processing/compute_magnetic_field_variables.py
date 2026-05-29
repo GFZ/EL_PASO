@@ -238,7 +238,7 @@ def _get_result(
                 irbem_input,
             )
 
-        case "invMu":
+        case "InvMu":
             result_dict = _get_invariant_mu(
                 xgeo_var,
                 time_var,
@@ -249,7 +249,7 @@ def _get_result(
                 particle_species,
             )
 
-        case "invK":
+        case "InvK":
             result_dict = _get_invariant_K(
                 xgeo_var,
                 time_var,
@@ -407,7 +407,7 @@ def _get_invariant_mu(
 
     mu_var = ep.processing.compute_invariant_mu(energy_var, pa_local_var, B_local, particle_species)
 
-    computed_vars[mag_utils.create_var_name("invMu", irbem_input.magnetic_field)] = mu_var
+    computed_vars[mag_utils.create_var_name("InvMu", irbem_input.magnetic_field)] = mu_var
 
     return computed_vars
 
@@ -446,7 +446,7 @@ def _get_invariant_K(
     B_mirr = computed_vars[B_mirr_name]
     xj = computed_vars[xj_name]
 
-    inv_k_name = mag_utils.create_var_name("invK", irbem_input.magnetic_field)
+    inv_k_name = mag_utils.create_var_name("InvK", irbem_input.magnetic_field)
     computed_vars[inv_k_name] = ep.processing.compute_invariant_K(B_mirr, xj)
 
     return computed_vars

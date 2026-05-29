@@ -130,8 +130,8 @@ def process_rbsp_ect_combined(  # noqa: D103
         ("Alpha_Eq", mag_field),
         ("L_star", mag_field),
         ("L_m", mag_field),
-        ("invMu", mag_field),
-        ("invK", mag_field),
+        ("InvMu", mag_field),
+        ("InvK", mag_field),
     ]
 
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
@@ -162,8 +162,8 @@ def process_rbsp_ect_combined(  # noqa: D103
         "B_Calc": magnetic_field_variables["B_Calc_" + mag_field],
         "B_Eq": magnetic_field_variables["B_Eq_" + mag_field],
         "PSD": psd_variable,
-        "InvMu": magnetic_field_variables["invMu_" + mag_field],
-        "InvK": magnetic_field_variables["invK_" + mag_field],
+        "InvMu": magnetic_field_variables["InvMu_" + mag_field],
+        "InvK": magnetic_field_variables["InvK_" + mag_field],
         "Position": variables["xGEO"],
     }
 

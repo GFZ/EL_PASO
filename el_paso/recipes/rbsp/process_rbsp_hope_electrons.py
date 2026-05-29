@@ -112,8 +112,8 @@ def process_rbsp_hope_electrons(  # noqa: D103
         ("Alpha_Eq", mag_field),
         ("L_star", mag_field),
         ("L_m", mag_field),
-        ("invK", mag_field),
-        ("invMu", mag_field),
+        ("InvK", mag_field),
+        ("InvMu", mag_field),
     ]
 
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
@@ -140,8 +140,8 @@ def process_rbsp_hope_electrons(  # noqa: D103
         "MLT": magnetic_field_variables["MLT_" + mag_field],
         "L_m": magnetic_field_variables["L_m_" + mag_field],
         "R_Eq": magnetic_field_variables["R_Eq_" + mag_field],
-        "InvK": magnetic_field_variables["invK_" + mag_field],
-        "InvMu": magnetic_field_variables["invMu_" + mag_field],
+        "InvK": magnetic_field_variables["InvK_" + mag_field],
+        "InvMu": magnetic_field_variables["InvMu_" + mag_field],
         "B_Eq": magnetic_field_variables["B_Eq_" + mag_field],
         "B_Calc": magnetic_field_variables["B_Calc_" + mag_field],
         "PSD": psd_var,

@@ -136,8 +136,8 @@ def process_goes_r_mps_high(  # noqa: D103
         ("Alpha_Eq", "T89"),
         ("L_star", "T89"),
         ("L_m", "T89"),
-        ("invMu", "T89"),
-        ("invK", "T89"),
+        ("InvMu", "T89"),
+        ("InvK", "T89"),
     ]
 
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
@@ -168,8 +168,8 @@ def process_goes_r_mps_high(  # noqa: D103
         "R_Eq": magnetic_field_variables["R_Eq_T89"],
         "B_Eq": magnetic_field_variables["B_Eq_T89"],
         "B_Calc": magnetic_field_variables["B_Calc_T89"],
-        "InvMu": magnetic_field_variables["invMu_T89"],
-        "InvK": magnetic_field_variables["invK_T89"],
+        "InvMu": magnetic_field_variables["InvMu_T89"],
+        "InvK": magnetic_field_variables["InvK_T89"],
     }
 
     if save_strategy in ("gfz", "both"):

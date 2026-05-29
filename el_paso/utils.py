@@ -576,7 +576,11 @@ def write_netcdf_file(file_path: Path, data_dict: DataDict, data_standard: DataS
 
         dimensions = _calculate_dimensions(data_dict)
         for dim_name, dim_size in dimensions.items():
-            file.createDimension(dim_name, dim_size)
+            if dim_name == "Epoch":
+                # we create the time dimension as unilimited to allow for append later on
+                file.createDimension(dim_name, size=None)
+            else:
+                file.createDimension(dim_name, dim_size)
 
         _write_data_to_netcdf_file(file, data_dict, data_standard)
 

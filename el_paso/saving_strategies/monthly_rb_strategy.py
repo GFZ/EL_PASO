@@ -341,11 +341,11 @@ class MonthlyRBStrategy(SavingStrategy):
     def _validate_netcdf_appendable(self, file_path: Path) -> None:
         """Validate that the existing NetCDF file has an unlimited time dimension."""
         with nC.Dataset(file_path, "r", format="NETCDF4") as file:
-            time_dim = file.dimensions.get("time")
+            time_dim = file.dimensions.get("Epoch")
             if time_dim is None or not time_dim.isunlimited():
                 msg = (
                     "Cannot append: the existing NetCDF file does not have an "
-                    "unlimited 'time' dimension. Recreate the file with 'time' "
+                    "unlimited 'Epoch' dimension. Recreate the file with 'Epoch' "
                     "created as unlimited (None)."
                 )
                 raise ValueError(msg)
