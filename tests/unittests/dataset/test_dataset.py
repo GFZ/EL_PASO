@@ -274,8 +274,8 @@ class TestDataSet:  # noqa: D101
     def test_all_variables_in_dir(self, mock_dataset: DataSet):
         mock_dataset._load_variable("time")
 
-        for var in ep.data_standards.GFZStandard().variable_infos.values():
-            assert var.standard_name in mock_dataset.__dir__()
+        for standard_name in mock_dataset.saving_strategy.get_all_standard_names():
+            assert standard_name in mock_dataset.__dir__()
 
     def test_accessing_second_variable_does_not_reload_file(
         self,
