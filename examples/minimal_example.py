@@ -75,7 +75,7 @@ variables = ep.extract_variables_from_files(
 
 time_bin_methods = {
     "xGEO": ep.TimeBinMethod.NanMean,
-    "Energy": ep.TimeBinMethod.Repeat,
+    "Energy": ep.TimeBinMethod.NanMean,
     "FEDU": ep.TimeBinMethod.NanMedian,
     "FEDU_Quality": ep.TimeBinMethod.NanMax,
     "FEDO": ep.TimeBinMethod.NanMedian,
@@ -103,10 +103,10 @@ irbem_options = [1, 1, 4, 4, 0]
 mag_field = "T89"  # other options include: "TS04", "T96", "OP77", ...
 
 variables_to_compute: ep.processing.VariableRequest = [
-    ("B_eq", mag_field),
+    ("B_Eq", mag_field),
     ("MLT", mag_field),
-    ("PA_eq", mag_field),
-    ("invMu", mag_field),
+    ("Alpha_Eq", mag_field),
+    ("InvMu", mag_field),
 ]
 
 magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
@@ -125,9 +125,9 @@ variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
     "FEDU": variables["FEDU"],
     "Energy_FEDU": variables["Energy"],
     "Alpha": variables["Pitch_angle"],
-    "Alpha_Eq": magnetic_field_variables["PA_eq_" + mag_field],
+    "Alpha_Eq": magnetic_field_variables["Alpha_Eq_" + mag_field],
     "MLT": magnetic_field_variables["MLT_" + mag_field],
-    "B_Eq": magnetic_field_variables["B_eq_" + mag_field],
+    "B_Eq": magnetic_field_variables["B_Eq_" + mag_field],
     "Position": variables["xGEO"],
 }
 
