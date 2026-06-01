@@ -35,6 +35,9 @@ jobs:
           pip install .
           pip install coveralls coverage pytest-cov
 
+      - name: Download test data from zenodo
+        run: bash download_data_for_tests.sh
+
       - name: Run tests
         run: python -m coverage run --source el_paso -m pytest -rf tests -m basic
       - name: Run Coveralls
