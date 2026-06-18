@@ -71,6 +71,12 @@ def process_rbsp_emfisis_waves(
         "Wave_normal_angle": wna_vars["WNA"],
         "Wave_planarity": wna_vars["planarity"],
         "Wave_ellipticity": wna_vars["ellipticity"],
+        "Number_density": density_vars["Density"],
+        "Magnetic_Power_Spectral_Density": psd_var,
+        "B_total_obs": mag_vars["Bt"],
+        "MLat": orbit_vars["mlat"],
+        "MLT": orbit_vars["mlt"],
+        "R_Eq": orbit_vars["L"],
     }
 
     saving_strat = ep.saving_strategies.DailyWaveStrategy(
@@ -109,8 +115,13 @@ def _calculate_orbital_vars(mag_vars: dict[str, ep.Variable]) -> dict[str, ep.Va
     fce = (e.si * bt) / (2 * np.pi * m_e.si)
     fce_eq = fce * (np.cos(mlat_rad) ** 6) / np.sqrt(1 + 3 * np.sin(mlat_rad) ** 2)
 
+    l_var = Variable(u.dimensionless_unscaled, data=l_shell)
+    l_var.metadata.add_processing_note(
+        "Dipole L-shell used as R_Eq approximation (no IRBEM field-line tracing)."
+    )
+
     orbit_vars = {
-        "L": Variable(u.dimensionless_unscaled, data=l_shell),
+        "L": l_var,
         "mlat": Variable(u.deg, data=mlat),
         "mlt": Variable(u.hour, data=mlt),
         "fce": Variable(u.Hz, data=fce),

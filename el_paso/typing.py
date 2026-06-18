@@ -146,6 +146,7 @@ MagneticFieldLiteral: TypeAlias = Literal[
     "T96",
     "OP77Q",
     "OP77",
+    "dipole",
 ]
 """Supported magnetic-field model identifiers."""
 

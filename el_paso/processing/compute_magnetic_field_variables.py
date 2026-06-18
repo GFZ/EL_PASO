@@ -153,21 +153,35 @@ def compute_magnetic_field_variables(
         if variable_name in computed_variables:
             continue
 
-        indices_solar_wind_hashable = make_dict_hashable(indices_solar_wind)
+        if mag_field == mag_utils.MagneticField.DIPOLE:
+            irbem_input = mag_utils.IrbemInput(
+                magnetic_field=mag_field,
+                maginput={},
+                irbem_options=irbem_options,
+                num_cores=num_cores,
+                irbem_lib_path=irbem_lib_path,
+            )
+            computed_variables |= _get_dipole_result(
+                var_type, xgeo_var, time_var, pa_local_var, energy_var,
+                computed_variables, irbem_input, particle_species,
+            )
+        else:
+            indices_solar_wind_hashable = make_dict_hashable(indices_solar_wind)
 
-        maginput = mag_utils.construct_maginput(time_var, mag_field, indices_solar_wind_hashable)
+            maginput = mag_utils.construct_maginput(time_var, mag_field, indices_solar_wind_hashable)
 
-        irbem_input = mag_utils.IrbemInput(
-            magnetic_field=mag_field,
-            maginput=maginput,
-            irbem_options=irbem_options,
-            num_cores=num_cores,
-            irbem_lib_path=irbem_lib_path,
-        )
+            irbem_input = mag_utils.IrbemInput(
+                magnetic_field=mag_field,
+                maginput=maginput,
+                irbem_options=irbem_options,
+                num_cores=num_cores,
+                irbem_lib_path=irbem_lib_path,
+            )
 
-        computed_variables |= _get_result(
-            var_type, xgeo_var, time_var, pa_local_var, energy_var, computed_variables, irbem_input, particle_species
-        )
+            computed_variables |= _get_result(
+                var_type, xgeo_var, time_var, pa_local_var, energy_var,
+                computed_variables, irbem_input, particle_species,
+            )
 
     # only return the requested variables
     computed_variables = {
@@ -274,6 +288,67 @@ def _get_result(
             raise NotImplementedError(msg)
 
     return result_dict
+
+
+def _get_dipole_result(
+    var_type: MagFieldVarTypes,
+    xgeo_var: Variable,
+    time_var: Variable,
+    pa_local_var: Variable,
+    energy_var: Variable,
+    computed_vars: dict[str, Variable],
+    irbem_input: mag_utils.IrbemInput,
+    particle_species: Literal["electron", "proton"],
+) -> dict[str, Variable]:
+    """Dispatch a single variable computation to the dipole field module.
+
+    For primitive field quantities (B_Calc, B_Eq, etc.) calls the dipole
+    functions directly.  For derived quantities (Alpha_Eq, InvMu, InvK,
+    loss-cone angles) reuses the existing IRBEM-agnostic helpers which
+    only need B values already present in *computed_vars*.
+    """
+    mag_field = irbem_input.magnetic_field
+    irbem_lib_path = irbem_input.irbem_lib_path
+
+    match var_type:
+        case "B_Calc":
+            return mag_utils.dipole_get_local_B_field(xgeo_var, time_var, mag_field)
+
+        case "R_Eq" | "B_Eq" | "xGEO_Eq" | "MLT_Eq":
+            return mag_utils.dipole_get_magequator(xgeo_var, time_var, mag_field, irbem_lib_path)
+
+        case "MLT":
+            return mag_utils.dipole_get_MLT(xgeo_var, time_var, mag_field)
+
+        case "L_star" | "L_m" | "I":
+            return mag_utils.dipole_get_Lstar(xgeo_var, time_var, pa_local_var, mag_field)
+
+        case "B_fofl":
+            return mag_utils.dipole_get_footpoint_atmosphere(xgeo_var, time_var, mag_field)
+
+        case "B_mirr":
+            return mag_utils.dipole_get_mirror_point(xgeo_var, time_var, pa_local_var, mag_field)
+
+        case "Alpha_Eq":
+            return _get_pa_eq(xgeo_var, time_var, pa_local_var, computed_vars, irbem_input)
+
+        case "InvMu":
+            return _get_invariant_mu(
+                xgeo_var, time_var, pa_local_var, energy_var, computed_vars, irbem_input, particle_species,
+            )
+
+        case "InvK":
+            return _get_invariant_K(xgeo_var, time_var, pa_local_var, computed_vars, irbem_input)
+
+        case "Alpha_LC_Eq":
+            return _get_eq_loss_cone_angle(xgeo_var, time_var, computed_vars, irbem_input)
+
+        case "Alpha_LC":
+            return _get_local_loss_cone_angle(xgeo_var, time_var, computed_vars, irbem_input)
+
+        case _:
+            msg = f"Variable '{var_type}' is not supported by the dipole model."
+            raise NotImplementedError(msg)
 
 
 def _requires_particle_species(vars_to_compute: list[MagFieldVar]) -> bool:
