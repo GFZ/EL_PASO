@@ -79,16 +79,16 @@ class GFZStandard(DataStandard[GFZVarNames]):
                 ["Epoch", "Energy_FPDU", "Alpha"],
             ),
             "Alpha": VariableInfo[GFZVarNames](
-                "alpha_local", "Local pitch angles of the particles.", u.radian, ["Epoch", "Alpha"], ("Alpha", "ascending"),
+                "alpha_local", "Local pitch angles of the particles.", u.radian, ["Epoch", "Alpha"],
             ),
             "Alpha_range": VariableInfo[GFZVarNames](
                 "alpha_local_range",
                 "Local pitch angle ranges of the particles.",
                 u.radian,
-                ["Epoch", "Alpha_range", "min_max"], ("Alpha", "ascending"),
+                ["Epoch", "Alpha_range", "min_max"],
             ),
             "Alpha_Eq": VariableInfo[GFZVarNames](
-                "alpha_eq_model", "Calculated equatorial pitch angles of the particles.", u.radian, ["Epoch", "Alpha"], ("Alpha", "ascending"),
+                "alpha_eq_model", "Calculated equatorial pitch angles of the particles.", u.radian, ["Epoch", "Alpha"],
             ),
             "Alpha_Eq_range": VariableInfo[GFZVarNames](
                 "alpha_eq_range",
