@@ -166,6 +166,9 @@ class DataSet:
 
         if isinstance(value, xr.Variable):
             value = value.values
+        elif isinstance(value, list):
+            if isinstance(value[0], xr.Variable):
+                value = np.concatenate(value, axis=0)
 
         return value
 
@@ -298,7 +301,6 @@ class DataSet:
         """
         return self.saving_strategy.satellite + " " + self.saving_strategy.instrument
 
-    # @profile
     def _load_variable(self, requested_name: str) -> None:
 
         loaded_var_arrs: dict[str, NDArray[np.number]] = {}
