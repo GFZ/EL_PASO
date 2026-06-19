@@ -49,8 +49,7 @@ class MagneticField(Enum):
     def kext(self) -> kext:
         """Returns the kext value for the magnetic field model."""
         if self == MagneticField.DIPOLE:
-            msg = "Dipole model does not use IRBEM kext."
-            raise NotImplementedError(msg)
+            return kext(0)
         return _magnetic_field_str_to_kext(self.value)
 
     @classmethod

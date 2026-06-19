@@ -24,9 +24,12 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-B0 = 31200.0  # nT — Earth's dipole moment at surface equator
-R_EARTH_KM = 6371.0
+B0_DEFAULT = 31200.0  # nT — Earth's dipole moment at surface equator
 FOOTPOINT_ALT_KM = 100.0
+
+
+def _r_earth_km() -> float:
+    return float(ep.units.RE.to(u.km))
 
 
 def _geo_to_dipole_params(
@@ -42,32 +45,37 @@ def _geo_to_dipole_params(
     return lam, L, r
 
 
-def _dipole_B_at_latitude(L: NDArray[np.float64], lam: NDArray[np.float64]) -> NDArray[np.float64]:
+def _dipole_B_at_latitude(
+    L: NDArray[np.float64], lam: NDArray[np.float64], b0: float = B0_DEFAULT,
+) -> NDArray[np.float64]:
     """Dipole field magnitude at (L, λ)."""
     sin_lam = np.sin(lam)
     cos_lam = np.cos(lam)
-    return B0 / L**3 * np.sqrt(1.0 + 3.0 * sin_lam**2) / cos_lam**6
+    return b0 / L**3 * np.sqrt(1.0 + 3.0 * sin_lam**2) / cos_lam**6
 
 
 def _footpoint_latitude(L: NDArray[np.float64]) -> NDArray[np.float64]:
     """Magnetic latitude where the field line at L intersects r_foot = 1 + 100km/R_E."""
-    r_foot = 1.0 + FOOTPOINT_ALT_KM / R_EARTH_KM
+    r_foot = 1.0 + FOOTPOINT_ALT_KM / _r_earth_km()
     cos2_lam = np.clip(r_foot / L, 0.0, 1.0)
     return np.arccos(np.sqrt(cos2_lam))
 
 
 @timed_function()
 def dipole_get_local_B_field(
-    xgeo_var: ep.Variable, time_var: ep.Variable, mag_field: MagneticField
+    xgeo_var: ep.Variable,
+    time_var: ep.Variable,
+    mag_field: MagneticField,
+    b0: float = B0_DEFAULT,
 ) -> dict[str, ep.Variable]:
     """Local magnetic field magnitude from dipole formula."""
     logger.info("\tCalculating local magnetic field (dipole) ...")
     xgeo = xgeo_var.get_data(ep.units.RE).astype(np.float64)
     lam, L, _ = _geo_to_dipole_params(xgeo)
-    b_local = _dipole_B_at_latitude(L, lam)
+    b_local = _dipole_B_at_latitude(L, lam, b0)
 
     var = ep.Variable(data=b_local.astype(np.float64), original_unit=u.nT)
-    var.metadata.add_processing_note("Calculated local B field using dipole model.")
+    var.metadata.add_processing_note(f"Calculated local B field using dipole model (B0={b0:.1f} nT).")
     return {create_var_name("B_Calc", mag_field): var}
 
 
@@ -76,7 +84,8 @@ def dipole_get_magequator(
     xgeo_var: ep.Variable,
     time_var: ep.Variable,
     mag_field: MagneticField,
-    irbem_lib_path: str | Path,
+    irbem_lib_path: str | Path | None = None,
+    b0: float = B0_DEFAULT,
 ) -> dict[str, ep.Variable]:
     """Equatorial B, R_Eq, MLT_Eq, xGEO_Eq from dipole formula."""
     logger.info("\tCalculating equatorial quantities (dipole) ...")
@@ -86,9 +95,9 @@ def dipole_get_magequator(
 
     lam, L, _ = _geo_to_dipole_params(xgeo)
 
-    b_eq = B0 / L**3
+    b_eq = b0 / L**3
     b_eq_var = ep.Variable(data=b_eq.astype(np.float64), original_unit=u.nT)
-    b_eq_var.metadata.add_processing_note("Equatorial B field from dipole model: B0/L^3.")
+    b_eq_var.metadata.add_processing_note(f"Equatorial B field from dipole model: B0/L^3 (B0={b0:.1f} nT).")
 
     # xGEO_Eq: project to equatorial plane along the field line
     x, y = xgeo[:, 0], xgeo[:, 1]
@@ -122,7 +131,7 @@ def dipole_get_magequator(
 
 @timed_function()
 def dipole_get_MLT(
-    xgeo_var: ep.Variable, time_var: ep.Variable, mag_field: MagneticField
+    xgeo_var: ep.Variable, time_var: ep.Variable, mag_field: MagneticField,
 ) -> dict[str, ep.Variable]:
     """Magnetic local time from GEO coordinates."""
     logger.info("\tCalculating MLT (dipole) ...")
@@ -170,7 +179,10 @@ def dipole_get_Lstar(
 
 @timed_function()
 def dipole_get_footpoint_atmosphere(
-    xgeo_var: ep.Variable, time_var: ep.Variable, mag_field: MagneticField
+    xgeo_var: ep.Variable,
+    time_var: ep.Variable,
+    mag_field: MagneticField,
+    b0: float = B0_DEFAULT,
 ) -> dict[str, ep.Variable]:
     """B at the atmospheric footpoint (100 km altitude) from dipole formula."""
     logger.info("\tCalculating footpoint B field (dipole) ...")
@@ -178,11 +190,11 @@ def dipole_get_footpoint_atmosphere(
     _, L, _ = _geo_to_dipole_params(xgeo)
 
     lam_foot = _footpoint_latitude(L)
-    b_foot = _dipole_B_at_latitude(L, lam_foot)
+    b_foot = _dipole_B_at_latitude(L, lam_foot, b0)
 
     var = ep.Variable(data=b_foot.astype(np.float64), original_unit=u.nT)
     var.metadata.add_processing_note(
-        f"Footpoint B at {FOOTPOINT_ALT_KM:.0f} km altitude from dipole model."
+        f"Footpoint B at {FOOTPOINT_ALT_KM:.0f} km altitude from dipole model (B0={b0:.1f} nT)."
     )
     return {create_var_name("B_fofl", mag_field): var}
 
@@ -193,6 +205,7 @@ def dipole_get_mirror_point(
     time_var: ep.Variable,
     pa_local_var: ep.Variable,
     mag_field: MagneticField,
+    b0: float = B0_DEFAULT,
 ) -> dict[str, ep.Variable]:
     """B at mirror point for each pitch angle using dipole field line."""
     logger.info("\tCalculating mirror point B (dipole) ...")
@@ -200,7 +213,7 @@ def dipole_get_mirror_point(
     pa_local = pa_local_var.get_data(u.deg).astype(np.float64)
 
     lam, L_scalar, _ = _geo_to_dipole_params(xgeo)
-    b_local = _dipole_B_at_latitude(L_scalar, lam)
+    b_local = _dipole_B_at_latitude(L_scalar, lam, b0)
 
     # B_mirr = B_local / sin²(alpha)
     sin2_alpha = np.sin(np.radians(pa_local)) ** 2
@@ -216,7 +229,7 @@ def dipole_get_mirror_point(
 
     # Particles outside loss cone: B_mirr > B_fofl means not trapped → NaN
     lam_foot = _footpoint_latitude(L_scalar)
-    b_fofl = _dipole_B_at_latitude(L_scalar, lam_foot)
+    b_fofl = _dipole_B_at_latitude(L_scalar, lam_foot, b0)
     if pa_local.ndim == 2:
         b_fofl_broadcast = b_fofl[:, np.newaxis]
     else:
@@ -224,5 +237,5 @@ def dipole_get_mirror_point(
     b_mirr = np.where(b_mirr > b_fofl_broadcast, np.nan, b_mirr)
 
     var = ep.Variable(data=b_mirr.astype(np.float64), original_unit=u.nT)
-    var.metadata.add_processing_note("Mirror point B from dipole: B_local/sin^2(alpha).")
+    var.metadata.add_processing_note(f"Mirror point B from dipole: B_local/sin^2(alpha) (B0={b0:.1f} nT).")
     return {create_var_name("B_mirr", mag_field): var}
