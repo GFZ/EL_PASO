@@ -166,9 +166,8 @@ class DataSet:
 
         if isinstance(value, xr.Variable):
             value = value.values
-        elif isinstance(value, list):
-            if isinstance(value[0], xr.Variable):
-                value = np.concatenate(value, axis=0)
+        elif isinstance(value, list) and len(value) > 0 and isinstance(value[0], xr.Variable):
+            value = np.concatenate(value, axis=0)
 
         return value
 
