@@ -12,6 +12,7 @@ from el_paso.processing.calculate_geo_coords_from_file import (
 from el_paso.processing.compute_equatorial_plasmaspheric_density import compute_equatorial_plasmaspheric_density
 from el_paso.processing.compute_invariant_K import compute_invariant_K
 from el_paso.processing.compute_invariant_mu import compute_invariant_mu
+from el_paso.processing.compute_LCDS import compute_LCDS
 from el_paso.processing.compute_magnetic_field_variables import VariableRequest, compute_magnetic_field_variables
 from el_paso.processing.compute_phase_space_density import compute_phase_space_density
 from el_paso.processing.compute_pitch_angles_for_telescopes import compute_pitch_angles_for_telescopes
@@ -28,6 +29,7 @@ __all__ = [
     "bin_by_time",
     "calculate_geo_coords_from_omm",
     "calculate_geo_coords_from_tle",
+    "compute_LCDS",
     "compute_equatorial_plasmaspheric_density",
     "compute_invariant_K",
     "compute_invariant_mu",

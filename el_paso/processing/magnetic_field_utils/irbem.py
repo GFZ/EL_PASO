@@ -13,6 +13,7 @@ import shutil
 import sys
 import typing
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from datetime import datetime
 from enum import IntEnum
 from pathlib import Path
@@ -72,6 +73,7 @@ EXT_MODELS = [
 ]
 
 DEFAULT_LIBIRBEM_PATH = Path(ep.__file__).parent / "libirbem.so"
+FORTRAN_BAD_VALUE = np.float64(-1.0e31)
 
 logger = logging.getLogger(__name__)
 
@@ -213,6 +215,26 @@ class FindMirrorPointOutput(NamedTuple):
     posit: NDArray[np.float64]
 
 
+class LCDSResult(NamedTuple):
+    """Result of a single Last-Closed-Drift-Shell calculation.
+
+    Attributes:
+        lcds: Roederer L* of the last closed drift shell (dimensionless), or the fill
+            value ``-1e31`` if no closed shell was found.
+        x_sm: SM x-coordinate (RE) where the boundary was located (used to warm-start
+            the next time step). NaN if not found.
+        found: Whether any closed drift shell was found within the search range.
+        at_ceiling: True if the shell was still closed at ``max_r`` and the search never
+            observed an open shell above it. In that case ``lcds`` is a *lower bound*
+            (true LCDS >= lcds), not a resolved boundary.
+    """
+
+    lcds: float
+    x_sm: float
+    found: bool
+    at_ceiling: bool
+
+
 class LstarQuantity(IntEnum):
     """Quantity computed via drift-shell tracing, i.e. IRBEM's `options(1)`.
 
@@ -271,6 +293,28 @@ class IrbemOptions(NamedTuple):
     field_line_resolution: int = 4
     drift_shell_resolution: int = 4
     internal_field_model: InternalFieldModel = InternalFieldModel.IGRF
+
+
+@dataclass
+class LCDSSearchParams:
+    """Tunable parameters controlling the LCDS radial search.
+
+    Attributes:
+        max_r: Outer ceiling for the search, in RE. A shell still closed at this radius is
+            reported as a censored lower bound (see ``LCDSResult.at_ceiling``).
+        coarse_step: Radial step size (RE) for pass 1, the coarse inward march.
+        medium_step: Radial step size (RE) for pass 2, the medium outward march.
+        fine_step: Radial step size (RE) for pass 3, the fine outward refinement; this sets
+            the resolution to which the boundary is located.
+        trace_r0: Field-line trace stop radius in RE.
+        start_r: Starting distance of the search.
+    """
+    max_r: float = 10
+    coarse_step: float = 1
+    medium_step: float = 0.5
+    fine_step: float = 0.1
+    trace_r0: float = 0.8
+    start_r: float = 10
 
 
 class MagFields:
@@ -408,7 +452,9 @@ class MagFields:
     def make_lstar_shell_splitting(
         self,
         time: Sequence[datetime | str] | datetime | str,
-        position: Mapping[Literal["x1", "x2", "x3"], Sequence[np.floating] | NDArray[np.floating] | np.floating],
+        position: Mapping[
+            Literal["x1", "x2", "x3"], Sequence[np.floating] | NDArray[np.floating] | np.floating | float
+        ],
         maginput: Mapping[MagInputKeys, NDArray[np.number] | list[np.number] | np.number],
         alpha: Sequence[np.floating] | NDArray[np.floating] | np.floating,
     ) -> MakeLstarShellSplittingOutput:
@@ -659,7 +705,7 @@ class MagFields:
     def trace_field_line(
         self,
         time: datetime | str | pd.Timestamp,
-        position: Mapping[Literal["x1", "x2", "x3"], np.floating],
+        position: Mapping[Literal["x1", "x2", "x3"], np.floating | float],
         maginput: Mapping[MagInputKeys, NDArray[np.number] | list[np.number] | np.number],
         r0: float = 1,
     ) -> TraceFieldLineOutput:
@@ -718,7 +764,7 @@ class MagFields:
     def find_magequator(
         self,
         time: datetime | str | pd.Timestamp,
-        position: Mapping[Literal["x1", "x2", "x3"], np.floating],
+        position: Mapping[Literal["x1", "x2", "x3"], np.floating | float],
         maginput: Mapping[MagInputKeys, NDArray[np.number] | list[np.number] | np.number],
     ) -> FindMagEquatorOutput:
         """Finds the magnetic equator for a given magnetic field line.
@@ -836,10 +882,46 @@ class MagFields:
 
         return c_mlt.value
 
+    def get_lcds(
+        self,
+        time: datetime | str | pd.Timestamp,
+        alpha_eq_deg: float,
+        maginput: Mapping[MagInputKeys, NDArray[np.number] | list[np.number] | np.number],
+        search_params: LCDSSearchParams | None = None,
+    ) -> LCDSResult:
+        """Computes the LCDS (max closed L*) for one time and one equatorial pitch angle.
+
+        Args:
+            time: Epoch (datetime, ISO string, or pandas Timestamp).
+            alpha_eq_deg: Equatorial pitch angle in degrees (LCDS is pitch-angle specific).
+            maginput: Scalar magnetic-field-model inputs keyed by IRBEM name (e.g. ``{"Kp": 3.0}``).
+            max_r: Outer ceiling for the search, in RE. If the shell is still closed here the
+                result is flagged ``at_ceiling`` (a lower bound, not a resolved boundary).
+            coarse_step: Radial step size (RE) for pass 1, the coarse inward march.
+            medium_step: Radial step size (RE) for pass 2, the medium outward march.
+            fine_step: Radial step size (RE) for pass 3, the fine outward refinement.
+            trace_r0: Field-line trace stop radius in RE (LCDS2 used 0.8).
+            search_start: Radius (RE) at which the coarse march begins. ``None`` => cold start
+                at ``max_r``. Pass the previous solution's ``x_sm`` (plus margin) to warm-start.
+
+        Returns:
+            LCDSResult with the L* of the last closed drift shell (check ``at_ceiling``).
+        """
+        if search_params is None:
+            search_params = LCDSSearchParams(
+                max_r=10,
+                coarse_step=1,
+                medium_step=0.5,
+                fine_step=0.1,
+                trace_r0=0.8,
+                start_r=10,
+            )
+        return _lcds_search(self, time, alpha_eq_deg, maginput, search_params)
+
     def _prep_time_pos(
         self,
         time: datetime | str | pd.Timestamp,
-        position: Mapping[Literal["x1", "x2", "x3"], np.floating],
+        position: Mapping[Literal["x1", "x2", "x3"], np.floating | float],
     ) -> tuple[ctypes.c_int, ctypes.c_int, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double]:
         logger.debug("Prepping time and space input variables")
 
@@ -869,7 +951,9 @@ class MagFields:
     def _prep_time_pos_array(
         self,
         time: Sequence[datetime | str | pd.Timestamp] | NDArray[np.generic] | datetime | str | pd.Timestamp,
-        position: Mapping[Literal["x1", "x2", "x3"], Sequence[np.floating] | NDArray[np.floating] | np.floating],
+        position: Mapping[
+            Literal["x1", "x2", "x3"], Sequence[np.floating] | NDArray[np.floating] | np.floating | float
+        ],
     ) -> tuple[
         ctypes.c_int,
         ctypes.Array[ctypes.c_int],
@@ -1139,3 +1223,144 @@ def _load_shared_object(path: Path | None = None) -> tuple[Path, ctypes.CDLL]:
         raise
 
     return path, irbem_obj
+
+
+def _count_field_minima(blocal: NDArray[np.floating]) -> int:
+    """Count strict local minima of |B| sampled along a traced field line.
+
+    A clean, dipole-like field line has exactly one minimum (the magnetic equator);
+    ``== 1`` doubles as a "shell is still closed / well behaved" test.
+    """
+    b = np.asarray(blocal, dtype=np.float64)
+    if b.size < 3:
+        return 0
+    interior = b[1:-1]
+    is_min = (interior < b[:-2]) & (interior < b[2:])
+    return int(np.count_nonzero(is_min))
+
+
+def _lcds_search(
+    mag: MagFields,
+    time: datetime | str | pd.Timestamp,
+    alpha_eq_deg: float,
+    maginput: Mapping[MagInputKeys, NDArray[np.number] | list[np.number] | np.number],
+    search: LCDSSearchParams,
+) -> LCDSResult:
+    """Run the search using pre-built IRBEM handles."""
+
+    def evaluate(x_sm: float) -> tuple[int, float]:
+        """Probe SM position (x_sm, 0, 0). Returns (n_minima, lstar).
+
+        ``lstar`` is -1 when the field line is not a clean single-minimum line, in
+        which case the expensive drift-shell call is skipped.
+        """
+        sm_pos: dict[Literal["x1", "x2", "x3"], np.float64] = {
+            "x1": np.float64(x_sm),
+            "x2": np.float64(0.0),
+            "x3": np.float64(0.0),
+        }
+
+        trace = mag.trace_field_line(time, sm_pos, maginput, r0=search.trace_r0)
+        n_min = _count_field_minima(trace.blocal)
+        if n_min != 1:
+            return n_min, -1.0
+
+        equator = mag.find_magequator(time, sm_pos, maginput)  # returns GEO position
+        if not np.all(np.isfinite(equator.xgeo)) or np.any(equator.xgeo <= FORTRAN_BAD_VALUE):
+            return 0, -1.0
+
+        equator_sm = Coords().transform(time, equator.xgeo, ep.IRBEM_SYSAXIS_GEO, ep.IRBEM_SYSAXIS_SM)
+        equator_sm_pos: dict[Literal["x1", "x2", "x3"], np.float64] = {
+            "x1": equator_sm[0,0],
+            "x2": equator_sm[0,1],
+            "x3": equator_sm[0,2],
+        }
+
+        out = mag.make_lstar_shell_splitting(time, equator_sm_pos, maginput, np.asarray([alpha_eq_deg]))
+
+        return n_min, float(np.squeeze(out.lstar))
+
+    def is_closed(x_sm: float) -> tuple[bool, float]:
+        """A shell is closed iff the field line has a single minimum and L* > 0."""
+        n_min, lstar = evaluate(x_sm)
+        return (n_min == 1 and lstar > 0.0), lstar
+
+    max_r = search.max_r
+    coarse_step = search.coarse_step
+    start = min(search.start_r, max_r)
+    max_itx = max(1, int(max_r / coarse_step - 1))  # safety bound on iterations per pass
+
+    # --- Pass 1: coarse march toward the boundary; direction set by the start point. ---
+    # The boundary is where the shell switches between closed and open. Probe the start
+    # once and march the way the boundary must lie, so there is no wasted backtracking:
+    #   * start OPEN   -> boundary is further IN  -> march inward to the first closed shell.
+    #   * start CLOSED -> boundary is further OUT -> march outward, keeping the last closed
+    #                     shell before the field opens (or hit the ceiling -> censored).
+    # Either way the coarse march ends on the outermost closed shell at coarse resolution,
+    # which passes 2-3 then refine outward.
+    closed, lstar = is_closed(start)
+
+    if not closed:
+        # OPEN start: march INWARD until the first (outermost) closed shell appears.
+        lstar_valid, x_sm_valid = -1.0, start
+        itx = 0
+        x_sm = start
+        while itx <= max_itx:
+            x_sm = start - coarse_step * itx
+            if x_sm <= 0:
+                break
+            found, l_val = is_closed(x_sm)
+            if found:
+                lstar_valid, x_sm_valid = l_val, x_sm
+                break
+            itx += 1
+    else:
+        # CLOSED start: march OUTWARD, tracking the last closed shell before it opens.
+        lstar_valid, x_sm_valid = lstar, start
+        x_sm = start
+        while closed and x_sm < max_r:
+            x_sm = min(x_sm + coarse_step, max_r)
+            closed, l_val = is_closed(x_sm)
+            if closed:
+                lstar_valid, x_sm_valid = l_val, x_sm
+        if closed:
+            # still closed at the ceiling -> boundary lies beyond the search window
+            if lstar_valid > 0.0:
+                return LCDSResult(lcds=lstar_valid, x_sm=max_r, found=True, at_ceiling=True)
+            return LCDSResult(lcds=float(FORTRAN_BAD_VALUE), x_sm=float("nan"), found=False, at_ceiling=False)
+
+    # --- Pass 2: medium, march back outward, keeping the highest valid L* ---
+    itx = 1
+    n_min = 1
+    while lstar > 0 and itx <= max_itx and n_min == 1 and x_sm < max_r:
+        x_sm += search.medium_step
+        if x_sm >= max_r:
+            break
+        n_min, l_val = evaluate(x_sm)
+        if n_min == 1:
+            lstar = l_val
+            if lstar > 0:
+                lstar_valid, x_sm_valid = lstar, x_sm
+            itx += 1
+
+    # --- Pass 3: fine, continue outward from the last valid point ---
+    lstar = lstar_valid
+    x_sm = x_sm_valid
+    n_min = 1
+    while lstar > 0 and itx <= max_itx and n_min == 1 and x_sm < max_r:
+        x_sm += search.fine_step
+        if x_sm >= max_r:
+            break
+        n_min, l_val = evaluate(x_sm)
+        if n_min == 1:
+            lstar = l_val
+            if lstar > 0:
+                lstar_valid, x_sm_valid = lstar, x_sm
+            itx += 1
+
+    if lstar_valid > 0:
+        # The last valid point sitting within one fine step of the ceiling means the
+        # shell never opened inside the window -> the result is a censored lower bound.
+        at_ceiling = x_sm_valid >= max_r - search.fine_step
+        return LCDSResult(lcds=lstar_valid, x_sm=x_sm_valid, found=True, at_ceiling=at_ceiling)
+    return LCDSResult(lcds=float(FORTRAN_BAD_VALUE), x_sm=float("nan"), found=False, at_ceiling=False)
