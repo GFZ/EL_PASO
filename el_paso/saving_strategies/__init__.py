@@ -7,6 +7,7 @@
 from el_paso.saving_strategies.daily_leo_rb_strategy import DailyLEORBStrategy
 from el_paso.saving_strategies.daily_wave_strategy import DailyWaveStrategy
 from el_paso.saving_strategies.gfz_strategy import GFZStrategy
+from el_paso.saving_strategies.lcds_strategy import LCDSSTrategy
 from el_paso.saving_strategies.monthly_density_strategy import MonthlyDensityStrategy
 from el_paso.saving_strategies.monthly_omni_flux_rb_strategy import MonthlyOmniFluxRBStrategy
 from el_paso.saving_strategies.monthly_rb_strategy import MonthlyRBStrategy
@@ -17,6 +18,7 @@ __all__ = [
     "DailyLEORBStrategy",
     "DailyWaveStrategy",
     "GFZStrategy",
+    "LCDSSTrategy",
     "MonthlyDensityStrategy",
     "MonthlyOmniFluxRBStrategy",
     "MonthlyRBStrategy",

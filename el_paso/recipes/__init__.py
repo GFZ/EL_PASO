@@ -12,13 +12,18 @@ import lazy_loader as lazy
 __getattr__, __dir__, __all__ = lazy.attach(
     __name__,
     submodules=["arase", "dmsp", "esa", "goes", "gps", "poes", "probav", "rbsp", "themis"],
+    submod_attrs={
+        "compute_lcds": ["compute_lcds"],
+    },
 )
 
 if TYPE_CHECKING:
     from el_paso.recipes import arase, dmsp, esa, goes, gps, poes, probav, rbsp, themis
+    from el_paso.recipes.compute_lcds import compute_lcds
 
     __all__ = [
         "arase",
+        "compute_lcds",
         "dmsp",
         "esa",
         "goes",
