@@ -86,6 +86,7 @@ InternalName: TypeAlias = (
         "Magnetic_Power_Spectral_Density",
         "Wave_frequency_bandwidth",
         "B_total_obs",
+        "LCDS",
     ]
     | MagFieldVarTypes
 )
@@ -130,6 +131,7 @@ GFZVarNames: TypeAlias = Literal[
     "freq_bw",
     "BB",
     "wave_wna",
+    "LCDS",
 ]
 """Variable names used by the GFZ output standard."""
 

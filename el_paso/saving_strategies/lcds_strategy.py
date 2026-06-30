@@ -1,6 +1,5 @@
 # SPDX-FileCopyrightText: 2025 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
-# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -37,7 +36,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class MonthlyRBStrategy(SavingStrategy):
+class LCDSSTrategy(SavingStrategy):
     """Save PRBEM-standard data into one monthly file per interval.
 
     The strategy supports NetCDF, CDF, HDF5, and MATLAB output through a format
@@ -52,9 +51,6 @@ class MonthlyRBStrategy(SavingStrategy):
     def __init__(
         self,
         base_data_path: str | Path,
-        mission: str,
-        satellite: str,
-        instrument: str,
         mag_field: MagneticFieldLiteral,
         data_standard: DataStandard[StandardName],
         file_format: MFSFormats = "nc",
@@ -63,9 +59,6 @@ class MonthlyRBStrategy(SavingStrategy):
 
         Args:
             base_data_path (str | Path): Directory where monthly files are written.
-            mission (str): Mission name, used in file path and name generation.
-            satellite (str): Satellite name, used in file path and name generation.
-            instrument (str): Instrument name, used in file path and name generation.
             mag_field (MagneticFieldLiteral): Magnetic field model name. Monthly files use one model.
             file_format (MFSFormats): One of ``"nc"``, ``"cdf"``, ``"h5"``, or ``"mat"``.
                 A leading dot is also accepted.
@@ -78,9 +71,6 @@ class MonthlyRBStrategy(SavingStrategy):
                 all variables in ``output_files``.
         """
         self.base_data_path = Path(base_data_path)
-        self.mission = mission
-        self.satellite = satellite
-        self.instrument = instrument
         self.mag_field = mag_field
         self.data_standard = data_standard
         self.file_format = ep.utils.normalize_file_format(file_format)
@@ -92,21 +82,9 @@ class MonthlyRBStrategy(SavingStrategy):
     def _get_output_file_entries(self) -> list[InternalName]:
         """Return the standard variable list plus user-defined custom variables."""
         return [
-            "FEDU",
             "Epoch",
             "Alpha_Eq",
-            "Energy_FEDU",
-            "Alpha",
-            "B_Calc",
-            "B_Eq",
-            "InvK",
-            "InvMu",
-            "Position",
-            "PSD",
-            "R_Eq",
-            "MLT",
-            "L_m",
-            "L_star",
+            "LCDS",
         ]
 
     def get_time_intervals_to_save(self, start_time: datetime | None, end_time: datetime | None) -> list[TimeInterval]:
@@ -135,10 +113,10 @@ class MonthlyRBStrategy(SavingStrategy):
         return time_intervals
 
     def get_file_path_stem(self) -> Path:
-        return self.base_data_path / self.mission.upper() / self.satellite.lower()
+        return self.base_data_path
 
     def get_file_name_stem(self) -> str:
-        return self.satellite.lower() + "_" + self.instrument.lower()
+        return "LCDS_" + self.mag_field
 
     def get_file_path(self, interval_start: datetime, interval_end: datetime, output_file: OutputFile) -> Path:  # noqa: ARG002
         """Generate the monthly file path for the configured format."""

@@ -5,6 +5,7 @@
 
 
 import logging
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from functools import partial
@@ -13,19 +14,25 @@ from pathlib import Path
 from typing import Literal, NamedTuple
 
 import numpy as np
+import pandas as pd
 from astropy import units as u
 from numpy.typing import NDArray
 
 import el_paso as ep
-from el_paso.processing.magnetic_field_utils.construct_maginput import MagInputKeys
-from el_paso.processing.magnetic_field_utils.irbem import Coords, IrbemOptions, LstarQuantity, MagFields
+from el_paso.processing.magnetic_field_utils import IrbemOptions
+from el_paso.processing.magnetic_field_utils.irbem import (
+    FORTRAN_BAD_VALUE,
+    SYSAXES_STR_TO_INT,
+    Coords,
+    LCDSSearchParams,
+    LstarQuantity,
+    MagFields,
+)
 from el_paso.processing.magnetic_field_utils.mag_field_enum import MagneticField
-from el_paso.typing import MagFieldVarTypes
+from el_paso.typing import MagFieldVarTypes, MagInputKeys
 from el_paso.utils import show_process_bar_for_map_async, timed_function
 
 logger = logging.getLogger(__name__)
-
-FORTRAN_BAD_VALUE = np.float64(-1.0e31)
 
 
 def create_var_name(var_type: MagFieldVarTypes, mag_field: MagneticField) -> str:
@@ -678,3 +685,139 @@ def get_Lstar(
         create_var_name("L_star", irbem_input.magnetic_field): Lstar_var,
         create_var_name("I", irbem_input.magnetic_field): XJ_var,
     }
+
+
+def _get_LCDS_parallel(
+    irbem_args: tuple[str | Path, IrbemOptions, int, int],
+    datetimes: list[datetime],
+    maginput: Mapping[MagInputKeys, NDArray[np.floating]],
+    pa_eq: NDArray[np.floating],
+    search_params: LCDSSearchParams,
+    index_chunk: Sequence[int],
+) -> NDArray[np.floating]:
+
+    model = MagFields(
+        lib_path=irbem_args[0],
+        options=irbem_args[1],
+        kext=irbem_args[2],
+        sysaxes=irbem_args[3],
+    )
+
+    lcds_result = np.full((len(index_chunk), pa_eq.shape[1]), np.inf)
+
+    import time
+
+    for ic, it in enumerate(index_chunk):
+        for ipa, pa in enumerate(pa_eq[it, :]):
+            it = int(it)
+            maginput_single = {key: maginput[key][it] for key in maginput}
+
+            start = time.perf_counter()
+            res = model.get_lcds(datetimes[it], pa, maginput_single, search_params)
+            end = time.perf_counter()
+            print(f"ic = {ic}, pa = {pa}, time = {end - start}")
+
+            if not res.at_ceiling:
+                lcds_result[ic, ipa] = res.lcds
+
+            # carry the solution forward as the next iteration's starting radius
+            search_params.start_r = res.x_sm if res.found else search_params.max_r
+
+
+    return lcds_result
+
+
+@timed_function()
+def get_LCDS(
+    time_var: ep.Variable,
+    pa_eq_var: ep.Variable,
+    irbem_input: IrbemInput,
+    search_params: LCDSSearchParams | None = None,
+) -> ep.Variable:
+    """Compute the LCDS L* over a time series for one equatorial pitch angle.
+
+    The N time steps are split into ``num_cores`` contiguous chunks; each chunk is
+    processed by one worker that reuses its IRBEM handle and warm-starts each step from
+    the previous one. (The first step of each chunk cold-starts at ``max_r``.)
+
+    Args:
+        times: Sequence of epochs (length N).
+        maginput: Magnetic-field-model inputs as arrays of length N keyed by IRBEM name.
+        alpha_eq_deg: Equatorial pitch angle in degrees.
+        num_cores: Number of worker processes / chunks (1 => serial).
+        warm_start_buffer: RE added above the previous solution when warm-starting the
+            coarse march. Defaults to ``coarse_step``; set 0 to start exactly at the
+            previous boundary.
+        censored_value: Value written for steps where the shell was still closed at
+            ``max_r`` (the boundary lies beyond the window, so L* is only a lower bound).
+            Default ``np.inf`` so a downstream "is L < LCDS?" test treats everything in
+            the window as trapped. Pass ``None`` to keep the lower-bound L*(max_r) value
+            instead, or ``np.nan`` to drop these steps.
+        (remaining args as in ``compute_lcds``.)
+
+    Returns:
+        float64 array of length N with the LCDS L* per time step. Misses are NaN;
+        ceiling-censored steps are set to ``censored_value`` (unless it is ``None``).
+    """
+    logger.info("\tCalculating LCDS ...")
+
+    if search_params is None:
+        search_params = LCDSSearchParams(
+            max_r=10,
+            coarse_step=1,
+            medium_step=0.5,
+            fine_step=0.1,
+            trace_r0=0.8,
+            start_r=10,
+        )
+
+    timestamps = time_var.get_data(ep.units.posixtime)
+    pa_eq = pa_eq_var.get_data(u.deg)
+
+    datetimes = [datetime.fromtimestamp(t, tz=timezone.utc) for t in timestamps]
+
+    pa_eq = pa_eq.astype(np.float64)
+    irbem_input.maginput = {key: arr.astype(np.float64) for key, arr in irbem_input.maginput.items()}
+
+    n_times = len(datetimes)
+
+    for key, arr in irbem_input.maginput.items():
+        if len(arr) != n_times:
+            msg = f"maginput['{key}'] has length {len(arr)} but {n_times} times were given."
+            raise ValueError(msg)
+
+    if n_times != len(pa_eq):
+        msg = f"Encountered size mismatch for pa_eq: len of pa_eq data: {len(pa_eq)}, requested len: {n_times}"
+        raise ValueError(msg)
+
+    kext = irbem_input.magnetic_field.kext()
+    irbem_args = (irbem_input.irbem_lib_path, irbem_input.irbem_options, kext, ep.IRBEM_SYSAXIS_SM)
+
+    n_chunks = max(1, min(irbem_input.num_cores, n_times))
+    index_chunks = [[int(i) for i in chunk] for chunk in np.array_split(np.arange(n_times), n_chunks)]
+    parallel_func = partial(_get_LCDS_parallel, irbem_args, datetimes, irbem_input.maginput, pa_eq, search_params)
+
+    if irbem_input.num_cores > 1:
+        logger.info("Computing LCDS for %d steps across %d chunks ...", n_times, n_chunks)
+        with Pool(processes=irbem_input.num_cores) as pool:
+            rs = pool.map_async(parallel_func, index_chunks)
+            show_process_bar_for_map_async(rs, len(index_chunks[0]))
+
+        results = rs.get()
+    else:
+        logger.info("Computing LCDS for %d steps serially ...", n_times)
+        results = [parallel_func(chunk) for chunk in index_chunks]
+
+    lcds = np.full((n_times, pa_eq.shape[1]), np.inf, dtype=np.float64)
+    for chunk_indices, chunk_result in zip(index_chunks, results, strict=True):
+        lcds[chunk_indices, :] = chunk_result
+
+    lcds[lcds == FORTRAN_BAD_VALUE] = np.nan
+
+    lcds_var = ep.Variable(data=lcds, original_unit=u.dimensionless_unscaled)
+    lcds_var.metadata.add_processing_note(
+        f"Calculated LCDS using IRBEM model {irbem_input.magnetic_field} with options "
+        f"{irbem_input.irbem_options} and {search_params}."
+    )
+
+    return lcds_var
