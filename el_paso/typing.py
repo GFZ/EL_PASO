@@ -113,6 +113,7 @@ GFZVarNames: TypeAlias = Literal[
     "Flux",
     "InvK",
     "InvMu",
+    "LCDS",
     "Lm",
     "Lstar",
     "MLT",
@@ -145,7 +146,6 @@ GFZVarNames: TypeAlias = Literal[
     "wave_wna",
     "xGEO",
     # END GENERATED GFZ_VAR_NAMES
-    "LCDS",
 ]
 """Variable names used by the GFZ output standard.
 
