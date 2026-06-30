@@ -3,7 +3,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 from datetime import datetime, timezone
-
 import numpy as np
 import pandas as pd
 import pytest
