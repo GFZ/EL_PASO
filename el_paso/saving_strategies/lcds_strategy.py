@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class LCDSSTrategy(SavingStrategy):
+class LCDSStrategy(SavingStrategy):
     """Save PRBEM-standard data into one monthly file per interval.
 
     The strategy supports NetCDF, CDF, HDF5, and MATLAB output through a format
@@ -83,8 +83,9 @@ class LCDSSTrategy(SavingStrategy):
         """Return the standard variable list plus user-defined custom variables."""
         return [
             "Epoch",
-            "Alpha_Eq",
+            "Alpha",
             "LCDS",
+            "InvK",
         ]
 
     def get_time_intervals_to_save(self, start_time: datetime | None, end_time: datetime | None) -> list[TimeInterval]:
@@ -116,7 +117,7 @@ class LCDSSTrategy(SavingStrategy):
         return self.base_data_path
 
     def get_file_name_stem(self) -> str:
-        return "LCDS_" + self.mag_field
+        return "LCDS_"
 
     def get_file_path(self, interval_start: datetime, interval_end: datetime, output_file: OutputFile) -> Path:  # noqa: ARG002
         """Generate the monthly file path for the configured format."""
