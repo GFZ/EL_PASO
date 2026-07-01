@@ -22,7 +22,30 @@ def compute_lcds(
     num_cores: int = 10,
     max_search_radius: float = 10,
 ) -> None:
+    """Computes the Last Closed Drift Shell (LCDS) over a time range and saves it to disk.
 
+    Builds a uniform time grid from ``start_time`` to ``end_time`` at the given cadence,
+    computes the LCDS L* for each equatorial pitch angle in ``alpha_eq`` at every time
+    step, and writes the results (Epoch, LCDS, Alpha) to ``processed_data_path`` using
+    the GFZ data standard.
+
+    Args:
+        start_time: Start of the time range (inclusive).
+        end_time: End of the time range (exclusive).
+        cadence: Time step between consecutive samples.
+        alpha_eq: Equatorial pitch angles in degrees, applied identically at every
+            time step.
+        mag_field: External magnetic field model to use (e.g. ``"T89"``, ``"T04s"``).
+        processed_data_path: Directory or file path where the output is saved.
+        num_cores: Number of worker processes used to parallelize the computation
+            across time steps. Defaults to 10.
+        max_search_radius: Outer ceiling for the radial search, in RE. A drift shell
+            still closed at this radius is censored rather than reported as the LCDS.
+            Defaults to 10.
+
+    Returns:
+        None. Results are written to ``processed_data_path`` as a side effect.
+    """
     datetimes = []
     curr_time = start_time
     while curr_time < end_time:
@@ -38,7 +61,7 @@ def compute_lcds(
         max_r=max_search_radius, start_r=max_search_radius
     )
 
-    lcds_var = ep.processing.compute_LCDS(
+    lcds_var, inv_K_var = ep.processing.compute_LCDS(
         time_var,
         alpha_eq_var,
         mag_field,
@@ -46,36 +69,43 @@ def compute_lcds(
         num_cores=num_cores,
         search_params=search_params,
     )
-
-    saving_strategy = ep.saving_strategies.LCDSSTrategy(processed_data_path, mag_field, ep.data_standards.GFZStandard())
+    saving_strategy = ep.saving_strategies.LCDSStrategy(processed_data_path, mag_field, ep.data_standards.GFZStandard())
 
     variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
         "Epoch": time_var,
         "LCDS": lcds_var,
-        "Alpha_Eq": alpha_eq_var,
+        "Alpha": alpha_eq_var,
+        "InvK": inv_K_var
     }
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time)
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var)
 
 
 if __name__ == "__main__":
     setup_logging()
 
     parser = argparse.ArgumentParser(
-        description="Process density data from EFW and EMFISIS instrument on VanAllenProbes."
+        description="Compute Last Closed Drift Shell (LCDS) for an empirical magnetic field model."
     )
     parser.add_argument(
         "--start_time",
         type=str,
         help="Start time in valid dateparse format. Example: YYYY-MM-DDTHH:MM:SS.",
-        default=datetime(2017, 4, 1, tzinfo=timezone.utc).isoformat(),
+        default=datetime(2014, 1, 11, 0, 0, tzinfo=timezone.utc).isoformat(),
         required=False,
     )
     parser.add_argument(
         "--end_time",
         type=str,
         help="End time in valid dateparse format. Example: YYYY-MM-DDTHH:MM:SS.",
-        default=datetime(2017, 4, 1, 0, 15, tzinfo=timezone.utc).isoformat(),
+        default=datetime(2014, 1, 14, 0, 0, tzinfo=timezone.utc).isoformat(),
+        required=False,
+    )
+    parser.add_argument(
+        "mag_field",
+        type=str,
+        help="Magnetic field model. [T89, T96, T01s, TS04]",
+        default="T89",
         required=False,
     )
 
@@ -84,14 +114,14 @@ if __name__ == "__main__":
     dt_start = dateutil.parser.parse(args.start_time)
     dt_end = dateutil.parser.parse(args.end_time)
 
-    alpha_eq = list(np.arange(5, 91, 30))
+    alpha_eq = list(np.arange(10, 91, 10))
 
     compute_lcds(
         dt_start,
         dt_end,
         timedelta(minutes=5),
         alpha_eq,
-        "TS04",
+        args.mag_field,
         processed_data_path=".",
-        num_cores=1,
+        num_cores=128,
     )

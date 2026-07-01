@@ -203,6 +203,6 @@ class GFZStandard(DataStandard[GFZVarNames]):
                 "density_eq", "Electron number density at the magnetic equator.", u.cm ** (-3), ["Epoch"]
             ),
             "LCDS": VariableInfo[GFZVarNames](
-                "LCDS", "Last Closed Drift Shell.", u.dimensionless_unscaled, ["Epoch", "Alpha_Eq"]
+                "LCDS", "Last Closed Drift Shell.", u.dimensionless_unscaled, ["Epoch", "Alpha"]
             ),
         }
