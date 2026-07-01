@@ -82,7 +82,7 @@ class GFZStandard(DataStandard[GFZVarNames]):
                 ["Epoch", "Alpha_range", "min_max"],
             ),
             "Alpha_Eq": VariableInfo[GFZVarNames](
-                "alpha_eq_model", "Calculated equatorial pitch angles of the particles.", u.radian, ["Epoch", "Alpha_Eq"]
+                "alpha_eq_model", "Calculated equatorial pitch angles of the particles.", u.radian, ["Epoch", "Alpha"]
             ),
             "Alpha_Eq_range": VariableInfo[GFZVarNames](
                 "alpha_eq_range",
@@ -156,6 +156,6 @@ class GFZStandard(DataStandard[GFZVarNames]):
                 "BB", "Frequency of the power spectral density.", u.dimensionless_unscaled, ["Epoch", "Wave_frequency"]
             ),
             "LCDS": VariableInfo[GFZVarNames](
-                "LCDS", "Last Closed Drift Shell.", u.dimensionless_unscaled, ["Epoch", "Alpha_Eq"]
+                "LCDS", "Last Closed Drift Shell.", u.dimensionless_unscaled, ["Epoch", "Alpha"]
             ),
         }

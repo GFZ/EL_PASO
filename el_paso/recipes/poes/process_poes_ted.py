@@ -253,7 +253,7 @@ if __name__ == "__main__":
         process_poes_ted_electron(
             start_time=dt_start,
             end_time=dt_end,
-            satellite_str=sat_str,  # ty:ignore[invalid-argument-type]
+            satellite_str=sat_str,
             raw_data_path=".",
             processed_data_path=".",
             num_cores=64,

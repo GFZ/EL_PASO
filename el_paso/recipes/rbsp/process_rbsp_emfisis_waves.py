@@ -486,7 +486,7 @@ if __name__ == "__main__":
         process_rbsp_emfisis_waves(
             dt_start,
             dt_end,
-            sat_str=sat_str,  # ty:ignore[invalid-argument-type]
+            sat_str=sat_str,
             raw_data_path=".",
             processed_data_path=".",
         )

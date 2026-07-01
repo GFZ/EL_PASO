@@ -454,7 +454,7 @@ def _get_mirror_point_parallel(
     bmin_output = np.empty_like(pa_local[it, :])
 
     for i, pa in enumerate(pa_local[it, :]):
-        bmin_output[i] = model.find_mirror_point(datetimes[it], x_dict_single, maginput, pa).bmin
+        bmin_output[i] = model.find_mirror_point(datetimes[it], x_dict_single, maginput, pa).bmirr
 
     return bmin_output.astype(np.float64)
 
@@ -694,7 +694,7 @@ def _get_LCDS_parallel(
     pa_eq: NDArray[np.floating],
     search_params: LCDSSearchParams,
     index_chunk: Sequence[int],
-) -> NDArray[np.floating]:
+) -> tuple[NDArray[np.floating], NDArray[np.floating]]:
 
     model = MagFields(
         lib_path=irbem_args[0],
@@ -704,27 +704,21 @@ def _get_LCDS_parallel(
     )
 
     lcds_result = np.full((len(index_chunk), pa_eq.shape[1]), np.inf)
-
-    import time
+    inv_K_result = np.full((len(index_chunk), pa_eq.shape[1]), np.inf)
 
     for ic, it in enumerate(index_chunk):
-        for ipa, pa in enumerate(pa_eq[it, :]):
-            it = int(it)
-            maginput_single = {key: maginput[key][it] for key in maginput}
+        it = int(it)
+        maginput_single = {key: maginput[key][it] for key in maginput}
 
-            start = time.perf_counter()
-            res = model.get_lcds(datetimes[it], pa, maginput_single, search_params)
-            end = time.perf_counter()
-            print(f"ic = {ic}, pa = {pa}, time = {end - start}")
+        res = model.get_lcds(datetimes[it], pa_eq[it, :], maginput_single, search_params)
 
-            if not res.at_ceiling:
-                lcds_result[ic, ipa] = res.lcds
+        keep = ~res.at_ceiling
+        lcds_result[ic, keep] = res.lcds[keep]
+        inv_K_result[ic, keep] = res.inv_k[keep]
 
-            # carry the solution forward as the next iteration's starting radius
-            search_params.start_r = res.x_sm if res.found else search_params.max_r
+        search_params.start_r = res.x_sm if np.isfinite(res.x_sm) else search_params.max_r
 
-
-    return lcds_result
+    return lcds_result, inv_K_result
 
 
 @timed_function()
@@ -733,7 +727,7 @@ def get_LCDS(
     pa_eq_var: ep.Variable,
     irbem_input: IrbemInput,
     search_params: LCDSSearchParams | None = None,
-) -> ep.Variable:
+) -> tuple[ep.Variable, ep.Variable]:
     """Compute the LCDS L* over a time series for one equatorial pitch angle.
 
     The N time steps are split into ``num_cores`` contiguous chunks; each chunk is
@@ -793,7 +787,7 @@ def get_LCDS(
     kext = irbem_input.magnetic_field.kext()
     irbem_args = (irbem_input.irbem_lib_path, irbem_input.irbem_options, kext, ep.IRBEM_SYSAXIS_SM)
 
-    n_chunks = max(1, min(irbem_input.num_cores, n_times))
+    n_chunks = max(1, min(irbem_input.num_cores, n_times) * 4)
     index_chunks = [[int(i) for i in chunk] for chunk in np.array_split(np.arange(n_times), n_chunks)]
     parallel_func = partial(_get_LCDS_parallel, irbem_args, datetimes, irbem_input.maginput, pa_eq, search_params)
 
@@ -809,10 +803,13 @@ def get_LCDS(
         results = [parallel_func(chunk) for chunk in index_chunks]
 
     lcds = np.full((n_times, pa_eq.shape[1]), np.inf, dtype=np.float64)
+    inv_K = np.full((n_times, pa_eq.shape[1]), np.inf, dtype=np.float64)
     for chunk_indices, chunk_result in zip(index_chunks, results, strict=True):
-        lcds[chunk_indices, :] = chunk_result
+        lcds[chunk_indices, :] = chunk_result[0]
+        inv_K[chunk_indices, :] = chunk_result[1]
 
     lcds[lcds == FORTRAN_BAD_VALUE] = np.nan
+    inv_K[inv_K == FORTRAN_BAD_VALUE] = np.nan
 
     lcds_var = ep.Variable(data=lcds, original_unit=u.dimensionless_unscaled)
     lcds_var.metadata.add_processing_note(
@@ -820,4 +817,10 @@ def get_LCDS(
         f"{irbem_input.irbem_options} and {search_params}."
     )
 
-    return lcds_var
+    inv_K_var = ep.Variable(data=inv_K, original_unit=ep.units.RE * u.G**0.5)
+    inv_K_var.metadata.add_processing_note(
+        f"Calculated inv_K from LCDS using IRBEM model {irbem_input.magnetic_field} with options "
+        f"{irbem_input.irbem_options} and {search_params}."
+    )
+
+    return lcds_var, inv_K_var

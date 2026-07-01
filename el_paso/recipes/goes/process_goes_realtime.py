@@ -242,7 +242,7 @@ if __name__ == "__main__":
 
     for sat in ["primary", "secondary"]:
         process_goes_real_time(
-            sat_str=sat,  # ty:ignore[invalid-argument-type]
+            sat_str=sat,
             raw_data_path="goes/raw/",
             processed_data_path="goes/processed/",
             start_time=start_time,

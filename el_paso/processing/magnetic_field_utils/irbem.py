@@ -211,28 +211,25 @@ class FindMirrorPointOutput(NamedTuple):
     """
 
     blocal: float
-    bmin: float
+    bmirr: float
     posit: NDArray[np.float64]
 
 
 class LCDSResult(NamedTuple):
-    """Result of a single Last-Closed-Drift-Shell calculation.
+    """Per-pitch-angle LCDS for one time step.
 
     Attributes:
-        lcds: Roederer L* of the last closed drift shell (dimensionless), or the fill
-            value ``-1e31`` if no closed shell was found.
-        x_sm: SM x-coordinate (RE) where the boundary was located (used to warm-start
-            the next time step). NaN if not found.
-        found: Whether any closed drift shell was found within the search range.
-        at_ceiling: True if the shell was still closed at ``max_r`` and the search never
-            observed an open shell above it. In that case ``lcds`` is a *lower bound*
-            (true LCDS >= lcds), not a resolved boundary.
+        lcds: (n_pa,) L* of the last closed drift shell per pitch angle; NaN if not found.
+        found: (n_pa,) whether a closed shell was located for that pitch angle.
+        at_ceiling: (n_pa,) True where the shell was still closed at max_r (lower bound).
+        x_sm: shared single-min boundary radius (RE), for warm-starting the next step.
     """
 
-    lcds: float
+    lcds: NDArray[np.float64]
+    inv_k: NDArray[np.float64]
+    found: NDArray[np.bool_]
+    at_ceiling: NDArray[np.bool_]
     x_sm: float
-    found: bool
-    at_ceiling: bool
 
 
 class LstarQuantity(IntEnum):
@@ -617,7 +614,7 @@ class MagFields:
         logger.debug("Running IRBEM-LIB find_mirror_point for multiple time steps and pitch angles")
 
         c_blocal = ctypes.c_double(-9999)
-        c_bmin = ctypes.c_double(-9999)
+        c_bmirr = ctypes.c_double(-9999)
         c_posit = (3 * ctypes.c_double)()
 
         self._irbem_obj.find_mirror_point1_(
@@ -633,13 +630,13 @@ class MagFields:
             ctypes.byref(c_alpha),
             ctypes.byref(c_maginput),
             ctypes.byref(c_blocal),
-            ctypes.byref(c_bmin),
+            ctypes.byref(c_bmirr),
             ctypes.byref(c_posit),
         )
 
         return FindMirrorPointOutput(
             blocal=c_blocal.value,
-            bmin=c_bmin.value,
+            bmirr=c_bmirr.value,
             posit=np.array(c_posit),
         )
 
@@ -885,7 +882,7 @@ class MagFields:
     def get_lcds(
         self,
         time: datetime | str | pd.Timestamp,
-        alpha_eq_deg: float,
+        alpha_eq_deg: NDArray[np.floating],
         maginput: Mapping[MagInputKeys, NDArray[np.number] | list[np.number] | np.number],
         search_params: LCDSSearchParams | None = None,
     ) -> LCDSResult:
@@ -1242,125 +1239,143 @@ def _count_field_minima(blocal: NDArray[np.floating]) -> int:
 def _lcds_search(
     mag: MagFields,
     time: datetime | str | pd.Timestamp,
-    alpha_eq_deg: float,
+    alpha_eq_deg: NDArray[np.floating],
     maginput: Mapping[MagInputKeys, NDArray[np.number] | list[np.number] | np.number],
     search: LCDSSearchParams,
 ) -> LCDSResult:
-    """Run the search using pre-built IRBEM handles."""
+    """Run the LCDS search for a whole vector of equatorial pitch angles at once.
 
-    def evaluate(x_sm: float) -> tuple[int, float]:
-        """Probe SM position (x_sm, 0, 0). Returns (n_minima, lstar).
+    The cheap single-|B|-minimum passes (1-2.5) are pitch-angle independent, so they run
+    ONCE and locate a shared boundary. The expensive drift-shell L* test (pass 3) is then
+    evaluated for all pitch angles together via a single array call per probed radius.
 
-        ``lstar`` is -1 when the field line is not a clean single-minimum line, in
-        which case the expensive drift-shell call is skipped.
+    Args:
+        mag: Pre-built IRBEM handle (SM sysaxes).
+        time: Epoch of the calculation.
+        alpha_eq_deg: 1-D array of equatorial pitch angles in degrees.
+        maginput: Magnetic-field-model inputs for this time step.
+        search: Radial-search settings.
+
+    Returns:
+        LCDSResult with per-pitch-angle L* / found / at_ceiling and the shared boundary.
+    """
+    alpha = np.asarray(alpha_eq_deg, dtype=np.float64).reshape(-1)
+    n_pa = alpha.size
+
+    coords = Coords(lib_path=mag.irbem_obj_path)  # build once; reused by the L* test
+
+    def _sm_pos(x_sm: float) -> dict[Literal["x1", "x2", "x3"], np.float64]:
+        return {"x1": np.float64(x_sm), "x2": np.float64(0.0), "x3": np.float64(0.0)}
+
+    def single_min(x_sm: float) -> bool:
+        """Cheap, pitch-angle-independent closure proxy: one |B| minimum (one trace)."""
+        trace = mag.trace_field_line(time, _sm_pos(x_sm), maginput, r0=search.trace_r0)
+        return _count_field_minima(trace.blocal) == 1
+
+    def calc_lstar_and_inv_k(x_sm: float, alpha: float) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+        """Real L* for ALL pitch angles at x_sm via one drift-shell array call.
+
+        Returns an (n_pa,) array; entries <= 0 are open/invalid for that pitch angle.
         """
-        sm_pos: dict[Literal["x1", "x2", "x3"], np.float64] = {
-            "x1": np.float64(x_sm),
-            "x2": np.float64(0.0),
-            "x3": np.float64(0.0),
-        }
+        trace = mag.trace_field_line(time, _sm_pos(x_sm), maginput, r0=search.trace_r0)
+        if _count_field_minima(trace.blocal) != 1:
+            return np.full(n_pa, -1.0), np.full(n_pa, -1.0)
 
-        trace = mag.trace_field_line(time, sm_pos, maginput, r0=search.trace_r0)
-        n_min = _count_field_minima(trace.blocal)
-        if n_min != 1:
-            return n_min, -1.0
-
-        equator = mag.find_magequator(time, sm_pos, maginput)  # returns GEO position
+        equator = mag.find_magequator(time, _sm_pos(x_sm), maginput)  # GEO; shared by all alpha
         if not np.all(np.isfinite(equator.xgeo)) or np.any(equator.xgeo <= FORTRAN_BAD_VALUE):
-            return 0, -1.0
+            return np.full(n_pa, -1.0), np.full(n_pa, -1.0)
 
-        equator_sm = Coords().transform(time, equator.xgeo, ep.IRBEM_SYSAXIS_GEO, ep.IRBEM_SYSAXIS_SM)
+        equator_sm = coords.transform(time, equator.xgeo, ep.IRBEM_SYSAXIS_GEO, ep.IRBEM_SYSAXIS_SM)
         equator_sm_pos: dict[Literal["x1", "x2", "x3"], np.float64] = {
-            "x1": equator_sm[0,0],
-            "x2": equator_sm[0,1],
-            "x3": equator_sm[0,2],
+            "x1": equator_sm[0, 0],
+            "x2": equator_sm[0, 1],
+            "x3": equator_sm[0, 2],
         }
 
-        out = mag.make_lstar_shell_splitting(time, equator_sm_pos, maginput, np.asarray([alpha_eq_deg]))
+        lstar_res = mag.make_lstar_shell_splitting(time, equator_sm_pos, maginput, np.array([alpha]))
+        b_mirr_nT = mag.find_mirror_point(time, equator_sm_pos, maginput, alpha)
+        b_mirr_G = b_mirr_nT.bmirr / 1e5
 
-        return n_min, float(np.squeeze(out.lstar))
+        inv_k = np.sqrt(b_mirr_G) * lstar_res.xj
 
-    def is_closed(x_sm: float) -> tuple[bool, float]:
-        """A shell is closed iff the field line has a single minimum and L* > 0."""
-        n_min, lstar = evaluate(x_sm)
-        return (n_min == 1 and lstar > 0.0), lstar
+        return lstar_res.lstar.reshape(-1), inv_k.reshape(-1)
 
     max_r = search.max_r
     coarse_step = search.coarse_step
+    medium_step = search.medium_step
+    fine_step = search.fine_step
     start = min(search.start_r, max_r)
-    max_itx = max(1, int(max_r / coarse_step - 1))  # safety bound on iterations per pass
+    max_itx = max(1, int(max_r / coarse_step - 1))
+    inner_floor = 1.0
 
-    # --- Pass 1: coarse march toward the boundary; direction set by the start point. ---
-    # The boundary is where the shell switches between closed and open. Probe the start
-    # once and march the way the boundary must lie, so there is no wasted backtracking:
-    #   * start OPEN   -> boundary is further IN  -> march inward to the first closed shell.
-    #   * start CLOSED -> boundary is further OUT -> march outward, keeping the last closed
-    #                     shell before the field opens (or hit the ceiling -> censored).
-    # Either way the coarse march ends on the outermost closed shell at coarse resolution,
-    # which passes 2-3 then refine outward.
-    closed, lstar = is_closed(start)
+    not_found = LCDSResult(
+        lcds=np.full(n_pa, np.nan),
+        inv_k=np.full(n_pa, np.nan),
+        found=np.zeros(n_pa, dtype=bool),
+        at_ceiling=np.zeros(n_pa, dtype=bool),
+        x_sm=np.nan,
+    )
+
+    # --- Pass 1: coarse single-min march (shared); direction set by the start point. ---
+    closed = single_min(start)
 
     if not closed:
-        # OPEN start: march INWARD until the first (outermost) closed shell appears.
-        lstar_valid, x_sm_valid = -1.0, start
+        # OPEN start: march INWARD to the first (outermost) single-min shell.
+        x_anchor = -1.0
         itx = 0
-        x_sm = start
         while itx <= max_itx:
             x_sm = start - coarse_step * itx
             if x_sm <= 0:
                 break
-            found, l_val = is_closed(x_sm)
-            if found:
-                lstar_valid, x_sm_valid = l_val, x_sm
+            if single_min(x_sm):
+                x_anchor = x_sm
                 break
             itx += 1
+        if x_anchor < 0:
+            return not_found
     else:
-        # CLOSED start: march OUTWARD, tracking the last closed shell before it opens.
-        lstar_valid, x_sm_valid = lstar, start
+        # CLOSED start: march OUTWARD, keeping the last single-min shell before it opens.
+        # If single-min holds to the ceiling, x_anchor == max_r and pass 3 censors below.
+        x_anchor = start
         x_sm = start
         while closed and x_sm < max_r:
             x_sm = min(x_sm + coarse_step, max_r)
-            closed, l_val = is_closed(x_sm)
+            closed = single_min(x_sm)
             if closed:
-                lstar_valid, x_sm_valid = l_val, x_sm
-        if closed:
-            # still closed at the ceiling -> boundary lies beyond the search window
-            if lstar_valid > 0.0:
-                return LCDSResult(lcds=lstar_valid, x_sm=max_r, found=True, at_ceiling=True)
-            return LCDSResult(lcds=float(FORTRAN_BAD_VALUE), x_sm=float("nan"), found=False, at_ceiling=False)
+                x_anchor = x_sm
 
-    # --- Pass 2: medium, march back outward, keeping the highest valid L* ---
+    # --- Pass 2: medium single-min refinement (shared). ---
     itx = 1
-    n_min = 1
-    while lstar > 0 and itx <= max_itx and n_min == 1 and x_sm < max_r:
-        x_sm += search.medium_step
-        if x_sm >= max_r:
-            break
-        n_min, l_val = evaluate(x_sm)
-        if n_min == 1:
-            lstar = l_val
-            if lstar > 0:
-                lstar_valid, x_sm_valid = lstar, x_sm
-            itx += 1
+    while itx <= max_itx and x_anchor + medium_step < max_r and single_min(x_anchor + medium_step):
+        x_anchor += medium_step
+        itx += 1
 
-    # --- Pass 3: fine, continue outward from the last valid point ---
-    lstar = lstar_valid
-    x_sm = x_sm_valid
-    n_min = 1
-    while lstar > 0 and itx <= max_itx and n_min == 1 and x_sm < max_r:
-        x_sm += search.fine_step
-        if x_sm >= max_r:
-            break
-        n_min, l_val = evaluate(x_sm)
-        if n_min == 1:
-            lstar = l_val
-            if lstar > 0:
-                lstar_valid, x_sm_valid = lstar, x_sm
-            itx += 1
+    # --- Pass 2.5: fine single-min refinement (shared, traces only). ---
+    while x_anchor + fine_step < max_r and single_min(x_anchor + fine_step):
+        x_anchor += fine_step
+    # x_anchor is the shared outermost single-min point at fine resolution.
 
-    if lstar_valid > 0:
-        # The last valid point sitting within one fine step of the ceiling means the
-        # shell never opened inside the window -> the result is a censored lower bound.
-        at_ceiling = x_sm_valid >= max_r - search.fine_step
-        return LCDSResult(lcds=lstar_valid, x_sm=x_sm_valid, found=True, at_ceiling=at_ceiling)
-    return LCDSResult(lcds=float(FORTRAN_BAD_VALUE), x_sm=float("nan"), found=False, at_ceiling=False)
+    # --- Pass 3: real L* test for all pitch angles, sharing each probe's array call. ---
+    # Every pitch angle's L* boundary is at or inside x_anchor. March inward; the first
+    # probe (largest x) where a given angle's shell is closed is its outermost boundary.
+    # Closure is monotone going in, so `found` only grows -> stop once all angles resolve.
+    lcds = np.full(n_pa, np.nan)
+    x_at = np.full(n_pa, np.nan)
+    inv_k = np.full(n_pa, np.nan)
+    found = np.zeros(n_pa, dtype=bool)
+
+    for ipa, alpha_single in enumerate(alpha):
+        x_sm = x_anchor
+        while x_sm > inner_floor:
+            lstar, inv_k_single = calc_lstar_and_inv_k(x_sm, alpha_single)
+            if lstar[0] > 0.0:
+                lcds[ipa] = lstar[0]
+                x_at[ipa] = x_sm
+                found[ipa] = True
+                inv_k[ipa] = inv_k_single[0]
+                x_anchor = x_sm
+                break
+            x_sm -= fine_step
+
+    at_ceiling = found & (x_at >= max_r - fine_step)
+    return LCDSResult(lcds=lcds, inv_k=inv_k, found=found, at_ceiling=at_ceiling, x_sm=float(x_anchor))
