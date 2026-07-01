@@ -20,7 +20,7 @@ def compute_LCDS(
     *,
     irbem_lib_path: str | Path = Path(ep.__file__).parent / "libirbem.so",
     num_cores: int = 12,
-) -> ep.Variable:
+) -> tuple[ep.Variable, ep.Variable]:
 
     indices_solar_wind_hashable = make_dict_hashable(indices_solar_wind)
 

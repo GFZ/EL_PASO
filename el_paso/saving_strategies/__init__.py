@@ -8,7 +8,7 @@ from el_paso.saving_strategies.daily_leo_rb_strategy import DailyLEORBStrategy
 from el_paso.saving_strategies.daily_wave_strategy import DailyWaveStrategy
 from el_paso.saving_strategies.density_netcdf_strategy import DensityNetCDFStrategy
 from el_paso.saving_strategies.gfz_strategy import GFZStrategy
-from el_paso.saving_strategies.lcds_strategy import LCDSSTrategy
+from el_paso.saving_strategies.lcds_strategy import LCDSStrategy
 from el_paso.saving_strategies.monthly_rb_strategy import MonthlyRBStrategy
 from el_paso.saving_strategies.single_file_strategy import SingleFileStrategy
 
