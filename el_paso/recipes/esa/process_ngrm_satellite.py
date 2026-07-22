@@ -27,6 +27,7 @@ EPT_ENERGY_LIMITS = [0.5, 0.6, 0.7, 0.8, 1.0, 2.4, 8.0]
 SATELLITE_TO_ID = {
     "EDRS-C": "https://swe.ssa.esa.int/hapi/data?id=spase://SSA/NumericalData/D3S/d3s_edrsc_ngrm_spid204030252_science_ep_l1_gc_v3",
     "S6-MF": "https://swe.ssa.esa.int/hapi/data?id=spase://SSA/NumericalData/D3S/d3s_sentinel6mf_ngrm_science_ep_l1_gc_v1",
+    "S6-B": "https://swe.ssa.esa.int/hapi/data?id=spase://SSA/NumericalData/D3S/d3s_sentinel6b_ngrm_science_ep_l1_gc_v1",
     "MTG-S1": "https://swe.ssa.esa.int/hapi/data?id=spase://SSA/NumericalData/D3S/d3s_mtgs1_ngrm_science_ep_l1_gc_v1",
     "MTG-I1": "https://swe.ssa.esa.int/hapi/data?id=spase://SSA/NumericalData/D3S/d3s_mtgi1_ngrm_science_ep_l1_gc_v1",
 }
@@ -242,11 +243,11 @@ def process_ngrm_electron_fluxes(
         ("B_Eq", "T89"),
         ("R_Eq", "T89"),
         ("Alpha_Eq", "T89"),
-        ("L_m", "T89"),
     ]
 
     if calculate_Lstar:
         variables_to_compute.append(("L_star", "T89"))  # ty:ignore[invalid-argument-type]
+        variables_to_compute.append(("L_m", "T89"))  # ty:ignore[invalid-argument-type]
 
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
         time_var=binned_time_var,
@@ -281,17 +282,21 @@ def process_ngrm_electron_fluxes(
         "Alpha_Eq": magnetic_field_variables["Alpha_Eq_T89"],
         "R_Eq": magnetic_field_variables["R_Eq_T89"],
         "MLT": magnetic_field_variables["MLT_Eq_T89"],
-        "L_m": magnetic_field_variables["L_m_T89"],
-        "L_star": magnetic_field_variables["L_star_T89"],
         "B_Calc": magnetic_field_variables["B_Calc_T89"],
         "B_Eq": magnetic_field_variables["B_Eq_T89"],
         "Position": variables["xGEO"],
         "PSD": psd_var,
     }
 
+    if calculate_Lstar:
+        variables_to_save["L_star"] = magnetic_field_variables["L_star_T89"]
+        variables_to_save["L_m"] = magnetic_field_variables["L_m_T89"]
+
     if saving_strategy is None:
         save_srat_class = (
-            ep.saving_strategies.DailyLEORBStrategy if satellite == "S6-MF" else ep.saving_strategies.MonthlyRBStrategy
+            ep.saving_strategies.DailyLEORBStrategy
+            if satellite.startswith("S6")
+            else ep.saving_strategies.MonthlyRBStrategy
         )
 
         saving_strategy = save_srat_class(

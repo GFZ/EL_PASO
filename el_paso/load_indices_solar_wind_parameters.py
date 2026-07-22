@@ -120,7 +120,11 @@ def load_indices_solar_wind_parameters(
                     swvo_io.kp.KpNiemegk(base_data_path / "KpNiemegk", prefer_env_var=True),
                 ]
                 output_df = swvo_io.kp.read_kp_from_multiple_models(
-                    start_time, end_time, model_order=kp_model_order, download=True
+                    start_time,
+                    end_time,
+                    model_order=kp_model_order,
+                    download=True,
+                    fill_average=True,
                 )
 
                 assert isinstance(output_df, pd.DataFrame)

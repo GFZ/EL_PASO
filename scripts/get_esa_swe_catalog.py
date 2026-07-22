@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2025 GFZ Helmholtz Centre for Geosciences
+# SPDX-FileCopyrightText: 2025 GFZ Helmholtz Centre for Geosciences  # noqa: INP001
 # SPDX-FileContributor: Bernhard Haas
 # SPDX-FileContributor: Sahil Jhawar
 #
@@ -9,7 +9,7 @@ import requests
 from dotenv import load_dotenv
 from tabulate import tabulate
 
-load_dotenv("../examples/ESA/esa.env")
+load_dotenv(os.path.abspath(os.path.join(os.path.dirname(__file__), "../.env")))  # noqa: PTH100, PTH118, PTH120
 
 client_id = os.environ.get("CLIENT_ID")
 client_secret = os.environ.get("CLIENT_SECRET")
