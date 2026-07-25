@@ -363,13 +363,19 @@ def load_netcdf_data(file_path: Path, target_var_names: list[str] | None = None)
 
 
 def load_netcdf_data_lazy(file_path: Path) -> dict[StandardName, Any]:
-    """Load all variables and variable metadata from a NetCDF file lazily using xarray."""
+    """Load all variables and variable metadata from a NetCDF file lazily using xarray.
+
+    The returned dict carries the opened, lazily-backed `xr.Dataset` groups under the
+    reserved ``"__open_resources__"`` key so callers (e.g. `DataSet`) can close the
+    underlying file handles once they are done with the lazily-loaded variables.
+    """
     if not file_path.exists():
         logger.error(f"File not found: {file_path}")
         return {}
 
     loaded_data: dict[StandardName, Any] = {"metadata": {}}
     grouped_datasets = xr.open_groups(file_path)
+    loaded_data["__open_resources__"] = list(grouped_datasets.values())  # ty:ignore[invalid-assignment]
 
     for group_path, ds in grouped_datasets.items():
         prefix = f"{group_path}/" if group_path != "/" else ""

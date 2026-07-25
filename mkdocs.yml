@@ -104,6 +104,7 @@ nav:
       - Saving Strategies: tutorials/3_saving_strategies_and_datasets.ipynb
       - Time Binning: tutorials/4_time_binning.ipynb
       - Magnetic Field Processing: tutorials/5_magnetic_field_processing.ipynb
+      - DataSet Context Manager: tutorials/6_dataset_context_manager.ipynb
 
 markdown_extensions:
   - admonition

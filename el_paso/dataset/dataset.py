@@ -26,6 +26,8 @@ from el_paso.dataset.utils import (
 )
 
 if TYPE_CHECKING:
+    from typing import Self
+
     from numpy.typing import NDArray
 
     from el_paso.typing import (
@@ -48,6 +50,21 @@ class DataSet:
     This unified class handles loading data from multiple file formats and
     dictionary-backed sources. Dictionary updates are always allowed and replace
     existing values for standard variables.
+
+    Can be used either directly::
+
+        ds = DataSet(...)
+        ds.load("Flux")
+
+    or as a context manager, which deterministically closes any file handles
+    held open by lazily-loaded variables as soon as the ``with`` block exits::
+
+        with DataSet(...) as ds:
+            ds.load("Flux")
+
+    Both styles are fully supported; if `close()` is never called explicitly (or
+    via ``with``), `__del__` closes any remaining open resources once the
+    instance is garbage-collected.
     """
 
     _internal_attrs = frozenset(
@@ -62,6 +79,7 @@ class DataSet:
             "_date_list",
             "_loaders",
             "_currently_loading",
+            "_open_resources",
         }
     )
 
@@ -92,6 +110,7 @@ class DataSet:
         self._verbose = verbose
         self._preferred_ext = preferred_extension
         self._currently_loading: set[str] = set()
+        self._open_resources: list[Any] = []
 
         self.saving_strategy = saving_strategy
         self.possible_variables = [
@@ -160,6 +179,42 @@ class DataSet:
 
     def __str__(self) -> str:
         return self.__repr__()
+
+    def __enter__(self) -> Self:
+        """Enter the runtime context, returning this dataset."""
+        return self
+
+    def __exit__(self, *exc_info: object) -> None:
+        """Exit the runtime context, closing any open file handles."""
+        self.close()
+
+    def __del__(self) -> None:
+        """Close any open file handles when the dataset is garbage-collected."""
+        self.close()
+
+    def close(self) -> None:
+        """Close file handles held open by lazily-loaded variables.
+
+        Already-loaded variables remain accessible; only the underlying open file
+        resources (from lazily-loaded ``.nc`` files) are released. Safe to call
+        multiple times.
+
+        Any still-lazy loaded variable is materialized into an in-memory array first,
+        so that accessing it afterwards can never transparently reopen the file (which
+        `xarray`'s caching file manager would otherwise do on demand).
+        """
+        for var_name in self.get_loaded_variables():
+            raw_value = self.__dict__.get(var_name)
+            if isinstance(raw_value, xr.Variable):
+                self.__dict__[var_name] = raw_value.values
+
+        open_resources = self.__dict__.get("_open_resources", [])
+        for resource in open_resources:
+            try:
+                resource.close()
+            except Exception:
+                logger.debug(f"Failed to close resource {resource!r}", exc_info=True)
+        open_resources.clear()
 
     def __getattribute__(self, name: str) -> Any:  # noqa: ANN401
         value = super().__getattribute__(name)
@@ -378,6 +433,10 @@ class DataSet:
                                 metadata_key,
                                 metadata_value,
                             )
+                    continue
+
+                if key == "__open_resources__":
+                    self._open_resources.extend(cast("list[Any]", var_arr))
                     continue
 
                 if key != "datetime" and (
