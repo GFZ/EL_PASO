@@ -102,7 +102,7 @@ class GFZStandard(DataStandard[GFZVarNames]):
             "PSD": VariableInfo[GFZVarNames](
                 "PSD",
                 "Calculated phase space density of particles.",
-                (u.m * u.kg * u.m / u.s) ** (-3),
+                ep.units.psd_natural_unit,
                 ["Epoch", ("Energy_FEDU", "Energy_FPDU"), "Alpha"],
             ),
             "MLT": VariableInfo[GFZVarNames](

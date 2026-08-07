@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 import cdflib
 import numpy as np
 from astropy import units as u
+from astropy import constants as const
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -31,6 +32,9 @@ J2000_EPOCH = dt.datetime(2000, 1, 1, 12, 0, 0, tzinfo=dt.timezone.utc)
 
 # Position units
 RE = u.def_unit("RE", 6371.2 * u.km)
+
+# Phase space density unit
+psd_natural_unit = u.def_unit("c3_per_MeV3_cm3", (const.c / (u.MeV * u.cm)) ** 3)
 
 # -----------------------------------------------------------------------------
 # 2. Time Conversion Functions
@@ -195,6 +199,7 @@ j2k_posixtime_equiv = [
 
 # Add custom units to the astropy.units namespace for direct access (e.g., u.RE)
 u.add_enabled_units(RE)
+u.add_enabled_units(psd_natural_unit)
 u.add_enabled_units(tt2000)
 u.add_enabled_units(posixtime)
 u.add_enabled_units(datenum)
