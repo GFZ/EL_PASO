@@ -16,6 +16,7 @@ import numpy as np
 from astropy import units as u
 
 import el_paso as ep
+from el_paso.processing.magnetic_field_utils import InternalFieldModel, IrbemOptions, LstarQuantity
 
 
 def process_rbspice_protons(
@@ -143,7 +144,7 @@ def process_rbspice_protons(
     # filter to the [0, 90] degree range explicitly instead of using fold_pitch_angles_and_flux
     pa_data = variables["Pitch_angle"].get_data()
     pa_row = pa_data[0, :]
-    pa_mask = (pa_row >= 0) & (pa_row <= 90)
+    pa_mask = (pa_row >= 0) & (pa_row <= 90)  # ty:ignore[unsupported-operator]
     T = pa_data.shape[0]
     variables["Pitch_angle"]._data = np.tile(pa_row[pa_mask], (T, 1))
     fpdu_data = variables["FPDU"].get_data()
@@ -153,9 +154,6 @@ def process_rbspice_protons(
 
     # not needed anymore
     del variables["FPDU_Epoch"]
-
-    # Calculate magnetic field variables
-    irbem_options = [1, 1, 4, 4, 0]
 
     vars_to_compute: ep.typing.VariableRequest = [
         ("B_Calc", mag_field),
@@ -173,7 +171,7 @@ def process_rbspice_protons(
         time_var=binned_time_variable,
         xgeo_var=variables["xGEO"],
         variables_to_compute=vars_to_compute,
-        irbem_options=irbem_options,
+        irbem_options=IrbemOptions(LstarQuantity.LSTAR, 1, 4, 4, InternalFieldModel.IGRF),
         num_cores=num_cores,
         pa_local_var=variables["Pitch_angle"],
         energy_var=variables["Energy"],
@@ -228,9 +226,7 @@ if __name__ == "__main__":
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     logging.getLogger().setLevel(logging.INFO)
 
-    parser = argparse.ArgumentParser(
-        description="Process proton flux data from RBSPICE instrument on VanAllenProbes."
-    )
+    parser = argparse.ArgumentParser(description="Process proton flux data from RBSPICE instrument on VanAllenProbes.")
     parser.add_argument(
         "--start_time",
         type=str,
@@ -255,7 +251,7 @@ if __name__ == "__main__":
         process_rbspice_protons(
             dt_start,
             dt_end,
-            sat_str,  # ty:ignore[invalid-argument-type]
+            sat_str,
             "T89",
             raw_data_path="raw_rbspice",
             processed_data_path="processed_rbspice",

@@ -15,6 +15,7 @@ import dateutil
 from astropy import units as u
 
 import el_paso as ep
+from el_paso.processing.magnetic_field_utils import InternalFieldModel, IrbemOptions, LstarQuantity
 
 
 def process_rbsp_hope_protons(
@@ -134,9 +135,6 @@ def process_rbsp_hope_protons(
     # not needed anymore
     del variables["Epoch"]
 
-    # Calculate magnetic field variables
-    irbem_options = [1, 1, 4, 4, 0]
-
     vars_to_compute: ep.typing.VariableRequest = [
         ("B_Calc", mag_field),
         ("MLT", mag_field),
@@ -153,7 +151,7 @@ def process_rbsp_hope_protons(
         time_var=binned_time_variable,
         xgeo_var=variables["xGEO"],
         variables_to_compute=vars_to_compute,
-        irbem_options=irbem_options,
+        irbem_options=IrbemOptions(LstarQuantity.LSTAR, 1, 4, 4, InternalFieldModel.IGRF),
         num_cores=num_cores,
         pa_local_var=variables["Pitch_angle"],
         energy_var=variables["Energy"],
@@ -208,9 +206,7 @@ if __name__ == "__main__":
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     logging.getLogger().setLevel(logging.INFO)
 
-    parser = argparse.ArgumentParser(
-        description="Process proton flux data from ECT/HOPE instrument on VanAllenProbes."
-    )
+    parser = argparse.ArgumentParser(description="Process proton flux data from ECT/HOPE instrument on VanAllenProbes.")
     parser.add_argument(
         "--start_time",
         type=str,
@@ -235,7 +231,7 @@ if __name__ == "__main__":
         process_rbsp_hope_protons(
             dt_start,
             dt_end,
-            sat_str,  # ty:ignore[invalid-argument-type]
+            sat_str,
             "T89",
             raw_data_path="raw_hope",
             processed_data_path="processed_hope",

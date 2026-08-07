@@ -219,7 +219,7 @@ class DataSet:
         """Load data into memory."""
         getattr(self, name_or_var)
 
-    def find_similar_variable(self, name: str) -> tuple[None | str, dict[str, Any]]:
+    def find_similar_variable(self, name: str) -> tuple[str | None, dict[str, Any]]:
         """Find a possible variable matching the given name.
 
         Searches `possible_variables` for an exact match. If none is found, also

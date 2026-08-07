@@ -182,8 +182,7 @@ class ConsistencyCheck:
         if isinstance(dim_name_or_size, int):
             if dim_name_or_size != provided_len:
                 msg = (
-                    f"Length mismatch! Variable {var_name} should have length {dim_name_or_size}, "
-                    f"but encountered {provided_len}!",
+                    f"Length mismatch! Variable {var_name} should have length {dim_name_or_size}, but encountered {provided_len}!",  # noqa: E501
                 )
                 raise ValueError(msg)
             return

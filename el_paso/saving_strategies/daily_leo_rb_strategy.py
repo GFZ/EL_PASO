@@ -16,7 +16,7 @@ class DailyLEORBStrategy(ep.typing.MonthlyRBStrategy):
     format (NetCDF) for low-Earth-orbit radiation-belt missions.
     """
 
-    def _get_output_file_entries(self) -> list[ep.typing.InternalName]:
+    def _get_output_file_entries(self) -> list[ep.typing.InternalName | tuple[ep.typing.InternalName, ...]]:
         """Return the standard variable list plus user-defined custom variables."""
         return [
             "FEDU",

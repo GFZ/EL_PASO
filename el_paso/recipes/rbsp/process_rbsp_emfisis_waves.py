@@ -313,7 +313,7 @@ def _clean_magnetometer_data(mag_vars: dict[str, ep.Variable]) -> dict[str, ep.V
             error_msg = f"Data length mismatch for variable'. \
                          Expected {good.shape[0]}, got {data.shape[0]}."
             raise ValueError(error_msg)
-        var.set_data(data[good], unit="same")
+        var.set_data(data[good], unit="same")  # ty:ignore[invalid-argument-type]
 
     return mag_vars
 
@@ -486,7 +486,7 @@ if __name__ == "__main__":
         process_rbsp_emfisis_waves(
             dt_start,
             dt_end,
-            sat_str=sat_str,  # ty:ignore[invalid-argument-type]
+            sat_str=sat_str,
             raw_data_path=".",
             processed_data_path=".",
         )

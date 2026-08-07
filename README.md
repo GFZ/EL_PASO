@@ -5,15 +5,13 @@ SPDX-FileContributor: Bernhard Haas
 SPDX-License-Identifier: Apache-2.0
 -->
 
-[![PyPi](https://badge.fury.io/py/el-paso.svg)](https://badge.fury.io/py/el-paso)
-[![Python version](https://img.shields.io/pypi/pyversions/el-paso.svg)](https://badge.fury.io/py/el-paso)
-[![Tests](https://github.com/GFZ/EL_PASO/actions/workflows/test.yml/badge.svg)](https://github.com/GFZ/EL_PASO/actions/workflows/test.yml)
-[![Coverage Status](https://coveralls.io/repos/github/GFZ/EL_PASO/badge.svg?branch=main)](https://coveralls.io/github/GFZ/EL_PASO?branch=main)
-[![Docs](https://app.readthedocs.org/projects/el-paso/badge/?version=latest)](https://el-paso.readthedocs.io/en/latest/)
-[![REUSE status](https://api.reuse.software/badge/github.com/GFZ/EL_PASO)](https://api.reuse.software/info/github.com/GFZ/EL_PASO)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![License: LGPL v3](https://img.shields.io/badge/License-LGPL_v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/GFZ/EL_PASO/executable_paper?urlpath=%2Fdoc%2Ftree%2Fpaper%2Fel_paso_executable_paper.ipynb)
+|            |                                                                                                                                                                                                                                                                                                                                                            |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Versions   | [![PyPi](https://badge.fury.io/py/el-paso.svg)](https://badge.fury.io/py/el-paso) [![Python version](https://img.shields.io/pypi/pyversions/el-paso.svg)](https://badge.fury.io/py/el-paso) [![Zenodo](https://img.shields.io/badge/Zenodo-10.5281/zenodo.20760790-blue)](https://doi.org/10.5281/zenodo.20760790)                                     |
+| Status     | [![Tests](https://github.com/GFZ/EL_PASO/actions/workflows/test.yml/badge.svg)](https://github.com/GFZ/EL_PASO/actions/workflows/test.yml) [![Coverage Status](https://coveralls.io/repos/github/GFZ/EL_PASO/badge.svg?branch=main)](https://coveralls.io/github/GFZ/EL_PASO?branch=main) [![Docs](https://app.readthedocs.org/projects/el-paso/badge/?version=latest)](https://el-paso.readthedocs.io/en/latest/) [![REUSE status](https://api.reuse.software/badge/github.com/GFZ/EL_PASO)](https://api.reuse.software/info/github.com/GFZ/EL_PASO) |
+| Tools      | [![Pre-Commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit) [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) [![ty](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ty/main/assets/badge/v0.json)](https://github.com/astral-sh/ty) |
+| License    | [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![License: LGPL v3](https://img.shields.io/badge/License-LGPL_v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)                                                                                                                    |
+| Paper      | [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/GFZ/EL_PASO/executable_paper?urlpath=%2Fdoc%2Ftree%2Fpaper%2Fel_paso_executable_paper.ipynb) [![Paper](https://img.shields.io/badge/Open_Access-10.22541/essoar.15002644/v1-blue)](https://essopenarchive.org/doi/abs/10.22541/essoar.15002644/v1)                          |
 
 # ELaborative Particle Analysis from Satellite Observations (EL-PASO)
 
@@ -50,11 +48,7 @@ Full documentation can be viewed [here](https://el-paso.readthedocs.io/en/latest
     - HOPE (electrons) and ECT-combined
     - EMFISIS and EFW density
 
-## Installation Guide
-
-
-
-# Installation
+## Installation
 
 ### Step 1: Clone the Repository
 
@@ -70,7 +64,7 @@ cd EL_PASO
 It is highly recommended to use a virtual environment to manage dependencies.
 
 ```bash
-uv venv --python 3.11 --seed
+uv venv --python 3.12 --seed
 source .venv/bin/activate
 uv pip install .
 ```
@@ -84,6 +78,79 @@ You can validate your installation by running the minimal example located in *ex
 ```bash
 python examples/minimal_example.py
 ```
+
+## Testing
+
+### Step 1: Download the Test Data
+
+Most tests rely on reference/system test data hosted on [Zenodo](https://zenodo.org). Download it by running the following script from the repository root:
+
+```bash
+bash download_data_for_tests.sh
+```
+
+This fetches the dataset archive and extracts it into `tests/system/`. You only need to do this once (rerun it if the data changes upstream).
+
+`pytest` is installed as part of the regular dependencies (see [Installation](#installation)), so no separate test install step is needed.
+
+### Step 2: Run the Tests
+
+Run the full test suite with `pytest`:
+
+```bash
+pytest tests
+```
+
+Tests are grouped using pytest markers, defined in `pytest.ini`:
+
+- `basic`: quick tests suitable for fast, everyday verification of the code. This is what CI runs on every push/PR:
+
+  ```bash
+  pytest tests -m basic
+  ```
+
+- `visual`: tests that produce plots or other visual output which must be checked manually rather than being asserted automatically:
+
+  ```bash
+  pytest tests -m visual
+  ```
+
+You can combine or exclude markers using standard pytest marker expressions, e.g. to run everything except visual tests:
+
+```bash
+pytest tests -m "not visual"
+```
+
+Some system tests compare against previously stored reference solutions. Pass `--renew_solution` to regenerate and overwrite those reference solutions instead of comparing against them:
+
+```bash
+pytest tests --renew_solution=true
+```
+
+Use this only when you intend to intentionally update the stored reference outputs.
+
+## Citation
+
+If you use `EL-PASO` in your research, please cite the associated preprint:
+
+> Haas, B., Drozdov, A. Y., and Jhawar, S. 	EL-PASO: An Open-Source Python Library for Processing and Standardizing Particle Measurements Taken in Space. ESS Open Archive. https://essopenarchive.org/doi/full/10.22541/essoar.15002644/v1
+
+```bibtex
+@article{
+doi:10.22541/essoar.15002644/v1,
+author = {Bernhard Haas  and Alexander Y. Drozdov  and Sahil Jhawar },
+title = {EL-PASO: An Open-Source Python Library for Processing and Standardizing Particle Measurements Taken in Space},
+journal = {ESS Open Archive},
+volume = {2026},
+number = {0502},
+pages = {},
+year = {2026},
+doi = {10.22541/essoar.15002644/v1},
+URL = {https://essopenarchive.org/doi/abs/10.22541/essoar.15002644/v1},
+eprint = {https://essopenarchive.org/doi/pdf/10.22541/essoar.15002644/v1}}
+```
+
+To cite this repository you can use [CITATION.cff](CITATION.cff).
 
 ## Acknowledgements
 

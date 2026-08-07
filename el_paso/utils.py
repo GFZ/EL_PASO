@@ -399,7 +399,7 @@ def load_cdf_data(file_path: Path) -> dict[StandardName, Any]:
         info = cdf_file.cdf_info()
         z_variables = getattr(info, "zVariables", None)
         if z_variables is None and isinstance(info, dict):
-            z_variables = info.get("zVariables", [])  # ty:ignore[no-matching-overload]
+            z_variables = info.get("zVariables", [])
 
         for variable_name in z_variables or []:
             try:
@@ -562,8 +562,7 @@ def _write_data_to_netcdf_file(file: nC.Dataset | nC.Group, data_dict: DataDict,
                 curr_hierarchy = curr_hierarchy.groups[group]
 
         available_keys = {key for key in data_dict if key != "metadata"}
-        dimensions = data_standard.resolve_dependencies(
-            data_standard.get_dependencies(internal_name), available_keys)
+        dimensions = data_standard.resolve_dependencies(data_standard.get_dependencies(internal_name), available_keys)
         data_set = cast(
             "nC.Variable[Any]",
             curr_hierarchy.createVariable(
@@ -595,7 +594,7 @@ def _write_data_to_netcdf_file(file: nC.Dataset | nC.Group, data_dict: DataDict,
         }
 
         coordinates = [
-            data_standard.get_standard_name(int_name)
+            data_standard.get_standard_name(int_name)  # ty:ignore[invalid-argument-type]
             for int_name in dimensions
             if int_name in valid_internal_names
         ]
@@ -635,10 +634,9 @@ def _calculate_dimensions(data_dict: DataDict, data_standard: DataStandard) -> d
     for internal_name in data_dict:
         if internal_name == "metadata":
             continue
-        
+
         available_keys = {key for key in data_dict if key != "metadata"}
-        dim_names = data_standard.resolve_dependencies(
-            data_standard.get_dependencies(internal_name), available_keys)
+        dim_names = data_standard.resolve_dependencies(data_standard.get_dependencies(internal_name), available_keys)
 
         for dim_name in dim_names:
             if dim_name not in unique_dims:
@@ -649,9 +647,10 @@ def _calculate_dimensions(data_dict: DataDict, data_standard: DataStandard) -> d
                     unique_dims[dim_name] = 3
                 elif dim_name in data_dict:
                     dims_of_dim = data_standard.resolve_dependencies(
-                        data_standard.get_dependencies(dim_name), available_keys)
+                        data_standard.get_dependencies(dim_name), available_keys
+                    )
 
-                    target_idx = np.where(dim_name == np.asarray(dims_of_dim))[0][0]
+                    target_idx = np.where(dim_name == np.asarray(dims_of_dim))[0][0]  # ty:ignore[no-matching-overload]
 
                     if data_dict[dim_name].ndim <= target_idx:
                         unique_dims[dim_name] = 1  # dimesion of size 1 can be collapsed

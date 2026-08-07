@@ -92,9 +92,9 @@ class TimeBinMethod(Enum):
                 case "Merge":
                     binned_array = np.concatenate(data, axis=0)
                 case "NanMax":
-                    binned_array = np.nanmax(data, axis=0)
+                    binned_array = np.nanmax(data, axis=0)  # ty:ignore[no-matching-overload]
                 case "NanMin":
-                    binned_array = np.nanmin(data, axis=0)
+                    binned_array = np.nanmin(data, axis=0)  # ty:ignore[no-matching-overload]
                 case "NoBinning":
                     binned_array = data
                 case "Repeat":

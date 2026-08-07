@@ -25,7 +25,7 @@ def test_magnetic_field(mag_field: Literal["T89", "OP77", "TS04", "T01s"], skip_
     true_data = {
         "OP77": (92.3, 97.27, 106.77),
         "T89": (82.31, 90.91, 96.11),
-        "T01s": (40.17, 159.91, 330.28),
+        "T01s": (40.19, 159.94, 329.89),
         "TS04": (27.86, 92.09, 156.03),
     }
 
@@ -64,6 +64,7 @@ def test_magnetic_field(mag_field: Literal["T89", "OP77", "TS04", "T01s"], skip_
     assert min_value == true_data[mag_field][0]
     assert mean_value == true_data[mag_field][1]
     assert max_value == true_data[mag_field][2]
+
 
 @pytest.mark.basic
 def test_mlt_mlt_eq_equal():

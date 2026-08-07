@@ -367,7 +367,7 @@ def _extract_data_from_cdf(
     for info in extraction_infos:
         if info.name_or_column in cdfinfo.zVariables:
             # Retrieve data corresponding to the variable name from the CDF file
-            var_content = cdf_file.varget(info.name_or_column)  # ty:ignore[invalid-argument-type]
+            var_content = cdf_file.varget(info.name_or_column)
             var_content = cast("NDArray[Any]", var_content)
 
             if isinstance(var_content, str):
@@ -441,7 +441,7 @@ def _extract_data_from_netcdf(
 
         for info in extraction_infos:
             if info.name_or_column in entries:
-                entry_data = file[info.name_or_column]  # ty: ignore[invalid-argument-type]
+                entry_data = file[info.name_or_column]
                 var_content = np.asarray([entry_data]).squeeze()
                 variable_data[info.name_or_column] = var_content
             else:

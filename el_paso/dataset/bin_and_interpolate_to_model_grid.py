@@ -194,7 +194,7 @@ def _bin_in_time(
     )
 
     if isinstance(data_time[0], np.ndarray):
-        data_time = np.asarray([t[0] for t in data_time])
+        data_time = np.asarray([t[0] for t in data_time])  # ty:ignore[invalid-assignment]
 
     sim_timestamps = [t.timestamp() for t in sim_time]
     data_timestamps = [t.timestamp() for t in data_time]
@@ -586,7 +586,7 @@ def plot_debug_figures(  # noqa: D103
             s=10,
         )
 
-        for iV in range(data_set_V_or_Mu.shape[1]):
+        for iV in range(data_set_V_or_Mu.shape[1]):  # ty:ignore[index-out-of-bounds]
             sc = ax1.scatter(
                 np.log10(data_set_V_or_Mu[sat_time_idx, iV, :]),
                 np.log10(data_set.InvK[sat_time_idx, :]),

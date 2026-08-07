@@ -46,8 +46,8 @@ def matlab2python(datenum: float | Iterable[float]) -> Iterable[datetime] | date
     datenum = pd.to_datetime(datenum - 719529, unit="D", origin=pd.Timestamp("1970-01-01")).to_pydatetime()  # ty:ignore[unresolved-attribute]
 
     if isinstance(datenum, Iterable):
-        datenum = enforce_utc_timezone(list(datenum))  # ty:ignore[no-matching-overload]
-        datenum: Iterable[datetime] = [round_seconds(x) for x in datenum]
+        datenum = enforce_utc_timezone(list(datenum))  # ty: ignore[invalid-assignment]
+        datenum: Iterable[datetime] = [round_seconds(x) for x in datenum]  # ty: ignore[not-iterable, invalid-argument-type]
     else:
         datenum: datetime = round_seconds(enforce_utc_timezone(datenum))
 

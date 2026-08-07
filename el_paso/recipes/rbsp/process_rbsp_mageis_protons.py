@@ -16,6 +16,7 @@ import numpy as np
 from astropy import units as u
 
 import el_paso as ep
+from el_paso.processing.magnetic_field_utils import InternalFieldModel, IrbemOptions, LstarQuantity
 
 
 def process_mageis_protons(
@@ -139,13 +140,13 @@ def process_mageis_protons(
 
     # Remove non-positive energy channels and the corresponding FPDU entries
     energy_data = variables["Energy"].get_data()
-    valid_mask = np.isfinite(energy_data) & (energy_data > 0)
+    valid_mask = np.isfinite(energy_data) & (energy_data > 0)  # ty:ignore[unsupported-operator]
     variables["Energy"]._data = energy_data[valid_mask]
     fpdu_data = variables["FPDU"].get_data()
     variables["FPDU"]._data = fpdu_data[:, :, valid_mask]
 
     time_bin_methods = {
-        "Energy": ep.TimeBinMethod.Repeat,     #making energy time dependent
+        "Energy": ep.TimeBinMethod.Repeat,  # making energy time dependent
         "FPDU": ep.TimeBinMethod.NanMedian,
         "Pitch_angle": ep.TimeBinMethod.Repeat,
     }
@@ -175,9 +176,6 @@ def process_mageis_protons(
     del variables["Epoch"]
     del variables["FPDU_Epoch"]
 
-    # Calculate magnetic field variables
-    irbem_options = [1, 1, 4, 4, 0]
-
     vars_to_compute: ep.typing.VariableRequest = [
         ("B_Calc", mag_field),
         ("MLT", mag_field),
@@ -194,7 +192,7 @@ def process_mageis_protons(
         time_var=binned_time_variable_xGEO,
         xgeo_var=variables["xGEO"],
         variables_to_compute=vars_to_compute,
-        irbem_options=irbem_options,
+        irbem_options=IrbemOptions(LstarQuantity.LSTAR, 1, 4, 4, InternalFieldModel.IGRF),
         num_cores=num_cores,
         pa_local_var=variables["Pitch_angle"],
         energy_var=variables["Energy"],
@@ -276,7 +274,7 @@ if __name__ == "__main__":
         process_mageis_protons(
             dt_start,
             dt_end,
-            sat_str,  # ty:ignore[invalid-argument-type]
+            sat_str,
             "T89",
             raw_data_path="raw_MagEIS",
             processed_data_path="processed_MagEIS",
