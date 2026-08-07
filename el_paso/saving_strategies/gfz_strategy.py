@@ -91,8 +91,8 @@ class GFZStrategy(SavingStrategy):
         self.mag_field = mag_field
 
         self.output_files = [
-            OutputFile("flux", ["Epoch", "FEDU"]),
-            OutputFile("alpha_and_energy", ["Epoch", "Alpha", "Alpha_Eq", "Energy_FEDU"]),
+            OutputFile("flux", ["Epoch", ("FEDU", "FPDU")]),
+            OutputFile("alpha_and_energy", ["Epoch", "Alpha", "Alpha_Eq", ("Energy_FEDU", "Energy_FPDU")]),
             OutputFile("mlt", ["Epoch", "MLT"]),
             OutputFile("lstar", ["Epoch", "L_star"]),
             OutputFile("lm", ["Epoch", "L_m"]),

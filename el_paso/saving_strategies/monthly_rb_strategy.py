@@ -93,9 +93,11 @@ class MonthlyRBStrategy(SavingStrategy):
         """Return the standard variable list plus user-defined custom variables."""
         return [
             "FEDU",
+            "FPDU",
             "Epoch",
             "Alpha_Eq",
             "Energy_FEDU",
+            "Energy_FPDU",
             "Alpha",
             "B_Calc",
             "B_Eq",

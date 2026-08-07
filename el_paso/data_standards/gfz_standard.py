@@ -103,7 +103,7 @@ class GFZStandard(DataStandard[GFZVarNames]):
                 "PSD",
                 "Calculated phase space density of particles.",
                 (u.m * u.kg * u.m / u.s) ** (-3),
-                ["Epoch", "Energy_FEDU", "Alpha"],
+                ["Epoch", ("Energy_FEDU", "Energy_FPDU"), "Alpha"],
             ),
             "MLT": VariableInfo[GFZVarNames](
                 "MLT", "Magnetic local time at the satellite location.", u.hour, ["Epoch"]
@@ -125,7 +125,7 @@ class GFZStandard(DataStandard[GFZVarNames]):
                 "R0", "Radial distance of the satellite location mapped to the equator.", ep.units.RE, ["Epoch"]
             ),
             "InvMu": VariableInfo[GFZVarNames](
-                "InvMu", "Calculated first adiabatic invariant.", u.MeV / u.G, ["Epoch", "Energy_FEDU", "Alpha"]
+                "InvMu", "Calculated first adiabatic invariant.", u.MeV / u.G, ["Epoch", ("Energy_FEDU", "Energy_FPDU"), "Alpha"]
             ),
             "InvK": VariableInfo[GFZVarNames](
                 "InvK", "Calculated modified second adiabatic invariant.", ep.units.RE * u.G**0.5, ["Epoch", "Alpha"]

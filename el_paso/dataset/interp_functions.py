@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
     from el_paso.dataset import DataSet
+    from el_paso.typing import InternalName
 
 
 class TargetType(Enum):
@@ -110,10 +111,13 @@ def interp_flux(
     target_al: float | list[float],
     target_type: TargetType | Literal["TargetPairs", "TargetMesh"],
     n_threads: int = 10,
+    flux_internal_name: InternalName = "FEDU",
+    energy_internal_name: InternalName = "Energy_FEDU",
 ) -> NDArray[np.float64]:
     """Interpolate flux to requested (energy, pitch angle) targets for every time.
 
-    For each time step, `self.Flux` is interpolated in energy at the two pitch angles
+    For each time step, the flux variable named by `flux_internal_name` is interpolated
+    in energy (using the grid named by `energy_internal_name`) at the two pitch angles
     (from `self.alpha_eq_model`) bracketing each target pitch angle, and the two
     resulting flux values are then linearly interpolated in pitch angle to the target.
 
@@ -131,6 +135,12 @@ def interp_flux(
             `(time, n_en, n_al)`.
         n_threads (int, optional): Number of worker processes used to parallelize the
             interpolation over time. Defaults to `10`.
+        flux_internal_name (InternalName, optional): Internal name of the flux variable
+            to interpolate (e.g. `"FEDU"` for electrons, `"FPDU"` for protons).
+            Defaults to `"FEDU"`.
+        energy_internal_name (InternalName, optional): Internal name of the matching
+            energy grid (e.g. `"Energy_FEDU"`, `"Energy_FPDU"`). Must correspond to
+            the species of `flux_internal_name`. Defaults to `"Energy_FEDU"`.
 
     Returns:
         NDArray[np.float64]: The interpolated flux values, with shape `(time, N)` for
@@ -149,8 +159,8 @@ def interp_flux(
         target_type = TargetType[target_type]
 
     epoch = self.get_by_internal_name("Epoch")
-    flux = self.get_by_internal_name("FEDU")
-    energy = self.get_by_internal_name("Energy_FEDU")
+    flux = self.get_by_internal_name(flux_internal_name)
+    energy = self.get_by_internal_name(energy_internal_name)
     alpha_eq = self.get_by_internal_name("Alpha_Eq")
 
     if target_type == TargetType.TargetPairs:

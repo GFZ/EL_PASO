@@ -155,6 +155,7 @@ class SingleFileStrategy(SavingStrategy):
         internal_name: InternalName,  # noqa: ARG002
         *,
         first_call_of_interval: bool,  # noqa: ARG002
+        available_keys: set[InternalName] | None = None,  # noqa: ARG002
     ) -> Variable:
         """Does not modify the variable.
 

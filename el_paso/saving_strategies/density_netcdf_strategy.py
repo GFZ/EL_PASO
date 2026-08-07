@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
     from el_paso.data_standard import DataStandard
     from el_paso.processing.magnetic_field_utils import MagneticFieldLiteral
-    from el_paso.typing import StandardName
+    from el_paso.typing import InternalName, StandardName
 
 logger = logging.getLogger(__name__)
 
@@ -145,7 +145,7 @@ class DensityNetCDFStrategy(MonthlyRBStrategy):
         return dimensions
 
     def standardize_variable(
-        self, variable: ep.Variable, name_in_file: str, *, first_call_of_interval: bool
+        self, variable: ep.Variable, name_in_file: str, *, first_call_of_interval: bool, available_keys: set[InternalName] | None = None,
     ) -> ep.Variable:
         """Standardizes a variable based on the configured `DataStandard`.
 
@@ -162,5 +162,5 @@ class DensityNetCDFStrategy(MonthlyRBStrategy):
             ep.Variable: The standardized variable.
         """
         return self.data_standard.standardize_variable(
-            name_in_file, variable, reset_consistency_check=first_call_of_interval
+            name_in_file, variable, reset_consistency_check=first_call_of_interval, available_keys=available_keys
         )

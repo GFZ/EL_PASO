@@ -142,9 +142,12 @@ class PRBEMDataSet(DataSet):
         Epoch (NDArray[np.float64]): Array of time values as POSIX timestamps (seconds since epoch).
         FEDU (NDArray[np.float64]): Processed unidirectional differential electron flux,
             in (cm^2 s sr keV)^-1.
+        FPDU (NDArray[np.float64]): Processed unidirectional differential proton flux,
+            in (cm^2 s sr keV)^-1.
         FEDO (NDArray[np.float64]): Processed omnidirectional differential electron flux.
         FEIU (NDArray[np.float64]): Processed unidirectional integral electron flux.
         Energy_FEDU (NDArray[np.float64]): Central energy of the FEDU channels, in MeV.
+        Energy_FPDU (NDArray[np.float64]): Central energy of the FPDU channels, in MeV.
         Alpha (NDArray[np.float64]): Local pitch angle the instrument is looking at, in degrees.
         Alpha_Eq (NDArray[np.float64]): Computed equatorial pitch angle, in degrees.
         Position (NDArray[np.float64]): Spacecraft position in geographic cartesian coordinates, in km.
@@ -164,9 +167,11 @@ class PRBEMDataSet(DataSet):
     datetime: list[dt.datetime]
     Epoch: NDArray[np.float64]
     FEDU: NDArray[np.float64]
+    FPDU: NDArray[np.float64]
     FEDO: NDArray[np.float64]
     FEIU: NDArray[np.float64]
     Energy_FEDU: NDArray[np.float64]
+    Energy_FPDU: NDArray[np.float64]
     Alpha: NDArray[np.float64]
     Alpha_Eq: NDArray[np.float64]
     Position: NDArray[np.float64]

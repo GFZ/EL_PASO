@@ -131,10 +131,11 @@ class DailyWaveStrategy(SavingStrategy):
         internal_name: InternalName,
         *,
         first_call_of_interval: bool,
+        available_keys: set[InternalName] | None = None,
     ) -> Variable:
         """Standardize a variable through the configured data standard."""
         return self.data_standard.standardize_variable(
-            internal_name, variable, reset_consistency_check=first_call_of_interval
+            internal_name, variable, reset_consistency_check=first_call_of_interval, available_keys=available_keys
         )
 
     def save_single_file(self, file_path: Path, dict_to_save: SavedDataDict, *, append: bool = False) -> None:

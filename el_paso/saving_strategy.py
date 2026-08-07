@@ -45,7 +45,7 @@ class OutputFile(NamedTuple):
     """
 
     name: str
-    names_to_save: list[InternalName]
+    names_to_save: list[InternalName | tuple[InternalName, ...]]
     save_incomplete: bool = False
 
 
@@ -158,10 +158,11 @@ class SavingStrategy(ABC):
         internal_name: InternalName,
         *,
         first_call_of_interval: bool,
+        available_keys: set[InternalName] | None = None,
     ) -> ep.Variable:
         """Standardize a variable through the configured data standard."""
         return self.data_standard.standardize_variable(
-            internal_name, variable, reset_consistency_check=first_call_of_interval
+            internal_name, variable, reset_consistency_check=first_call_of_interval, available_keys=available_keys
         )
 
     def save_single_file(self, file_path: Path, dict_to_save: SavedDataDict, *, append: bool = False) -> None:
@@ -364,6 +365,7 @@ class SavingStrategy(ABC):
         """
         target_variables: dict[InternalName, ep.Variable] = {}
         first_call_of_interval = True
+        available_keys = set(variables_dict.keys())
 
         # if no variables have been specified, we save all of them
         if len(output_file.names_to_save) == 0:
@@ -372,7 +374,7 @@ class SavingStrategy(ABC):
 
                 if start_time is not None and end_time is not None and time_var is not None:
                     var_to_save.truncate(time_var, start_time.timestamp(), end_time.timestamp())
-                var_to_save = self.standardize_variable(var_to_save, key, first_call_of_interval=first_call_of_interval)
+                var_to_save = self.standardize_variable(var_to_save, key, first_call_of_interval=first_call_of_interval, available_keys=available_keys)
                 first_call_of_interval = False
 
                 target_variables[key] = var_to_save
@@ -382,22 +384,30 @@ class SavingStrategy(ABC):
         missing_names = []
 
         for name_to_save in output_file.names_to_save:
-            if name_to_save in variables_dict:
-                var_to_save = deepcopy(variables_dict[name_to_save])
+            # a tuple entry means "either of these species-specific names satisfies it"
+            if isinstance(name_to_save, tuple):
+                resolved_name = next((alt for alt in name_to_save if alt in variables_dict), None)
+            else:
+                resolved_name = name_to_save if name_to_save in variables_dict else None
+
+            if resolved_name is not None:
+                var_to_save = deepcopy(variables_dict[resolved_name])
 
                 if start_time is not None and end_time is not None and time_var is not None:
                     var_to_save.truncate(time_var, start_time.timestamp(), end_time.timestamp())
 
                 var_to_save = self.standardize_variable(
-                    var_to_save, name_to_save, first_call_of_interval=first_call_of_interval
+                    var_to_save, resolved_name, first_call_of_interval=first_call_of_interval
                 )
                 first_call_of_interval = False
 
-                target_variables[name_to_save] = var_to_save
+                target_variables[resolved_name] = var_to_save
             else:
-                missing_names.append(name_to_save)
+                label = " or ".join(name_to_save) if isinstance(name_to_save, tuple) else name_to_save
+                missing_names.append(label)
                 if output_file.save_incomplete:
-                    target_variables[name_to_save] = ep.Variable(
+                    fallback_name = name_to_save[0] if isinstance(name_to_save, tuple) else name_to_save
+                    target_variables[fallback_name] = ep.Variable(
                         original_unit=u.dimensionless_unscaled, data=np.array([])
                     )
                 else:
@@ -422,8 +432,11 @@ class SavingStrategy(ABC):
             return None
 
         for output_file in self.output_files:
-            if internal_name in output_file.names_to_save:
-                return output_file
+            for name_to_save in output_file.names_to_save:
+                if name_to_save == internal_name or (
+                    isinstance(name_to_save, tuple) and internal_name in name_to_save
+                ):
+                    return output_file
 
         return None
 
@@ -431,8 +444,10 @@ class SavingStrategy(ABC):
         all_standard_names: list[StandardName] = []
 
         for output_file in self.output_files:
-            all_standard_names.extend(
-                [self.data_standard.get_standard_name(internal_name) for internal_name in output_file.names_to_save]
-            )
+            for name_to_save in output_file.names_to_save:
+                if isinstance(name_to_save, tuple):
+                    all_standard_names.extend(self.data_standard.get_standard_name(alt) for alt in name_to_save)
+                else:
+                    all_standard_names.append(self.data_standard.get_standard_name(name_to_save))
 
         return list(set(all_standard_names))

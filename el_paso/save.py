@@ -123,13 +123,22 @@ def _validate_variables_dict(variables_dict: dict[InternalName, Variable], data_
 
     # check if necessary dimensions are saved
     if data_standard:
-        all_dependencies = [data_standard.get_dependencies(name) for name in variables_dict]
-        unique_dimensions = np.unique(list(itertools.chain.from_iterable(all_dependencies)))
-        missing = {
-            dim: [name for name in variables_dict if dim in data_standard.get_dependencies(name)]
-            for dim in unique_dimensions
-            if dim not in get_args(FixedDimensionName) and dim not in variables_dict
-        }
+        available_keys = set(variables_dict.keys())
+        missing: dict[str, list[str]] = {}
+        for name in variables_dict:
+            for dep in data_standard.get_dependencies(name):
+                # a tuple entry means "any one of these alternative dimension names satisfies it"
+                if isinstance(dep, tuple):
+                    if any(alt in available_keys for alt in dep):
+                        continue
+                    dim_label = " or ".join(dep)
+                    missing.setdefault(dim_label, []).append(name)
+                    continue
+
+                if dep in get_args(FixedDimensionName) or dep in available_keys:
+                    continue
+                missing.setdefault(dep, []).append(name)
+
         if len(missing) > 0:
             missing_details = "; ".join(
                 f"'{dim}' (required by: {', '.join(required_by)})" for dim, required_by in missing.items()

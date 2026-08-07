@@ -27,12 +27,16 @@ T_co = TypeVar("T_co", bound=str, covariant=True)
 
 
 class VariableInfo(NamedTuple, Generic[T_co]):
-    """A named tuple to store information about a variable in a data standard."""
+    """A named tuple to store information about a variable in a data standard.
+
+    A dependency entry can either be a single dimension name, or a tuple of
+    alternative dimension names (e.g. `("Energy_FEDU", "Energy_FPDU")`).
+    """
 
     standard_name: T_co
     description: str
     unit: u.UnitBase
-    dependencies: list[InternalName | FixedDimensionName]
+    dependencies: list[InternalName | FixedDimensionName | tuple[InternalName, ...]]
 
 
 class DataStandard(ABC, Generic[T_co]):
@@ -74,21 +78,48 @@ class DataStandard(ABC, Generic[T_co]):
 
         return self.variable_infos[internal_name].standard_name
 
-    def get_dependencies(self, internal_name: InternalName) -> list[InternalName | FixedDimensionName]:
+    def get_dependencies(
+        self, internal_name: InternalName
+    ) -> list[InternalName | FixedDimensionName | tuple[InternalName, ...]]:
         return self.variable_infos[internal_name].dependencies
 
+    @staticmethod
+    def resolve_dependencies(
+        dependencies: list[InternalName | FixedDimensionName | tuple[InternalName, ...]],
+        available_keys: set[InternalName] | None,
+    ) -> list[InternalName | FixedDimensionName]:
+        """Resolves alternative-name dependency entries to a single concrete name.
+
+        For each dependency entry that is a tuple of alternatives, picks whichever
+        alternative is present in `available_keys`. If `available_keys` is not
+        provided, or none of the alternatives are present, falls back to the first
+        alternative so downstream shape/consistency checks still have a name to use.
+        """
+        resolved: list[InternalName | FixedDimensionName] = []
+        for dep in dependencies:
+            if isinstance(dep, tuple):
+                match = next((alt for alt in dep if available_keys and alt in available_keys), None)
+                resolved.append(match if match is not None else dep[0])
+            else:
+                resolved.append(dep)
+        return resolved
+
     def standardize_variable(
-        self, internal_name: InternalName, variable: Variable, *, reset_consistency_check: bool
+        self,
+        internal_name: InternalName,
+        variable: Variable,
+        *,
+        reset_consistency_check: bool,
+        available_keys: set[InternalName] | None = None,
     ) -> Variable:
         """Standardizes a variable according to the data standard's rules.
-
-        This abstract method takes avariable and a standard name,
-        and returns a new `el_paso.Variable` that conforms to the specified standard.
 
         Args:
             internal_name (str): The internal name of the variable to be standardized.
             variable (Variable): The variable to be standardized.
             reset_consistency_check (bool): If set to true, the consistency check will be reseted.
+            available_keys (set[InternalName] | None): The full set of internal names being
+                saved together in this call.
 
         Returns:
             Variable: The standardized variable.
@@ -101,12 +132,13 @@ class DataStandard(ABC, Generic[T_co]):
             return variable
 
         variable_info = self.variable_infos[internal_name]
+        resolved_dependencies = self.resolve_dependencies(variable_info.dependencies, available_keys)
 
         variable.convert_to_unit(variable_info.unit)
         if len(variable.metadata.description) == 0:
             variable.metadata.description = variable_info.description
-        assert_n_dim(variable, len(variable_info.dependencies), internal_name)
-        self.consistency_check.check(variable.get_data().shape, variable_info.dependencies, internal_name)
+        assert_n_dim(variable, len(resolved_dependencies), internal_name)
+        self.consistency_check.check(variable.get_data().shape, resolved_dependencies, internal_name)
 
         return variable
 
