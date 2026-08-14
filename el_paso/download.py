@@ -73,6 +73,7 @@ def _download_single_step(
                 authentication_info,
                 rename_file_name_stem,
                 skip_existing=skip_existing,
+                sort_raw_files_by_time=sort_raw_files_by_time,
             )
         case "esa_swe":
             _esa_swe_download(
@@ -336,7 +337,8 @@ def _ftp_connect(
     timeout: float = 30.0,
 ) -> ftplib.FTP:
     if not host:
-        raise ValueError("FTP download URL is missing a host")
+        msg = "FTP download URL is missing a host"
+        raise ValueError(msg)
 
     user, password = authentication_info
     ftp = ftplib.FTP(timeout=timeout)  # noqa: S321
@@ -358,6 +360,7 @@ def _ftp_download(
     rename_file_name_stem: str | None,
     *,
     skip_existing: bool,
+    sort_raw_files_by_time: bool,
 ) -> None:
     """Download a file from an FTP server using ftplib.
 
@@ -365,6 +368,10 @@ def _ftp_download(
     `file_name_stem` is matched as an fnmatch glob (e.g. "*.pdf", "GAL*_YYYYMMDD*.dat") against the
     directory listing; if multiple files match, the lexicographically last one is used.
     """
+    if sort_raw_files_by_time:
+        parent_folders = fill_str_template_with_time("YYYY/MM/", current_time)
+        save_path = save_path / parent_folders
+
     save_path = Path(fill_str_template_with_time(str(save_path), current_time))
     save_path.mkdir(exist_ok=True, parents=True)
 
@@ -427,7 +434,10 @@ def _ftp_download(
     except ftplib.all_errors as e:
         logger.warning(f"Error downloading file from {url}: {e}")
     finally:
-        ftp.quit()
+        try:
+            ftp.quit()
+        except ftplib.all_errors:
+            ftp.close()
 
 
 def _esa_swe_download(

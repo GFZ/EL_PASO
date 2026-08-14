@@ -153,6 +153,26 @@ def test_ftp(tmp_path: Path, skip_if_unreachable: Callable[..., None]):
     assert len(files) == 1
     assert files[0].name == "galileo_gssc_emu_gsat0215_sd_l1_20240103_V01.cdf"
 
+    data_path = tmp_path / "2024" / "01"
+
+    assert not data_path.exists()
+
+    ep.download(
+        start_time,
+        end_time,
+        save_path=tmp_path,
+        download_url=url,
+        file_name_stem=file_name_stem,
+        file_cadence="daily",
+        method="ftp",
+        authentication_info=(username, password),
+        skip_existing=True,
+        sort_raw_files_by_time=True,
+    )
+
+    assert data_path.exists()
+    assert len(list(data_path.glob("*"))) == 1
+
 
 def test_exit_after_download(caplog: pytest.LogCaptureFixture):
 
