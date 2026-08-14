@@ -328,10 +328,19 @@ def _wget_download(
         logger.info(f"Error downloading file using command {download_command}: {e}")
 
 
-def _ftp_connect(host: str, authentication_info: tuple[str, str]) -> ftplib.FTP:
+def _ftp_connect(
+    host: str,
+    authentication_info: tuple[str, str],
+    *,
+    port: int = 21,
+    timeout: float = 30.0,
+) -> ftplib.FTP:
+    if not host:
+        raise ValueError("FTP download URL is missing a host")
+
     user, password = authentication_info
-    ftp = ftplib.FTP()  # noqa: S321
-    ftp.connect(host)
+    ftp = ftplib.FTP(timeout=timeout)  # noqa: S321
+    ftp.connect(host, port=port)
     if user:
         ftp.login(user, password)
     else:
