@@ -116,6 +116,44 @@ def test_request(tmp_path: Path, skip_if_unreachable: Callable[..., None], monke
     assert len(list(data_path.glob("*"))) == 1
 
 
+@pytest.mark.basic
+def test_ftp(tmp_path: Path, skip_if_unreachable: Callable[..., None]):
+    skip_if_unreachable("ftp://gssc.esa.int")
+
+    username = os.environ.get("GSSC_USER")
+    password = os.environ.get("GSSC_PASSWORD")
+
+    if username is None:
+        msg = "GSSC username not found!"
+        raise ValueError(msg)
+
+    if password is None:
+        msg = "GSSC password not found!"
+        raise ValueError(msg)
+
+    start_time = datetime(2024, 1, 3, tzinfo=timezone.utc)
+    end_time = datetime(2024, 1, 4, tzinfo=timezone.utc)
+
+    url = "ftp://gssc.esa.int/emu/galileo_gssc_emu_gsat0215_sd_l1/YYYY"
+    file_name_stem = "galileo_gssc_emu_gsat0215_sd_l1_YYYYMMDD_V*.cdf.gz"
+
+    ep.download(
+        start_time,
+        end_time,
+        save_path=tmp_path,
+        download_url=url,
+        file_name_stem=file_name_stem,
+        file_cadence="daily",
+        method="ftp",
+        authentication_info=(username, password),
+        skip_existing=True,
+    )
+
+    files = list(tmp_path.glob("*"))
+    assert len(files) == 1
+    assert files[0].name == "galileo_gssc_emu_gsat0215_sd_l1_20240103_V01.cdf"
+
+
 def test_exit_after_download(caplog: pytest.LogCaptureFixture):
 
     # test if the programs exits; it should not
