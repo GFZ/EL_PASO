@@ -46,7 +46,7 @@ jobs:
 
       - name: Test import in image
         run: |
-          sudo apptainer exec ${{ env.IMAGE_NAME }}.sif python -c "import el_paso; print('Import successful',  el_paso.__file__)"
+          sudo apptainer exec --no-mount cwd ${{ env.IMAGE_NAME }}.sif python -c "import el_paso; print('Import successful',  el_paso.__file__)"
 
       - name: Log in to GHCR
         run: |
