@@ -15,6 +15,7 @@ From: astral/uv:python3.12-bookworm-slim
     el_paso /opt/el_paso/
     scripts /opt/el_paso
     pyproject.toml /opt/el_paso
+    setup.py /opt/el_paso
 
 %environment
     export UV_PROJECT_ENVIRONMENT=/opt/el_paso/.venv
