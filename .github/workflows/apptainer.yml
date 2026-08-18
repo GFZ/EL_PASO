@@ -40,6 +40,14 @@ jobs:
       - name: Build image
         run: sudo apptainer build ${{ env.IMAGE_NAME }}.sif el_paso.def
 
+      - name: Check libirbem.so is present in image
+        run: |
+          sudo apptainer exec ${{ env.IMAGE_NAME }}.sif test -f /opt/el_paso/libirbem.so && echo "libirbem.so found" || { echo "libirbem.so NOT found" >&2; exit 1; }
+
+      - name: Test import in image
+        run: |
+          sudo apptainer exec ${{ env.IMAGE_NAME }}.sif python -c "import el_paso; print('Import successful',  el_paso.__file__)"
+
       - name: Log in to GHCR
         run: |
           echo ${{ secrets.GITHUB_TOKEN }} | apptainer remote login -u ${{ github.actor }} --password-stdin oras://ghcr.io

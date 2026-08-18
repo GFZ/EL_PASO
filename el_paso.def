@@ -12,7 +12,7 @@ From: astral/uv:python3.12-bookworm-slim
     Version 2.1.2
 
 %files
-    el_paso /opt/el_paso
+    el_paso /opt/el_paso/
     scripts /opt/el_paso
     pyproject.toml /opt/el_paso
 
