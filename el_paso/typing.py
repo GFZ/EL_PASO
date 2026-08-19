@@ -105,6 +105,7 @@ GFZVarNames: TypeAlias = Literal[
     "alpha_eq_model",
     "PSD",
     "MLT",
+    "MLT0",
     "MLat",
     "Lstar",
     "Lm",

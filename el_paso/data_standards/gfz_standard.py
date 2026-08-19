@@ -40,13 +40,22 @@ class GFZStandard(DataStandard[GFZVarNames]):
                 "energy_channels", "Central energy of measured differential flux.", u.MeV, ["Epoch", "Energy_FEDU"]
             ),
             "Energy_FEIU": VariableInfo[GFZVarNames](
-                "energy_FEIU", "Central energy of measured integral flux.", u.MeV, ["Epoch", "Energy_FEIU"]
+                "energy_FEIU",
+                "Central energy of measured integral flux.",
+                u.MeV,
+                ["Epoch", "Energy_FEIU"],
             ),
             "Energy_FEDO": VariableInfo[GFZVarNames](
-                "energy_FEDO", "Central energy of measured omnidirecitonal flux.", u.MeV, ["Epoch", "Energy_FEDO"]
+                "energy_FEDO",
+                "Central energy of measured omnidirecitonal flux.",
+                u.MeV,
+                ["Epoch", "Energy_FEDO"],
             ),
             "Energy_FPDU": VariableInfo[GFZVarNames](
-                "energy_FPDU", "Central energy of measured proton differential flux.", u.MeV, ["Epoch", "Energy_FPDU"]
+                "energy_FPDU",
+                "Central energy of measured proton differential flux.",
+                u.MeV,
+                ["Epoch", "Energy_FPDU"],
             ),
             "FEDU": VariableInfo[GFZVarNames](
                 "Flux",
@@ -73,7 +82,10 @@ class GFZStandard(DataStandard[GFZVarNames]):
                 ["Epoch", "Energy_FPDU", "Alpha"],
             ),
             "Alpha": VariableInfo[GFZVarNames](
-                "alpha_local", "Local pitch angles of the particles.", u.radian, ["Epoch", "Alpha"]
+                "alpha_local",
+                "Local pitch angles of the particles.",
+                u.radian,
+                ["Epoch", "Alpha"],
             ),
             "Alpha_range": VariableInfo[GFZVarNames](
                 "alpha_local_range",
@@ -82,7 +94,10 @@ class GFZStandard(DataStandard[GFZVarNames]):
                 ["Epoch", "Alpha_range", "min_max"],
             ),
             "Alpha_Eq": VariableInfo[GFZVarNames](
-                "alpha_eq_model", "Calculated equatorial pitch angles of the particles.", u.radian, ["Epoch", "Alpha"]
+                "alpha_eq_model",
+                "Calculated equatorial pitch angles of the particles.",
+                u.radian,
+                ["Epoch", "Alpha"],
             ),
             "Alpha_Eq_range": VariableInfo[GFZVarNames](
                 "alpha_eq_range",
@@ -107,6 +122,9 @@ class GFZStandard(DataStandard[GFZVarNames]):
             ),
             "MLT": VariableInfo[GFZVarNames](
                 "MLT", "Magnetic local time at the satellite location.", u.hour, ["Epoch"]
+            ),
+            "MLT_Eq": VariableInfo[GFZVarNames](
+                "MLT0", "Magnetic local time at the mapped magnetic equator.", u.hour, ["Epoch"]
             ),
             "L_star": VariableInfo[GFZVarNames](
                 "Lstar", "Calculated Lstar of the particles.", u.dimensionless_unscaled, ["Epoch", "Alpha"]
