@@ -18,7 +18,9 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
 
-def join_var(var1: NDArray[np.generic] | list[xr.Variable] | xr.Variable, var2: NDArray[np.generic] | xr.Variable) -> NDArray[np.generic] | list[xr.Variable]:
+def join_var(
+    var1: NDArray[np.generic] | list[xr.Variable] | xr.Variable, var2: NDArray[np.generic] | xr.Variable
+) -> NDArray[np.generic] | list[xr.Variable]:
     """Join two variables along the first axis."""
     if isinstance(var1, np.ndarray) and isinstance(var2, np.ndarray):
         return np.concatenate((var1, var2), axis=0)
@@ -26,7 +28,7 @@ def join_var(var1: NDArray[np.generic] | list[xr.Variable] | xr.Variable, var2: 
     if isinstance(var1, xr.Variable):
         var1 = [var1]
 
-    var1.append(var2)
+    var1.append(var2)  # ty: ignore[invalid-argument-type, unresolved-attribute]
 
     return var1
 
