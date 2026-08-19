@@ -13,16 +13,17 @@ import pytest
 
 import el_paso as ep
 
-mag_field_list = ["OP77", "T89", "T01s", "TS04"]
+mag_field_list = ["Dip", "OP77", "T89", "T01s", "TS04"]
 
 
 @pytest.mark.parametrize("mag_field", mag_field_list)
 @pytest.mark.basic
 def test_magnetic_field(mag_field: Literal["T89", "OP77", "TS04", "T01s"], skip_if_unreachable: Callable[..., None]):
-    if mag_field in ("T01s", "TS04"):
+    if mag_field in ("T89", "T01s", "TS04"):
         skip_if_unreachable("https://omniweb.gsfc.nasa.gov", "https://spdf.gsfc.nasa.gov")
 
     true_data = {
+        "Dip": (110.12, 110.12, 110.12),
         "OP77": (92.3, 97.27, 106.77),
         "T89": (82.31, 90.91, 96.11),
         "T01s": (40.19, 159.94, 329.89),
