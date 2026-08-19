@@ -9,8 +9,11 @@ import inspect
 import logging
 from abc import ABC
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Generic, NamedTuple, TypeVar
+from typing import TYPE_CHECKING, Generic, Literal, NamedTuple, TypeVar
 
+import numpy as np
+
+from el_paso.typing import InternalName
 from el_paso.utils import assert_n_dim
 
 if TYPE_CHECKING:
@@ -18,7 +21,7 @@ if TYPE_CHECKING:
 
     from astropy import units as u
 
-    from el_paso.typing import FixedDimensionName, InternalName, StandardName, Variable
+    from el_paso.typing import FixedDimensionName, StandardName, Variable
 
 
 logger = logging.getLogger(__name__)
@@ -26,13 +29,28 @@ logger = logging.getLogger(__name__)
 T_co = TypeVar("T_co", bound=str, covariant=True)
 
 
+SortOrder = tuple[InternalName, Literal["ascending", "descending"]]
+
+
 class VariableInfo(NamedTuple, Generic[T_co]):
-    """A named tuple to store information about a variable in a data standard."""
+    """A named tuple to store information about a variable in a data standard.
+
+    Attributes:
+        standard_name: The canonical name used by this data standard.
+        description: Human-readable description of the variable.
+        unit: The physical unit the data must be stored in.
+        dependencies: Ordered list of dimension names for this variable.
+        sorted_along: Optional ``(dimension_name, "ascending" | "descending")``
+            tuple.  When set, :meth:`DataStandard.standardize_variable` will
+            verify that the data is monotonically sorted along the given
+            dimension.
+    """
 
     standard_name: T_co
     description: str
     unit: u.UnitBase
     dependencies: list[InternalName | FixedDimensionName]
+    sorted_along: SortOrder | None = None
 
 
 class DataStandard(ABC, Generic[T_co]):
@@ -108,12 +126,36 @@ class DataStandard(ABC, Generic[T_co]):
         assert_n_dim(variable, len(variable_info.dependencies), internal_name)
         self.consistency_check.check(variable.get_data().shape, variable_info.dependencies, internal_name)
 
+        if variable_info.sorted_along is not None:
+            _assert_sorted(variable.get_data(), variable_info, internal_name)
+
         return variable
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, DataStandard):
             return NotImplemented
         return type(self) is type(other) and self.variable_infos == other.variable_infos
+
+
+def _assert_sorted(
+    data: np.ndarray,
+    variable_info: VariableInfo[str],
+    internal_name: str,
+) -> None:
+    assert variable_info.sorted_along is not None
+    dim_name, order = variable_info.sorted_along
+
+    axis = list(variable_info.dependencies).index(dim_name)
+    diffs = np.diff(data, axis=axis)
+
+    violating = np.any(diffs < 0) if order == "ascending" else np.any(diffs > 0)
+
+    if violating:
+        msg = (
+            f"Variable '{internal_name}' must be sorted {order} along "
+            f"dimension '{dim_name}' (axis {axis})."
+        )
+        raise ValueError(msg)
 
 
 class _SizeAttr(NamedTuple):

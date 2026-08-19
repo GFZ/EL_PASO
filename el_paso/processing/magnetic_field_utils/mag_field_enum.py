@@ -11,6 +11,8 @@ kext = NewType("kext", int)
 
 def _magnetic_field_str_to_kext(magnetic_field_str: str) -> kext:
     match magnetic_field_str:
+        case "Dip":
+            mag_kext = kext(0)
         case "T89":
             mag_kext = kext(4)
         case "T01":
@@ -44,8 +46,9 @@ class MagneticField(Enum):
     T96 = "T96"
     OP77Q = "OP77Q"
     OP77 = "OP77"
+    Dip = "Dip"
 
-    def kext(self) -> kext:
+    def get_kext(self) -> kext:
         """Returns the kext value for the magnetic field model."""
         return _magnetic_field_str_to_kext(self.value)
 

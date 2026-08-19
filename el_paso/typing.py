@@ -105,6 +105,7 @@ GFZVarNames: TypeAlias = Literal[
     "alpha_eq_model",
     "PSD",
     "MLT",
+    "MLT0",
     "MLat",
     "Lstar",
     "Lm",
@@ -134,6 +135,7 @@ StandardName: TypeAlias = PRBEMName | GFZVarNames | Literal["metadata"]
 """Any standard-facing variable name accepted by EL-PASO data standards."""
 
 MagneticFieldLiteral: TypeAlias = Literal[
+    "Dip",
     "T89",
     "T01",
     "T01s",

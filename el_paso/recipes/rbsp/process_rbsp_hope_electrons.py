@@ -25,6 +25,8 @@ def process_rbsp_hope_electrons(
     processed_data_path: str | Path = ".",
     num_cores: int = 32,
     save_strategy: Literal["gfz", "netcdf", "both"] = "netcdf",
+    *,
+    calculate_Lstar: bool = True,
 ) -> None:
     """Process RBSP ECT/HOPE electron flux data into the EL-PASO data standard.
 
@@ -50,6 +52,7 @@ def process_rbsp_hope_electrons(
             Defaults to 32.
         save_strategy (Literal["gfz", "netcdf", "both"], optional): Which saving strategy/strategies
             to use for writing the processed output. Defaults to "netcdf".
+        calculate_Lstar (bool, optional): Whether Lstar should be calculated or not. Defaults to True.
     """
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
@@ -128,7 +131,12 @@ def process_rbsp_hope_electrons(
     del variables["Epoch"]
 
     # Calculate magnetic field variables
-    irbem_options = ep.processing.magnetic_field_utils.IrbemOptions()
+    if calculate_Lstar:
+        irbem_option_lstar = ep.processing.magnetic_field_utils.LstarQuantity.LSTAR
+    else:
+        irbem_option_lstar = ep.processing.magnetic_field_utils.LstarQuantity.NONE
+
+    irbem_options = ep.processing.magnetic_field_utils.IrbemOptions(lstar_quantity=irbem_option_lstar)
 
     vars_to_compute: ep.typing.VariableRequest = [
         ("B_Calc", mag_field),

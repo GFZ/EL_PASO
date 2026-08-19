@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 FORTRAN_BAD_VALUE = np.float64(-1.0e31)
 
 MAGINPUT_CLIP_RANGES: dict[kext, dict[SW_Index, tuple[float, float]]] = {
-    MagneticField.T01.kext(): {
+    MagneticField.T01.get_kext(): {
         "Dst": (-50, 20),
         "Pdyn": (0.5, 5),
         "IMF_By": (-5, 5),
@@ -29,25 +29,27 @@ MAGINPUT_CLIP_RANGES: dict[kext, dict[SW_Index, tuple[float, float]]] = {
         "G1": (0, 10),
         "G2": (0, 10),
     },
-    MagneticField.T01s.kext(): {},
-    MagneticField.T96.kext(): {
+    MagneticField.T01s.get_kext(): {},
+    MagneticField.T96.get_kext(): {
         "Dst": (-100, 20),
         "Pdyn": (0.5, 10),
         "IMF_By": (-10, 10),
         "IMF_Bz": (-10, 10),
     },
-    MagneticField.T89.kext(): {},
-    MagneticField.OP77Q.kext(): {},
-    MagneticField.T04s.kext(): {},
+    MagneticField.T89.get_kext(): {},
+    MagneticField.OP77Q.get_kext(): {},
+    MagneticField.T04s.get_kext(): {},
+    MagneticField.Dip.get_kext(): {},
 }
 
 MAGINPUT_REQUIRED_INPUTS: dict[kext, list[SW_Index]] = {
-    MagneticField.T89.kext(): ["Kp"],
-    MagneticField.T96.kext(): ["Kp", "Dst", "Pdyn", "IMF_By", "IMF_Bz"],
-    MagneticField.T01.kext(): ["Kp", "Dst", "Pdyn", "IMF_By", "IMF_Bz", "SW_speed", "SW_density", "G1", "G2"],
-    MagneticField.T01s.kext(): ["Kp", "Dst", "Pdyn", "IMF_By", "IMF_Bz", "SW_speed", "SW_density", "G2", "G3"],
-    MagneticField.T04s.kext(): ["Kp", "Dst", "Pdyn", "IMF_By", "IMF_Bz", "W_params"],
-    MagneticField.OP77Q.kext(): [],
+    MagneticField.T89.get_kext(): ["Kp"],
+    MagneticField.T96.get_kext(): ["Kp", "Dst", "Pdyn", "IMF_By", "IMF_Bz"],
+    MagneticField.T01.get_kext(): ["Kp", "Dst", "Pdyn", "IMF_By", "IMF_Bz", "SW_speed", "SW_density", "G1", "G2"],
+    MagneticField.T01s.get_kext(): ["Kp", "Dst", "Pdyn", "IMF_By", "IMF_Bz", "SW_speed", "SW_density", "G2", "G3"],
+    MagneticField.T04s.get_kext(): ["Kp", "Dst", "Pdyn", "IMF_By", "IMF_Bz", "W_params"],
+    MagneticField.OP77Q.get_kext(): [],
+    MagneticField.Dip.get_kext(): [],
 }
 
 MAGINPUT_TO_INDEX: dict[SW_Index, int | list[int]] = {
@@ -104,7 +106,7 @@ def construct_maginput(
     if indices_solar_wind is None:
         indices_solar_wind = {}
 
-    kext = magnetic_field.kext()
+    kext = magnetic_field.get_kext()
 
     required_inputs = MAGINPUT_REQUIRED_INPUTS[kext]
     clip_ranges = MAGINPUT_CLIP_RANGES[kext]

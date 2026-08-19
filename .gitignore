@@ -12,6 +12,8 @@ venv
 *.cdf
 *.nc
 tests/system/data
+tutorials/RBSP/
+tutorials/rbsp_hope_example.mat
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

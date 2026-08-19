@@ -164,7 +164,7 @@ def process_ept_electron_fluxes(
 
     if apply_correction_factors:
         variables["FEDU"].set_data(
-            variables["FEDU"].get_data() * np.asarray(EPT_ELECTRON_CORRECTION_FACTORS)[np.newaxis, :, np.newaxis],
+            variables["FEDU"].get_data() * np.asarray(EPT_ELECTRON_CORRECTION_FACTORS)[np.newaxis, :, np.newaxis],  # ty: ignore[unsupported-operator]
             unit="same",
         )
         variables["FEDU"].metadata.add_processing_note(
