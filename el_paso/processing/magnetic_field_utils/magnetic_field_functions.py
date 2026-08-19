@@ -144,7 +144,7 @@ def get_magequator(xgeo_var: ep.Variable, time_var: ep.Variable, irbem_input: Ir
         msg = f"Encountered size mismatch for x_geo: len of x_geo data: {len(x_geo)}, requested len: {len(datetimes)}"
         raise ValueError(msg)
 
-    kext = irbem_input.magnetic_field.kext()
+    kext = irbem_input.magnetic_field.get_kext()
 
     irbem_args = (irbem_input.irbem_lib_path, irbem_input.irbem_options, kext, sysaxes)
 
@@ -275,7 +275,7 @@ def get_footpoint_atmosphere(
         msg = f"Encountered size mismatch for x_geo: len of x_geo data: {len(x_geo)}, requested len: {len(datetimes)}"
         raise ValueError(msg)
 
-    kext = irbem_input.magnetic_field.kext()
+    kext = irbem_input.magnetic_field.get_kext()
 
     irbem_args = (irbem_input.irbem_lib_path, irbem_input.irbem_options, kext, sysaxes)
 
@@ -332,7 +332,7 @@ def get_MLT(xgeo_var: ep.Variable, time_var: ep.Variable, irbem_input: IrbemInpu
         msg = f"Encountered size mismatch for x_geo: len of x_geo data: {len(x_geo)}, requested len: {len(datetimes)}"
         raise ValueError(msg)
 
-    kext = irbem_input.magnetic_field.kext()
+    kext = irbem_input.magnetic_field.get_kext()
 
     model = MagFields(
         lib_path=irbem_input.irbem_lib_path,
@@ -403,7 +403,7 @@ def get_local_B_field(xgeo_var: ep.Variable, time_var: ep.Variable, irbem_input:
         "x2": x_geo[:, 1],
         "x3": x_geo[:, 2],
     }
-    kext = irbem_input.magnetic_field.kext()
+    kext = irbem_input.magnetic_field.get_kext()
 
     model = MagFields(
         lib_path=irbem_input.irbem_lib_path,
@@ -499,7 +499,7 @@ def get_mirror_point(
         )
         raise ValueError(msg)
 
-    kext = irbem_input.magnetic_field.kext()
+    kext = irbem_input.magnetic_field.get_kext()
 
     irbem_args = (irbem_input.irbem_lib_path, irbem_input.irbem_options, kext, sysaxes)
 
@@ -614,7 +614,7 @@ def get_Lstar(
         )
         raise ValueError(msg)
 
-    kext = irbem_input.magnetic_field.kext()
+    kext = irbem_input.magnetic_field.get_kext()
 
     irbem_args = (irbem_input.irbem_lib_path, irbem_input.irbem_options, kext, sysaxes)
 
