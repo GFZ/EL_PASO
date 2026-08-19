@@ -6,7 +6,6 @@
 
 from __future__ import annotations
 
-import fnmatch
 import ftplib
 import gzip
 import io
@@ -126,8 +125,8 @@ def download(
         method (Literal["request", "wget", "ftp", "esa_swe"], optional): Download method to use. "request" uses the
                                                        Python requests library, "wget" uses the system wget command,
                                                        "ftp" uses Python's ftplib against an FTP server (the host is
-                                                       parsed out of `download_url`, and `file_name_stem` is matched
-                                                       as an fnmatch glob against the remote directory listing), and
+                                                       parsed out of `download_url`, and `file_name_stem` is the
+                                                       exact remote file name to download), and
                                                        "esa_swe" uses the ESA Space Weather Service API (requires
                                                        `authentication_info` and `rename_file_name_stem`).
                                                        Defaults to "request".
@@ -365,8 +364,7 @@ def _ftp_download(
     """Download a file from an FTP server using ftplib.
 
     `download_url` must be of the form "ftp://host/remote/dir" (may contain time placeholders).
-    `file_name_stem` is matched as an fnmatch glob (e.g. "*.pdf", "GAL*_YYYYMMDD*.dat") against the
-    directory listing; if multiple files match, the lexicographically last one is used.
+    `file_name_stem` is the exact remote file name (may contain time placeholders).
     """
     if sort_raw_files_by_time:
         parent_folders = fill_str_template_with_time("YYYY/MM/", current_time)
@@ -376,7 +374,7 @@ def _ftp_download(
     save_path.mkdir(exist_ok=True, parents=True)
 
     url = fill_str_template_with_time(download_url, current_time)
-    file_name_pattern = fill_str_template_with_time(file_name_stem, current_time)
+    remote_file_name = fill_str_template_with_time(file_name_stem, current_time)
 
     parsed = urllib.parse.urlparse(url)
     if parsed.scheme != "ftp":
@@ -392,20 +390,6 @@ def _ftp_download(
         return
 
     try:
-        try:
-            entries = ftp.nlst(remote_dir)
-        except ftplib.error_perm as e:
-            logger.warning(f"Could not list FTP directory {remote_dir}: {e}")
-            return
-
-        file_names = sorted(entry.rsplit("/", 1)[-1] for entry in entries)
-        matched_names = fnmatch.filter(file_names, file_name_pattern)
-
-        if not matched_names:
-            logger.warning(f"No file found matching the pattern {file_name_pattern} in {url}")
-            return
-
-        remote_file_name = matched_names[-1]
         is_gzipped = remote_file_name.endswith(".gz")
 
         if rename_file_name_stem is None:

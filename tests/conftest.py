@@ -25,9 +25,12 @@ def renew_solution(request: pytest.FixtureRequest) -> bool:
     return str2bool(typing.cast("str", option))
 
 
+_DEFAULT_PORTS_BY_SCHEME = {"https": 443, "http": 80, "ftp": 21}
+
+
 def _is_reachable(url: str, timeout: float = 5.0) -> bool:
     parsed = urlparse(url)
-    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    port = parsed.port or _DEFAULT_PORTS_BY_SCHEME.get(parsed.scheme, 80)
     try:
         with socket.create_connection((parsed.hostname, port), timeout=timeout):
             return True
