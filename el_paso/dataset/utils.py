@@ -28,7 +28,7 @@ def join_var(
     if isinstance(var1, xr.Variable):
         var1 = [var1]
 
-    var1.append(var2)  # ty: ignore[unresolved-attribute, invalid-argument-type]
+    var1.append(var2)  # ty: ignore[invalid-argument-type, unresolved-attribute]
 
     return var1
 
