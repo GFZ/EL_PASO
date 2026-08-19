@@ -1,0 +1,48 @@
+# SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
+# SPDX-FileContributor: Sahil Jhawar
+#
+# SPDX-License-Identifier: Apache-2.0
+
+cff-version: 1.2.0
+title: "EL-PASO: ELaborative Particle Analysis from Satellite Observations"
+message: If you use this software, please cite it using the metadata from this file, as well as the associated preprint.
+type: software
+authors:
+  - family-names: Haas
+    given-names: Bernhard
+    email: bhaas@gfz.de
+    affiliation: GFZ Helmholtz Centre for Geosciences
+  - family-names: Jhawar
+    given-names: Sahil
+    email: jhawar@gfz.de
+    affiliation: GFZ Helmholtz Centre for Geosciences
+  - family-names: Drozdov
+    given-names: Alexander Y.
+    affiliation: "The Aerospace Corporation, El Segundo, CA, USA"
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.20760790
+repository-code: "https://github.com/GFZ/EL_PASO"
+url: "https://el-paso.readthedocs.io/en/latest/"
+abstract: EL-PASO is a Python framework designed to streamline the download, processing, and saving of satellite particle observation data. Its primary purpose is to prepare and standardize particle data for use in radiation belt modeling.
+keywords:
+  - Radiation Belt Modelling
+  - Space Physics
+  - Space Weather
+  - Computational Physics
+license: "Apache-2.0 OR LGPL-3.0-only"
+preferred-citation:
+  type: article
+  title: "EL-PASO: An Open-Source Python Library for Processing and Standardizing Particle Measurements Taken in Space"
+  authors:
+    - family-names: Haas
+      given-names: Bernhard
+      affiliation: GFZ Helmholtz Centre for Geosciences Potsdam, Germany; Institute of Physics and Astronomy, University of Potsdam, Potsdam, Germany
+    - family-names: Drozdov
+      given-names: Alexander Y.
+      affiliation: "The Aerospace Corporation, El Segundo, CA, USA"
+    - family-names: Jhawar
+      given-names: Sahil
+      affiliation: "GFZ Helmholtz Centre for Geosciences Potsdam, Potsdam, Germany"
+  doi: 10.22541/essoar.15002644/v1
+  url: "https://essopenarchive.org/doi/full/10.22541/essoar.15002644/v1"

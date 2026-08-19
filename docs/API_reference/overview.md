@@ -31,6 +31,8 @@ This section provides a detailed reference for all modules, classes, and functio
 
 ## Utilities
 
+[Cache](utilities/cache.md)
+
 [General utilities](utilities/general_utilities.md)
 
 [Load geomagnetic indices and solar wind parameters](utilities/load_indices_solar_wind_parameters.md)

@@ -438,7 +438,7 @@ class MagFields:
         c_alpha = (ctypes.c_double * c_n_alpha.value)()
 
         for da in range(c_n_alpha.value):
-            c_alpha[da] = alpha[da]  # ty:ignore[invalid-argument-type]
+            c_alpha[da] = alpha[da]
 
         # Convert the model parameters into c objects.
         c_maginput = self._prep_maginput(maginput)
@@ -968,7 +968,7 @@ class MagFields:
             for i, key in enumerate(ordered_keys):
                 for dt in range(ntime):
                     if key in input_dict:
-                        maginput[dt][i] = input_dict[key][dt]  # ty:ignore[invalid-argument-type]
+                        maginput[dt][i] = input_dict[key][dt]
                     else:
                         maginput[dt][i] = ctypes.c_double(-9999)
 

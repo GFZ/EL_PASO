@@ -98,7 +98,7 @@ def process_dmsp_ssj_electrons(
     diff_flux = diff_flux[:, sort_idx]
     diff_flux /= ssj_vars["diff_energy"].get_data(u.eV)
 
-    diff_omni_flux = 4 * np.pi * diff_flux # SSJ-5 observes 90 deg FOV
+    diff_omni_flux = 4 * np.pi * diff_flux  # SSJ-5 observes 90 deg FOV
 
     diff_omni_flux = diff_omni_flux[:, :, np.newaxis]  # add pitch angle dimension
     ssj_vars["diff_omni_flux"] = ep.Variable(data=diff_omni_flux, original_unit=(u.cm**2 * u.s * u.eV) ** (-1))

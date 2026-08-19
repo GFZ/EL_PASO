@@ -68,6 +68,7 @@ nav:
           - API_reference/processing/get_real_time_tipsod.md
           - API_reference/processing/interpolate_in_time.md
       - Utilities:
+          - Cache: API_reference/utilities/cache.md
           - General Utilities: API_reference/utilities/general_utilities.md
           - Loading Geomagnetic Indices and Solar Wind Parameters: API_reference/utilities/load_indices_solar_wind_parameters.md
           - Magnetic Field Utilities: API_reference/utilities/magnetic_field_utilities.md

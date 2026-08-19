@@ -54,9 +54,27 @@ def test_esa_api(tmp_path: Path, skip_if_unreachable: Callable[..., None]):
 
 
 @pytest.mark.basic
-def test_request(tmp_path: Path, skip_if_unreachable: Callable[..., None]):
+def test_request(tmp_path: Path, skip_if_unreachable: Callable[..., None], monkeypatch: pytest.MonkeyPatch):
 
     skip_if_unreachable("https://spdf.gsfc.nasa.gov")
+
+    download_mod = importlib.import_module("el_paso.download")
+
+    def _get_page_content_longer_timeout(
+        url: str, authentication_info: tuple[str, str]
+    ) -> download_mod.requests.Response | None:
+        response_of_content = download_mod.requests.get(
+            url, stream=True, timeout=30, auth=download_mod.HTTPDigestAuth(*authentication_info)
+        )
+
+        if response_of_content.status_code == download_mod.ERROR_NOT_FOUND:
+            return None
+
+        response_of_content.raise_for_status()
+
+        return response_of_content
+
+    monkeypatch.setattr(download_mod, "_get_page_content", _get_page_content_longer_timeout)
 
     start_time = datetime(2013, 3, 17, tzinfo=timezone.utc)
     end_time = datetime(2013, 3, 17, 1, tzinfo=timezone.utc)
@@ -149,6 +167,7 @@ def test_exit_after_download(caplog: pytest.LogCaptureFixture):
 
     assert sample_exception.value.code == 1
     assert "Exiting after ep.download is completed!" in caplog.text
+
 
 def test_skip_download_via_ep_flag(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture):
 

@@ -71,7 +71,7 @@ def calculate_geo_coords_from_tle(
 
 
 def calculate_geo_coords_from_omm(
-    omm_line: dict[str,str],
+    omm_line: dict[str, str],
     target_times: list[datetime],
 ) -> ep.Variable:
     """Calculate GEO coordinates (x, y, z) in kilometers from an OMM orbital element set.

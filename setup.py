@@ -93,6 +93,6 @@ setup(
     packages=find_packages(),
     package_data={"el_paso": ["libirbem.so"]},
     include_package_data=True,
-    python_requires=">=3.11",
+    python_requires=">=3.12",
     cmdclass={"build_py": CustomBuild},
 )

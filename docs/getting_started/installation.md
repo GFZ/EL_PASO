@@ -12,7 +12,7 @@ SPDX-License-Identifier: Apache-2.0
 After cloning the repository, the main package can be installed using a virtual environment and pip. Make sure your current directory is set to the EL-PASO repository:
 
 ```bash
-uv venv --python 3.11 --seed
+uv venv --python 3.12 --seed
 source .venv/bin/activate
 uv pip install .
 ```

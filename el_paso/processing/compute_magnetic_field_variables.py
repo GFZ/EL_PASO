@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import atexit
 import logging
 import typing
 from collections.abc import Sequence
@@ -14,10 +15,12 @@ from typing import Literal, NamedTuple
 
 import numpy as np
 from astropy import units as u
+from joblib import Memory
 
 import el_paso as ep
 import el_paso.processing.magnetic_field_utils as mag_utils
 from el_paso import Variable
+from el_paso.cache import clear_cache_on_success, get_cache_dir
 from el_paso.typing import MagFieldVarTypes, MagneticFieldLiteral
 from el_paso.utils import make_dict_hashable, timed_function
 
@@ -40,6 +43,9 @@ class MagFieldVar(NamedTuple):
     mag_field: str | mag_utils.MagneticField
 
 
+_cleanup_registered = False
+
+
 def compute_magnetic_field_variables(
     time_var: Variable,
     xgeo_var: Variable,
@@ -52,6 +58,8 @@ def compute_magnetic_field_variables(
     particle_species: Literal["electron", "proton"] | None = None,
     *,
     irbem_lib_path: str | Path = Path(ep.__file__).parent / "libirbem.so",
+    cache_dir: str | Path | None = "_default_",
+    overwrite_cache: bool = False,
 ) -> dict[str, Variable]:
     """Computes various magnetic field-related variables using the IRBEM library.
 
@@ -59,6 +67,10 @@ def compute_magnetic_field_variables(
     and related invariants (like L-star, MLT, B_local, B_eq, invariant Mu,
     and invariant K) based on provided time and geocentric coordinates. It
     leverages the IRBEM library for the underlying computations.
+
+    Results are cached to disk by default so that a crash in downstream code
+    does not force re-computation.  The cache is cleaned on graceful exit
+    and stale entries (>7 days) are purged automatically at import time.
 
     Args:
         time_var (Variable): A Variable object containing time data. The data should be a 1D array of timestamps.
@@ -85,6 +97,12 @@ def compute_magnetic_field_variables(
             is requested. Defaults to None.
         irbem_lib_path (str | Path): Optional. The file path to the IRBEM library (e.g., "libirbem.so"). Defaults to a
             path relative to the el_paso package.
+        cache_dir (str | Path | None): Directory for disk caching of results.
+            ``"default"`` uses ``$HOME/.elpaso/joblib_cache``.  Pass an explicit
+            path to use a custom location, or ``None`` to disable caching.
+        overwrite_cache (bool): If ``True``, recompute and overwrite the cached
+            result even when a cache hit exists.  The fresh result is still
+            written to cache.  Defaults to ``False``.
 
     Returns:
         dict[str, Variable]: A dictionary where keys are the computed variable
@@ -107,6 +125,70 @@ def compute_magnetic_field_variables(
           within the function to avoid redundant IRBEM calls when multiple
           dependent variables are requested.
     """
+    if cache_dir == "_default_":
+        cache_dir = get_cache_dir()
+
+    if cache_dir is not None:
+        global _cleanup_registered
+        if not _cleanup_registered:
+            atexit.register(clear_cache_on_success)
+            _cleanup_registered = True
+
+        memory = Memory(cache_dir, verbose=0)
+        cached_fn = memory.cache(_compute_core, ignore=["num_cores", "irbem_lib_path"])
+
+        call_args = (
+            time_var,
+            xgeo_var,
+            variables_to_compute,
+            irbem_options,
+            num_cores,
+            indices_solar_wind,
+            pa_local_var,
+            energy_var,
+            particle_species,
+        )
+
+        if overwrite_cache:
+            logger.info("Overwriting cached magnetic field variables (overwrite_cache=True).")
+            result, _ = cached_fn.call(*call_args, irbem_lib_path=irbem_lib_path)
+            logger.info("Magnetic field variables computed and cached at %s.", cache_dir)
+            return result
+
+        if cached_fn.check_call_in_cache(*call_args, irbem_lib_path=irbem_lib_path):
+            logger.info("Loading magnetic field variables from cache at %s.", cache_dir)
+        else:
+            logger.info("No cache hit at %s — computing magnetic field variables.", cache_dir)
+
+        return cached_fn(*call_args, irbem_lib_path=irbem_lib_path)
+
+    return _compute_core(
+        time_var,
+        xgeo_var,
+        variables_to_compute,
+        irbem_options,
+        num_cores,
+        indices_solar_wind,
+        pa_local_var,
+        energy_var,
+        particle_species,
+        irbem_lib_path=irbem_lib_path,
+    )
+
+
+def _compute_core(
+    time_var: Variable,
+    xgeo_var: Variable,
+    variables_to_compute: VariableRequest,
+    irbem_options: mag_utils.IrbemOptions,
+    num_cores: int,
+    indices_solar_wind: dict[str, Variable] | None = None,
+    pa_local_var: Variable | None = None,
+    energy_var: Variable | None = None,
+    particle_species: Literal["electron", "proton"] | None = None,
+    *,
+    irbem_lib_path: str | Path = Path(ep.__file__).parent / "libirbem.so",
+) -> dict[str, Variable]:
     if not Path(irbem_lib_path).is_file():
         msg = f"No library object found under the provided irbem_lib_path: {irbem_lib_path}"
         logger.warning(

@@ -26,7 +26,7 @@ import el_paso as ep
 
 
 @timed_function("process_arase_xep_real_time")
-def process_arase_xep_real_time(
+def process_arase_xep_real_time(  # noqa: D417
     processed_data_path: str | Path,
     download_data_dir: str | Path,
     start_time: datetime,
@@ -38,6 +38,7 @@ def process_arase_xep_real_time(
     *,
     download: bool = True,
     skip_existing: bool = True,
+    do_xep_extraction: bool = True,
 ) -> None:
     """Process Arase XEP real-time electron flux data and save derived products.
 
@@ -91,9 +92,16 @@ def process_arase_xep_real_time(
         msg = "ERG_PASSWORD not found! Either load it from environment variables or pass it as an argument."
         raise ValueError(msg)
 
-    xep_variables = _get_xep_variables(
-        download_data_dir, start_time, end_time, erg_user, erg_password, download=download, skip_existing=skip_existing
-    )
+    if do_xep_extraction:
+        xep_variables = _get_xep_variables(
+            download_data_dir,
+            start_time,
+            end_time,
+            erg_user,
+            erg_password,
+            download=download,
+            skip_existing=skip_existing,
+        )
     orb_variables = _get_orb_variables(
         download_data_dir,
         start_time,

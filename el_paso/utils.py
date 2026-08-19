@@ -361,9 +361,8 @@ def load_netcdf_data(file_path: Path, target_var_names: list[str] | None = None)
 
     return loaded_data
 
-def load_netcdf_data_lazy(
-    file_path: Path
-) -> dict[StandardName, Any]:
+
+def load_netcdf_data_lazy(file_path: Path) -> dict[StandardName, Any]:
     """Load all variables and variable metadata from a NetCDF file lazily using xarray."""
     if not file_path.exists():
         logger.error(f"File not found: {file_path}")
@@ -376,7 +375,6 @@ def load_netcdf_data_lazy(
         prefix = f"{group_path}/" if group_path != "/" else ""
 
         for var_name, data_array in ds.variables.items():
-
             full_path = f"{prefix}{var_name}"
             loaded_data[full_path] = data_array  # ty:ignore[invalid-assignment]
 
@@ -386,13 +384,12 @@ def load_netcdf_data_lazy(
                 "source_files": attrs.get("source", "unknown"),
                 "processing_notes": attrs.get("history", "unknown"),
                 "description": attrs.get("description", "unknown"),
-                "original_cadence_seconds": attrs.get(
-                    "original_cadence_seconds", "unknown"
-                ),
+                "original_cadence_seconds": attrs.get("original_cadence_seconds", "unknown"),
                 "standard_name": attrs.get("standard_name", "unknown"),
             }
 
     return loaded_data
+
 
 def load_cdf_data(file_path: Path) -> dict[StandardName, Any]:
     """Load all zVariables from an existing CDF file."""
@@ -402,7 +399,7 @@ def load_cdf_data(file_path: Path) -> dict[StandardName, Any]:
         info = cdf_file.cdf_info()
         z_variables = getattr(info, "zVariables", None)
         if z_variables is None and isinstance(info, dict):
-            z_variables = info.get("zVariables", [])  # ty:ignore[no-matching-overload]
+            z_variables = info.get("zVariables", [])
 
         for variable_name in z_variables or []:
             try:
@@ -596,7 +593,7 @@ def _write_data_to_netcdf_file(file: nC.Dataset | nC.Group, data_dict: DataDict,
         }
 
         coordinates = [
-            data_standard.get_standard_name(int_name)
+            data_standard.get_standard_name(int_name)  # ty:ignore[invalid-argument-type]
             for int_name in data_standard.get_dependencies(internal_name)
             if int_name in valid_internal_names
         ]
@@ -646,13 +643,12 @@ def _calculate_dimensions(data_dict: DataDict, data_standard: DataStandard) -> d
                 elif dim_name == "Position_components":
                     unique_dims[dim_name] = 3
                 elif dim_name in data_dict:
-
                     dims_of_dim = data_standard.get_dependencies(dim_name)
 
-                    target_idx = np.where(dim_name == np.asarray(dims_of_dim))[0][0]
+                    target_idx = np.where(dim_name == np.asarray(dims_of_dim))[0][0]  # ty:ignore[no-matching-overload]
 
                     if data_dict[dim_name].ndim <= target_idx:
-                        unique_dims[dim_name] = 1 # dimesion of size 1 can be collapsed
+                        unique_dims[dim_name] = 1  # dimesion of size 1 can be collapsed
                     else:
                         unique_dims[dim_name] = data_dict[dim_name].shape[target_idx]
 

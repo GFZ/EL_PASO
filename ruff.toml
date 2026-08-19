@@ -30,11 +30,13 @@ ignore = [
     "N802",
     "N999",
     "F401",
+    "PLR0917",
+    "CPY001",
+    "UP046",
+    "UP040",
+    "UP047",
 ]
-exclude = [
-    "*.ipynb",
-    "setup.py",
-]
+exclude = ["*.ipynb", "setup.py"]
 
 [lint.pydocstyle]
 convention = "google"

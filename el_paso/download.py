@@ -183,6 +183,7 @@ def download(
         logger.info("Exiting after ep.download is completed!")
         sys.exit(0)
 
+
 def _get_next_time(curr_time: datetime, file_cadence: Literal["daily", "monthly", "single_file"]) -> datetime | None:
     match file_cadence:
         case "daily":

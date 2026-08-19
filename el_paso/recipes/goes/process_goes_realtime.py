@@ -33,7 +33,7 @@ GEOCOORDS_DICT: dict[Literal["primary", "secondary"], np.ndarray] = {
 
 def _remove_unit_from_energy_channels(energy_channels: NDArray[np.generic]) -> NDArray[np.int32]:
     """Remove the unit from the energy ranges."""
-    return np.asarray([int(i.replace(" keV", "")) for i in energy_channels if "keV" in i])
+    return np.asarray([int(i.replace(" keV", "")) for i in energy_channels if "keV" in i])  # ty:ignore[invalid-return-type]
 
 
 @timed_function("process_goes_real_time")
@@ -242,7 +242,7 @@ if __name__ == "__main__":
 
     for sat in ["primary", "secondary"]:
         process_goes_real_time(
-            sat_str=sat,  # ty:ignore[invalid-argument-type]
+            sat_str=sat,
             raw_data_path="goes/raw/",
             processed_data_path="goes/processed/",
             start_time=start_time,

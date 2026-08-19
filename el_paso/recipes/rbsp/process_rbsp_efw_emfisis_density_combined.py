@@ -395,7 +395,7 @@ if __name__ == "__main__":
         process_efw_emfisis_density_combined(
             dt_start,
             dt_end,
-            sat_str,  # ty:ignore[invalid-argument-type]
+            sat_str,
             args.irbem_lib_path,
             "T89",
             raw_data_path=".",

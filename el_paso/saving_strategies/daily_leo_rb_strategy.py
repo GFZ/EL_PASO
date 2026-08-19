@@ -50,7 +50,10 @@ class DailyLEORBStrategy(ep.typing.MonthlyRBStrategy):
         ]
 
     def get_file_path(
-        self, interval_start: datetime, interval_end: datetime, output_file: ep.typing.OutputFile,  # noqa: ARG002
+        self,
+        interval_start: datetime,
+        interval_end: datetime,  # noqa: ARG002
+        output_file: ep.typing.OutputFile,  # noqa: ARG002
     ) -> Path:
         """Generate the daily file path for the configured format."""
         file_name = f"{self.get_file_name_stem()}_{interval_start.strftime('%Y%m%d')}_{self.mag_field}.nc"
