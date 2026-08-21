@@ -143,10 +143,6 @@ def download(
 
     Raises:
         NotImplementedError: If "monthly" cadence or an unsupported cadence is specified.
-
-    Returns:
-        None
-
     """
     if ep.skip_download or os.getenv("EL_PASO_SKIP_DOWNLOAD"):
         logger.info("Skipping ep.download!")

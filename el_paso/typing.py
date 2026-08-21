@@ -91,45 +91,51 @@ PRBEMName: TypeAlias = InternalName
 """PRBEM-standard variable names, which match EL-PASO internal names."""
 
 GFZVarNames: TypeAlias = Literal[
-    "time",
-    "xGEO",
-    "energy_channels",
-    "energy_FEIU",
-    "energy_FEDO",
-    "energy_FPDU",
-    "Flux",
-    "FEIU",
-    "FEDO",
-    "FPDU",
-    "alpha_local",
-    "alpha_eq_model",
-    "PSD",
-    "MLT",
-    "MLT0",
-    "MLat",
-    "Lstar",
-    "Lm",
+    # BEGIN GENERATED GFZ_VAR_NAMES
+    "BB",
     "B_eq",
     "B_sat",
     "B_total",
-    "R0",
-    "InvMu",
+    "FEDO",
+    "FEIU",
+    "FPDU",
+    "Flux",
     "InvK",
-    "alpha_local_range",
+    "InvMu",
+    "Lm",
+    "Lstar",
+    "MLT",
+    "MLT0",
+    "MLat",
+    "PSD",
+    "R0",
+    "alpha_eq_model",
     "alpha_eq_range",
     "alpha_lc",
     "alpha_lc_eq",
+    "alpha_local",
+    "alpha_local_range",
+    "ellipticity",
+    "energy_FEDO",
+    "energy_FEIU",
+    "energy_FPDU",
+    "energy_channels",
+    "freq",
+    "freq_bw",
     "geo_alt",
     "geo_lat",
     "geo_lon",
-    "freq",
-    "ellipticity",
     "planarity",
-    "freq_bw",
-    "BB",
+    "time",
     "wave_wna",
+    "xGEO",
+    # END GENERATED GFZ_VAR_NAMES
 ]
-"""Variable names used by the GFZ output standard."""
+"""Variable names used by the GFZ output standard.
+
+Generated from `GFZStandard().variable_infos` by `scripts/generate_metadata_stubs.py`. Do not edit the
+generated block by hand; edit `el_paso/data_standards/gfz_standard.py` and regenerate instead.
+"""
 
 StandardName: TypeAlias = PRBEMName | GFZVarNames | Literal["metadata"]
 """Any standard-facing variable name accepted by EL-PASO data standards."""

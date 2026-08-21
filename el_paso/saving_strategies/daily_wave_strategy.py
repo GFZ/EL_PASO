@@ -114,9 +114,19 @@ class DailyWaveStrategy(SavingStrategy):
         return time_intervals
 
     def get_file_path_stem(self) -> Path:
+        """Returns the directory `base_path/MISSION/satellite`.
+
+        Returns:
+            Path: The directory where this strategy's output files are stored.
+        """
         return self.base_data_path / self.mission.upper() / self.satellite.lower()
 
     def get_file_name_stem(self) -> str:
+        """Returns the file name stem `satellite_instrument`.
+
+        Returns:
+            str: The base file name stem used to build output file names.
+        """
         return self.satellite.lower() + "_" + self.instrument.lower()
 
     def get_file_path(self, interval_start: datetime, interval_end: datetime, output_file: OutputFile) -> Path:  # noqa: ARG002

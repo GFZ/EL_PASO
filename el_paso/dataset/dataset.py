@@ -48,6 +48,14 @@ class DataSet:
     This unified class handles loading data from multiple file formats and
     dictionary-backed sources. Dictionary updates are always allowed and replace
     existing values for standard variables.
+
+    Attributes:
+        saving_strategy (SavingStrategy): The strategy used to locate and load
+            each variable's underlying data files.
+        possible_variables (list[str]): All standard variable names (plus the
+            computed properties ``"P"``, ``"InvV"``, and ``"datetime"``) that
+            may be accessed on this dataset.
+        metadata (DatasetMetadata): Per-variable metadata collected while loading.
     """
 
     _internal_attrs = frozenset(
@@ -218,7 +226,12 @@ class DataSet:
         raise AttributeError(msg)
 
     def load(self, name_or_var: str) -> None:
-        """Load data into memory."""
+        """Load a variable into memory, if it is not already loaded.
+
+        Args:
+            name_or_var (str): The name of the variable (or computed property,
+                e.g. ``"P"``, ``"InvV"``, ``"datetime"``) to load.
+        """
         getattr(self, name_or_var)
 
     def find_similar_variable(self, name: str) -> tuple[str | None, dict[str, Any]]:
@@ -419,7 +432,12 @@ class DataSet:
                 setattr(self, standard_name, np.asarray([]))
 
     def get_loaded_variables(self) -> list[str]:
-        """Get a list of currently loaded variable names."""
+        """Get a list of currently loaded variable names.
+
+        Returns:
+            list[str]: The subset of ``possible_variables`` that have already
+            been loaded into memory (i.e. accessed at least once).
+        """
         return [var for var in self.possible_variables if var in self.__dict__]
 
     def assert_equal(self, other: DataSet) -> None:

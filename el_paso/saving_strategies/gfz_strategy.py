@@ -46,13 +46,6 @@ class GFZStrategy(SavingStrategy):
         instrument (str): The name of the instrument.
         kext (str): A model-related identifier, with "TS04" being mapped to "T04s"
             for backward compatibility.
-
-    Methods:
-        __init__: Initializes the strategy with file paths and metadata.
-        standardize_variable: Standardizes variables to specific units and dimensions based on their name.
-        get_time_intervals_to_save: Splits the given time range into a list of monthly intervals.
-        get_file_path: Generates a complete file path based on the mission, satellite, and date.
-        append_data: Appends new data to an existing file by concatenating NumPy arrays based on time.
     """
 
     output_files: list[OutputFile]
@@ -127,9 +120,19 @@ class GFZStrategy(SavingStrategy):
         return time_intervals
 
     def get_file_path_stem(self) -> Path:
+        """Returns the directory `base_path/MISSION/satellite/Processed_Mat_Files`.
+
+        Returns:
+            Path: The directory where this strategy's output files are stored.
+        """
         return self.base_data_path / self.mission.upper() / self.satellite.lower() / "Processed_Mat_Files"
 
     def get_file_name_stem(self) -> str:
+        """Returns the file name stem `satellite_instrument`.
+
+        Returns:
+            str: The base file name stem used to build output file names.
+        """
         return self.satellite.lower() + "_" + self.instrument.lower()
 
     def get_file_path(self, interval_start: datetime, interval_end: datetime, output_file: OutputFile) -> Path:

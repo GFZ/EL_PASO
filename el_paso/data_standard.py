@@ -78,6 +78,15 @@ class DataStandard(ABC, Generic[T_co]):
         return self.__repr__()
 
     def get_internal_name(self, standard_name: StandardName) -> InternalName | None:
+        """Looks up the internal name registered for a given standard name.
+
+        Args:
+            standard_name (StandardName): The standard name to look up.
+
+        Returns:
+            InternalName | None: The internal name associated with ``standard_name``,
+            or ``None`` if no variable in this data standard has that standard name.
+        """
         for internal_name, var_info in self.variable_infos.items():
             if var_info.standard_name == standard_name:
                 return internal_name
@@ -85,7 +94,17 @@ class DataStandard(ABC, Generic[T_co]):
         return None
 
     def get_standard_name(self, internal_name: InternalName) -> T_co:
+        """Looks up the standard name registered for a given internal name.
 
+        Args:
+            internal_name (InternalName): The internal name to look up.
+
+        Returns:
+            T_co: The standard name associated with ``internal_name``.
+
+        Raises:
+            ValueError: If ``internal_name`` is not part of this data standard.
+        """
         if internal_name not in self.variable_infos:
             msg = f"Internal name {internal_name} is not part of the {type(self)}!"
             raise ValueError(msg)
@@ -93,6 +112,14 @@ class DataStandard(ABC, Generic[T_co]):
         return self.variable_infos[internal_name].standard_name
 
     def get_dependencies(self, internal_name: InternalName) -> list[InternalName | FixedDimensionName]:
+        """Returns the ordered dimension names that a variable depends on.
+
+        Args:
+            internal_name (InternalName): The internal name of the variable.
+
+        Returns:
+            list[InternalName | FixedDimensionName]: The ordered list of dimension names.
+        """
         return self.variable_infos[internal_name].dependencies
 
     def standardize_variable(
@@ -151,10 +178,7 @@ def _assert_sorted(
     violating = np.any(diffs < 0) if order == "ascending" else np.any(diffs > 0)
 
     if violating:
-        msg = (
-            f"Variable '{internal_name}' must be sorted {order} along "
-            f"dimension '{dim_name}' (axis {axis})."
-        )
+        msg = f"Variable '{internal_name}' must be sorted {order} along dimension '{dim_name}' (axis {axis})."
         raise ValueError(msg)
 
 
@@ -181,6 +205,18 @@ class ConsistencyCheck:
     lengths: dict[str | int, _SizeAttr] = field(default_factory=dict[str | int, _SizeAttr])
 
     def check(self, data_shape: tuple[int, ...], dim_names_or_sizes: Sequence[str | int], var_name: str) -> None:
+        """Checks a variable's data shape against previously observed dimension sizes.
+
+        Args:
+            data_shape (tuple[int, ...]): The shape of the variable's data.
+            dim_names_or_sizes (Sequence[str | int]): For each axis in ``data_shape``,
+                either the name of the shared dimension or a fixed expected size.
+            var_name (str): Name of the variable being checked, used in error messages.
+
+        Raises:
+            ValueError: If ``data_shape`` and ``dim_names_or_sizes`` have different
+                lengths, or if a checked size is inconsistent with a previous observation.
+        """
         if len(data_shape) != len(dim_names_or_sizes):
             msg = "Encountered size missmatch!"
             raise ValueError(msg)
@@ -189,6 +225,21 @@ class ConsistencyCheck:
             self.check_size(data_shape[i], dim_name_or_size, var_name)
 
     def check_size(self, provided_len: int, dim_name_or_size: str | int, var_name: str) -> None:
+        """Checks a single dimension's size against previously observed sizes.
+
+        If ``dim_name_or_size`` is a named dimension seen for the first time, its
+        size is recorded for future comparisons.
+
+        Args:
+            provided_len (int): The size to check.
+            dim_name_or_size (str | int): Either the name of a shared dimension, or a
+                fixed integer size that ``provided_len`` must exactly match.
+            var_name (str): Name of the variable being checked, used in error messages.
+
+        Raises:
+            ValueError: If ``provided_len`` does not match the fixed size given, or
+                does not match the previously recorded size for the named dimension.
+        """
         if isinstance(dim_name_or_size, int):
             if dim_name_or_size != provided_len:
                 msg = (
