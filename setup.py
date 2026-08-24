@@ -19,8 +19,10 @@ from setuptools.errors import BaseError, ExecError, FileError
 
 IRBEM_REPO_URL = "https://github.com/PRBEM/IRBEM.git"
 
+
 class IrbemBuildError(BaseError):
     """Raised when the IRBEM library cannot be built."""
+
 
 class CustomBuild(build_py):
     """Custom build command that builds IRBEM before building Python package."""
@@ -83,7 +85,13 @@ class CustomBuild(build_py):
     def _clone_irbem_repo(self, tmp_dir, cwd=None):
         """Run a command, aborting the build with captured output on failure."""
         try:
-            subprocess.run(["git", "clone", "--depth=1", IRBEM_REPO_URL, tmp_dir], cwd=cwd, check=True, text=True, capture_output=True)
+            subprocess.run(
+                ["git", "clone", "--depth=1", IRBEM_REPO_URL, tmp_dir],
+                cwd=cwd,
+                check=True,
+                text=True,
+                capture_output=True,
+            )
         except FileNotFoundError as exc:
             raise ExecError(f"{cmd[0]!r} not found; it is required to build IRBEM.") from exc
         except subprocess.CalledProcessError as exc:
@@ -95,14 +103,28 @@ class CustomBuild(build_py):
             ) from exc
 
     def _compile_and_install_irbem(self, irbem_dir):
+        fflags = "-fpic -fno-second-underscore -std=legacy -ffixed-line-length-none -O2 -march=native"
+        cflags = "-fpic -O2 -march=native"
         if sys.platform == "darwin":
             fc = self._get_fortran_compiler_darwin()
-            base_cmd = ["make", "OS=osx64", f"FC={fc}", f"LD={fc}"]
+            base_cmd = [
+                "make",
+                "OS=osx64",
+                f"FC={fc}",
+                f"LD={fc}",
+                f"FFLAGS={fflags}",
+                f"CFLAGS={cflags}",
+            ]
             subprocess.check_call(base_cmd + ["all"], cwd=irbem_dir)
             subprocess.check_call(base_cmd + ["install"], cwd=irbem_dir)
         else:
-            subprocess.check_call(["make"], cwd=irbem_dir)
-            subprocess.check_call(["make", "install", "."], cwd=irbem_dir)
+            base_cmd = [
+                "make",
+                f"FFLAGS={fflags}",
+                f"CFLAGS={cflags}",
+            ]
+            subprocess.check_call(base_cmd + ["all"], cwd=irbem_dir)
+            subprocess.check_call(base_cmd + ["install", "."], cwd=irbem_dir)
 
 
 setup(
