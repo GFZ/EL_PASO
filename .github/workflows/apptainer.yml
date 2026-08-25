@@ -58,19 +58,19 @@ jobs:
           sudo apptainer exec --no-mount cwd ${{ env.IMAGE_NAME }}.sif python -c "import el_paso; print('Import successful',  el_paso.__file__)"
 
       - name: Log in to GHCR
-        if: github.repository_owner == 'GFZ'
+        if: github.event_name == 'push' && github.repository_owner == 'GFZ'
         run: |
           echo ${{ secrets.GITHUB_TOKEN }} | apptainer remote login -u ${{ github.actor }} --password-stdin oras://ghcr.io
 
       - name: Set lowercase repository owner
-        if: github.repository_owner == 'GFZ'
+        if: github.event_name == 'push' && github.repository_owner == 'GFZ'
         id: repo_owner
         run: echo "owner=${OWNER,,}" >> "$GITHUB_OUTPUT" #{,,} works in bash to make it lowecase
         env:
           OWNER: ${{ github.repository_owner }}
 
       - name: Push image
-        if: github.repository_owner == 'GFZ'
+        if: github.event_name == 'push' && github.repository_owner == 'GFZ'
         run: |
           apptainer push ${{ env.IMAGE_NAME }}.sif oras://ghcr.io/${{ steps.repo_owner.outputs.owner }}/${{ env.IMAGE_NAME }}:latest
           apptainer push ${{ env.IMAGE_NAME }}.sif oras://ghcr.io/${{ steps.repo_owner.outputs.owner }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
