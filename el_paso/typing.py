@@ -157,6 +157,14 @@ MFSFormats: TypeAlias = Literal["nc", "cdf", "h5", "mat", ".nc", ".cdf", ".h5", 
 TimeInterval: TypeAlias = tuple[datetime, datetime]
 """Inclusive start and end datetimes for a processing or saving interval."""
 
+FileCadence: TypeAlias = Literal["daily", "monthly", "single_file"] | Callable[[datetime], datetime]
+"""Frequency at which files are organized.
+
+Either one of the built-in literals, or a custom callable (e.g. a generator function)
+that takes the current time and returns the next file boundary time. Use a callable
+for cadences that don't fit a fixed interval, such as irregular weekly files.
+"""
+
 SavedDataDict: TypeAlias = dict[InternalName | Literal["metadata"], Any]
 """Dictionary passed to saving backends, keyed by internal variable name or metadata."""
 
@@ -224,6 +232,7 @@ __all__ = [
     "DataStandard",
     "DensityNetCDFStrategy",
     "ExtractionInfo",
+    "FileCadence",
     "FileLoader",
     "FileWriter",
     "GFZMetaData",
