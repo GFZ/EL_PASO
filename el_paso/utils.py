@@ -48,7 +48,7 @@ def fill_str_template_with_time(input_str: str, time: datetime) -> str:
 
     Args:
         input_str (str): The input string containing placeholders like 'yyyymmdd', 'YYYYMMDD',
-                         'YYYY', 'MM', and 'DD'.
+                         'YYYY', 'YY', 'MM', and 'DD'.
         time (datetime): The datetime object to use for filling the template.
 
     Returns:
@@ -56,6 +56,7 @@ def fill_str_template_with_time(input_str: str, time: datetime) -> str:
     """
     yyyymmdd_str = time.strftime("%Y%m%d")
     yyyy_str = time.strftime("%Y")
+    yy_str = time.strftime("%y")
     mm_str = time.strftime("%m")
     dd_str = time.strftime("%d")
 
@@ -65,6 +66,7 @@ def fill_str_template_with_time(input_str: str, time: datetime) -> str:
         .replace("YYYY", yyyy_str)
         .replace("MM", mm_str)
         .replace("DD", dd_str)
+        .replace("YY", yy_str)
     )
 
 
