@@ -6,7 +6,7 @@
 import importlib
 import os
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -114,6 +114,62 @@ def test_request(tmp_path: Path, skip_if_unreachable: Callable[..., None], monke
 
     assert data_path.exists()
     assert len(list(data_path.glob("*"))) == 1
+
+
+def test_get_next_time_with_callable_cadence() -> None:
+    """A callable file_cadence should be invoked with curr_time and its return value used directly."""
+    download_mod = importlib.import_module("el_paso.download")
+
+    curr_time = datetime(2024, 1, 1, tzinfo=timezone.utc)
+
+    def weekly(time: datetime) -> datetime:
+        return time + timedelta(days=7)
+
+    next_time = download_mod._get_next_time(curr_time, weekly)
+
+    assert next_time == datetime(2024, 1, 8, tzinfo=timezone.utc)
+
+
+@pytest.mark.basic
+def test_download_with_callable_cadence(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A callable file_cadence should drive ep.download the same way a built-in literal does."""
+    directory_listing = MagicMock()
+    directory_listing.text = "\n".join(
+        f"ns41_{(datetime(2024, 1, 1, tzinfo=timezone.utc) + timedelta(days=7 * i)).strftime('%Y%m%d')}_v1.10.ascii"
+        for i in range(3)
+    )
+
+    download_mod = importlib.import_module("el_paso.download")
+
+    download_mod._get_page_content.cache_clear()
+    monkeypatch.setattr(download_mod, "_get_page_content", lambda _url, _auth: directory_listing)
+
+    downloaded_urls: list[str] = []
+
+    def mock_get(url: str, **_kwargs: object) -> MagicMock:
+        downloaded_urls.append(url)
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.iter_content.return_value = [b"content"]
+        return resp
+
+    monkeypatch.setattr(download_mod.requests, "get", mock_get)
+
+    def weekly(time: datetime) -> datetime:
+        return time + timedelta(days=7)
+
+    ep.download(
+        start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        end_time=datetime(2024, 1, 22, tzinfo=timezone.utc),
+        save_path=tmp_path,
+        file_cadence=weekly,
+        download_url="https://fake.server/data/",
+        file_name_stem=r"ns41_YYYYMMDD_v1\.10\.ascii",
+        method="request",
+        skip_existing=False,
+    )
+
+    assert len(downloaded_urls) == 3
 
 
 @pytest.mark.basic
