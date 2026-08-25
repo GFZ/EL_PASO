@@ -47,10 +47,10 @@ def equatorial_pa_rad() -> np.ndarray:
 
 def _normalized_pad_shape(mlt: float, pdyn: float, pa_rad: np.ndarray) -> np.ndarray:
     """Compute a single normalized PAD shape curve, handling the Pdyn>5.5 switch."""
-    a1, a3, a5 = _get_coefs(ENERGY, L_SHELL, mlt, pdyn)
+    a1, a3, a5 = _get_coefs(ENERGY, [L_SHELL], [mlt], [pdyn])
 
     shape = _apply_coefs(pa_rad, a1, a3, a5)
-    return shape / np.max(shape)
+    return shape[0, :] / np.max(shape)
 
 @pytest.mark.basic
 class TestPADShapeNoonMLT:
