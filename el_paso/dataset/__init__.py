@@ -4,9 +4,11 @@
 
 from el_paso.dataset.bin_and_interpolate_to_model_grid import (
     DebugPlotSettings,
-    bin_and_interpolate_to_model_grid,
     plot_debug_figures,
     plot_debug_figures_plasmasphere,
+)
+from el_paso.dataset.bin_and_interpolate_to_model_grid import (
+    bin_and_interpolate_to_model_grid as bin_dataset_to_model_grid,
 )
 from el_paso.dataset.dataset import DataSet as DataSet
 from el_paso.dataset.dataset_implementations import GFZDataSet as GFZDataSet
