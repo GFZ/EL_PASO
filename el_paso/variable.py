@@ -263,6 +263,82 @@ class Variable:
 
         self._data = self._data[(time_var_data >= start_time) & (time_var_data <= end_time)]
 
+    def merge(
+        self,
+        time_variable: Variable,
+        other_variable: Variable,
+        other_time_variable: Variable,
+    ) -> Variable:
+        """Merges this variable with another one along the time axis.
+
+        The data of `other_variable` is converted to this variable's unit, appended to
+        this variable's data and both are sorted chronologically. This variable is
+        modified in place; the merged time variable is returned.
+
+        Args:
+            time_variable (Variable): The time variable belonging to this variable.
+            other_variable (Variable): The variable to merge into this one.
+            other_time_variable (Variable): The time variable belonging to
+                `other_variable`.
+
+        Returns:
+            Variable: A new `Variable` holding the merged, sorted timestamps in
+                posixtime.
+
+        Raises:
+            ValueError: If a variable and its time variable differ in length, or if
+                the trailing dimensions of the two variables do not match.
+        """
+        if self._data.shape[0] != time_variable.get_data().shape[0]:
+            msg = f"Encountered length missmatch between variable and time variable! Variable: {self}"
+            raise ValueError(msg)
+
+        if other_variable._data.shape[0] != other_time_variable.get_data().shape[0]:
+            msg = (
+                "Encountered length missmatch between other variable and other time variable! "
+                f"Variable: {other_variable}"
+            )
+            raise ValueError(msg)
+
+        if self._data.shape[1:] != other_variable._data.shape[1:]:
+            msg = (
+                "Can only merge variables which agree in all but the first dimension! "
+                f"Encountered {self._data.shape} and {other_variable._data.shape}."
+            )
+            raise ValueError(msg)
+
+        if other_variable.metadata.unit == self.metadata.unit:
+            other_data = other_variable.get_data()
+        else:
+            other_data = other_variable.get_data(self.metadata.unit)
+
+        own_times = time_variable.get_data(ep.units.posixtime)
+        other_times = other_time_variable.get_data(ep.units.posixtime)
+
+        merged_times = np.concatenate((own_times, other_times))
+        merged_data = np.concatenate((self._data, other_data), axis=0)
+
+        # stable sort keeps this variable's samples first on identical timestamps
+        sort_idx = np.argsort(merged_times, kind="stable")
+
+        self._data = merged_data[sort_idx]
+        self.metadata.source_files = list(
+            dict.fromkeys(self.metadata.source_files + other_variable.metadata.source_files)
+        )
+
+        merged_time_variable = Variable(
+            original_unit=ep.units.posixtime,
+            data=merged_times[sort_idx],
+            description=time_variable.metadata.description,
+            standard_name=typing.cast("StandardName", time_variable.metadata.standard_name),
+        )
+        merged_time_variable.metadata.original_cadence_seconds = time_variable.metadata.original_cadence_seconds
+        merged_time_variable.metadata.source_files = list(
+            dict.fromkeys(time_variable.metadata.source_files + other_time_variable.metadata.source_files)
+        )
+
+        return merged_time_variable
+
     def __hash__(self) -> int:
         """Computes a hash value for the variable based on its holding data.
 
