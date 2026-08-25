@@ -294,7 +294,7 @@ def _get_mps_high_variables(
     start_time: datetime,
     end_time: datetime,
 ) -> dict[str, ep.Variable]:
-    url = f"https://data.ngdc.noaa.gov/platforms/solar-space-observing-satellites/goes/{sat_str}/l2/data/mpsh-l2-avg5m/YYYY/MM/"
+    url = f"https://data.ngdc.noaa.gov/platforms/solar-space-observing-satellites/goes/{sat_str}/l2/data/mpsh-l2-avg5m_science/YYYY/MM/"
 
     sat_stem = "g18" if sat_str == "goes18" else "g19"
     file_name_stem = f"sci_mpsh-l2-avg5m_{sat_stem}_dYYYYMMDD_.{r'{6}'}.nc"
@@ -339,8 +339,8 @@ def _get_mps_high_variables(
 
 
 if __name__ == "__main__":
-    start_time = datetime(2025, 9, 25, tzinfo=timezone.utc)
-    end_time = datetime(2025, 10, 13, 23, 59, tzinfo=timezone.utc)
+    start_time = datetime(2026, 7, 25, tzinfo=timezone.utc)
+    end_time = datetime(2026, 7, 31, 23, 59, tzinfo=timezone.utc)
 
     Satellite = Literal["goes18", "goes19"]
     sats: list[Satellite] = ["goes18", "goes19"]

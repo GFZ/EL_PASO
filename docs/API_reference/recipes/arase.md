@@ -14,3 +14,5 @@ SPDX-License-Identifier: Apache-2.0
 ::: el_paso.recipes.arase.process_arase_pwe_densities.process_arase_pwe_density
 
 ::: el_paso.recipes.arase.process_arase_xep_realtime.process_arase_xep_real_time
+
+::: el_paso.recipes.arase.process_arase_xep.process_arase_xep

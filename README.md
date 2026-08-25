@@ -32,7 +32,7 @@ Full documentation can be viewed [here](https://el-paso.readthedocs.io/en/latest
 
 - **Arase**
     - MEPe
-    - XEP real-time
+    - XEP (archived and real-time)
     - PWE density
 - **GOES-R**
     - MPS-High real-time
