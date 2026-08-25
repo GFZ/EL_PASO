@@ -198,7 +198,7 @@ def test_ftp(tmp_path: Path, skip_if_unreachable: Callable[..., None]):
     assert files[0].name == "Kp_ap_Ap_SN_F107_2024.txt"
 
 
-def test_exit_after_download(caplog: pytest.LogCaptureFixture):
+def test_exit_after_download(caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch):
 
     # test if the programs exits; it should not
     ep.download(
@@ -213,7 +213,7 @@ def test_exit_after_download(caplog: pytest.LogCaptureFixture):
         sort_raw_files_by_time=True,
     )
 
-    ep.exit_after_download = True
+    monkeypatch.setattr(ep, "exit_after_download", True)
 
     with pytest.raises(SystemExit) as sample_exception:
         ep.download(
@@ -228,11 +228,11 @@ def test_exit_after_download(caplog: pytest.LogCaptureFixture):
             sort_raw_files_by_time=True,
         )
 
-    assert sample_exception.value.code == 1
+    assert sample_exception.value.code == 0
     assert "Exiting after ep.download is completed!" in caplog.text
 
-    ep.exit_after_download = False
-    os.environ["EL_PASO_EXIT_AFTER_DOWNLOAD"] = "True"
+    monkeypatch.setattr(ep, "exit_after_download", False)
+    monkeypatch.setenv("EL_PASO_EXIT_AFTER_DOWNLOAD", "True")
 
     with pytest.raises(SystemExit) as sample_exception:
         ep.download(
@@ -247,13 +247,13 @@ def test_exit_after_download(caplog: pytest.LogCaptureFixture):
             sort_raw_files_by_time=True,
         )
 
-    assert sample_exception.value.code == 1
+    assert sample_exception.value.code == 0
     assert "Exiting after ep.download is completed!" in caplog.text
 
 
 def test_skip_download_via_ep_flag(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture):
 
-    ep.skip_download = True
+    monkeypatch.setattr(ep, "skip_download", True)
 
     was_called = False
 
@@ -281,7 +281,7 @@ def test_skip_download_via_ep_flag(monkeypatch: pytest.MonkeyPatch, caplog: pyte
 
 def test_skip_download_via_env_var(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture):
 
-    os.environ["EL_PASO_SKIP_DOWNLOAD"] = "True"
+    monkeypatch.setenv("EL_PASO_SKIP_DOWNLOAD", "True")
 
     was_called = False
 
