@@ -264,10 +264,18 @@ def _extract_data_from_files(
                 logger.debug(f"Concatenating data for {key} ...")
                 variable_data[key] = np.concatenate((variable_data[key], new_data[key]), axis=0)
 
-            elif np.any(pd.isna(variable_data[key])):
+            elif np.issubdtype(variable_data[key].dtype, np.number) and np.any(np.isnan(variable_data[key])):
                 logger.debug(f"Found NaNs in non-time-dependent variable {key}. Trying to fill with next file ...")
+
+                if variable_data[key].shape != new_data[key].shape:
+                    logger.warning(
+                        "Enountered size missmatch in non-time dependent variable: previous files: "
+                        f"{variable_data[key].shape}, this file {new_data[key].shape}"
+                    )
+                    continue
+
                 nan_idx = np.isnan(variable_data[key])
-                variable_data[key] = new_data[key][nan_idx]
+                variable_data[key][nan_idx] = new_data[key][nan_idx]
 
     return variable_data
 
