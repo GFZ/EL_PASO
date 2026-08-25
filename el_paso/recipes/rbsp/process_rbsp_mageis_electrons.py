@@ -19,7 +19,7 @@ import el_paso as ep
 from el_paso.processing.magnetic_field_utils import InternalFieldModel, IrbemOptions, LstarQuantity
 
 
-def process_mageis_electrons(
+def process_rbsp_mageis_electrons(
     start_time: datetime,
     end_time: datetime,
     sat_str: Literal["a", "b"],
@@ -297,8 +297,8 @@ if __name__ == "__main__":
     dt_start = dateutil.parser.parse(args.start_time)
     dt_end = dateutil.parser.parse(args.end_time)
 
-    for sat_str in ["b"]:
-        process_mageis_electrons(
+    for sat_str in ["a", "b"]:
+        process_rbsp_mageis_electrons(
             dt_start,
             dt_end,
             sat_str,
