@@ -29,6 +29,9 @@ from requests.auth import HTTPDigestAuth
 import el_paso as ep
 from el_paso.utils import enforce_utc_timezone, fill_str_template_with_time, get_file_by_version, timed_function
 
+if typing.TYPE_CHECKING:
+    from el_paso.typing import FileCadence
+
 ERROR_NOT_FOUND = 404
 logger = logging.getLogger(__name__)
 
@@ -91,7 +94,7 @@ def download(
     start_time: datetime,
     end_time: datetime,
     save_path: str | Path,
-    file_cadence: Literal["daily", "monthly", "single_file"],
+    file_cadence: FileCadence,
     download_url: str,
     file_name_stem: str,
     download_arguments_prefixes: str = "",
@@ -112,10 +115,13 @@ def download(
         start_time (datetime): The start of the time range for downloading files. Must be timezone-aware (UTC).
         end_time (datetime): The end of the time range for downloading files. Must be timezone-aware (UTC).
         save_path (str | Path): Directory path where downloaded files will be saved.
-        file_cadence (Literal["daily", "monthly", "single_file"]): Frequency of file downloads.
+        file_cadence (FileCadence): Frequency of file downloads.
             - "daily": Download files for each day in the range.
             - "monthly": Download files for each month in the range.
             - "single_file": Download a single file.
+            - A callable taking the current time and returning the next file boundary
+              time, for cadences that don't fit a fixed interval (e.g. irregular
+              weekly files).
         download_url (str): Base URL for downloading files.
         file_name_stem (str): Stem for the file name to be downloaded.
         download_arguments_prefixes (str, optional): Additional arguments to prefix to the download command
@@ -143,10 +149,6 @@ def download(
 
     Raises:
         NotImplementedError: If "monthly" cadence or an unsupported cadence is specified.
-
-    Returns:
-        None
-
     """
     if ep.skip_download or os.getenv("EL_PASO_SKIP_DOWNLOAD"):
         logger.info("Skipping ep.download!")
@@ -202,7 +204,10 @@ def download(
         sys.exit(0)
 
 
-def _get_next_time(curr_time: datetime, file_cadence: Literal["daily", "monthly", "single_file"]) -> datetime | None:
+def _get_next_time(curr_time: datetime, file_cadence: FileCadence) -> datetime | None:
+    if callable(file_cadence):
+        return file_cadence(curr_time)
+
     match file_cadence:
         case "daily":
             curr_time += timedelta(days=1)
@@ -216,7 +221,7 @@ def _get_next_time(curr_time: datetime, file_cadence: Literal["daily", "monthly"
             return None
 
         case _:
-            msg = "File cadence must be 'single_file', 'daily', or 'monthly'"
+            msg = "File cadence must be 'single_file', 'daily', 'monthly', or a callable"
             raise NotImplementedError(msg)
 
 

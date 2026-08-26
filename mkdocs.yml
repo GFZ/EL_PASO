@@ -105,6 +105,7 @@ nav:
       - Time Binning: tutorials/4_time_binning.ipynb
       - Magnetic Field Processing: tutorials/5_magnetic_field_processing.ipynb
       - Datasets: tutorials/6_loading_processed_data_using_datasets.ipynb
+      - Custom File Cadence: tutorials/7_custom_file_cadence.ipynb
 
 markdown_extensions:
   - admonition

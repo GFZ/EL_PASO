@@ -89,11 +89,11 @@ def compute_magnetic_field_variables(
             Defaults to None.
         pa_local_var (Variable | None): Optional. A Variable object containing
             local pitch angle data in degrees. Required if any pitch-angle dependent variables
-            (e.g., "PA_eq", "Lstar", "invMu", "invK") are requested. Defaults to None.
+            (e.g., "Alpha_Eq", "L_star", "InvMu", "InvK") are requested. Defaults to None.
         energy_var (Variable | None): Optional. A Variable object containing
-            particle energy data in MeV. Required if "invMu" is requested. Defaults to None.
+            particle energy data in MeV. Required if "InvMu" is requested. Defaults to None.
         particle_species (Literal["electron", "proton"] | None): Optional. The
-            species of particle (e.g., "electron", "proton"). Required if "invMu"
+            species of particle (e.g., "electron", "proton"). Required if "InvMu"
             is requested. Defaults to None.
         irbem_lib_path (str | Path): Optional. The file path to the IRBEM library (e.g., "libirbem.so"). Defaults to a
             path relative to the el_paso package.
@@ -113,8 +113,8 @@ def compute_magnetic_field_variables(
         FileNotFoundError: If no IRBEM library object is found at the provided `irbem_lib_path`.
         ValueError:
             - If a pitch-angle dependent variable is requested but `pa_local_var` is not provided.
-            - If an energy-dependent variable ("invMu") is requested but `energy_var` is not provided.
-            - If a particle-species dependent variable ("invMu") is requested but `particle_species` is not provided.
+            - If an energy-dependent variable ("InvMu") is requested but `energy_var` is not provided.
+            - If a particle-species dependent variable ("InvMu") is requested but `particle_species` is not provided.
         NotImplementedError: If a requested variable name in `variables_to_compute`
             is not supported by this function.
 
@@ -365,11 +365,11 @@ def _requires_particle_species(vars_to_compute: list[MagFieldVar]) -> bool:
         vars_to_compute (list[MagFieldVar]): A list of named tuples specifying the variables to compute.
 
     Returns:
-        bool: True if "invMu" is in the list of variables to compute, False otherwise.
+        bool: True if "InvMu" is in the list of variables to compute, False otherwise.
     """
     var_types = [mag_field_var.type for mag_field_var in vars_to_compute]
 
-    return any(var_type == "invMu" for var_type in var_types)
+    return any(var_type == "InvMu" for var_type in var_types)
 
 
 def _requires_energy_var(vars_to_compute: list[MagFieldVar]) -> bool:
@@ -379,11 +379,11 @@ def _requires_energy_var(vars_to_compute: list[MagFieldVar]) -> bool:
         vars_to_compute (list[MagFieldVar]): A list of named tuples specifying the variables to compute.
 
     Returns:
-        bool: True if "invMu" is in the list of variables to compute, False otherwise.
+        bool: True if "InvMu" is in the list of variables to compute, False otherwise.
     """
     var_types = [mag_field_var.type for mag_field_var in vars_to_compute]
 
-    return any(var_type == "invMu" for var_type in var_types)
+    return any(var_type == "InvMu" for var_type in var_types)
 
 
 def _requires_pa_var(vars_to_compute: list[MagFieldVar]) -> bool:
@@ -397,7 +397,7 @@ def _requires_pa_var(vars_to_compute: list[MagFieldVar]) -> bool:
     """
     var_types = [mag_field_var.type for mag_field_var in vars_to_compute]
 
-    return any(var_type in ["Lstar", "PA_eq", "invMu", "invK", "B_mirr", "XJ", "Lm"] for var_type in var_types)
+    return any(var_type in ["L_star", "Alpha_Eq", "InvMu", "InvK", "B_mirr", "I", "L_m"] for var_type in var_types)
 
 
 @timed_function("Equatorial pitch angle calculation")

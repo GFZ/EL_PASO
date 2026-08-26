@@ -35,3 +35,12 @@ repos:
     hooks:
       - id: ty
         files: ^el_paso/
+
+  - repo: local
+    hooks:
+      - id: generate-metadata-stubs
+        name: generate-metadata-stubs
+        entry: python hooks/generate_metadata_stubs.py
+        language: system
+        pass_filenames: false
+        files: ^(el_paso/data_standards/(gfz_standard|prbem_standard)\.py|scripts/generate_metadata_stubs\.py)$
