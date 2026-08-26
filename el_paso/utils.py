@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import calendar
 import logging
+import os
 import re
 import time
 import timeit
@@ -37,6 +38,38 @@ if TYPE_CHECKING:
     DataDict = SavedDataDict
 
 logger = logging.getLogger(__name__)
+
+
+def get_el_paso_model_data_path() -> Path:
+    """Return the directory used to store downloaded model coefficient data.
+
+    Resolved from the `EL_PASO_MODEL_DATA_PATH` environment variable if set,
+    otherwise defaults to `~/.elpaso/model_data`. The directory is created if
+    it does not already exist.
+
+    Returns:
+        Path: Absolute path to the model data directory.
+    """
+    data_path = Path(os.environ.get("EL_PASO_MODEL_DATA_PATH", Path.home() / ".elpaso")).expanduser()
+    data_path.mkdir(parents=True, exist_ok=True)
+
+    return data_path
+
+
+def get_el_paso_indices_solar_wind_param_path() -> Path:
+    """Return the directory used to store downloaded solar wind index/parameter data.
+
+    Resolved from the `EL_PASO_INDICES_SW_PARAM_DATA_PATH` environment variable
+    if set, otherwise defaults to `~/.elpaso/indices_solar_wind`. The directory
+    is created if it does not already exist.
+
+    Returns:
+        Path: Absolute path to the solar wind indices/parameters directory.
+    """
+    data_path = Path(os.environ.get("EL_PASO_INDICES_SW_PARAM_DATA_PATH", Path.home() / ".elpaso")).expanduser()
+    data_path.mkdir(parents=True, exist_ok=True)
+
+    return data_path
 
 
 def fill_str_template_with_time(input_str: str, time: datetime) -> str:

@@ -105,12 +105,7 @@ def load_indices_solar_wind_parameters(
 
     result_dict: dict[SW_Index, tuple[ep.Variable, ep.Variable]] | dict[SW_Index, ep.Variable] = {}
 
-    home_path = os.getenv("HOME")
-    if home_path is None:
-        msg = "HOME environment variable is not set!"
-        raise OSError(msg)
-
-    base_data_path = Path(home_path) / ".elpaso"
+    base_data_path = ep.utils.get_el_paso_indices_solar_wind_param_path()
 
     for requested_output in requested_outputs:
         match requested_output:

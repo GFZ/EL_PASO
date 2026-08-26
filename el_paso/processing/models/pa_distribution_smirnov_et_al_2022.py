@@ -17,7 +17,7 @@ from numpy.typing import NDArray
 import el_paso as ep
 
 _DATA_URL = "https://datapub.gfz-potsdam.de/download/10.5880.GFZ.2.7.2022.001daedaf/2022-001_Smirnov-et-al_Data.zip"
-_DATA_DIR = Path.home() / ".elpaso" / "smirnov_et_al_2022"
+_DATA_DIR = ep.utils.get_el_paso_model_data_path()
 _COEFS_DIR = _DATA_DIR / "2022-001_Smirnov-et-al_Data" / "2022-001_Smirnov-et-al_PAD_model"
 
 _ENERGY_SNAP_REL_TOLERANCE = 0.5
