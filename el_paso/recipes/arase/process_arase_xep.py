@@ -4,6 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
+import dateutil
+import argparse
 
 import logging
 import sys
@@ -70,8 +72,6 @@ def process_arase_xep(
                                                 orbit data and compute the magnetic field
                                                 quantities via IRBEM. Defaults to True.
     """
-    logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
-    logging.getLogger().setLevel(logging.INFO)
 
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
@@ -215,6 +215,8 @@ def process_arase_xep(
             ("Alpha_Eq", mag_field),
             ("L_m", mag_field),
             ("L_star", mag_field),
+            ("InvK", mag_field),
+            ("InvMu", mag_field),
         ]
 
         magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
@@ -224,23 +226,32 @@ def process_arase_xep(
             irbem_options=irbem_options,
             num_cores=num_cores,
             pa_local_var=xep_variables["AlphaLocal"],
+            energy_var=xep_variables["Energy"],
+            particle_species="electron",
         )
 
         orb_variables["R0"] = magnetic_field_variables["R_Eq_" + mag_field]
         orb_variables["MLT"] = magnetic_field_variables["MLT_" + mag_field]
         xep_variables["Alpha_eq"] = magnetic_field_variables["Alpha_Eq_" + mag_field]
         orb_variables["Lm"] = magnetic_field_variables["L_m_" + mag_field]
+        orb_variables["Lstar"] = magnetic_field_variables["L_star_" + mag_field]
+        orb_variables["InvK"] = magnetic_field_variables["InvK_" + mag_field]
+        orb_variables["InvMu"] = magnetic_field_variables["InvMu_" + mag_field]
 
     xep_variables["FEDU"] = ep.processing.construct_pitch_angle_distribution(
         xep_variables["FEDO"],
         xep_variables["AlphaLocal"],
         xep_variables["Alpha_eq"],
-        method="sin",
+        method="Smirnov2022",
         flux_type="omni",
         time_var=binned_time_variable,
         L_var=orb_variables["R0"],
         MLT_var=orb_variables["MLT"],
         energy_var=xep_variables["Energy"],
+    )
+
+    psd_var = ep.processing.compute_phase_space_density(
+        xep_variables["FEDU"], xep_variables["Energy"], particle_species="electron"
     )
 
     variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
@@ -252,7 +263,11 @@ def process_arase_xep(
         "R_Eq": orb_variables["R0"],
         "MLT": orb_variables["MLT"],
         "L_m": orb_variables["Lm"],
+        "PSD": psd_var,
     }
+
+    if not use_level_3_orbit_data: 
+        variables_to_save |= {"L_star": orb_variables["Lstar"], "InvK": orb_variables["InvK"], "InvMu": orb_variables["InvMu"]}
 
     saving_strategy = ep.saving_strategies.MonthlyRBStrategy(
         processed_data_path,
@@ -268,16 +283,39 @@ def process_arase_xep(
 
 
 if __name__ == "__main__":
-    start_time = datetime(2024, 5, 10, tzinfo=timezone.utc)
-    end_time = datetime(2024, 5, 15, 23, 59, tzinfo=timezone.utc)
 
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        process_arase_xep(
-            start_time,
-            end_time,
-            "T89",
-            raw_data_path=tmp_dir,
-            processed_data_path="sin",
-            num_cores=32,
-            use_level_3_orbit_data=False,
-        )
+    ep.setup_logging()
+
+    parser = argparse.ArgumentParser(
+        description="Process flux flux data from ECT/MagEIS instrument on VanAllenProbes."
+    )
+    parser.add_argument(
+        "--start_time",
+        type=str,
+        help="Start time in valid dateparse format. Example: YYYY-MM-DDTHH:MM:SS.",
+        default=datetime(2017, 9, 6, tzinfo=timezone.utc).isoformat(),
+        required=False,
+    )
+    parser.add_argument(
+        "--end_time",
+        type=str,
+        help="End time in valid dateparse format. Example: YYYY-MM-DDTHH:MM:SS.",
+        default=datetime(2017, 9, 12, 23, 59, 59, tzinfo=timezone.utc).isoformat(),
+        required=False,
+    )
+
+    args = parser.parse_args()
+
+    dt_start = dateutil.parser.parse(args.start_time)
+    dt_end = dateutil.parser.parse(args.end_time)
+
+    # with tempfile.TemporaryDirectory() as tmp_dir:
+    process_arase_xep(
+        dt_start,
+        dt_end,
+        "T89",
+        raw_data_path="/home/bhaas/el_paso_processing/raw/",
+        processed_data_path="/home/bhaas/el_paso_processing/data_processed/",
+        num_cores=64,
+        use_level_3_orbit_data=False,
+    )

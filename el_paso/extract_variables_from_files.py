@@ -9,6 +9,7 @@ import json
 import logging
 import re
 import warnings
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -18,16 +19,15 @@ import cdflib
 import h5py
 import netCDF4
 import numpy as np
+from numpy.typing import DTypeLike, NDArray
 import pandas as pd
 
 from el_paso import Variable
 from el_paso.utils import enforce_utc_timezone, fill_str_template_with_time, get_file_by_version
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
 
     from astropy import units as u
-    from numpy.typing import DTypeLike, NDArray
 
     from el_paso.typing import FileCadence, TimeInterval
 
@@ -79,6 +79,7 @@ class ExtractionInfo:
     dependent_variables: list[str] | None = None
     np_dtype: DTypeLike | None = None
 
+DataModifierType = Callable[[dict[str | int, NDArray[np.generic]], Iterable[ExtractionInfo]], dict[str | int, NDArray[np.generic]]]
 
 def extract_variables_from_files(
     start_time: datetime,
@@ -89,6 +90,7 @@ def extract_variables_from_files(
     extraction_infos: Iterable[ExtractionInfo],
     pd_read_csv_kwargs: dict[str, Any] | None = None,
     custom_extractors: dict[str, Callable] | None = None,
+    data_modifier: DataModifierType | None = None,
 ) -> dict[str, Variable]:
     """Extract variable data from files with any file format.
 
@@ -104,6 +106,7 @@ def extract_variables_from_files(
         extraction_infos (Iterable[ExtractionInfo]): Information about which variables to extract and how.
         pd_read_csv_kwargs (dict[str, Any], optional): Additional keyword arguments to pass to pandas.read_csv.
         custom_extractors (dict[str, Callable], optional): A dictionary mapping file suffixes to custom extractor functions.
+        data_modifier (Callable, optional): A callable to modify data of single files before data concatination.
 
     Returns:
         dict[str, Variable]: A dictionary mapping result keys to extracted Variable objects.
@@ -134,7 +137,7 @@ def extract_variables_from_files(
         logger.error(msg)
         raise ValueError(msg)
 
-    variable_data = _extract_data_from_files(files_list, extraction_infos, pd_read_csv_kwargs, custom_extractors)
+    variable_data = _extract_data_from_files(files_list, extraction_infos, pd_read_csv_kwargs, custom_extractors, data_modifier)
 
     # create variables based on the extraction_infos
     variables: dict[str, Variable] = {}
@@ -233,6 +236,7 @@ def _extract_data_from_files(
     extraction_infos: Iterable[ExtractionInfo],
     pd_read_csv_kwargs: dict[str, Any] | None,
     custom_extractors: dict[str, Callable] | None,
+    data_modifier: DataModifierType | None,
 ) -> dict[str | int, NDArray[np.generic]]:
     extraction_infos = tuple(extraction_infos)
 
@@ -276,6 +280,9 @@ def _extract_data_from_files(
             msg = f"Unsupported file extension: {suffix}"
             logger.error(msg)
             raise ValueError(msg)
+
+        if data_modifier is not None:
+            new_data = data_modifier(new_data, extraction_infos)
 
         # Update the data content of variables
         for info in extraction_infos:

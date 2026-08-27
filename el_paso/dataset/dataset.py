@@ -175,7 +175,25 @@ class DataSet:
         if isinstance(value, xr.Variable):
             value = value.values
         elif isinstance(value, list) and len(value) > 0 and isinstance(value[0], xr.Variable):
-            value = np.concatenate(value, axis=0)
+
+            non_empty = [v for v in value if v.shape[0] > 0]
+
+            if not non_empty:
+                value = np.asarray([])
+            else:
+                shapes = {v.shape[1:] for v in non_empty}
+                if len(shapes) > 1:
+                    msg = (
+                        f"Cannot concatenate '{name}': chunks have inconsistent shapes "
+                        f"{sorted(shapes)} along the non-time axes. This usually means "
+                        f"the underlying files disagree on this variable's structure "
+                        f"(e.g. a different number of energy channels)."
+                    )
+                    raise ValueError(msg)
+                value = np.concatenate(non_empty, axis=0)
+
+            # Cache the resolved array so repeated access doesn't re-concatenate.
+            object.__setattr__(self, name, value)
 
         return value
 
