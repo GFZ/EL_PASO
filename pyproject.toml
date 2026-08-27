@@ -5,9 +5,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 [build-system]
-requires = ["setuptools>=62.0"]
-build-backend = "_build_guard"
-backend-path = ["."]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 
 [project]
@@ -56,8 +55,10 @@ classifiers = [
     'Operating System :: MacOS',
 ]
 
-[tool.setuptools.packages.find]
-include = ["el_paso*"]
+[tool.hatch.build.targets.wheel]
+packages = ["el_paso"]
+
+[tool.hatch.build.hooks.custom]
 
 [project.urls]
 Homepage = "https://github.com/GFZ/EL_PASO"
