@@ -21,7 +21,7 @@ repos:
       - id: reuse
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.4
+    rev: v0.16.5
     hooks:
       - id: ruff-check
         types_or: [python, pyi]
@@ -31,7 +31,7 @@ repos:
         files: ^el_paso/
 
   - repo: https://github.com/astral-sh/ty-pre-commit
-    rev: v0.0.74
+    rev: v0.0.75
     hooks:
       - id: ty
         files: ^el_paso/
