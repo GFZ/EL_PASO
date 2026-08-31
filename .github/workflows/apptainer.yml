@@ -57,6 +57,33 @@ jobs:
         run: |
           sudo apptainer exec --no-mount cwd ${{ env.IMAGE_NAME }}.sif python -c "import el_paso; print('Import successful',  el_paso.__file__)"
 
+      - name: Get zenodo record ID
+        id: zenodo-record
+        run: echo "id=$(grep -oP 'RECORD_ID="\K[^"]+' download_data_for_tests.sh)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache test data
+        id: cache-test-data
+        uses: actions/cache@v6
+        with:
+          path: tests/system
+          key: zenodo-test-data-${{ steps.zenodo-record.outputs.id }}
+
+      - name: Download test data from zenodo
+        if: steps.cache-test-data.outputs.cache-hit != 'true'
+        run: bash download_data_for_tests.sh
+
+      - name: Run full test suite in image
+        env:
+          ESA_CLIENT_ID: ${{ secrets.ESA_CLIENT_ID }}
+          ESA_CLIENT_SECRET: ${{ secrets.ESA_CLIENT_SECRET }}
+        run: |
+          sudo --preserve-env=ESA_CLIENT_ID,ESA_CLIENT_SECRET apptainer exec --no-mount cwd \
+            --bind "${PWD}/tests:/mnt/tests" \
+            --bind "${PWD}/pytest.ini:/mnt/pytest.ini" \
+            --pwd /mnt \
+            --env "ESA_CLIENT_ID=${ESA_CLIENT_ID},ESA_CLIENT_SECRET=${ESA_CLIENT_SECRET}" \
+            ${{ env.IMAGE_NAME }}.sif python -m coverage run --source el_paso -m pytest -rf /mnt/tests -m "basic" -c /mnt/pytest.ini
+
       - name: Log in to GHCR
         if: github.event_name == 'push' && github.repository_owner == 'GFZ'
         run: |
