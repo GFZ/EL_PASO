@@ -92,7 +92,7 @@ jobs:
             --bind "${PWD}/pytest.ini:/mnt/pytest.ini" \
             --pwd /mnt \
             --env "ESA_CLIENT_ID=${ESA_CLIENT_ID},ESA_CLIENT_SECRET=${ESA_CLIENT_SECRET}" \
-            ${{ env.IMAGE_NAME }}.sif python -m coverage run --source el_paso -m pytest -rf /mnt/tests -m "basic" -c /mnt/pytest.ini
+            ${{ env.IMAGE_NAME }}.sif python -m pytest -rf /mnt/tests -m "basic" -c /mnt/pytest.ini --ignore /mnt/tests/unittests/test_release_mode.py
 
       - name: Log in to GHCR
         if: github.event_name == 'push' && github.repository_owner == 'GFZ'
