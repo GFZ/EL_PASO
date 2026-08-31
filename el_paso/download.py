@@ -19,12 +19,13 @@ import typing
 import urllib.parse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
-from functools import cache
+from functools import cache, partial
 from pathlib import Path
 from typing import Literal
 
 import requests
 from requests.auth import HTTPDigestAuth
+from richpool import JoblibPool
 
 import el_paso as ep
 from el_paso.utils import enforce_utc_timezone, fill_str_template_with_time, get_file_by_version, timed_function
@@ -87,6 +88,15 @@ def _download_single_step(
                 rename_file_name_stem=rename_file_name_stem,
                 skip_existing=skip_existing,
             )
+
+
+def _download_single_step_safe(task: tuple[datetime, datetime], **kwargs: object) -> None:
+    """Wraps `_download_single_step` so one failed task logs and doesn't abort the rest of the batch."""
+    curr_time, next_time = task
+    try:
+        _download_single_step(curr_time=curr_time, next_time=next_time, **kwargs)  # ty:ignore[invalid-argument-type]
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(f"Download for date {curr_time} generated an exception: {exc}")
 
 
 @timed_function()
@@ -172,12 +182,10 @@ def download(
     if len(tasks) > 1:
         logger.info(f"Starting parallel download with {max_threads} threads for {len(tasks)} files...")
 
-    with ThreadPoolExecutor(max_workers=max_threads) as executor:
-        future_to_time = {
-            executor.submit(
-                _download_single_step,
-                curr_time=t_start,
-                next_time=t_end,
+    with JoblibPool(processes=max_threads, backend="threading") as pool:
+        pool.map(
+            partial(
+                _download_single_step_safe,
                 save_path=save_path,
                 method=method,
                 download_url=download_url,
@@ -188,16 +196,10 @@ def download(
                 rename_file_name_stem=rename_file_name_stem,
                 skip_existing=skip_existing,
                 sort_raw_files_by_time=sort_raw_files_by_time,
-            ): t_start
-            for t_start, t_end in tasks
-        }
-
-        for future in as_completed(future_to_time):
-            t_start = future_to_time[future]
-            try:
-                future.result()
-            except Exception as exc:  # noqa: BLE001
-                logger.warning(f"Download for date {t_start} generated an exception: {exc}")
+            ),
+            tasks,
+            desc="Downloading",
+        )
 
     if ep.exit_after_download or os.getenv("EL_PASO_EXIT_AFTER_DOWNLOAD"):
         logger.info("Exiting after ep.download is completed!")

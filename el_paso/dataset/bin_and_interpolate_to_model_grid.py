@@ -7,13 +7,13 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from functools import partial
-from multiprocessing import Pool
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 from icecream import ic
 from matplotlib import pyplot as plt
+from richpool import p_map
 from tqdm import tqdm
 
 if TYPE_CHECKING:
@@ -220,7 +220,7 @@ def _bin_in_time(
     data_timestamps = [t.timestamp() for t in data_time]
     time_indices = _get_time_indices(data_timestamps, _get_time_bins(sim_timestamps))
 
-    for i, _ in tqdm(enumerate(sim_time)):
+    for i, _ in tqdm(enumerate(sim_time), desc="Binning in time"):
         psd_binned[i, ...] = np.power(10, np.nanmean(np.log10(data_psd[time_indices == i, ...]), axis=0))
 
     return psd_binned
@@ -346,8 +346,10 @@ def _interpolate_or_bin_in_V_K(
     if n_processes == 1:
         return np.asarray([func(it) for it in tqdm(time_steps)])
 
-    with Pool(n_processes) as p:
-        return np.asarray(list(tqdm(p.imap(func, time_steps), total=len(time_steps))))
+    chunksize = max(1, psd_in.shape[0] // n_processes // 4)  # same as multiprocessing.Pool's default
+    result = p_map(func, time_steps, num_cpus=n_processes, chunksize=chunksize, desc="Interpolating in V-K")
+
+    return np.asarray(result)
 
 
 def _sort_direction(values: NDArray[np.float64]) -> int:

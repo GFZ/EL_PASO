@@ -6,6 +6,7 @@
 
 import logging
 
+from rich.logging import RichHandler
 from swvo.logger import setup_logging
 
 # Get the package logger

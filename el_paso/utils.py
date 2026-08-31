@@ -9,7 +9,6 @@ import calendar
 import logging
 import os
 import re
-import time
 import timeit
 import typing
 from datetime import datetime, timedelta, timezone
@@ -22,7 +21,6 @@ import h5py
 import netCDF4 as nC
 import numpy as np
 import pandas as pd
-import tqdm
 import xarray as xr
 from packaging import version as version_pkg
 from scipy.io.matlab import loadmat, savemat
@@ -31,7 +29,6 @@ import el_paso as ep
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
-    from multiprocessing.pool import MapResult
 
     from el_paso.typing import DataStandard, SavedDataDict, StandardName, TimeInterval
 
@@ -285,27 +282,6 @@ def assert_n_dim(var: ep.Variable, n_dims: int, name_in_file: str) -> None:
             f"should be {n_dims}, got: {provided}!"
         )
         raise ValueError(msg)
-
-
-def show_process_bar_for_map_async(map_result: MapResult[Any], chunksize: int) -> None:
-    """Displays a progress bar for a `multiprocessing.pool.MapResult` object.
-
-    This function creates a `tqdm` progress bar that tracks the completion of
-    a parallel map operation. It polls the `MapResult`'s internal state to
-    update the progress bar until the operation is complete.
-
-    Args:
-        map_result (MapResult): The result object from `Pool.map_async()`.
-        chunksize (int): The chunk size used in the `map_async` call.
-    """
-    init = cast("int", map_result._number_left) * chunksize  # ty:ignore[unresolved-attribute]
-    with tqdm.tqdm(total=init) as t:
-        while True:
-            if map_result.ready():
-                break
-            t.n = init - map_result._number_left * chunksize  # ty:ignore[unresolved-attribute]
-            t.refresh()
-            time.sleep(1)
 
 
 class Hashabledict(dict[Any, Any]):
