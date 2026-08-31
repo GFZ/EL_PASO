@@ -16,11 +16,38 @@ from astropy import units as u
 
 import el_paso as ep
 
-LANL_SAT= Literal[
-    "ns41", "ns48", "ns53", "ns54", "ns55", "ns56", "ns57", "ns58", "ns59",
-    "ns60", "ns61", "ns62", "ns63", "ns64", "ns65", "ns66", "ns67", "ns68",
-    "ns69", "ns70", "ns71", "ns72", "ns73", "ns74", "ns75", "ns76", "ns77",
-    "ns78", "ns79", "ns80", "ns81",
+LANL_SAT = Literal[
+    "ns41",
+    "ns48",
+    "ns53",
+    "ns54",
+    "ns55",
+    "ns56",
+    "ns57",
+    "ns58",
+    "ns59",
+    "ns60",
+    "ns61",
+    "ns62",
+    "ns63",
+    "ns64",
+    "ns65",
+    "ns66",
+    "ns67",
+    "ns68",
+    "ns69",
+    "ns70",
+    "ns71",
+    "ns72",
+    "ns73",
+    "ns74",
+    "ns75",
+    "ns76",
+    "ns77",
+    "ns78",
+    "ns79",
+    "ns80",
+    "ns81",
 ]
 
 #  If you add a satellite, add it to BOTH: here, and to the Literal.
@@ -60,17 +87,18 @@ SATELLITE_ANCHOR_DATES: dict[LANL_SAT, datetime] = {
 }
 
 
-def snap_to_weekly_grid(satellite_str: str, target_date: datetime) -> datetime:
+def snap_to_weekly_grid(satellite_str: LANL_SAT, target_date: datetime) -> datetime:
     """Snap target_date onto the satellite's fixed weekly (Sunday) grid -- floor:
     nearest grid date <= target_date. Missing weeks in the archive don't shift this
-    grid, so no live directory listing is needed once start_time is correctly phased."""
+    grid, so no live directory listing is needed once start_time is correctly phased.
+    """  # noqa: D205
     anchor = SATELLITE_ANCHOR_DATES[satellite_str]
     n_days = (target_date - anchor).days
     n_weeks = n_days // 7
     return anchor + timedelta(weeks=n_weeks)
 
 
-def weekly_cadence(curr_time: datetime) -> datetime:
+def weekly_cadence(curr_time: datetime) -> datetime:  # noqa: D103
     return curr_time + timedelta(days=7)
 
 
@@ -84,7 +112,7 @@ def _parse_lanl_gps_header(file_path: str) -> dict:
     return json.loads("".join(header_lines))
 
 
-def extract_data_from_lanl_gps_ascii(file_path, extraction_infos):
+def extract_data_from_lanl_gps_ascii(file_path, extraction_infos):  # noqa: ANN001, ANN201
     """Custom extractor for LANL GPS ns41-style ASCII files (JSON header + no-header data block)."""
     header = _parse_lanl_gps_header(file_path)
     data_block = np.loadtxt(file_path, comments="#")
@@ -102,14 +130,14 @@ def extract_data_from_lanl_gps_ascii(file_path, extraction_infos):
             data[name] = (
                 data_block[:, start_column]
                 if dimension == 1
-                else data_block[:, start_column:start_column + dimension]
+                else data_block[:, start_column : start_column + dimension]
             )
         else:
             # fixed grid, identical every row -- just take the first row
             data[name] = (
                 data_block[0, start_column]
                 if dimension == 1
-                else data_block[0, start_column:start_column + dimension]
+                else data_block[0, start_column : start_column + dimension]
             )
 
     return data
@@ -192,7 +220,8 @@ def process_gps_data(
     ]
 
     variables = ep.extract_variables_from_files(
-        real_start, end_time,
+        real_start,
+        end_time,
         file_cadence=weekly,
         data_path=data_path_stem,
         file_name_stem=file_name_stem,
@@ -201,19 +230,16 @@ def process_gps_data(
     )
 
     variables["FEDO"].set_data(
-        variables["FEDO"].get_data() * (4 * np.pi),
+        variables["FEDO"].get_data() * (4 * np.pi),  # ty: ignore[unsupported-operator]
         unit=(u.cm**2 * u.s * u.MeV) ** (-1),
     )
 
     year = variables["year"].get_data().astype(int)
     doy_frac = variables["decimal_day"].get_data()
-    dt = np.array([
-        datetime(y, 1, 1, tzinfo=timezone.utc) + timedelta(days=d - 1)
-        for y, d in zip(year, doy_frac)
-    ])
-    variables["Epoch"] = ep.Variable(
-        data=np.array([t.timestamp() for t in dt]), original_unit=ep.units.posixtime
+    dt = np.array(
+        [datetime(y, 1, 1, tzinfo=timezone.utc) + timedelta(days=d - 1) for y, d in zip(year, doy_frac, strict=False)]
     )
+    variables["Epoch"] = ep.Variable(data=np.array([t.timestamp() for t in dt]), original_unit=ep.units.posixtime)
 
     variables["FEDO"].apply_thresholds_on_data(lower_threshold=0)
 
@@ -226,23 +252,32 @@ def process_gps_data(
     }
 
     binned_time_var = ep.processing.bin_by_time(
-        variables["Epoch"], variables, time_bin_methods_pre, bin_cadence,
-        start_time=start_time, end_time=end_time,
+        variables["Epoch"],
+        variables,
+        time_bin_methods_pre,
+        bin_cadence,
+        start_time=start_time,
+        end_time=end_time,
     )
 
     pa_local_data = np.tile(np.arange(5, 91, 5), (len(binned_time_var.get_data()), 1)).astype(np.float64)
     variables["PA_local_FEDO"] = ep.Variable(data=pa_local_data, original_unit=u.deg)
 
-    geo_spherical = np.vstack((
-        variables["rad_re"].get_data(ep.units.RE),
-        variables["lat"].get_data(u.deg),
-        variables["lon"].get_data(u.deg),
-    )).T.astype(np.float64)
+    geo_spherical = np.vstack(
+        (
+            variables["rad_re"].get_data(ep.units.RE),
+            variables["lat"].get_data(u.deg),
+            variables["lon"].get_data(u.deg),
+        )
+    ).T.astype(np.float64)
 
     datetimes = [datetime.fromtimestamp(t, tz=timezone.utc) for t in binned_time_var.get_data(ep.units.posixtime)]
 
     xgeo_arr = ep.processing.magnetic_field_utils.Coords().transform(
-        datetimes, geo_spherical, ep.IRBEM_SYSAXIS_SPH, ep.IRBEM_SYSAXIS_GEO,
+        datetimes,
+        geo_spherical,
+        ep.IRBEM_SYSAXIS_SPH,
+        ep.IRBEM_SYSAXIS_GEO,
     )
     variables["xGEO"] = ep.Variable(data=xgeo_arr, original_unit=ep.units.RE)
 
@@ -258,7 +293,7 @@ def process_gps_data(
         ("L_star", "T89"),
         ("Alpha_Eq", "T89"),
         ("InvMu", "T89"),
-        ("InvK", "T89"),        
+        ("InvK", "T89"),
     ]
 
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
@@ -295,10 +330,9 @@ def process_gps_data(
         "L_star": magnetic_field_variables["L_star_T89"],
         "Alpha_Eq": magnetic_field_variables["Alpha_Eq_T89"],
         "Position": variables["xGEO"],
-        "PSD": psd_var,        
+        "PSD": psd_var,
         "InvMu": magnetic_field_variables["InvMu_T89"],
         "InvK": magnetic_field_variables["InvK_T89"],
-
     }
 
     saving_strategy = ep.saving_strategies.MonthlyRBStrategy(

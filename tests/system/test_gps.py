@@ -2,19 +2,18 @@
 # SPDX-FileContributor: Parvathy Santhini
 #
 # SPDX-License-Identifier: Apache-2.0
-import os
-import shutil
+
 from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Literal
 
 import pytest
+
 from el_paso.recipes.gps import process_gps_data
 
 
 @pytest.mark.basic
-def test_esa_ngrm(
+def test_lanl_gps(
     tmpdir: Path,
     skip_if_unreachable: Callable[..., None],
     *,
@@ -33,8 +32,8 @@ def test_esa_ngrm(
         start_time=dt_start,
         end_time=dt_end,
         satellite_str="ns41",
-        raw_data_path=".",
-        processed_data_path=".",
+        raw_data_path=processed_data_path,
+        processed_data_path=processed_data_path,
         num_cores=64,
         bin_cadence=timedelta(minutes=4),
     )
@@ -48,4 +47,3 @@ def test_esa_ngrm(
         / f"ns41_cxd_{start_date:%Y%m%d}to{end_date:%Y%m%d}_T89.nc"
     )
     assert out_path.exists()
-
