@@ -7,17 +7,20 @@
 import argparse
 import logging
 import sys
+from collections.abc import Iterable
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
 
 import dateutil
 import numpy as np
+from numpy.typing import NDArray
 from astropy import units as u
 
 import el_paso as ep
 from el_paso.processing.magnetic_field_utils import InternalFieldModel, IrbemOptions, LstarQuantity
 
+BAD_CHANNELS = (13, 21, 22, 23, 24)
 
 def process_rbsp_mageis_electrons(
     start_time: datetime,
@@ -92,6 +95,11 @@ def process_rbsp_mageis_electrons(
             name_or_column="FEDU",
             unit=(u.cm**2 * u.s * u.sr * u.keV) ** (-1),
         ),
+        ep.ExtractionInfo(
+            result_key="xGEO",
+            name_or_column="Position",
+            unit=ep.units.RE,
+        ),
     ]
 
     variables = ep.extract_variables_from_files(
@@ -101,23 +109,27 @@ def process_rbsp_mageis_electrons(
         data_path=raw_data_path,
         file_name_stem=file_name_stem,
         extraction_infos=extraction_infos,
+        data_modifier=xgeo_data_modifier,
     )
 
     variables["FEDU"].apply_thresholds_on_data(1e-21)
-    variables["Energy"].apply_thresholds_on_data(0)
+    variables["Energy"].apply_thresholds_on_data(1e-21)
 
     # delete bad channels; these are always nan
     flux = variables["FEDU"].get_data()
-    nan_rows = np.all(np.isnan(flux), axis=(0,1))
-    variables["FEDU"].set_data(flux[:, :, ~nan_rows], unit="same")
+
+    flux = np.delete(flux, BAD_CHANNELS, axis=2)
+    variables["FEDU"].set_data(flux, unit="same")
 
     energy = variables["Energy"].get_data()
-    variables["Energy"].set_data(energy[~nan_rows], unit="same")
+    energy = np.delete(energy, BAD_CHANNELS, axis=0)
+    variables["Energy"].set_data(energy, unit="same")
 
     time_bin_methods = {
         "Energy": ep.TimeBinMethod.Repeat,  # making energy time dependent
         "FEDU": ep.TimeBinMethod.NanMedian,
         "Pitch_angle": ep.TimeBinMethod.Repeat,
+        "xGEO": ep.TimeBinMethod.NanMean,
     }
 
     binned_time_variable = ep.processing.bin_by_time(
@@ -126,11 +138,6 @@ def process_rbsp_mageis_electrons(
         time_bin_method_dict=time_bin_methods,
         time_binning_cadence=timedelta(minutes=5),
     )
-
-    variables["xGEO"] = _get_xgeo_var(sat_str, start_time, end_time, raw_data_path)
-
-    assert variables["xGEO"].get_data().shape[0] == binned_time_variable.get_data().shape[0]
-
 
     variables["FEDU"].transpose_data([0, 2, 1])  # making it have dimensions (time, energy, pitch angle)
     ep.processing.fold_pitch_angles_and_flux(variables["FEDU"], variables["Pitch_angle"])
@@ -193,86 +200,19 @@ def process_rbsp_mageis_electrons(
     ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=False)
 
 
-def _get_xgeo_var(sat_str: str, start_time: datetime, end_time: datetime, raw_data_path: str | Path) -> ep.Variable:
+def xgeo_data_modifier(variable_data: dict[str | int, NDArray[np.generic]], extraction_infos: Iterable[ep.ExtractionInfo]) -> dict[str | int, NDArray[np.generic]]:
 
-    file_name_stem_v8_1 = "rbsp" + sat_str + "_rel04_ect-mageis-l3_YYYYMMDD_v8.1.0.cdf"
-    file_name_stem_v8_4 = "rbsp" + sat_str + "_rel04_ect-mageis-l3_YYYYMMDD_v8.4.0.cdf"
+    xgeo_data = variable_data["Position"].astype(np.float64)
 
-    infos_v8_1 = [
-        ep.ExtractionInfo(
-            result_key="xGEO",
-            name_or_column="Position",
-            unit=u.km,
-        ),
-        ep.ExtractionInfo(
-            result_key="Epoch",
-            name_or_column="Epoch",
-            unit=ep.units.cdf_epoch,
-        ),
-    ]
-
-    infos_v8_4 = [
-        ep.ExtractionInfo(
-            result_key="xGEO",
-            name_or_column="Position",
-            unit=ep.units.RE,
-        ),
-        ep.ExtractionInfo(
-            result_key="Epoch",
-            name_or_column="Epoch",
-            unit=ep.units.cdf_epoch,
-        ),
-    ]
-
-    variables_xgeo_v8_4 = ep.extract_variables_from_files(
-        start_time,
-        end_time,
-        "daily",
-        data_path=raw_data_path,
-        file_name_stem=file_name_stem_v8_4,
-        extraction_infos=infos_v8_4,
-    )
-
-    xgeo_var_v8_4 = variables_xgeo_v8_4["xGEO"]
-
-    try:
-        variables_xgeo_v8_1 = ep.extract_variables_from_files(
-            start_time,
-            end_time,
-            "daily",
-            data_path=raw_data_path,
-            file_name_stem=file_name_stem_v8_1,
-            extraction_infos=infos_v8_1,
-        )
-
-        xgeo_var_v8_1 = variables_xgeo_v8_1["xGEO"]
-        xgeo_time_var = xgeo_var_v8_1.merge(variables_xgeo_v8_1["Epoch"], xgeo_var_v8_4, variables_xgeo_v8_4["Epoch"])
-
-    except ValueError:
-        xgeo_time_var = variables_xgeo_v8_4["Epoch"]
-        xgeo_var_v8_1 = xgeo_var_v8_4
-
-
-    time_bin_methods = {
-        "xGEO": ep.TimeBinMethod.NanMean,
-    }
-    variables = {"xGEO": xgeo_var_v8_1}
-
-    _ = ep.processing.bin_by_time(
-        xgeo_time_var,
-        variables=variables,
-        time_bin_method_dict=time_bin_methods,
-        time_binning_cadence=timedelta(minutes=5),
-        start_time=start_time,
-        end_time=end_time,
-    )
-
-    return variables["xGEO"]
+    if np.max(xgeo_data) > 100:  # unit is km
+        xgeo_data = (xgeo_data * u.km).to_value(ep.units.RE)
+        variable_data["Position"] = xgeo_data
+    
+    return variable_data
 
 
 if __name__ == "__main__":
-    logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
-    logging.getLogger().setLevel(logging.INFO)
+    ep.setup_logging()
 
     parser = argparse.ArgumentParser(
         description="Process flux flux data from ECT/MagEIS instrument on VanAllenProbes."
@@ -281,14 +221,14 @@ if __name__ == "__main__":
         "--start_time",
         type=str,
         help="Start time in valid dateparse format. Example: YYYY-MM-DDTHH:MM:SS.",
-        default=datetime(2017, 9, 6, tzinfo=timezone.utc).isoformat(),
+        default=datetime(2017, 10, 15, tzinfo=timezone.utc).isoformat(),
         required=False,
     )
     parser.add_argument(
         "--end_time",
         type=str,
         help="End time in valid dateparse format. Example: YYYY-MM-DDTHH:MM:SS.",
-        default=datetime(2017, 9, 12, 23, 59, 59, tzinfo=timezone.utc).isoformat(),
+        default=datetime(2017, 10, 15, 23, 59, 59, tzinfo=timezone.utc).isoformat(),
         required=False,
     )
 
@@ -297,13 +237,13 @@ if __name__ == "__main__":
     dt_start = dateutil.parser.parse(args.start_time)
     dt_end = dateutil.parser.parse(args.end_time)
 
-    for sat_str in ["a", "b"]:
+    for sat_str in ["b"]:
         process_rbsp_mageis_electrons(
             dt_start,
             dt_end,
             sat_str,
             "T89",
-            raw_data_path="raw_MagEIS",
-            processed_data_path="processed_MagEIS",
+            raw_data_path="/home/bhaas/el_paso_processing/raw/",
+            processed_data_path="/home/bhaas/el_paso_processing/data_processed/",
             num_cores=64,
         )

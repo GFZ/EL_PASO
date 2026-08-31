@@ -5,15 +5,13 @@
 from __future__ import annotations
 
 import itertools
-import time
 from collections.abc import Iterable
 from enum import Enum
 from functools import partial
-from multiprocessing import Pool
 from typing import TYPE_CHECKING, Literal, TypeAlias, cast
 
 import numpy as np
-from tqdm import tqdm
+from richpool import p_map
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -172,26 +170,15 @@ def interp_flux(
         targets,
     )
 
-    with Pool(n_threads) as p:
-        rs = p.map_async(func, range(len(epoch)))
-
-        # display progress bar if verbose
-        if self._verbose:
-            total_elements = rs._number_left  # ty:ignore[unresolved-attribute]
-            with tqdm(total=total_elements) as t:
-                while True:
-                    if rs.ready():
-                        break
-                    t.n = total_elements - rs._number_left  # ty:ignore[unresolved-attribute]
-                    t.refresh()
-                    time.sleep(1)
-        else:
-            rs.wait()
-
-    parallel_results = rs.get()
-
-    if isinstance(parallel_results, Exception):
-        raise parallel_results
+    chunksize = max(1, len(epoch) // n_threads // 4)  # same as multiprocessing.Pool's default
+    parallel_results = p_map(
+        func,
+        range(len(epoch)),
+        num_cpus=n_threads,
+        chunksize=chunksize,
+        desc="Interpolating flux",
+        disable=not self._verbose,
+    )
 
     for i in range(result_arr.shape[0]):
         if target_type == TargetType.TargetPairs:
@@ -375,24 +362,15 @@ def interp_psd(
     # parallel over time (same pattern as interp_flux)
     func = partial(_interp_psd_parallel, psd, inv_mu, inv_k, targets)
 
-    with Pool(n_threads) as p:
-        rs = p.map_async(func, range(len(epoch)))
-
-        if self._verbose:
-            total_elements = rs._number_left  # ty:ignore[unresolved-attribute]
-            with tqdm(total=total_elements) as t:
-                while True:
-                    if rs.ready():
-                        break
-                    t.n = total_elements - rs._number_left  # ty:ignore[unresolved-attribute]
-                    t.refresh()
-                    time.sleep(1)
-        else:
-            rs.wait()
-
-    parallel_results = rs.get()
-    if isinstance(parallel_results, Exception):
-        raise parallel_results
+    chunksize = max(1, len(epoch) // n_threads // 4)  # same as multiprocessing.Pool's default
+    parallel_results = p_map(
+        func,
+        range(len(epoch)),
+        num_cpus=n_threads,
+        chunksize=chunksize,
+        desc="Interpolating PSD",
+        disable=not self._verbose,
+    )
 
     # pack results back like interp_flux
     if target_type == TargetType.TargetPairs:

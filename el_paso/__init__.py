@@ -70,4 +70,4 @@ from el_paso.cache import cleanup_stale_cache as _cleanup_stale_cache
 
 _cleanup_stale_cache()
 
-__version__ = "2.1.2"
+__version__ = "2.1.3rc0"

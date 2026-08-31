@@ -9,7 +9,7 @@ From: astral/uv:python3.12-bookworm-slim
 %labels
     Author Sahil Jhawar
     Description EL-PASO
-    Version 2.1.2
+    Version 2.1.3rc0
 
 %files
     el_paso /opt/el_paso/

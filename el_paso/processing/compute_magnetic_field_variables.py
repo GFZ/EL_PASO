@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import atexit
 import logging
+import os
 import typing
 from collections.abc import Sequence
 from pathlib import Path
@@ -71,6 +72,8 @@ def compute_magnetic_field_variables(
     Results are cached to disk by default so that a crash in downstream code
     does not force re-computation.  The cache is cleaned on graceful exit
     and stale entries (>7 days) are purged automatically at import time.
+    Caching can be disabled by setting the env var 'EL_PASO_USE_MAG_FIELD_CACHE'
+    to 'False'.
 
     Args:
         time_var (Variable): A Variable object containing time data. The data should be a 1D array of timestamps.
@@ -127,6 +130,10 @@ def compute_magnetic_field_variables(
     """
     if cache_dir == "_default_":
         cache_dir = get_cache_dir()
+
+    if (env_cache_flag := os.environ.get("EL_PASO_USE_MAG_FIELD_CACHE")) is not None:
+        if env_cache_flag.strip().lower() in ("0", "false", "no", "off", ""):
+            cache_dir = None
 
     if cache_dir is not None:
         global _cleanup_registered
