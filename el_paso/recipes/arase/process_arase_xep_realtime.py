@@ -10,7 +10,7 @@ import logging
 import os
 import sys
 import typing
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
@@ -166,7 +166,15 @@ def process_arase_xep_real_time(  # noqa: D417
     variables_combined |= magnetic_field_variables
 
     FEDU_var = ep.processing.construct_pitch_angle_distribution(
-        variables_combined["FEDO"], variables_combined["PA_local_FEDU"], magnetic_field_variables["Alpha_Eq_T89"]
+        variables_combined["FEDO"],
+        variables_combined["PA_local_FEDU"],
+        magnetic_field_variables["Alpha_Eq_T89"],
+        flux_type="omni",
+        method="sin",
+        time_var=binned_time_var,
+        L_var=magnetic_field_variables["R_Eq_T89"],
+        MLT_var=magnetic_field_variables["MLT_T89"],
+        energy_var=variables_combined["Energy_FEDO"],
     )
     FEDU_var.apply_thresholds_on_data(lower_threshold=0)
 
@@ -313,6 +321,9 @@ def _get_xep_variables(
         )
     ).T
 
+    # the data inside the files is /sr, so we have to multiple by 4*pi
+    fedo_data *= 4 * np.pi
+
     fedo_var = ep.Variable(
         original_unit=fedo_unit,
         data=fedo_data,
@@ -409,3 +420,20 @@ def _get_mean_energy(e_min: NDArray[np.float64], e_max: NDArray[np.float64]) -> 
     tmp = (weighted_min - weighted_max) / (e_max - e_min)
 
     return -np.log(tmp) / b
+
+
+if __name__ == "__main__":
+    ep.setup_logging()
+
+    start_time = datetime(2026, 8, 20, tzinfo=timezone.utc)
+    end_time = start_time + timedelta(days=1)
+
+    process_arase_xep_real_time(
+        processed_data_path=".",
+        download_data_dir=".",
+        start_time=start_time,
+        end_time=end_time,
+        num_cores=64,
+        skip_existing=True,
+        download=False,
+    )

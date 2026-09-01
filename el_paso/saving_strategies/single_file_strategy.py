@@ -42,14 +42,6 @@ class SingleFileStrategy(SavingStrategy):
         file_path (Path): The path to the single output file where all data will be saved.
         output_files (list[OutputFile]): List of output files to be managed.
 
-    Methods:
-        __init__(file_path, format_writers): Initializes the strategy with file path and optional custom writers.
-        get_time_intervals_to_save: Returns the entire time range as a single interval.
-        get_file_path: Always returns the pre-defined single file path.
-        standardize_variable: Passes the variable through without any standardization.
-        save_single_file: Saves data to a file in the specified format using the dispatch table.
-        register_writer: Registers a custom format writer for a file extension.
-
     Supported Formats:
         - .mat: MATLAB format using scipy.io.savemat
         - .h5: HDF5 format using h5py with optional gzip compression
@@ -110,10 +102,10 @@ class SingleFileStrategy(SavingStrategy):
             self._writers.update(format_writers)
 
     def get_file_path_stem(self) -> None:  # ty:ignore[invalid-method-override]
-        pass
+        """Not applicable for this strategy; the full path is fixed via `file_path`."""
 
     def get_file_name_stem(self) -> None:  # ty:ignore[invalid-method-override]
-        pass
+        """Not applicable for this strategy; the full path is fixed via `file_path`."""
 
     def get_time_intervals_to_save(self, start_time: datetime, end_time: datetime) -> list[TimeInterval]:
         """Returns the entire time range as a single interval.
@@ -165,6 +157,8 @@ class SingleFileStrategy(SavingStrategy):
             variable (Variable): The variable instance to be standardized.
             internal_name (InternalName): The internal name of the variable (ignored).
             first_call_of_interval (bool): Flag to indicate if it is the first call of a time interval
+            available_keys (set(InternalName) | None): The full set of internal names being
+                saved together in this call.
 
         Returns:
             Variable: The original variable instance, unchanged.

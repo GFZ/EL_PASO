@@ -11,7 +11,10 @@ venv
 *.png
 *.cdf
 *.nc
+*.ascii
 tests/system/data
+tutorials/RBSP/
+tutorials/rbsp_hope_example.mat
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -230,3 +233,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+
+**/.DS_Store

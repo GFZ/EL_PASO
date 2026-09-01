@@ -74,27 +74,6 @@ class SavingStrategy(ABC):
         mission (str): The name of the mission for which data is being saved.
         instrument (str): The name of the instrument for which data is being saved.
         mag_field (MagneticFieldLiteral): The magnetic field model used for saving data, if applicable.
-
-    Methods:
-        get_time_intervals_to_save:
-            Abstract method to determine the time intervals for saving data between start_time and end_time.
-
-        get_file_path:
-            Abstract method to generate the file path for a given time interval and output file.
-
-        standardize_variable:
-            Abstract method to standardize a variable before saving, possibly renaming or formatting it.
-
-        get_target_variables:
-            Selects and prepares variables to be saved in the output file, optionally truncating them to a time range.
-
-        save_single_file:
-            Saves the provided dictionary to a file in the specified format (.mat, .h5, .nc, .cdf),
-            optionally appending data.
-
-        append_data:
-            Appends data to an existing output file by merging it with newly computed data
-            and rewriting the file. Supported for any format with a registered loader/writer.
     """
 
     output_files: list[OutputFile]
@@ -160,13 +139,38 @@ class SavingStrategy(ABC):
         first_call_of_interval: bool,
         available_keys: set[InternalName] | None = None,
     ) -> ep.Variable:
-        """Standardize a variable through the configured data standard."""
+        """Standardize a variable through the configured data standard.
+
+        Args:
+            variable (Variable): The variable to standardize.
+            internal_name (InternalName): The internal name of the variable.
+            first_call_of_interval (bool): If True, the data standard's consistency
+                check is reset before standardizing, as this is the first variable
+                processed for a new file/time interval.
+            available_keys (set[InternalName] | None): The full set of internal names being
+                saved together in this call.
+
+        Returns:
+            Variable: The standardized variable.
+        """
         return self.data_standard.standardize_variable(
             internal_name, variable, reset_consistency_check=first_call_of_interval, available_keys=available_keys
         )
 
     def save_single_file(self, file_path: Path, dict_to_save: SavedDataDict, *, append: bool = False) -> None:
-        """Save one monthly file, optionally appending to an existing file."""
+        """Save one monthly file, optionally appending to an existing file.
+
+        Args:
+            file_path (Path): Destination path for the file. Its suffix determines
+                the output format (.mat, .h5, .nc, .cdf).
+            dict_to_save (SavedDataDict): The data to save, keyed by standard name.
+            append (bool): If True and ``file_path`` already exists, the data is
+                merged into the existing file via :meth:`append_data` instead of
+                overwriting it.
+
+        Raises:
+            NotImplementedError: If no writer is registered for the file's format.
+        """
         file_path.parent.mkdir(parents=True, exist_ok=True)
         format_name = ep.utils.normalize_file_format(file_path.suffix)
         writer = _writers.get(format_name)
@@ -191,6 +195,21 @@ class SavingStrategy(ABC):
         Existing data is loaded with the loader for ``file_path.suffix``, merged
         by timestamp with the new dictionary, and written to a temporary file
         before replacing the original file.
+
+        Args:
+            file_path (Path): Path to the existing file to append to.
+            data_dict_to_save (SavedDataDict): The new data to merge in, keyed by
+                internal name, including an "Epoch" entry with the new timestamps.
+
+        Returns:
+            SavedDataDict: The merged data that was written to ``file_path``. If
+            ``data_dict_to_save`` contains no new timestamps, it is returned unchanged.
+
+        Raises:
+            FileNotFoundError: If ``file_path`` does not exist.
+            NotImplementedError: If no loader/writer is registered for the file's format.
+            ValueError: If the existing NetCDF file's time dimension is not unlimited,
+                or if merging produces duplicate or mismatched-shape time values.
         """
         if not file_path.exists():
             msg = f"Cannot append: file does not exist: {file_path}"
@@ -329,11 +348,21 @@ class SavingStrategy(ABC):
 
     @abstractmethod
     def get_file_path_stem(self) -> Path:
-        pass
+        """Returns the directory under ``base_data_path`` where output files are stored.
+
+        Returns:
+            Path: The strategy-specific output directory, typically derived from
+            ``mission``, ``satellite``, and ``instrument``.
+        """
 
     @abstractmethod
     def get_file_name_stem(self) -> str:
-        pass
+        """Returns the base file name (without extension) used to build output file names.
+
+        Returns:
+            str: The strategy-specific file name stem, typically derived from
+            ``mission``, ``satellite``, and ``instrument``.
+        """
 
     def get_target_variables(
         self,
@@ -374,7 +403,9 @@ class SavingStrategy(ABC):
 
                 if start_time is not None and end_time is not None and time_var is not None:
                     var_to_save.truncate(time_var, start_time.timestamp(), end_time.timestamp())
-                var_to_save = self.standardize_variable(var_to_save, key, first_call_of_interval=first_call_of_interval, available_keys=available_keys)
+                var_to_save = self.standardize_variable(
+                    var_to_save, key, first_call_of_interval=first_call_of_interval, available_keys=available_keys
+                )
                 first_call_of_interval = False
 
                 target_variables[key] = var_to_save
@@ -397,8 +428,12 @@ class SavingStrategy(ABC):
                     var_to_save.truncate(time_var, start_time.timestamp(), end_time.timestamp())
 
                 var_to_save = self.standardize_variable(
-                    var_to_save, resolved_name, first_call_of_interval=first_call_of_interval
+                    var_to_save,
+                    resolved_name,
+                    first_call_of_interval=first_call_of_interval,
+                    available_keys=available_keys,
                 )
+
                 first_call_of_interval = False
 
                 target_variables[resolved_name] = var_to_save
@@ -422,6 +457,22 @@ class SavingStrategy(ABC):
     def get_output_file(
         self, *, standard_name: StandardName | None = None, internal_name: InternalName | None = None
     ) -> OutputFile | None:
+        """Finds the output file configured to save a given variable.
+
+        Exactly one of ``standard_name`` or ``internal_name`` should be provided.
+
+        Args:
+            standard_name (StandardName | None): The standard name of the variable.
+            internal_name (InternalName | None): The internal name of the variable.
+
+        Returns:
+            OutputFile | None: The output file whose ``names_to_save`` includes the
+            variable, or None if no such output file is configured or the variable
+            name could not be resolved.
+
+        Raises:
+            ValueError: If neither ``standard_name`` nor ``internal_name`` is provided.
+        """
         if internal_name is None:
             if standard_name is None:
                 msg = "Either standard_name or internal_name must be provided!"
@@ -433,14 +484,17 @@ class SavingStrategy(ABC):
 
         for output_file in self.output_files:
             for name_to_save in output_file.names_to_save:
-                if name_to_save == internal_name or (
-                    isinstance(name_to_save, tuple) and internal_name in name_to_save
-                ):
+                if name_to_save == internal_name or (isinstance(name_to_save, tuple) and internal_name in name_to_save):
                     return output_file
 
         return None
 
     def get_all_standard_names(self) -> list[StandardName]:
+        """Returns the standard names of every variable managed by this strategy's output files.
+
+        Returns:
+            list[StandardName]: The unique standard names across all configured output files.
+        """
         all_standard_names: list[StandardName] = []
 
         for output_file in self.output_files:

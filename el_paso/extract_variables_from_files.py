@@ -9,27 +9,27 @@ import json
 import logging
 import re
 import warnings
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Literal, cast  # noqa: UP035
+from typing import TYPE_CHECKING, Any, Callable, cast  # noqa: UP035
 
 import cdflib
 import h5py
 import netCDF4
 import numpy as np
+from numpy.typing import DTypeLike, NDArray
 import pandas as pd
 
 from el_paso import Variable
 from el_paso.utils import enforce_utc_timezone, fill_str_template_with_time, get_file_by_version
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
 
     from astropy import units as u
-    from numpy.typing import DTypeLike, NDArray
 
-    from el_paso.typing import TimeInterval
+    from el_paso.typing import FileCadence, TimeInterval
 
 logger = logging.getLogger(__name__)
 
@@ -79,28 +79,34 @@ class ExtractionInfo:
     dependent_variables: list[str] | None = None
     np_dtype: DTypeLike | None = None
 
+DataModifierType = Callable[[dict[str | int, NDArray[np.generic]], Iterable[ExtractionInfo]], dict[str | int, NDArray[np.generic]]]
 
 def extract_variables_from_files(
     start_time: datetime,
     end_time: datetime,
-    file_cadence: Literal["daily", "monthly", "single_file"],
+    file_cadence: FileCadence,
     data_path: Path | str,
     file_name_stem: str,
     extraction_infos: Iterable[ExtractionInfo],
     pd_read_csv_kwargs: dict[str, Any] | None = None,
     custom_extractors: dict[str, Callable] | None = None,
+    data_modifier: DataModifierType | None = None,
 ) -> dict[str, Variable]:
     """Extract variable data from files with any file format.
 
     Args:
         start_time (datetime): The start time for data extraction.
         end_time (datetime): The end time for data extraction.
-        file_cadence (Literal["daily", "monthly", "single_file"]): The cadence at which files are organized.
+        file_cadence (FileCadence): The cadence at which files are organized. Either one of the built-in
+            literals ("daily", "monthly", "single_file"), or a callable taking the current time and
+            returning the next file boundary time, for cadences that don't fit a fixed interval (e.g.
+            irregular weekly files).
         data_path (Path or str): The directory path where data files are stored.
         file_name_stem (str): The stem of the file name to match files.
         extraction_infos (Iterable[ExtractionInfo]): Information about which variables to extract and how.
         pd_read_csv_kwargs (dict[str, Any], optional): Additional keyword arguments to pass to pandas.read_csv.
         custom_extractors (dict[str, Callable], optional): A dictionary mapping file suffixes to custom extractor functions.
+        data_modifier (Callable, optional): A callable to modify data of single files before data concatination.
 
     Returns:
         dict[str, Variable]: A dictionary mapping result keys to extracted Variable objects.
@@ -131,7 +137,7 @@ def extract_variables_from_files(
         logger.error(msg)
         raise ValueError(msg)
 
-    variable_data = _extract_data_from_files(files_list, extraction_infos, pd_read_csv_kwargs, custom_extractors)
+    variable_data = _extract_data_from_files(files_list, extraction_infos, pd_read_csv_kwargs, custom_extractors, data_modifier)
 
     # create variables based on the extraction_infos
     variables: dict[str, Variable] = {}
@@ -153,10 +159,33 @@ def extract_variables_from_files(
 
 
 def _construct_file_list(
-    start_time: datetime, end_time: datetime, file_cadence: Literal["daily", "monthly", "single_file"], file_path: Path
+    start_time: datetime, end_time: datetime, file_cadence: FileCadence, file_path: Path
 ) -> tuple[list[Path], list[TimeInterval]]:
     file_paths: list[Path] = []
     time_intervals: list[TimeInterval] = []
+
+    if callable(file_cadence):
+        current_time = start_time
+        while current_time <= end_time:
+            next_time = file_cadence(current_time)
+
+            file_path_current = _fill_file_name_and_check_version(current_time, file_path)
+            if file_path_current is None:
+                logger.warning(
+                    (
+                        f"No file found for {current_time.strftime('%Y-%m-%d')} under path: {file_path}."
+                        "Skipping this interval."
+                    ),
+                    stacklevel=2,
+                )
+            else:
+                file_paths.append(file_path_current)
+                interval_end = min(next_time, end_time) - timedelta(seconds=1)
+                time_intervals.append((current_time, interval_end))
+
+            current_time = next_time
+
+        return file_paths, time_intervals
 
     match file_cadence:
         case "daily":
@@ -207,6 +236,7 @@ def _extract_data_from_files(
     extraction_infos: Iterable[ExtractionInfo],
     pd_read_csv_kwargs: dict[str, Any] | None,
     custom_extractors: dict[str, Callable] | None,
+    data_modifier: DataModifierType | None,
 ) -> dict[str | int, NDArray[np.generic]]:
     extraction_infos = tuple(extraction_infos)
 
@@ -218,6 +248,7 @@ def _extract_data_from_files(
         ".cdf": lambda path: _extract_data_from_cdf(path, extraction_infos),
         ".txt": lambda path: _extract_data_from_ascii(path, extraction_infos, pd_read_csv_kwargs),
         ".asc": lambda path: _extract_data_from_ascii(path, extraction_infos, pd_read_csv_kwargs),
+        ".ascii": lambda path: _extract_data_from_ascii(path, extraction_infos, pd_read_csv_kwargs),
         ".csv": lambda path: _extract_data_from_ascii(path, extraction_infos, pd_read_csv_kwargs),
         ".tab": lambda path: _extract_data_from_ascii(path, extraction_infos, pd_read_csv_kwargs),
         ".dat": lambda path: _extract_data_from_ascii(path, extraction_infos, pd_read_csv_kwargs),
@@ -250,6 +281,9 @@ def _extract_data_from_files(
             logger.error(msg)
             raise ValueError(msg)
 
+        if data_modifier is not None:
+            new_data = data_modifier(new_data, extraction_infos)
+
         # Update the data content of variables
         for info in extraction_infos:
             key = info.name_or_column
@@ -264,10 +298,18 @@ def _extract_data_from_files(
                 logger.debug(f"Concatenating data for {key} ...")
                 variable_data[key] = np.concatenate((variable_data[key], new_data[key]), axis=0)
 
-            elif np.any(pd.isna(variable_data[key])):
+            elif np.issubdtype(variable_data[key].dtype, np.number) and np.any(np.isnan(variable_data[key])):
                 logger.debug(f"Found NaNs in non-time-dependent variable {key}. Trying to fill with next file ...")
+
+                if variable_data[key].shape != new_data[key].shape:
+                    logger.warning(
+                        "Enountered size missmatch in non-time dependent variable: previous files: "
+                        f"{variable_data[key].shape}, this file {new_data[key].shape}"
+                    )
+                    continue
+
                 nan_idx = np.isnan(variable_data[key])
-                variable_data[key] = new_data[key][nan_idx]
+                variable_data[key][nan_idx] = new_data[key][nan_idx]
 
     return variable_data
 

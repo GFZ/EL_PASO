@@ -18,7 +18,7 @@ def rest_energy(species: ParticleLiteral) -> float:
         species (str): The species of particle ('electron', 'proton', 'helium', 'oxygen').
 
     Returns:
-        np.ndarray or float: The rest energy of the species in MeV.
+        float: The rest energy of the species in MeV.
 
     Raises:
         ValueError: If an unknown species is provided.
@@ -60,12 +60,12 @@ def en2pc(energy: float | NDArray[np.number], species: ParticleLiteral = "electr
     and $pc$ is the relativistic momentum.
 
     Args:
-        energy (np.ndarray or float): The total energy in MeV.
+        energy (float | NDArray[np.number]): The total energy in MeV.
         species (str): The species of particle ('electron', 'proton', 'helium', 'oxygen').
 
     Returns:
-        np.ndarray or float: The calculated relativistic momentum times c (p*c).
-
+        float | NDArray[np.number]: The calculated relativistic momentum times c (p*c),
+        matching the shape of ``energy``.
     """
     mc2 = rest_energy(species)
     # Calculate the relativistic energy

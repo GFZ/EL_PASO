@@ -267,7 +267,10 @@ def process_ngrm_electron_fluxes(
     variables |= magnetic_field_variables
 
     FEDU_var = ep.processing.construct_pitch_angle_distribution(
-        variables["FEDO"], variables["PA_local_FEDU"], magnetic_field_variables["Alpha_Eq_T89"]
+        variables["FEDO"],
+        variables["PA_local_FEDU"],
+        magnetic_field_variables["Alpha_Eq_T89"],
+        flux_type="omni",
     )
     FEDU_var.apply_thresholds_on_data(lower_threshold=0)
 

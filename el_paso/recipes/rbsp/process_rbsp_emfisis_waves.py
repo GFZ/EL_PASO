@@ -319,7 +319,7 @@ def _clean_magnetometer_data(mag_vars: dict[str, ep.Variable]) -> dict[str, ep.V
 
 
 def _compute_total_psd(wfr_vars: dict[str, ep.Variable]) -> ep.Variable:
-    bb = wfr_vars["BuBu"].get_data().astype(np.float64) + wfr_vars["BvBv"].get_data() + wfr_vars["BwBw"].get_data()
+    bb = wfr_vars["BuBu"].get_data().astype(np.float64) + wfr_vars["BvBv"].get_data() + wfr_vars["BwBw"].get_data()  # ty: ignore[unsupported-operator]
     return Variable((u.nT) ** 2 / u.Hz, data=bb)
 
 

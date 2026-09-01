@@ -8,20 +8,20 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from functools import partial
-from multiprocessing import Pool
 from pathlib import Path
 from typing import Literal, NamedTuple
 
 import numpy as np
 from astropy import units as u
 from numpy.typing import NDArray
+from richpool import p_map
 
 import el_paso as ep
 from el_paso.processing.magnetic_field_utils.construct_maginput import MagInputKeys
 from el_paso.processing.magnetic_field_utils.irbem import Coords, IrbemOptions, LstarQuantity, MagFields
 from el_paso.processing.magnetic_field_utils.mag_field_enum import MagneticField
 from el_paso.typing import MagFieldVarTypes
-from el_paso.utils import show_process_bar_for_map_async, timed_function
+from el_paso.utils import timed_function
 
 logger = logging.getLogger(__name__)
 
@@ -144,22 +144,24 @@ def get_magequator(xgeo_var: ep.Variable, time_var: ep.Variable, irbem_input: Ir
         msg = f"Encountered size mismatch for x_geo: len of x_geo data: {len(x_geo)}, requested len: {len(datetimes)}"
         raise ValueError(msg)
 
-    kext = irbem_input.magnetic_field.kext()
+    kext = irbem_input.magnetic_field.get_kext()
 
     irbem_args = (irbem_input.irbem_lib_path, irbem_input.irbem_options, kext, sysaxes)
 
     parallel_func = partial(_get_magequator_parallel, irbem_args, x_geo, datetimes, irbem_input.maginput)
 
-    with Pool(processes=irbem_input.num_cores) as pool:
-        chunksize = max(1, len(datetimes) // irbem_input.num_cores // 4)  # same as default
-        rs = pool.map_async(parallel_func, range(len(datetimes)), chunksize=chunksize)
-        show_process_bar_for_map_async(rs, chunksize)
+    chunksize = max(1, len(datetimes) // irbem_input.num_cores // 4)  # same as default
+    results = p_map(
+        parallel_func,
+        range(len(datetimes)),
+        num_cpus=irbem_input.num_cores,
+        chunksize=chunksize,
+        desc="Calculating magnetic equator",
+    )
 
-    # write async results into one array
+    # write results into one array
     B_eq = np.empty_like(datetimes)
     x_geo_min = np.empty_like(x_geo)
-
-    results = rs.get()
 
     for i in range(len(datetimes)):
         B_eq[i] = results[i][0]
@@ -275,21 +277,23 @@ def get_footpoint_atmosphere(
         msg = f"Encountered size mismatch for x_geo: len of x_geo data: {len(x_geo)}, requested len: {len(datetimes)}"
         raise ValueError(msg)
 
-    kext = irbem_input.magnetic_field.kext()
+    kext = irbem_input.magnetic_field.get_kext()
 
     irbem_args = (irbem_input.irbem_lib_path, irbem_input.irbem_options, kext, sysaxes)
 
     parallel_func = partial(_get_footpoint_atmosphere_parallel, irbem_args, x_geo, datetimes, irbem_input.maginput)
 
-    with Pool(processes=irbem_input.num_cores) as pool:
-        chunksize = max(1, len(datetimes) // irbem_input.num_cores // 4)  # same as default
-        rs = pool.map_async(parallel_func, range(len(datetimes)), chunksize=chunksize)
-        show_process_bar_for_map_async(rs, chunksize)
+    chunksize = max(1, len(datetimes) // irbem_input.num_cores // 4)  # same as default
+    results = p_map(
+        parallel_func,
+        range(len(datetimes)),
+        num_cpus=irbem_input.num_cores,
+        chunksize=chunksize,
+        desc="Calculating foot point",
+    )
 
-    # write async results into one array
+    # write results into one array
     B_foot = np.empty_like(datetimes)
-
-    results = rs.get()
 
     for i in range(len(datetimes)):
         B_foot[i] = results[i]
@@ -332,7 +336,7 @@ def get_MLT(xgeo_var: ep.Variable, time_var: ep.Variable, irbem_input: IrbemInpu
         msg = f"Encountered size mismatch for x_geo: len of x_geo data: {len(x_geo)}, requested len: {len(datetimes)}"
         raise ValueError(msg)
 
-    kext = irbem_input.magnetic_field.kext()
+    kext = irbem_input.magnetic_field.get_kext()
 
     model = MagFields(
         lib_path=irbem_input.irbem_lib_path,
@@ -403,7 +407,7 @@ def get_local_B_field(xgeo_var: ep.Variable, time_var: ep.Variable, irbem_input:
         "x2": x_geo[:, 1],
         "x3": x_geo[:, 2],
     }
-    kext = irbem_input.magnetic_field.kext()
+    kext = irbem_input.magnetic_field.get_kext()
 
     model = MagFields(
         lib_path=irbem_input.irbem_lib_path,
@@ -499,21 +503,23 @@ def get_mirror_point(
         )
         raise ValueError(msg)
 
-    kext = irbem_input.magnetic_field.kext()
+    kext = irbem_input.magnetic_field.get_kext()
 
     irbem_args = (irbem_input.irbem_lib_path, irbem_input.irbem_options, kext, sysaxes)
 
     parallel_func = partial(_get_mirror_point_parallel, irbem_args, x_geo, datetimes, irbem_input.maginput, pa_local)
 
-    with Pool(processes=irbem_input.num_cores) as pool:
-        chunksize = max(1, len(datetimes) // irbem_input.num_cores // 4)  # same as default
-        rs = pool.map_async(parallel_func, range(len(datetimes)), chunksize=chunksize)
-        show_process_bar_for_map_async(rs, chunksize)
+    chunksize = max(1, len(datetimes) // irbem_input.num_cores // 4)  # same as default
+    results = p_map(
+        parallel_func,
+        range(len(datetimes)),
+        num_cpus=irbem_input.num_cores,
+        chunksize=chunksize,
+        desc="Calculating mirror points",
+    )
 
-    # write async results into one array
+    # write results into one array
     mirror_point_output = np.empty_like(pa_local)
-
-    results = rs.get()
 
     for i in range(len(datetimes)):
         mirror_point_output[i, :] = results[i]
@@ -614,7 +620,7 @@ def get_Lstar(
         )
         raise ValueError(msg)
 
-    kext = irbem_input.magnetic_field.kext()
+    kext = irbem_input.magnetic_field.get_kext()
 
     irbem_args = (irbem_input.irbem_lib_path, irbem_input.irbem_options, kext, sysaxes)
 
@@ -627,17 +633,19 @@ def get_Lstar(
         pa_local,
     )
 
-    with Pool(processes=irbem_input.num_cores) as pool:
-        chunksize = max(1, len(datetimes) // irbem_input.num_cores // 4)  # same as default
-        rs = pool.map_async(parallel_func, range(len(datetimes)), chunksize=chunksize)
-        show_process_bar_for_map_async(rs, chunksize)
+    chunksize = max(1, len(datetimes) // irbem_input.num_cores // 4)  # same as default
+    results = p_map(
+        parallel_func,
+        range(len(datetimes)),
+        num_cpus=irbem_input.num_cores,
+        chunksize=chunksize,
+        desc="Calculating Lstar",
+    )
 
-    # write async results into one array
+    # write results into one array
     Lm = np.empty_like(pa_local)
     Lstar = np.empty_like(pa_local)
     xj = np.empty_like(pa_local)
-
-    results = rs.get()
 
     for i in range(len(datetimes)):
         Lm[i, :] = results[i][0]

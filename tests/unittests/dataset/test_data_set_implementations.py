@@ -67,7 +67,7 @@ def _mock_monthly_variables() -> dict[InternalName, ep.Variable]:
             data=np.arange(time_size * 3, dtype=float).reshape(time_size, 3),
         ),
         "PSD": ep.Variable(
-            original_unit=(u.m * u.kg * u.m / u.s) ** (-3),
+            original_unit=ep.units.psd_natural_unit,
             data=np.full((time_size, energy_size, alpha_size), 3.5),
         ),
         "R_Eq": ep.Variable(original_unit=ep.units.RE, data=np.full(time_size, 6.0)),

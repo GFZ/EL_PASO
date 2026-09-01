@@ -21,7 +21,7 @@ repos:
       - id: reuse
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.1
+    rev: v0.16.5
     hooks:
       - id: ruff-check
         types_or: [python, pyi]
@@ -31,7 +31,16 @@ repos:
         files: ^el_paso/
 
   - repo: https://github.com/astral-sh/ty-pre-commit
-    rev: v0.0.69
+    rev: v0.0.77
     hooks:
       - id: ty
         files: ^el_paso/
+
+  - repo: local
+    hooks:
+      - id: generate-metadata-stubs
+        name: generate-metadata-stubs
+        entry: python hooks/generate_metadata_stubs.py
+        language: system
+        pass_filenames: false
+        files: ^(el_paso/data_standards/(gfz_standard|prbem_standard)\.py|scripts/generate_metadata_stubs\.py)$

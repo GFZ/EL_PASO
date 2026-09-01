@@ -23,7 +23,9 @@ class GFZStandard(DataStandard[GFZVarNames]):
         self.consistency_check = ConsistencyCheck()
 
         self.variable_infos: dict[InternalName, VariableInfo] = {
-            "Epoch": VariableInfo[GFZVarNames]("time", "Time in MATLAB datenum format.", ep.units.datenum, ["Epoch"]),
+            "Epoch": VariableInfo[GFZVarNames](
+                "time", "Time in MATLAB datenum format.", ep.units.datenum, ["Epoch"], ("Epoch", "ascending")
+            ),
             "Position": VariableInfo[GFZVarNames](
                 "xGEO", "Position in geographic cartesian coordinates.", ep.units.RE, ["Epoch", "Position_components"]
             ),
@@ -37,16 +39,32 @@ class GFZStandard(DataStandard[GFZVarNames]):
                 "geo_lon", "Longitude in geographic cartesian coordinates.", u.deg, ["Epoch"]
             ),
             "Energy_FEDU": VariableInfo[GFZVarNames](
-                "energy_channels", "Central energy of measured differential flux.", u.MeV, ["Epoch", "Energy_FEDU"]
+                "energy_channels",
+                "Central energy of measured differential flux.",
+                u.MeV,
+                ["Epoch", "Energy_FEDU"],
+                ("Energy_FEDU", "ascending"),
             ),
             "Energy_FEIU": VariableInfo[GFZVarNames](
-                "energy_FEIU", "Central energy of measured integral flux.", u.MeV, ["Epoch", "Energy_FEIU"]
+                "energy_FEIU",
+                "Central energy of measured integral flux.",
+                u.MeV,
+                ["Epoch", "Energy_FEIU"],
+                ("Energy_FEIU", "ascending"),
             ),
             "Energy_FEDO": VariableInfo[GFZVarNames](
-                "energy_FEDO", "Central energy of measured omnidirecitonal flux.", u.MeV, ["Epoch", "Energy_FEDO"]
+                "energy_FEDO",
+                "Central energy of measured omnidirecitonal flux.",
+                u.MeV,
+                ["Epoch", "Energy_FEDO"],
+                ("Energy_FEDO", "ascending"),
             ),
             "Energy_FPDU": VariableInfo[GFZVarNames](
-                "energy_FPDU", "Central energy of measured proton differential flux.", u.MeV, ["Epoch", "Energy_FPDU"]
+                "energy_FPDU",
+                "Central energy of measured proton differential flux.",
+                u.MeV,
+                ["Epoch", "Energy_FPDU"],
+                ("Energy_FPDU", "ascending"),
             ),
             "FEDU": VariableInfo[GFZVarNames](
                 "Flux",
@@ -73,7 +91,10 @@ class GFZStandard(DataStandard[GFZVarNames]):
                 ["Epoch", "Energy_FPDU", "Alpha"],
             ),
             "Alpha": VariableInfo[GFZVarNames](
-                "alpha_local", "Local pitch angles of the particles.", u.radian, ["Epoch", "Alpha"]
+                "alpha_local",
+                "Local pitch angles of the particles.",
+                u.radian,
+                ["Epoch", "Alpha"],
             ),
             "Alpha_range": VariableInfo[GFZVarNames](
                 "alpha_local_range",
@@ -82,7 +103,10 @@ class GFZStandard(DataStandard[GFZVarNames]):
                 ["Epoch", "Alpha_range", "min_max"],
             ),
             "Alpha_Eq": VariableInfo[GFZVarNames](
-                "alpha_eq_model", "Calculated equatorial pitch angles of the particles.", u.radian, ["Epoch", "Alpha"]
+                "alpha_eq_model",
+                "Calculated equatorial pitch angles of the particles.",
+                u.radian,
+                ["Epoch", "Alpha"],
             ),
             "Alpha_Eq_range": VariableInfo[GFZVarNames](
                 "alpha_eq_range",
@@ -108,6 +132,9 @@ class GFZStandard(DataStandard[GFZVarNames]):
             "MLT": VariableInfo[GFZVarNames](
                 "MLT", "Magnetic local time at the satellite location.", u.hour, ["Epoch"]
             ),
+            "MLT_Eq": VariableInfo[GFZVarNames](
+                "MLT0", "Magnetic local time at the mapped magnetic equator.", u.hour, ["Epoch"]
+            ),
             "L_star": VariableInfo[GFZVarNames](
                 "Lstar", "Calculated Lstar of the particles.", u.dimensionless_unscaled, ["Epoch", "Alpha"]
             ),
@@ -125,7 +152,10 @@ class GFZStandard(DataStandard[GFZVarNames]):
                 "R0", "Radial distance of the satellite location mapped to the equator.", ep.units.RE, ["Epoch"]
             ),
             "InvMu": VariableInfo[GFZVarNames](
-                "InvMu", "Calculated first adiabatic invariant.", u.MeV / u.G, ["Epoch", ("Energy_FEDU", "Energy_FPDU"), "Alpha"]
+                "InvMu",
+                "Calculated first adiabatic invariant.",
+                u.MeV / u.G,
+                ["Epoch", ("Energy_FEDU", "Energy_FPDU"), "Alpha"],
             ),
             "InvK": VariableInfo[GFZVarNames](
                 "InvK", "Calculated modified second adiabatic invariant.", ep.units.RE * u.G**0.5, ["Epoch", "Alpha"]

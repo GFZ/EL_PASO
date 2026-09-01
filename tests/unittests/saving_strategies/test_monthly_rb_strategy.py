@@ -41,10 +41,22 @@ def _mock_monthly_variables() -> dict[InternalName, ep.Variable]:
                 alpha_size,
             ),
         ),
+        "FPDU": ep.Variable(
+            original_unit=(u.cm**2 * u.s * u.sr * u.keV) ** (-1),
+            data=2 * np.arange(time_size * energy_size * alpha_size, dtype=float).reshape(
+                time_size,
+                energy_size,
+                alpha_size,
+            ),
+        ),
         "Alpha_Eq": ep.Variable(original_unit=u.deg, data=np.full((time_size, alpha_size), 45.0)),
         "Energy_FEDU": ep.Variable(
             original_unit=u.MeV,
             data=np.tile(np.asarray([0.5, 1.0, 2.0]), (time_size, 1)),
+        ),
+        "Energy_FPDU": ep.Variable(
+            original_unit=u.MeV,
+            data=np.tile(2 * np.asarray([0.5, 1.0, 2.0]), (time_size, 1)),
         ),
         "Alpha": ep.Variable(
             original_unit=u.deg,
@@ -65,7 +77,7 @@ def _mock_monthly_variables() -> dict[InternalName, ep.Variable]:
             data=np.arange(time_size * 3, dtype=float).reshape(time_size, 3),
         ),
         "PSD": ep.Variable(
-            original_unit=(u.m * u.kg * u.m / u.s) ** (-3),
+            original_unit=ep.units.psd_natural_unit,
             data=np.full((time_size, energy_size, alpha_size), 3.5),
         ),
         "R_Eq": ep.Variable(original_unit=ep.units.RE, data=np.full(time_size, 6.0)),
@@ -182,10 +194,23 @@ def _mock_monthly_variables_for_append() -> dict[InternalName, ep.Variable]:
             )
             * 2.0,  # different from the initial mock to ensure we can detect appending data correctly
         ),
+        "FPDU": ep.Variable(
+            original_unit=(u.cm**2 * u.s * u.sr * u.keV) ** (-1),
+            data=2 * np.arange(time_size * energy_size * alpha_size, dtype=float).reshape(
+                time_size,
+                energy_size,
+                alpha_size,
+            )
+            * 2.0,  # different from the initial mock to ensure we can detect appending data correctly
+        ),
         "Alpha_Eq": ep.Variable(original_unit=u.deg, data=np.full((time_size, alpha_size), 45.0)),
         "Energy_FEDU": ep.Variable(
             original_unit=u.MeV,
             data=np.tile(np.asarray([0.5, 1.0, 2.0]), (time_size, 1)),
+        ),
+        "Energy_FPDU": ep.Variable(
+            original_unit=u.MeV,
+            data=2 * np.tile(np.asarray([0.5, 1.0, 2.0]), (time_size, 1)),
         ),
         "Alpha": ep.Variable(
             original_unit=u.deg,
@@ -206,7 +231,7 @@ def _mock_monthly_variables_for_append() -> dict[InternalName, ep.Variable]:
             data=np.arange(time_size * 3, dtype=float).reshape(time_size, 3),
         ),
         "PSD": ep.Variable(
-            original_unit=(u.m * u.kg * u.m / u.s) ** (-3),
+            original_unit=ep.units.psd_natural_unit,
             data=np.full((time_size, energy_size, alpha_size), 8.5),
         ),
         "R_Eq": ep.Variable(original_unit=ep.units.RE, data=np.full(time_size, 5.0)),
@@ -355,7 +380,44 @@ def test_save_raises_when_required_dimension_is_missing(
 
     with pytest.raises(
         ValueError,
-        match=r"Data for the following dimensions is not saved: 'Energy_FEDU' \(required by: FEDU, InvMu, PSD\)",
+        match=r"Data for the following dimensions is not saved: 'Energy_FEDU'",
+    ):
+        ep.save(
+            variables,
+            strategy,
+            start_time=start_time,
+            end_time=end_time,
+            time_var=variables["Epoch"],
+        )
+
+@pytest.mark.basic
+def test_save_raises_when_required_dimension_is_missing_tuples(
+    tmp_path: Path,
+) -> None:
+    """Saving variables whose required dimension variable is absent must raise ValueError."""
+    variables = _mock_monthly_variables()
+
+    std = ep.data_standards.GFZStandard()
+
+    variables.pop("Energy_FEDU")
+    variables.pop("Energy_FPDU")
+
+    start_time = datetime(2013, 1, 1, tzinfo=timezone.utc)
+    end_time = datetime(2013, 1, 7, tzinfo=timezone.utc)
+    strategy = ep.saving_strategies.MonthlyRBStrategy(
+        base_data_path=tmp_path,
+        mission="GOES",
+        satellite="primary",
+        instrument="MAGED",
+        mag_field="T89",
+        file_format="nc",
+        data_standard=std,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=(r"Data for the following dimensions is not saved: 'Energy_FEDU' \(required by: FEDU\); "
+              r"'Energy_FPDU' \(required by: FPDU\); 'Energy_FEDU or Energy_FPDU' \(required by: InvMu, PSD\)")
     ):
         ep.save(
             variables,

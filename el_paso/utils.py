@@ -7,8 +7,8 @@ from __future__ import annotations
 
 import calendar
 import logging
+import os
 import re
-import time
 import timeit
 import typing
 from datetime import datetime, timedelta, timezone
@@ -21,7 +21,6 @@ import h5py
 import netCDF4 as nC
 import numpy as np
 import pandas as pd
-import tqdm
 import xarray as xr
 from packaging import version as version_pkg
 from scipy.io.matlab import loadmat, savemat
@@ -30,13 +29,44 @@ import el_paso as ep
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
-    from multiprocessing.pool import MapResult
 
     from el_paso.typing import DataStandard, SavedDataDict, StandardName, TimeInterval
 
     DataDict = SavedDataDict
 
 logger = logging.getLogger(__name__)
+
+
+def get_el_paso_model_data_path() -> Path:
+    """Return the directory used to store downloaded model coefficient data.
+
+    Resolved from the `EL_PASO_MODEL_DATA_PATH` environment variable if set,
+    otherwise defaults to `~/.elpaso/model_data`. The directory is created if
+    it does not already exist.
+
+    Returns:
+        Path: Absolute path to the model data directory.
+    """
+    data_path = Path(os.environ.get("EL_PASO_MODEL_DATA_PATH", Path.home() / ".elpaso")).expanduser()
+    data_path.mkdir(parents=True, exist_ok=True)
+
+    return data_path
+
+
+def get_el_paso_indices_solar_wind_param_path() -> Path:
+    """Return the directory used to store downloaded solar wind index/parameter data.
+
+    Resolved from the `EL_PASO_INDICES_SW_PARAM_DATA_PATH` environment variable
+    if set, otherwise defaults to `~/.elpaso/indices_solar_wind`. The directory
+    is created if it does not already exist.
+
+    Returns:
+        Path: Absolute path to the solar wind indices/parameters directory.
+    """
+    data_path = Path(os.environ.get("EL_PASO_INDICES_SW_PARAM_DATA_PATH", Path.home() / ".elpaso")).expanduser()
+    data_path.mkdir(parents=True, exist_ok=True)
+
+    return data_path
 
 
 def fill_str_template_with_time(input_str: str, time: datetime) -> str:
@@ -48,7 +78,7 @@ def fill_str_template_with_time(input_str: str, time: datetime) -> str:
 
     Args:
         input_str (str): The input string containing placeholders like 'yyyymmdd', 'YYYYMMDD',
-                         'YYYY', 'MM', and 'DD'.
+                         'YYYY', 'YY', 'MM', and 'DD'.
         time (datetime): The datetime object to use for filling the template.
 
     Returns:
@@ -56,6 +86,7 @@ def fill_str_template_with_time(input_str: str, time: datetime) -> str:
     """
     yyyymmdd_str = time.strftime("%Y%m%d")
     yyyy_str = time.strftime("%Y")
+    yy_str = time.strftime("%y")
     mm_str = time.strftime("%m")
     dd_str = time.strftime("%d")
 
@@ -65,6 +96,7 @@ def fill_str_template_with_time(input_str: str, time: datetime) -> str:
         .replace("YYYY", yyyy_str)
         .replace("MM", mm_str)
         .replace("DD", dd_str)
+        .replace("YY", yy_str)
     )
 
 
@@ -252,27 +284,6 @@ def assert_n_dim(var: ep.Variable, n_dims: int, name_in_file: str) -> None:
         raise ValueError(msg)
 
 
-def show_process_bar_for_map_async(map_result: MapResult[Any], chunksize: int) -> None:
-    """Displays a progress bar for a `multiprocessing.pool.MapResult` object.
-
-    This function creates a `tqdm` progress bar that tracks the completion of
-    a parallel map operation. It polls the `MapResult`'s internal state to
-    update the progress bar until the operation is complete.
-
-    Args:
-        map_result (MapResult): The result object from `Pool.map_async()`.
-        chunksize (int): The chunk size used in the `map_async` call.
-    """
-    init = cast("int", map_result._number_left) * chunksize  # ty:ignore[unresolved-attribute]
-    with tqdm.tqdm(total=init) as t:
-        while True:
-            if map_result.ready():
-                break
-            t.n = init - map_result._number_left * chunksize  # ty:ignore[unresolved-attribute]
-            t.refresh()
-            time.sleep(1)
-
-
 class Hashabledict(dict[Any, Any]):
     """A dictionary subclass that is hashable.
 
@@ -313,7 +324,19 @@ def make_dict_hashable(dict_input: dict[Any, Any] | None) -> Hashabledict | None
 
 
 def load_h5_data(file_path: Path) -> dict[StandardName, Any]:
-    """Load all datasets and dataset attributes from an HDF5 file."""
+    """Load all datasets and dataset attributes from an HDF5 file.
+
+    Groups are flattened into slash-delimited paths (e.g. ``"group/dataset"``),
+    mirroring the hierarchy written by :func:`write_h5_file`.
+
+    Args:
+        file_path (Path): Path to the HDF5 file to load.
+
+    Returns:
+        dict[StandardName, Any]: Mapping from flattened dataset path to its data
+        as a NumPy array, plus a ``"metadata"`` entry mapping each path to its
+        HDF5 attributes.
+    """
     loaded_data: dict[StandardName, Any] = {"metadata": {}}
 
     def _recursively_load_datasets(group: h5py.Group | h5py.File, prefix: str = "") -> None:
@@ -332,7 +355,25 @@ def load_h5_data(file_path: Path) -> dict[StandardName, Any]:
 
 
 def load_netcdf_data(file_path: Path, target_var_names: list[str] | None = None) -> dict[StandardName, Any]:
-    """Load all variables and variable metadata from a NetCDF file."""
+    """Load all variables and variable metadata from a NetCDF file.
+
+    Groups are flattened into slash-delimited paths (e.g. ``"group/variable"``),
+    mirroring the hierarchy written by :func:`write_netcdf_file`. Loading is
+    eager: all matched variables are read fully into memory as NumPy arrays.
+
+    Args:
+        file_path (Path): Path to the NetCDF file to load.
+        target_var_names (list[str] | None): If provided, only variables whose
+            (unprefixed) name is in this list are loaded. If ``None``, all
+            variables are loaded.
+
+    Returns:
+        dict[StandardName, Any]: Mapping from flattened variable path to its data
+        as a NumPy array, plus a ``"metadata"`` entry mapping each path to a dict
+        of known attributes (unit, source_files, processing_notes, description,
+        original_cadence_seconds, standard_name). Returns an empty dict if
+        ``file_path`` does not exist.
+    """
     loaded_data: dict[StandardName, Any] = {"metadata": {}}
 
     def _recursively_load(group: nC.Group | nC.Dataset, prefix: str = "") -> None:
@@ -363,7 +404,23 @@ def load_netcdf_data(file_path: Path, target_var_names: list[str] | None = None)
 
 
 def load_netcdf_data_lazy(file_path: Path) -> dict[StandardName, Any]:
-    """Load all variables and variable metadata from a NetCDF file lazily using xarray."""
+    """Load all variables and variable metadata from a NetCDF file lazily using xarray.
+
+    Unlike :func:`load_netcdf_data`, variable data is returned as lazily-loaded
+    xarray ``DataArray`` objects rather than eagerly read into NumPy arrays,
+    which avoids loading large datasets fully into memory.
+
+    Args:
+        file_path (Path): Path to the NetCDF file to load.
+
+    Returns:
+        dict[StandardName, Any]: Mapping from flattened variable path (group
+        prefix included, e.g. ``"group/variable"``) to its data as an xarray
+        ``DataArray``, plus a ``"metadata"`` entry mapping each path to a dict
+        of known attributes (unit, source_files, processing_notes, description,
+        original_cadence_seconds, standard_name). Returns an empty dict if
+        ``file_path`` does not exist.
+    """
     if not file_path.exists():
         logger.error(f"File not found: {file_path}")
         return {}
@@ -392,7 +449,19 @@ def load_netcdf_data_lazy(file_path: Path) -> dict[StandardName, Any]:
 
 
 def load_cdf_data(file_path: Path) -> dict[StandardName, Any]:
-    """Load all zVariables from an existing CDF file."""
+    """Load all zVariables from an existing CDF file.
+
+    zVariables with no records are skipped with a warning rather than raised,
+    since :func:`write_cdf_file` never writes empty variables.
+
+    Args:
+        file_path (Path): Path to the CDF file to load.
+
+    Returns:
+        dict[StandardName, Any]: Mapping from zVariable name to its data as a
+        NumPy array, plus a ``"metadata"`` entry mapping each variable name to
+        its CDF variable attributes (empty dict if attributes could not be read).
+    """
     loaded_data: dict[StandardName, Any] = {"metadata": {}}
     cdf_file = cdflib.CDF(str(file_path))
     try:
@@ -423,7 +492,18 @@ def load_cdf_data(file_path: Path) -> dict[StandardName, Any]:
 
 
 def load_mat_data(file_path: Path) -> dict[StandardName, Any]:
-    """Load an existing MATLAB file."""
+    """Load an existing MATLAB file.
+
+    Args:
+        file_path (Path): Path to the .mat file to load.
+
+    Returns:
+        dict[StandardName, Any]: Mapping from variable name to its data, with
+        MATLAB's internal ``__*__`` entries stripped. If present, the
+        ``"metadata"`` entry's per-variable attribute dicts have their NumPy
+        array values converted to plain Python scalars/lists (or ``""`` for
+        empty arrays) for JSON/MATLAB-struct compatibility.
+    """
     loaded = loadmat(str(file_path), simplify_cells=True)
     data: dict[StandardName, Any] = {key: value for key, value in loaded.items() if not key.startswith("__")}
 
@@ -446,7 +526,19 @@ def load_mat_data(file_path: Path) -> dict[StandardName, Any]:
 
 
 def normalize_file_format(file_format: str) -> str:
-    """Return a normalized file extension for the requested monthly format."""
+    """Return a normalized file extension for the requested monthly format.
+
+    Args:
+        file_format (str): A file extension or format name, with or without a
+            leading dot (e.g. ``"nc"``, ``".NC"``).
+
+    Returns:
+        str: The lowercased extension with a leading dot (e.g. ``".nc"``).
+
+    Raises:
+        ValueError: If the normalized extension is not one of ``.nc``, ``.cdf``,
+            ``.h5``, or ``.mat``.
+    """
     normalized = file_format.lower()
     if not normalized.startswith("."):
         normalized = f".{normalized}"
@@ -464,6 +556,14 @@ def write_mat_file(file_path: Path, data_dict: DataDict, data_standard: DataStan
     Data variables are stored under their flattened canonical names (``/`` → ``__``).
     Per-variable metadata is stored in a parallel ``metadata`` struct whose field
     names mirror the data variable names, matching how HDF5 stores attrs per dataset.
+
+    Args:
+        file_path (Path): Destination path for the .mat file.
+        data_dict (DataDict): Data to save, keyed by internal name. The
+            ``"metadata"`` key, if present, maps internal names to per-variable
+            attribute dicts.
+        data_standard (DataStandard): Used to resolve each internal name to its
+            standard (canonical) name for the on-disk variable name.
     """
     mat_dict: dict[str, Any] = {}
     mat_metadata: dict[str, Any] = {}
@@ -501,7 +601,19 @@ def write_mat_file(file_path: Path, data_dict: DataDict, data_standard: DataStan
 
 
 def write_h5_file(file_path: Path, data_dict: SavedDataDict, data_standard: DataStandard) -> None:
-    """Write an HDF5 file with hierarchical groups from slash-delimited paths."""
+    """Write an HDF5 file with hierarchical groups from slash-delimited paths.
+
+    Each variable's standard name is split on ``/`` to build a nested group
+    structure, with the final path component used as the dataset name.
+
+    Args:
+        file_path (Path): Destination path for the .h5 file.
+        data_dict (SavedDataDict): Data to save, keyed by internal name. The
+            ``"metadata"`` key, if present, maps internal names to per-variable
+            attribute dicts written as HDF5 dataset attributes.
+        data_standard (DataStandard): Used to resolve each internal name to its
+            standard (canonical) name, which determines the group/dataset path.
+    """
     with h5py.File(file_path, "w") as file:
         for internal_name, value in data_dict.items():
             if internal_name == "metadata":
@@ -539,7 +651,17 @@ def write_h5_file(file_path: Path, data_dict: SavedDataDict, data_standard: Data
 
 
 def _write_data_to_netcdf_file(file: nC.Dataset | nC.Group, data_dict: DataDict, data_standard: DataStandard) -> None:
-    """Write variables to a NetCDF file or group."""
+    """Write variables to a NetCDF file or group.
+
+    Args:
+        file (nC.Dataset | nC.Group): The NetCDF dataset or group to write into.
+            Dimensions referenced by variables must already be created.
+        data_dict (DataDict): Data to write, keyed by internal name. Variables
+            with zero size are skipped. The ``"metadata"`` key, if present, maps
+            internal names to per-variable attribute dicts.
+        data_standard (DataStandard): Used to resolve each internal name to its
+            standard (canonical) name and dimension names.
+    """
     for internal_name, value in data_dict.items():
         if internal_name == "metadata":
             continue
@@ -609,7 +731,18 @@ def _write_data_to_netcdf_file(file: nC.Dataset | nC.Group, data_dict: DataDict,
 
 
 def write_netcdf_file(file_path: Path, data_dict: DataDict, data_standard: DataStandard) -> None:
-    """Create and write a NetCDF file from a data dictionary."""
+    """Create and write a NetCDF file from a data dictionary.
+
+    The "Epoch" dimension is created as unlimited so the file can later be
+    appended to via :meth:`el_paso.saving_strategy.SavingStrategy.append_data`.
+
+    Args:
+        file_path (Path): Destination path for the .nc file.
+        data_dict (DataDict): Data to save, keyed by internal name, including an
+            "Epoch" entry. If "Epoch" has length 0, the write is skipped entirely.
+        data_standard (DataStandard): Used to resolve each internal name to its
+            standard (canonical) name, dimensions, and dimension sizes.
+    """
     with nC.Dataset(file_path, "w", format="NETCDF4") as file:
         size_time = np.asarray(data_dict["Epoch"]).shape[0]
         if size_time == 0:
@@ -628,7 +761,18 @@ def write_netcdf_file(file_path: Path, data_dict: DataDict, data_standard: DataS
 
 
 def _calculate_dimensions(data_dict: DataDict, data_standard: DataStandard) -> dict[str, int]:
-    """Calculate NetCDF dimension sizes from the data dictionary."""
+    """Calculate NetCDF dimension sizes from the data dictionary.
+
+    Args:
+        data_dict (DataDict): Data to inspect, keyed by internal name.
+        data_standard (DataStandard): Used to resolve each internal name's
+            dependent dimension names.
+
+    Returns:
+        dict[str, int]: Mapping from dimension name to its size, with
+        "min_max" and "Position_components" special-cased to 2 and 3
+        respectively.
+    """
     unique_dims = {}
 
     for internal_name in data_dict:
@@ -689,7 +833,20 @@ def _is_empty_cdf_attribute(value: Any) -> bool:  # noqa: ANN401
 
 
 def write_cdf_file(file_path: Path, data_dict: DataDict, data_standard: DataStandard) -> None:
-    """Write a CDF file, resolving standard variable paths and embedding metadata."""
+    """Write a CDF file, resolving standard variable paths and embedding metadata.
+
+    Args:
+        file_path (Path): Destination path for the .cdf file. An existing file
+            at this path is deleted first.
+        data_dict (DataDict): Data to save, keyed by internal name. Variables
+            with zero size are skipped. The ``"metadata"`` key, if present, maps
+            internal/standard names to per-variable attribute dicts.
+        data_standard (DataStandard): Used to resolve each internal name to its
+            standard (canonical) name for the on-disk zVariable name.
+
+    Raises:
+        RuntimeError: If writing the CDF file fails for any reason.
+    """
     try:
         cdf_file = cdflib.cdfwrite.CDF(str(file_path), delete=True)
         try:
@@ -777,9 +934,24 @@ def write_cdf_file(file_path: Path, data_dict: DataDict, data_standard: DataStan
         raise RuntimeError(msg) from e
 
 
-def get_monthly_datetime_intervals(  # noqa: D103
-    start_time: datetime | None, end_time: datetime | None
-) -> list[TimeInterval]:
+def get_monthly_datetime_intervals(start_time: datetime | None, end_time: datetime | None) -> list[TimeInterval]:
+    """Splits a time range into a list of full calendar-month intervals.
+
+    Each interval spans from the first second of a month to the last second
+    of that same month, in UTC. The first and last intervals are not clipped
+    to ``start_time``/``end_time``; they always cover the full calendar month.
+
+    Args:
+        start_time (datetime | None): The start of the time range. Must not be None.
+        end_time (datetime | None): The end of the time range. Must not be None.
+
+    Returns:
+        list[TimeInterval]: One ``(month_start, month_end)`` tuple per calendar
+        month overlapping ``[start_time, end_time]``.
+
+    Raises:
+        ValueError: If ``start_time`` or ``end_time`` is None.
+    """
     time_intervals: list[TimeInterval] = []
 
     if start_time is None or end_time is None:

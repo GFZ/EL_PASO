@@ -4,16 +4,16 @@
 
 from __future__ import annotations
 
-import time
+import os
 from dataclasses import dataclass
 from functools import partial
-from multiprocessing import Pool
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 from icecream import ic
 from matplotlib import pyplot as plt
+from richpool import p_map
 from tqdm import tqdm
 
 if TYPE_CHECKING:
@@ -34,6 +34,8 @@ def bin_and_interpolate_to_model_grid(
     debug_plot_settings: DebugPlotSettings | None = None,
     target_var_name: Literal["PSD", "density"] = "PSD",
     mu_or_V: Literal["Mu", "V"] = "V",
+    n_processes: int | None = None,
+    max_relative_distance_percent: float = 25.0,
 ) -> NDArray[np.float64]:
     """Bin and interpolate a dataset variable onto a model's grid and time axis.
 
@@ -58,6 +60,15 @@ def bin_and_interpolate_to_model_grid(
             attribute to bin and interpolate. Defaults to `"PSD"`.
         mu_or_V (Literal["Mu", "V"], optional): Whether to use `InvMu` or `InvV` as the
             velocity-space coordinate when interpolating onto `grid_mu_V`. Defaults to `"V"`.
+        n_processes (int | None, optional): Number of worker processes used for the
+            V-K step. `1` runs in the calling process, which keeps tracebacks intact
+            and suits debugging or short time series. Defaults to `None`, meaning the
+            number of CPUs available to this process.
+        max_relative_distance_percent (float, optional): How far a single observation
+            may be moved when it is binned onto the nearest V or K grid point, as a
+            percentage of the observed value itself. Applies only where a dimension
+            holds one usable observation and interpolation is impossible.
+            Defaults to `25.0`.
 
     Returns:
         NDArray[np.float64]: The values of `target_var_name`, binned and interpolated
@@ -87,8 +98,14 @@ def bin_and_interpolate_to_model_grid(
 
         mu_or_V_arr = self.get_by_internal_name("InvMu") if mu_or_V == "Mu" else self.InvV
         if grid_mu_V.shape[2] > 1:
-            psd_interp = _interpolate_in_V_K(
-                target_var_init, mu_or_V_arr, self.get_by_internal_name("InvK"), grid_mu_V, grid_K
+            psd_interp = _interpolate_or_bin_in_V_K(
+                target_var_init,
+                mu_or_V_arr,
+                self.get_by_internal_name("InvK"),
+                grid_mu_V,
+                grid_K,
+                n_processes,
+                max_relative_distance_percent,
             )
         else:
             psd_interp = target_var_init
@@ -148,19 +165,22 @@ def bin_and_interpolate_to_model_grid(
     return psd_binned_in_time
 
 
-def _linear_interp(
-    PSD_left: float,
-    PSD_right: float,
-    target_value: float,
-    left_value: float,
-    right_value: float,
-) -> float:
-    a = (target_value - left_value) / (right_value - left_value)
-    return PSD_left + a * (PSD_right - PSD_left)
-
-
 def _get_time_bins(timestamps: list[float]) -> list[float]:
-    dt = timestamps[1] - timestamps[0]
+
+    if len(timestamps) < 2:
+        msg = f"At least two time steps are required to determine the bin width, got {len(timestamps)}."
+        raise ValueError(msg)
+
+    diffs = np.diff(np.asarray(timestamps, dtype=float))
+    dt = diffs[0]
+
+    if not np.allclose(diffs, dt, rtol=1e-6, atol=0.0):
+        worst = int(np.argmax(np.abs(diffs - dt)))
+        msg = (
+            "Time steps must be uniformly spaced to be binned, but the spacing changes from "
+            f"{dt} to {diffs[worst]} at index {worst + 1}."
+        )
+        raise ValueError(msg)
 
     bins = [timestamps[0] - dt / 2]
     for i in range(len(timestamps)):
@@ -200,10 +220,16 @@ def _bin_in_time(
     data_timestamps = [t.timestamp() for t in data_time]
     time_indices = _get_time_indices(data_timestamps, _get_time_bins(sim_timestamps))
 
-    for i, _ in tqdm(enumerate(sim_time)):
+    for i, _ in tqdm(enumerate(sim_time), desc="Binning in time"):
         psd_binned[i, ...] = np.power(10, np.nanmean(np.log10(data_psd[time_indices == i, ...]), axis=0))
 
     return psd_binned
+
+
+def _nearest_azimuth_index(P_value: float, grid_P_1d: NDArray[np.float64]) -> int:
+    """Index of the grid azimuth closest to `P_value`, measured across the 2*pi wrap."""
+    difference = np.abs(P_value - grid_P_1d)
+    return int(np.argmin(np.minimum(difference, 2 * np.pi - difference)))
 
 
 def _bin_in_space(
@@ -213,118 +239,181 @@ def _bin_in_space(
     grid_R: NDArray[np.float64],
     grid_P: NDArray[np.float64] | None = None,
 ) -> NDArray[np.float64]:
-    if grid_P is not None:
-        grid_P_1d = grid_P[:, 0, 0, 0]
-        grid_R_1d = grid_R[0, :, 0, 0]
+    """Scatter each sample onto the (P, R) cell of the model grid it falls into.
 
-        psd_binned = np.full(
-            (
-                psd_in.shape[0],
-                grid_P.shape[0],
-                grid_P.shape[1],
-                psd_in.shape[1],
-                psd_in.shape[2],
-            ),
-            0.0,
-        )
-        number_of_observations = np.full(
-            (
-                psd_in.shape[0],
-                grid_P.shape[0],
-                grid_P.shape[1],
-                psd_in.shape[1],
-                psd_in.shape[2],
-            ),
-            0,
-        )
+    The sample axis is carried through untouched, so every output slice receives at
+    most one sample and no averaging happens here -- samples sharing a cell are
+    averaged later, per simulation time step, by `_bin_in_time`.
 
-    else:
-        grid_P_1d = None
-        grid_R_1d = grid_R[0, :, 0, 0]
+    Samples closer than half a cell to either end of the R grid are dropped, so a
+    sample is never assigned to a cell that would extend beyond the model domain.
 
-        psd_binned = np.full(
-            (
-                psd_in.shape[0],
-                1,
-                grid_R.shape[1],
-                psd_in.shape[1],
-                psd_in.shape[2],
-            ),
-            0.0,
-        )
-        number_of_observations = np.full(
-            (
-                psd_in.shape[0],
-                1,
-                grid_R.shape[1],
-                psd_in.shape[1],
-                psd_in.shape[2],
-            ),
-            0,
-        )
+    Args:
+        psd_in: Values to bin, shaped (sample, V, K).
+        P_data: Azimuth of each sample, in radians. Ignored if `grid_P` is `None`.
+        R_data: Radial distance (R or L*) of each sample.
+        grid_R: Radial grid of the model, shaped (P, R, V, K).
+        grid_P: Azimuthal grid of the model, shaped like `grid_R`. If `None`, the
+            output keeps a singleton azimuth axis and `P_data` is not used.
+
+    Returns:
+        The values of `psd_in`, placed on the model grid and shaped
+        (sample, P, R, V, K). Cells without a sample are `NaN`.
+    """
+    grid_R_1d = grid_R[0, :, 0, 0]
+    grid_P_1d = None if grid_P is None else grid_P[:, 0, 0, 0]
+    n_P = 1 if grid_P is None else grid_P.shape[0]
+
+    psd_binned = np.full(
+        (psd_in.shape[0], n_P, grid_R.shape[1], psd_in.shape[1], psd_in.shape[2]),
+        np.nan,
+    )
+
+    dR = grid_R_1d[1] - grid_R_1d[0]
 
     for it in range(psd_in.shape[0]):
-        if np.all(np.isnan(psd_in[it, :, :])):
-            continue
-
-        # find correct P-R-cell
-        dR = grid_R_1d[1] - grid_R_1d[0]
         if R_data[it] - dR / 2 < grid_R_1d[0] or R_data[it] + dR / 2 > grid_R_1d[-1]:
-            # out of bounds
             continue
 
-        r_idx = np.argmin(np.abs(R_data[it] - grid_R_1d))
+        r_idx = int(np.argmin(np.abs(R_data[it] - grid_R_1d)))
+        p_idx = 0 if grid_P_1d is None else _nearest_azimuth_index(P_data[it], grid_P_1d)
 
-        if grid_P_1d is not None:
-            raw_difference_p = np.abs(P_data[it] - grid_P_1d)
-            min_difference_p = np.where(
-                raw_difference_p <= np.pi,
-                raw_difference_p,
-                2 * np.pi - raw_difference_p,
-            )
-            p_idx = np.argmin(min_difference_p)
+        psd_binned[it, p_idx, r_idx, :, :] = psd_in[it, :, :]
 
-            number_of_observations[it, p_idx, r_idx, :, :] += np.where(np.isnan(psd_in[it, :, :]), 0, 1)
-            psd_binned[it, p_idx, r_idx, :, :] += np.where(np.isnan(psd_in[it, :, :]), 0, np.log10(psd_in[it, :, :]))
-
-        else:
-            number_of_observations[it, 0, r_idx, :, :] += np.where(np.isnan(psd_in[it, :, :]), 0, 1)
-            psd_binned[it, 0, r_idx, :, :] += np.where(np.isnan(psd_in[it, :, :]), 0, np.log10(psd_in[it, :, :]))
-
-    psd_binned = np.where(psd_binned == 0, np.nan, psd_binned)
-
-    return np.power(10, psd_binned / number_of_observations)
+    return psd_binned
 
 
-def _interpolate_in_V_K(
+def _interpolate_or_bin_in_V_K(
     psd_in: NDArray[np.float64],
     V_data: NDArray[np.float64],
     K_data: NDArray[np.float64],
     grid_V: NDArray[np.float64],
     grid_K: NDArray[np.float64],
+    n_processes: int | None = None,
+    max_relative_distance_percent: float = 25.0,
 ) -> NDArray[np.float64]:
+    """Move `psd_in` onto the model's V-K grid, one time step per task.
+
+    Where a dimension holds two or more usable observations the values are
+    interpolated; where it holds only one they are binned onto the nearest grid
+    point, since a single observation cannot be bracketed. Data sets with a single
+    energy channel or a single pitch angle therefore still contribute, instead of
+    dropping out entirely.
+
+    Args:
+        psd_in: Values to place on the grid, shaped (time, V, K).
+        V_data: V (or Mu) of each data point, shaped like `psd_in`.
+        K_data: K of each data point, shaped (time, K).
+        grid_V: V grid of the model, shaped (P, R, V, K).
+        grid_K: K grid of the model, shaped like `grid_V`.
+        n_processes: Number of worker processes. `1` runs in the calling process,
+            which keeps tracebacks intact and is the better choice for debugging or
+            for short time series. Defaults to the number of CPUs available to this
+            process.
+        max_relative_distance_percent: How far a single observation may be moved
+            when it is binned, as a percentage of the observed V or K itself.
+            Observations further from every grid point than this are discarded.
+            Has no effect where interpolation is possible. Defaults to `25.0`.
+
+    Returns:
+        The values of `psd_in` on the model's V-K grid, shaped (time, V, K).
+
+    Raises:
+        ValueError: If `n_processes` is smaller than 1, or if
+            `max_relative_distance_percent` is negative.
+    """
+    if n_processes is None:
+        n_processes = getattr(os, "process_cpu_count", os.cpu_count)() or 1
+    if n_processes < 1:
+        msg = f"n_processes must be at least 1, got {n_processes}."
+        raise ValueError(msg)
+    if max_relative_distance_percent < 0:
+        msg = f"max_relative_distance_percent must not be negative, got {max_relative_distance_percent}."
+        raise ValueError(msg)
+
     grid_K_1d = grid_K[0, 0, 0, :]
+    func = partial(
+        _parallel_func_VK,
+        grid_K_1d,
+        grid_V,
+        K_data,
+        V_data,
+        psd_in,
+        max_relative_distance_percent / 100,
+    )
+    time_steps = range(psd_in.shape[0])
 
-    func = partial(_parallel_func_VK, grid_K_1d, grid_V, K_data, V_data, psd_in)
+    if n_processes == 1:
+        return np.asarray([func(it) for it in tqdm(time_steps)])
 
-    with Pool(12) as p:
-        rs = p.map_async(func, range(psd_in.shape[0]))
-
-        # display progress bar if verbose
-        total_elements = rs._number_left  # ty:ignore[unresolved-attribute]
-        with tqdm(total=total_elements) as t:
-            while True:
-                if rs.ready():
-                    break
-                t.n = total_elements - rs._number_left  # ty:ignore[unresolved-attribute]
-                t.refresh()
-                time.sleep(1)
-
-    result = rs.get()
-    if isinstance(result, Exception):
-        raise result
+    chunksize = max(1, psd_in.shape[0] // n_processes // 4)  # same as multiprocessing.Pool's default
+    result = p_map(func, time_steps, num_cpus=n_processes, chunksize=chunksize, desc="Interpolating in V-K")
 
     return np.asarray(result)
+
+
+def _sort_direction(values: NDArray[np.float64]) -> int:
+    """+1 if the finite entries ascend, -1 otherwise.
+
+    `searchsorted` needs an ascending array, so descending axes (K is stored
+    descending for some missions) are searched after multiplying by -1.
+    """
+    finite = np.isfinite(values)
+    return 1 if np.all(np.diff(values[finite]) >= 0) else -1
+
+
+def _bracket_indices(
+    values: NDArray[np.float64],
+    target: float,
+    max_relative_distance: float,
+) -> tuple[int, int] | None:
+    """Indices of the two values surrounding `target`, or twice the same index.
+
+    A repeated index means the axis holds a single usable observation, which is
+    binned onto the nearest grid point rather than interpolated. `None` means the
+    target cannot be represented: it falls outside the data, or the single
+    observation sits further away than `max_relative_distance` relative to itself.
+    """
+    finite = np.isfinite(values)
+    n_finite = int(np.count_nonzero(finite))
+
+    if n_finite == 0:
+        return None
+
+    if n_finite == 1:
+        idx = int(np.argmax(finite))
+        if np.abs(target - values[idx]) > max_relative_distance * np.abs(values[idx]):
+            return None
+        return idx, idx
+
+    direction = _sort_direction(values)
+    idx_left = int(np.searchsorted(direction * values, direction * target, side="right")) - 1
+    idx_right = idx_left + 1
+
+    if idx_left == -1 or idx_right >= len(values):
+        return None
+
+    return idx_left, idx_right
+
+
+def _linear_interp(
+    PSD_left: float,
+    PSD_right: float,
+    target_value: float,
+    left_value: float,
+    right_value: float,
+) -> float:
+    """Interpolate between two values, or return the single one they collapse to.
+
+    A degenerate bracket (`left_value == right_value`) means the axis held one
+    usable observation, which is binned onto the grid point instead. The weight
+    would be 0/0, so it is never computed.
+    """
+    if left_value == right_value:
+        return PSD_left
+
+    a = (target_value - left_value) / (right_value - left_value)
+    return PSD_left + a * (PSD_right - PSD_left)
 
 
 def _parallel_func_VK(
@@ -333,95 +422,64 @@ def _parallel_func_VK(
     K_data: NDArray[np.float64],
     V_data: NDArray[np.float64],
     psd_in: NDArray[np.float64],
+    max_relative_distance: float,
     it: int,
 ) -> NDArray[np.float64]:
+    """Place a single time step on the model's V-K grid.
+
+    Interpolation is linear in `log10(PSD)` and linear in V and K, so
+    ``PSD = C * 10**(a*V + b*K)`` is reproduced exactly. Grid points that can be
+    neither interpolated nor binned are left as `NaN`.
+    """
     psd_interp = np.full((grid_V.shape[2], grid_V.shape[3]), np.nan)
 
+    K_data_it = K_data[it, :]
+    if np.all(np.isnan(K_data_it)) or np.all(np.isnan(psd_in[it, :, :])):
+        return psd_interp
+
     for iK, K_val in enumerate(grid_K_1d):
-        grid_V_1d = grid_V[0, 0, :, iK]
-        for iV, V_val in enumerate(grid_V_1d):
-            K_finite = np.isfinite(K_data[it, :])
-            K_sorted = 1 if np.all(np.diff(K_data[it, K_finite]) >= 0) else -1
+        K_bracket = _bracket_indices(K_data_it, K_val, max_relative_distance)
+        if K_bracket is None:
+            continue
 
-            if np.all(K_data[it, :] == np.nan):
+        K_idx_left, K_idx_right = K_bracket
+        V_left = V_data[it, :, K_idx_left]
+        V_right = V_data[it, :, K_idx_right]
+
+        for iV, V_val in enumerate(grid_V[0, 0, :, iK]):
+            V_bracket_left = _bracket_indices(V_left, V_val, max_relative_distance)
+            V_bracket_right = _bracket_indices(V_right, V_val, max_relative_distance)
+
+            if V_bracket_left is None or V_bracket_right is None:
                 continue
 
-            if np.all(psd_in[it, :, :] == np.nan):
-                continue
+            V_idx_left_left, V_idx_left_right = V_bracket_left
+            V_idx_right_left, V_idx_right_right = V_bracket_right
 
-            # search for sourrounding 4 corners
-            # take negative values, as K_data is in descending order
-
-            K_idx_left = np.searchsorted(K_sorted * K_data[it, :], K_sorted * K_val, side="right") - 1
-            K_idx_right = K_idx_left + 1
-
-            if K_idx_left == -1 or K_idx_right >= K_data.shape[1]:
-                # out of bounds
-                continue
-
-            V_finite = np.isfinite(V_data[it, :, K_idx_left])
-            V_sorted = 1 if np.all(np.diff(V_data[it, V_finite, K_idx_left]) >= 0) else -1
-
-            V_idx_left_left = (
-                np.searchsorted(
-                    V_sorted * V_data[it, :, K_idx_left],
-                    V_sorted * V_val,
-                    side="right",
-                )
-                - 1
-            )
-            V_idx_left_right = V_idx_left_left + 1
-
-            if V_idx_left_left == -1 or V_idx_left_right >= V_data.shape[1]:
-                # out of bounds
-                continue
-
-            V_sorted = 1 if np.all(np.diff(V_data[it, :, K_idx_right]) >= 0) else -1
-
-            V_idx_right_left = (
-                np.searchsorted(
-                    V_sorted * V_data[it, :, K_idx_right],
-                    V_sorted * V_val,
-                    side="right",
-                )
-                - 1
-            )
-            V_idx_right_right = V_idx_right_left + 1
-
-            if V_idx_right_left == -1 or V_idx_right_right >= V_data.shape[1]:
-                # out of bounds
-                continue
-
-            PSD_left = np.power(
-                10,
-                _linear_interp(
-                    np.log10(psd_in[it, V_idx_left_left, K_idx_left]),
-                    np.log10(psd_in[it, V_idx_left_right, K_idx_left]),
-                    np.log10(V_val),
-                    np.log10(V_data[it, V_idx_left_left, K_idx_left]),
-                    np.log10(V_data[it, V_idx_left_right, K_idx_left]),
-                ),
+            log_psd_left = _linear_interp(
+                np.log10(psd_in[it, V_idx_left_left, K_idx_left]),
+                np.log10(psd_in[it, V_idx_left_right, K_idx_left]),
+                V_val,
+                V_left[V_idx_left_left],
+                V_left[V_idx_left_right],
             )
 
-            PSD_right = np.power(
-                10,
-                _linear_interp(
-                    np.log10(psd_in[it, V_idx_right_left, K_idx_right]),
-                    np.log10(psd_in[it, V_idx_right_right, K_idx_right]),
-                    np.log10(V_val),
-                    np.log10(V_data[it, V_idx_right_left, K_idx_right]),
-                    np.log10(V_data[it, V_idx_right_right, K_idx_right]),
-                ),
+            log_psd_right = _linear_interp(
+                np.log10(psd_in[it, V_idx_right_left, K_idx_right]),
+                np.log10(psd_in[it, V_idx_right_right, K_idx_right]),
+                V_val,
+                V_right[V_idx_right_left],
+                V_right[V_idx_right_right],
             )
 
             psd_interp[iV, iK] = np.power(
                 10,
                 _linear_interp(
-                    np.log10(PSD_left),
-                    np.log10(PSD_right),
-                    np.log10(K_val),
-                    np.log10(K_data[it, K_idx_left]),
-                    np.log10(K_data[it, K_idx_right]),
+                    log_psd_left,
+                    log_psd_right,
+                    K_val,
+                    K_data_it[K_idx_left],
+                    K_data_it[K_idx_right],
                 ),
             )
 
@@ -537,13 +595,11 @@ def plot_debug_figures(  # noqa: D103
     for it, sim_time_curr in enumerate(tqdm(sim_time)):
         sat_time_idx = np.argwhere(np.abs(np.asarray(data_set.datetime) - sim_time_curr) <= dt / 2)
 
-        R_idx = np.argwhere(np.abs(grid_R[0, :, 0, 0] - R_or_Lstar_arr[sat_time_idx]))
-
         K_idx = np.argmin(
-            np.abs(grid_K[0, R_idx, 0, :] - debug_plot_settings.target_K)  # ty:ignore[unsupported-operator]
+            np.abs(grid_K[0, 0, 0, :] - debug_plot_settings.target_K)  # ty:ignore[unsupported-operator]
         )
         V_idx = np.argmin(
-            np.abs(grid_V[0, R_idx, :, K_idx] - debug_plot_settings.target_V)  # ty:ignore[unsupported-operator]
+            np.abs(grid_V[0, 0, :, K_idx] - debug_plot_settings.target_V)  # ty:ignore[unsupported-operator]
         )
 
         V_lim_min = np.log10(0.9 * np.min([np.nanmin(data_set_V_or_Mu), np.min(grid_V)]))
@@ -580,8 +636,8 @@ def plot_debug_figures(  # noqa: D103
             np.log10(np.max(grid_V)),
         )
         ax1.scatter(
-            np.log10(grid_V[0, R_idx, :, :]),
-            np.log10(grid_K[0, R_idx, :, :]),
+            np.log10(grid_V[0, 0, :, :]),
+            np.log10(grid_K[0, 0, :, :]),
             c="b",
             s=10,
         )
@@ -603,8 +659,8 @@ def plot_debug_figures(  # noqa: D103
         #                     c=np.log10(data_set.PSD[sat_time_idx,-1,:]), marker="D", vmin=-1, vmax=3, cmap="jet")
 
         ax1.scatter(
-            np.log10(grid_V[0, R_idx, V_idx, K_idx]),
-            np.log10(grid_K[0, R_idx, V_idx, K_idx]),
+            np.log10(grid_V[0, 0, V_idx, K_idx]),
+            np.log10(grid_K[0, 0, V_idx, K_idx]),
             c="r",
             s=15,
             marker="x",
@@ -617,7 +673,7 @@ def plot_debug_figures(  # noqa: D103
 
         fig.colorbar(sc, ax=ax1)
 
-        if grid_P:
+        if grid_P is not None:
             grid_X = grid_R[:, :, 0, 0] * np.cos(grid_P[:, :, 0, 0])
             grid_Y = grid_R[:, :, 0, 0] * np.sin(grid_P[:, :, 0, 0])
 

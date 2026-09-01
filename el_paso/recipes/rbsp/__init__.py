@@ -5,3 +5,4 @@
 
 from el_paso.recipes.rbsp.process_rbsp_ect_combined import process_rbsp_ect_combined
 from el_paso.recipes.rbsp.process_rbsp_hope_electrons import process_rbsp_hope_electrons
+from el_paso.recipes.rbsp.process_rbsp_mageis_electrons import process_rbsp_mageis_electrons

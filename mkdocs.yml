@@ -101,9 +101,11 @@ nav:
   - Tutorial Notebooks:
       - Data Downloading and Extraction: tutorials/1_download_data_and_extracting_variables.ipynb
       - Variable Processing: tutorials/2_variable_class.ipynb
-      - Saving Strategies: tutorials/3_saving_strategies_and_datasets.ipynb
+      - Saving Strategies: tutorials/3_saving_strategies_and_data_standard.ipynb
       - Time Binning: tutorials/4_time_binning.ipynb
       - Magnetic Field Processing: tutorials/5_magnetic_field_processing.ipynb
+      - Datasets: tutorials/6_loading_processed_data_using_datasets.ipynb
+      - Custom File Cadence: tutorials/7_custom_file_cadence.ipynb
 
 markdown_extensions:
   - admonition
@@ -141,6 +143,7 @@ plugins:
       execute: true # run the notebook on build
       include_source: false # optionally include source or not
       allow_errors: true # fail build if execution errors
+      ignore_h1_titles: true
 
 # - to-pdf:
 #     output_path: docs/el_paso_documentation.pdf

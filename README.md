@@ -32,7 +32,7 @@ Full documentation can be viewed [here](https://el-paso.readthedocs.io/en/latest
 
 - **Arase**
     - MEPe
-    - XEP real-time
+    - XEP (archived and real-time)
     - PWE density
 - **GOES-R**
     - MPS-High real-time
@@ -45,7 +45,9 @@ Full documentation can be viewed [here](https://el-paso.readthedocs.io/en/latest
 - **PROBA-V**
     - EPT (electrons and protons)
 - **Van Allen Probes**
-    - HOPE (electrons) and ECT-combined
+    - HOPE (electrons)
+    - MagEIS (electrons)
+    - ECT-combined
     - EMFISIS and EFW density
 
 ## Installation
@@ -78,6 +80,18 @@ You can validate your installation by running the minimal example located in *ex
 ```bash
 python examples/minimal_example.py
 ```
+> [!TIP]
+> #### Using the Apptainer Image
+>
+> Instead of setting up a Python environment yourself, you can pull a prebuilt [Apptainer](https://apptainer.org/) [el_paso](https://github.com/GFZ/EL_PASO/pkgs/container/el_paso) image:
+> ```bash
+> apptainer pull -F elpaso.sif oras://ghcr.io/gfz/el_paso:latest
+> ```
+> Run a command inside the image with `apptainer exec` or `apptainer run`, e.g.:
+> ```bash
+> apptainer exec elpaso.sif python examples/minimal_example.py
+> ```
+> Available tags mirror the CI build: `latest` (most recent build on `main`), a specific commit SHA, or a released package version (e.g. `oras://ghcr.io/gfz/el_paso:2.1.2`).
 
 ## Testing
 

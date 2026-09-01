@@ -189,7 +189,10 @@ def process_goes_real_time(
     )
 
     FEDU_var = ep.processing.construct_pitch_angle_distribution(
-        variables["FEDO"], variables["PA_local_FEDU"], magnetic_field_variables["Alpha_Eq_T89"]
+        variables["FEDO"],
+        variables["PA_local_FEDU"],
+        magnetic_field_variables["Alpha_Eq_T89"],
+        flux_type="spin_average",
     )
     FEDU_var.apply_thresholds_on_data(lower_threshold=0)
 

@@ -6,12 +6,13 @@
 
 [build-system]
 requires = ["setuptools>=62.0"]
-build-backend = "setuptools.build_meta"
+build-backend = "_build_guard"
+backend-path = ["."]
 
 
 [project]
 name = "el_paso"
-version = "2.1.2"
+version = "2.1.3rc0"
 description = "EL-PASO is a Python framework designed to streamline the download, processing, and saving of satellite particle observation data."
 authors = [{ name = "Bernhard Haas", email = "bhaas@gfz.de" }]
 readme = "README.md"
@@ -28,9 +29,11 @@ dependencies = [
     "pytest>=9.0.2",
     "python-dateutil>=2.9.0.post0",
     "requests>=2.32.5",
+    "rich>=13.0.0",
+    "richpool>=0.1.2",
     "scipy>=1.17",
     "sscws==2.4.6",
-    "swvo>=1.2.3",
+    "swvo>=1.2.7rc0",
     "tabulate==0.9.0",
     "tqdm>=4.67.2",
     "wget>=3.2",
@@ -64,7 +67,7 @@ Tracker = "https://github.com/GFZ/EL_PASO/issues"
 Documentation = "https://el-paso.readthedocs.io/en/latest/"
 
 [tool.bumpver]
-current_version = "2.1.2"
+current_version = "2.1.3rc0"
 version_pattern = "MAJOR.MINOR.PATCH[PYTAGNUM]"
 commit_message = "bump version {old_version} -> {new_version}"
 commit = true
@@ -74,6 +77,7 @@ push = true
 [tool.bumpver.file_patterns]
 "pyproject.toml" = ['version = "{version}"']
 "el_paso/__init__.py" = ['__version__ = "{version}"']
+"el_paso.def" = ['    Version {version}']
 
 [tool.ty.src]
 exclude = [

@@ -1,0 +1,37 @@
+# SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
+# SPDX-FileContributor: Sahil Jhawar
+#
+# SPDX-License-Identifier: Apache-2.0
+
+Bootstrap: docker
+From: astral/uv:python3.12-bookworm-slim
+
+%labels
+    Author Sahil Jhawar
+    Description EL-PASO
+    Version 2.1.3rc0
+
+%files
+    el_paso /opt/el_paso/
+    scripts /opt/el_paso
+    pyproject.toml /opt/el_paso
+    setup.py /opt/el_paso
+    _build_guard.py /opt/el_paso
+
+%environment
+    export UV_PROJECT_ENVIRONMENT=/opt/el_paso/.venv
+    export PATH="/opt/el_paso:/opt/el_paso/.venv/bin:/root/.local/bin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+%post
+    apt-get update
+    apt-get install -y --no-install-recommends curl ca-certificates build-essential cmake gfortran git
+    rm -rf /var/lib/apt/lists/*
+
+    export PATH="/root/.local/bin:$PATH"
+    export UV_PROJECT_ENVIRONMENT=/opt/el_paso/.venv
+
+    cd /opt/el_paso/
+    uv sync
+
+%runscript
+    exec "$@"
