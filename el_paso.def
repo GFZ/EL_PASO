@@ -15,12 +15,18 @@ From: astral/uv:python3.12-bookworm-slim
     el_paso /opt/el_paso/
     scripts /opt/el_paso
     pyproject.toml /opt/el_paso
-    setup.py /opt/el_paso
-    _build_guard.py /opt/el_paso
+    _irbem_build.py /opt/el_paso
+    hatch_build.py /opt/el_paso
+    README.md /opt/el_paso
 
 %environment
     export UV_PROJECT_ENVIRONMENT=/opt/el_paso/.venv
     export PATH="/opt/el_paso:/opt/el_paso/.venv/bin:/root/.local/bin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    if [ -d "${HOME}" ] && [ -w "${HOME}" ]; then
+        export XDG_CONFIG_HOME="${HOME}/.config"
+    else
+        export XDG_CONFIG_HOME="/tmp/.config"
+    fi
 
 %post
     apt-get update
@@ -29,6 +35,7 @@ From: astral/uv:python3.12-bookworm-slim
 
     export PATH="/root/.local/bin:$PATH"
     export UV_PROJECT_ENVIRONMENT=/opt/el_paso/.venv
+    export XDG_CONFIG_HOME
 
     cd /opt/el_paso/
     uv sync

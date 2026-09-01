@@ -36,7 +36,7 @@ ignore = [
     "UP040",
     "UP047",
 ]
-exclude = ["*.ipynb", "setup.py"]
+exclude = ["*.ipynb"]
 
 [lint.pydocstyle]
 convention = "google"
