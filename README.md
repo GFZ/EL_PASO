@@ -19,6 +19,8 @@ SPDX-License-Identifier: Apache-2.0
 
 Its primary purpose is to prepare and standardize particle data for use in radiation belt modeling.
 
+<img width="1200" height="682" alt="el_paso_recipe" src="https://github.com/user-attachments/assets/1903bc32-eea6-41a0-8bf2-e48c4d9dcba9" />
+
 ## Features
 
 - **Format Flexibility:** Capable of handling different input formats including `cdf`, `netcdf`, `h5`, `ascii`, and `json`
@@ -118,7 +120,6 @@ el-paso poes meped \
     --satellite noaa15 --mag-field T89 --bin-cadence 10s \
     --raw-data-path ./raw --processed-data-path ./processed
 ```
-<img width="1200" height="682" alt="el_paso_recipe" src="https://github.com/user-attachments/assets/1903bc32-eea6-41a0-8bf2-e48c4d9dcba9" />
 
 Recipes can equally be run as modules, which is convenient inside job scripts:
 
