@@ -54,6 +54,7 @@ jobs:
         env:
           ESA_CLIENT_ID: ${{ secrets.ESA_CLIENT_ID }}
           ESA_CLIENT_SECRET: ${{ secrets.ESA_CLIENT_SECRET }}
+          _TYPER_FORCE_DISABLE_TERMINAL: "1"
         run: python -m coverage run --source el_paso -m pytest -rf tests -m basic --indices_sw_param_data_path tests/system/data/indices_sw_params
 
       - name: Run Coveralls

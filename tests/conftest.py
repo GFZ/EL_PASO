@@ -3,7 +3,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import os
 import socket
 import typing
 from collections.abc import Callable
@@ -75,8 +74,3 @@ def skip_if_unreachable() -> Callable[..., None]:
                 pytest.skip(f"External resource '{url}' is not reachable; skipping test that requires network access.")
 
     return _skip_if_unreachable
-
-
-@pytest.fixture(autouse=True)
-def force_color():
-    os.environ.pop("FORCE_COLOR", None)
