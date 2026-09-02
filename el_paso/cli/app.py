@@ -62,6 +62,7 @@ RECIPES: tuple[RecipeEntry, ...] = (
     RecipeEntry("esa", "ngrm", "el_paso.recipes.esa.process_ngrm_satellite", "process_ngrm_electron_fluxes"),
     RecipeEntry("goes", "mps-high", "el_paso.recipes.goes.process_goes_r_mps_high", "process_goes_r_mps_high"),
     RecipeEntry("goes", "realtime", "el_paso.recipes.goes.process_goes_realtime", "process_goes_real_time"),
+    RecipeEntry("gps", "cxd", "el_paso.recipes.gps.process_gps", "process_gps_data"),
     RecipeEntry("poes", "meped", "el_paso.recipes.poes.process_poes_meped", "process_poes_meped_electron"),
     RecipeEntry("poes", "ted", "el_paso.recipes.poes.process_poes_ted", "process_poes_ted_electron"),
     RecipeEntry(
@@ -70,9 +71,7 @@ RECIPES: tuple[RecipeEntry, ...] = (
     RecipeEntry(
         "probav", "ept-protons", "el_paso.recipes.probav.process_ept_proton_fluxes", "process_ept_proton_fluxes"
     ),
-    RecipeEntry(
-        "rbsp", "ect-combined", "el_paso.recipes.rbsp.process_rbsp_ect_combined", "process_rbsp_ect_combined"
-    ),
+    RecipeEntry("rbsp", "ect-combined", "el_paso.recipes.rbsp.process_rbsp_ect_combined", "process_rbsp_ect_combined"),
     RecipeEntry(
         "rbsp",
         "density-combined",
@@ -85,9 +84,7 @@ RECIPES: tuple[RecipeEntry, ...] = (
     RecipeEntry(
         "rbsp", "hope-electrons", "el_paso.recipes.rbsp.process_rbsp_hope_electrons", "process_rbsp_hope_electrons"
     ),
-    RecipeEntry(
-        "rbsp", "hope-protons", "el_paso.recipes.rbsp.process_rbsp_hope_protons", "process_rbsp_hope_protons"
-    ),
+    RecipeEntry("rbsp", "hope-protons", "el_paso.recipes.rbsp.process_rbsp_hope_protons", "process_rbsp_hope_protons"),
     RecipeEntry(
         "rbsp",
         "mageis-electrons",

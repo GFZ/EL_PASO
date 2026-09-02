@@ -2,15 +2,11 @@
 # SPDX-FileContributor: Parvathy Santhini
 #
 # SPDX-License-Identifier: Apache-2.0
-import argparse
 import json
-import logging
-import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
 
-import dateutil.parser
 import numpy as np
 from astropy import units as u
 
@@ -144,13 +140,13 @@ def extract_data_from_lanl_gps_ascii(file_path, extraction_infos):  # noqa: ANN0
 
 
 def process_gps_data(
-    satellite_str: LANL_SAT,
-    raw_data_path: str | Path,
-    processed_data_path: str | Path,
     start_time: datetime,
     end_time: datetime,
-    num_cores: int = 32,
+    satellite: LANL_SAT = "ns41",
+    raw_data_path: str | Path = ".",
+    processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=4),
+    num_cores: int = 16,
 ) -> None:
     """Process LANL GPS electron flux data into magnetic-field-resolved data products.
 
@@ -172,21 +168,19 @@ def process_gps_data(
     extract_variables_from_files() log and skip any date that has no corresponding file.
 
     Args:
-        satellite_str (LANL_SAT): The LANL GPS satellite to process.
-        raw_data_path (str | Path): Directory where the raw downloaded data files are stored.
-        processed_data_path (str | Path): Directory where the processed output files are saved.
         start_time (datetime): Start of the time interval to process.
         end_time (datetime): End of the time interval to process.
-        num_cores (int, optional): Number of CPU cores used for the magnetic field computations.
-            Defaults to 32.
-        bin_cadence (timedelta, optional): Time cadence used to bin the extracted variables.
-            Defaults to timedelta(minutes=4).
+        satellite (LANL_SAT): The LANL GPS satellite to process.
+        raw_data_path (str | Path): Directory where the raw downloaded data files are stored.
+        processed_data_path (str | Path): Directory where the processed output files are saved.
+        bin_cadence (timedelta): Time cadence used to bin the extracted variables.
+        num_cores (int): Number of CPU cores used for the magnetic field computations.
     """
-    data_path_stem = f"{raw_data_path}/GPS/{satellite_str}/YY/MM/DD"
-    url = f"https://www.ngdc.noaa.gov/stp/space-weather/satellite-data/satellite-systems/lanl_gps/version_v1.10r2/{satellite_str}"
-    file_name_stem = satellite_str + "_YYMMDD_v1.10.ascii"
+    data_path_stem = f"{raw_data_path}/GPS/{satellite}/YY/MM/DD"
+    url = f"https://www.ngdc.noaa.gov/stp/space-weather/satellite-data/satellite-systems/lanl_gps/version_v1.10r2/{satellite}"
+    file_name_stem = satellite + "_YYMMDD_v1.10.ascii"
 
-    real_start = snap_to_weekly_grid(satellite_str, start_time)
+    real_start = snap_to_weekly_grid(satellite, start_time)
     weekly = weekly_cadence
 
     download_end_time = end_time + timedelta(days=7)
@@ -338,7 +332,7 @@ def process_gps_data(
     saving_strategy = ep.saving_strategies.MonthlyRBStrategy(
         base_data_path=Path(processed_data_path),
         mission="GPS",
-        satellite=satellite_str,
+        satellite=satellite,
         instrument="cxd",
         mag_field="T89",
         data_standard=ep.data_standards.GFZStandard(),
@@ -348,44 +342,4 @@ def process_gps_data(
 
 
 if __name__ == "__main__":
-    logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
-    logging.getLogger().setLevel(logging.INFO)
-
-    parser = argparse.ArgumentParser(description="Process LANL GPS data.")
-    parser.add_argument(
-        "--start_time",
-        type=str,
-        help="Start time in valid dateparse format. Example: YYYY-MM-DDTHH:MM:SS.",
-        default=datetime(2017, 4, 1, tzinfo=timezone.utc).isoformat(),
-        required=False,
-    )
-    parser.add_argument(
-        "--end_time",
-        type=str,
-        default=datetime(2017, 4, 30, tzinfo=timezone.utc).isoformat(),
-        required=False,
-    )
-    parser.add_argument(
-        "--satellite",
-        type=str,
-        default="ns41",
-        choices=[*SATELLITE_ANCHOR_DATES, "all"],
-        required=False,
-    )
-    args = parser.parse_args()
-
-    dt_start = dateutil.parser.parse(args.start_time)
-    dt_end = dateutil.parser.parse(args.end_time)
-
-    satellites_to_run = list(SATELLITE_ANCHOR_DATES) if args.satellite == "all" else [args.satellite]
-
-    for sat_str in satellites_to_run:
-        process_gps_data(
-            start_time=dt_start,
-            end_time=dt_end,
-            satellite_str=sat_str,
-            raw_data_path=".",
-            processed_data_path=".",
-            num_cores=64,
-            bin_cadence=timedelta(minutes=4),
-        )
+    ep.run_recipe_cli(process_gps_data)

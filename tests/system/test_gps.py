@@ -32,10 +32,10 @@ def test_lanl_gps(
     process_gps_data(
         start_time=dt_start,
         end_time=dt_end,
-        satellite_str="ns41",
+        satellite="ns41",
         raw_data_path=processed_data_path,
         processed_data_path=processed_data_path,
-        num_cores=64,
+        num_cores=32,
         bin_cadence=timedelta(minutes=4),
     )
     start_date = dt_start.replace(day=1)

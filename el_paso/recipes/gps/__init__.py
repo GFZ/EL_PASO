@@ -3,3 +3,5 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 from el_paso.recipes.gps.process_gps import process_gps_data
+
+__all__ = ["process_gps_data"]
