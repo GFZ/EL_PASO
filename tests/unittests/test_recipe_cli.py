@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import importlib
 import inspect
+import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import pytest
 import typer
@@ -28,15 +29,52 @@ from el_paso.cli.recipe_cli import (
     parse_docstring,
 )
 
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
 runner = CliRunner()
 
 DEFAULT_NUM_CORES = 16
 """The core count every recipe defaults to; see test_num_cores_default_is_shared_by_every_recipe."""
 
 
-# --------------------------------------------------------------------------------------
-# value parsers
-# --------------------------------------------------------------------------------------
+@pytest.fixture(autouse=True)
+def _no_crashy_live_logging(request: pytest.FixtureRequest) -> Iterator[None]:
+    """Detach pytest's live-log handler for the duration of each test.
+
+    Recipe commands report their run settings and failures through the standard `logging`
+    module rather than printing straight to stdout, so a `CliRunner.invoke()` in these tests
+    can trigger a real log emission mid-command. Combined with `log_cli = 1` in pytest.ini,
+    such an emission makes pytest's own live-log handler try to interleave output with
+    Click's captured stdout, which raises "ValueError: I/O operation on closed file" (a known
+    pytest/Click incompatibility, unrelated to whether the recipe command itself is correct).
+    Detaching it here does not affect `caplog`, which is backed by its own separate handler.
+    """
+    plugin = request.config.pluginmanager.get_plugin("logging-plugin")
+    if plugin is None:
+        yield
+        return
+
+    root_logger = logging.getLogger()
+    attached = plugin.log_cli_handler in root_logger.handlers
+    if attached:
+        root_logger.removeHandler(plugin.log_cli_handler)
+    try:
+        yield
+    finally:
+        if attached:
+            root_logger.addHandler(plugin.log_cli_handler)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_default_logs_dir(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Run each test from a temp directory.
+
+    `--logs` defaults to the relative path "logs"; every command invocation in this file
+    resolves and creates that directory, so without this the test suite would write a real
+    `logs/<date>/...` tree into the repository on every run.
+    """
+    monkeypatch.chdir(tmp_path)
 
 
 @pytest.mark.basic
@@ -103,11 +141,6 @@ def test_parse_datetime_enforces_utc() -> None:
     assert parse_datetime(datetime(2013, 3, 16)).tzinfo == timezone.utc  # noqa: DTZ001
 
 
-# --------------------------------------------------------------------------------------
-# docstring parsing
-# --------------------------------------------------------------------------------------
-
-
 @pytest.mark.basic
 def test_parse_docstring() -> None:
     docstring = """Do the thing.
@@ -137,11 +170,6 @@ def test_parse_docstring() -> None:
 @pytest.mark.basic
 def test_parse_docstring_handles_missing_docstring() -> None:
     assert parse_docstring(None) == ("", {})
-
-
-# --------------------------------------------------------------------------------------
-# command generation against a stub recipe
-# --------------------------------------------------------------------------------------
 
 
 calls: list[dict[str, Any]] = []
@@ -202,14 +230,22 @@ def test_stub_round_trips_every_supported_type(stub_app: typer.Typer) -> None:
     result = runner.invoke(
         stub_app,
         [
-            "--start-time", "2020-01-02T03:04:05",
-            "--end-time", "2020-01-03",
-            "--satellite", "b",
-            "--mag-field", "TS04",
-            "--raw-data-path", "raw-dir",
-            "--bin-cadence", "90s",
-            "--num-cores", "7",
-            "--client-id", "abc",
+            "--start-time",
+            "2020-01-02T03:04:05",
+            "--end-time",
+            "2020-01-03",
+            "--satellite",
+            "b",
+            "--mag-field",
+            "TS04",
+            "--raw-data-path",
+            "raw-dir",
+            "--bin-cadence",
+            "90s",
+            "--num-cores",
+            "7",
+            "--client-id",
+            "abc",
             "--no-calculate-lstar",
         ],
     )
@@ -274,16 +310,16 @@ def test_stub_rejects_malformed_cadence(stub_app: typer.Typer) -> None:
 
 
 @pytest.mark.basic
-def test_dry_run_does_not_call_the_recipe(stub_app: typer.Typer) -> None:
+def test_dry_run_does_not_call_the_recipe(stub_app: typer.Typer, caplog: pytest.LogCaptureFixture) -> None:
     result = runner.invoke(stub_app, ["--dry-run", "--start-time", "2020-01-02", "--end-time", "2020-01-03"])
 
     assert result.exit_code == 0, result.output
     assert not calls
-    assert "stub_recipe" in result.output
+    assert "stub_recipe" in caplog.text
 
 
 @pytest.mark.basic
-def test_a_real_run_reports_the_settings_it_uses(stub_app: typer.Typer) -> None:
+def test_a_real_run_reports_the_settings_it_uses(stub_app: typer.Typer, caplog: pytest.LogCaptureFixture) -> None:
     """A run must not be a black box: it announces the resolved settings first."""
     result = runner.invoke(
         stub_app,
@@ -293,15 +329,15 @@ def test_a_real_run_reports_the_settings_it_uses(stub_app: typer.Typer) -> None:
 
     assert result.exit_code == 0, result.output
     assert calls, "the recipe should still have run"
-    assert "Running stub_recipe" in result.output
+    assert "Running stub_recipe" in caplog.text
     # values are rendered readably, not as Python reprs
-    assert "2020-01-02T00:00:00+00:00" in result.output
-    assert "90s" in result.output
-    assert "datetime.datetime(" not in result.output
+    assert "2020-01-02T00:00:00+00:00" in caplog.text
+    assert "90s" in caplog.text
+    assert "datetime.datetime(" not in caplog.text
 
 
 @pytest.mark.basic
-def test_dry_run_says_it_would_run(stub_app: typer.Typer) -> None:
+def test_dry_run_says_it_would_run(stub_app: typer.Typer, caplog: pytest.LogCaptureFixture) -> None:
     result = runner.invoke(
         stub_app,
         ["--dry-run", "--start-time", "2020-01-02", "--end-time", "2020-01-03"],
@@ -310,11 +346,11 @@ def test_dry_run_says_it_would_run(stub_app: typer.Typer) -> None:
 
     assert result.exit_code == 0, result.output
     assert not calls
-    assert "Would run stub_recipe" in result.output
+    assert "Would run stub_recipe" in caplog.text
 
 
 @pytest.mark.basic
-def test_run_report_numbers_each_looped_call(stub_app: typer.Typer) -> None:
+def test_run_report_numbers_each_looped_call(stub_app: typer.Typer, caplog: pytest.LogCaptureFixture) -> None:
     result = runner.invoke(
         stub_app,
         ["--start-time", "2020-01-02", "--end-time", "2020-01-03", "--satellite", "a", "--satellite", "b"],
@@ -322,12 +358,12 @@ def test_run_report_numbers_each_looped_call(stub_app: typer.Typer) -> None:
     )
 
     assert result.exit_code == 0, result.output
-    assert "(1/2)" in result.output
-    assert "(2/2)" in result.output
+    assert "(1/2)" in caplog.text
+    assert "(2/2)" in caplog.text
 
 
 @pytest.mark.basic
-def test_run_report_hides_credentials(stub_app: typer.Typer) -> None:
+def test_run_report_hides_credentials(stub_app: typer.Typer, caplog: pytest.LogCaptureFixture) -> None:
     """Credentials must never be echoed to the console or into a job log."""
     result = runner.invoke(
         stub_app,
@@ -337,7 +373,7 @@ def test_run_report_hides_credentials(stub_app: typer.Typer) -> None:
 
     assert result.exit_code == 0, result.output
     # client_id is an identifier, not a secret, so it is shown
-    assert "s3cr3t-value" in result.output
+    assert "s3cr3t-value" in caplog.text
 
 
 @pytest.mark.basic
@@ -350,7 +386,7 @@ def test_secret_looking_parameters_are_masked(name: str) -> None:
 
 
 @pytest.mark.basic
-def test_quiet_suppresses_the_run_report(stub_app: typer.Typer) -> None:
+def test_quiet_suppresses_the_run_report(stub_app: typer.Typer, caplog: pytest.LogCaptureFixture) -> None:
     result = runner.invoke(
         stub_app,
         ["--quiet", "--start-time", "2020-01-02", "--end-time", "2020-01-03"],
@@ -359,7 +395,7 @@ def test_quiet_suppresses_the_run_report(stub_app: typer.Typer) -> None:
 
     assert result.exit_code == 0, result.output
     assert calls, "the recipe should still have run"
-    assert "Running" not in result.output
+    assert "Running" not in caplog.text
 
 
 @pytest.mark.basic
@@ -386,14 +422,9 @@ def test_required_parameter_without_default_is_rejected() -> None:
         build_recipe_command(bad_recipe)
 
 
-# --------------------------------------------------------------------------------------
-# every registered recipe
-# --------------------------------------------------------------------------------------
-
-
 @pytest.mark.basic
 @pytest.mark.parametrize("entry", RECIPES, ids=lambda e: f"{e.mission}-{e.command}")
-def test_every_recipe_builds_and_binds(entry: RecipeEntry) -> None:
+def test_every_recipe_builds_and_binds(entry: RecipeEntry, caplog: pytest.LogCaptureFixture) -> None:
     """Each recipe's generated command must render and produce a valid call."""
     func, defaults = load_recipe(entry)
 
@@ -416,7 +447,7 @@ def test_every_recipe_builds_and_binds(entry: RecipeEntry) -> None:
         env={"COLUMNS": "200"},
     )
     assert dry_run_result.exit_code == 0, dry_run_result.output
-    assert func.__name__ in dry_run_result.output
+    assert func.__name__ in caplog.text
 
 
 @pytest.mark.basic
@@ -499,17 +530,9 @@ def test_every_recipe_is_exported_from_its_mission_package(entry: RecipeEntry) -
 def test_registry_matches_the_recipe_modules_on_disk() -> None:
     """The el-paso registry must cover every recipe module in the package."""
     recipes_dir = Path(ep.recipes.__file__).parent
-    on_disk = {
-        f"el_paso.recipes.{path.parent.name}.{path.stem}"
-        for path in recipes_dir.glob("*/process_*.py")
-    }
+    on_disk = {f"el_paso.recipes.{path.parent.name}.{path.stem}" for path in recipes_dir.glob("*/process_*.py")}
 
     assert {entry.module for entry in RECIPES} == on_disk
-
-
-# --------------------------------------------------------------------------------------
-# the el-paso entry point
-# --------------------------------------------------------------------------------------
 
 
 @pytest.mark.basic
@@ -521,18 +544,28 @@ def test_cli_list() -> None:
 
 
 @pytest.mark.basic
-def test_cli_dispatches_to_a_recipe() -> None:
+def test_cli_dispatches_to_a_recipe(caplog: pytest.LogCaptureFixture) -> None:
     result = runner.invoke(
         app,
         [
-            "poes", "meped", "--dry-run",
-            "--start-time", "2013-03-16", "--end-time", "2013-03-16T23:59:59",
-            "--satellite", "noaa15", "--mag-field", "T96", "--bin-cadence", "1min",
+            "poes",
+            "meped",
+            "--dry-run",
+            "--start-time",
+            "2013-03-16",
+            "--end-time",
+            "2013-03-16T23:59:59",
+            "--satellite",
+            "noaa15",
+            "--mag-field",
+            "T96",
+            "--bin-cadence",
+            "1min",
         ],
         env={"COLUMNS": "200"},
     )
 
     assert result.exit_code == 0, result.output
-    assert "process_poes_meped_electron" in result.output
-    assert "T96" in result.output
-    assert "1min" in result.output
+    assert "process_poes_meped_electron" in caplog.text
+    assert "T96" in caplog.text
+    assert "1min" in caplog.text
