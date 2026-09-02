@@ -33,18 +33,19 @@ from __future__ import annotations
 
 import enum
 import inspect
+import io
 import logging
 import re
 import types
 import typing
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Literal, get_args, get_origin
 
 import dateutil.parser
 import typer
 from rich.console import Console
-from rich.table import Table
+from rich.table import Column, Table
 
 # `el_paso` is imported for its module-level flags and helpers, which are only read at
 # call time. This module is imported from `el_paso/__init__.py`, so binding the module
@@ -55,7 +56,12 @@ from el_paso.utils import enforce_utc_timezone
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("el_paso.cli")
+
+_LOG_FILE_FORMAT = "[%(levelname)-8s] %(asctime)s - %(name)s:%(lineno)d - %(message)s"
+_LOG_FILE_DATEFMT = "%Y-%m-%d %H:%M:%S"
+
+_log_file_handler: logging.Handler | None = None
 
 LOOP_PARAMETER_NAMES = frozenset({"satellite"})
 """Parameters that accept several values and make the recipe run once per value.
@@ -64,7 +70,15 @@ Every recipe names its spacecraft parameter ``satellite``. Pass ``loop_over`` to
 :func:`build_recipe_command` to loop over a differently named parameter.
 """
 
-_UNIVERSAL_PARAMETER_NAMES = ("verbose", "quiet", "dry_run", "skip_download", "exit_after_download", "version")
+_UNIVERSAL_PARAMETER_NAMES = (
+    "verbose",
+    "quiet",
+    "dry_run",
+    "skip_download",
+    "exit_after_download",
+    "version",
+    "logs",
+)
 """Options every recipe command carries; they are consumed by the command, not the recipe."""
 
 _SECTION_RE = re.compile(r"^\s*(Args|Arguments|Returns|Raises|Yields|Note|Notes|Example|Examples|Attributes):\s*$")
@@ -370,9 +384,11 @@ def build_recipe_command(
     hints = typing.get_type_hints(func)
     summary, arg_help = parse_docstring(func.__doc__)
 
-    loop_names = set(loop_over) if loop_over is not None else {
-        name for name in signature.parameters if name in LOOP_PARAMETER_NAMES
-    }
+    loop_names = (
+        set(loop_over)
+        if loop_over is not None
+        else {name for name in signature.parameters if name in LOOP_PARAMETER_NAMES}
+    )
 
     specs: list[_ParameterSpec] = []
     skipped: dict[str, Any] = {}
@@ -428,8 +444,6 @@ def _make_command(
         # all removed before the remaining keywords are handed over.
         universal = {name: kwargs.pop(name) for name in _UNIVERSAL_PARAMETER_NAMES if name in kwargs}
 
-        _configure_logging(verbose=universal["verbose"], quiet=universal["quiet"])
-
         if universal["skip_download"]:
             ep.skip_download = True
         if universal["exit_after_download"]:
@@ -453,12 +467,25 @@ def _make_command(
             # Fails loudly if the generated command ever drifts from the recipe signature.
             inspect.signature(func).bind(**call_kwargs)
 
+            _configure_logging(
+                verbose=universal["verbose"],
+                quiet=universal["quiet"],
+                logs_path=universal["logs"],
+                func=func,
+                satellite=call_kwargs.get("satellite"),
+                configure_console=index == 1,
+            )
+
             if not universal["quiet"]:
                 counter = f" ({index}/{len(calls)})" if len(calls) > 1 else ""
                 _report_call(func, call_kwargs, title_suffix=counter, dry_run=dry_run)
 
             if not dry_run:
-                func(**call_kwargs)
+                try:
+                    func(**call_kwargs)
+                except Exception:
+                    logger.exception(f"{_func_name(func)} failed.")
+                    raise typer.Exit(code=1) from None
 
     parameters = [
         inspect.Parameter(
@@ -537,6 +564,19 @@ def _universal_parameters() -> list[inspect.Parameter]:
             ],
             False,
         ),
+        (
+            "logs",
+            Annotated[
+                Path,
+                typer.Option(
+                    "--logs",
+                    help="Base directory for log files, or a path to a specific log file "
+                    "(e.g. 'log.log'). If a directory, a dated <mission>/<satellite> "
+                    "subdirectory is created under it for each run.",
+                ),
+            ],
+            Path("logs"),
+        ),
     ]
 
     return [
@@ -552,8 +592,46 @@ def _version_callback(value: bool) -> None:  # noqa: FBT001
         raise typer.Exit
 
 
-def _configure_logging(*, verbose: int, quiet: bool) -> None:
-    """Set up logging uniformly for every recipe invocation."""
+def _mission_name(func: Callable[..., Any]) -> str:
+    """Derive a recipe's mission name from its module path (`el_paso.recipes.<mission>.*`)."""
+    parts = func.__module__.split(".")
+    if parts[:2] == ["el_paso", "recipes"] and len(parts) > 2:
+        return parts[2]
+
+    return "misc"
+
+
+def _resolve_log_file(logs_path: Path, func: Callable[..., None], satellite: str | None) -> Path:
+    """Resolve `--logs` into the concrete log file a recipe call should write to.
+
+    A `logs_path` with a suffix (e.g. ``log.log``) is used as-is, as an explicit log file.
+    Otherwise it is treated as a base directory, under which a dated, mission/satellite-scoped
+    log file is created: ``<logs_path>/<YYYY>/<MM>/<DD>/<mission>/<satellite>/<recipe>.log``
+    (the satellite segment is omitted for recipes that do not take one).
+    """
+    if logs_path.suffix:
+        log_file = logs_path
+    else:
+        today = datetime.now(timezone.utc)
+        log_dir = logs_path / f"{today:%Y}" / f"{today:%m}" / f"{today:%d}" / _mission_name(func)
+        if satellite is not None:
+            log_dir /= str(satellite)
+        log_file = log_dir / f"{_func_name(func)}.log"
+
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+    return log_file
+
+
+def _configure_logging(
+    *,
+    verbose: int,
+    quiet: bool,
+    logs_path: Path,
+    func: Callable[..., None],
+    satellite: str | None,
+    configure_console: bool,
+) -> None:
+    """Set up logging for one recipe call."""
     if quiet:
         level = logging.WARNING
     elif verbose >= 1:
@@ -561,7 +639,23 @@ def _configure_logging(*, verbose: int, quiet: bool) -> None:
     else:
         level = logging.INFO
 
-    ep.setup_logging(level)
+    if configure_console:
+        ep.setup_logging(level)
+    else:
+        logging.getLogger().setLevel(level)
+
+    log_file = _resolve_log_file(logs_path, func, satellite)
+
+    global _log_file_handler
+    root_logger = logging.getLogger()
+    if _log_file_handler is not None:
+        root_logger.removeHandler(_log_file_handler)
+        _log_file_handler.close()
+
+    file_handler = logging.FileHandler(log_file, mode="a")
+    file_handler.setFormatter(logging.Formatter(_LOG_FILE_FORMAT, datefmt=_LOG_FILE_DATEFMT))
+    root_logger.addHandler(file_handler)
+    _log_file_handler = file_handler
 
 
 def _expand_loops(kwargs: dict[str, Any], loop_names: list[str]) -> list[dict[str, Any]]:
@@ -573,9 +667,7 @@ def _expand_loops(kwargs: dict[str, Any], loop_names: list[str]) -> list[dict[st
         if not isinstance(values, list):
             continue
 
-        call_kwargs_list = [
-            {**call_kwargs, name: value} for call_kwargs in call_kwargs_list for value in values
-        ]
+        call_kwargs_list = [{**call_kwargs, name: value} for call_kwargs in call_kwargs_list for value in values]
 
     return call_kwargs_list
 
@@ -610,22 +702,18 @@ def _report_call(
     """Show the settings a run is about to use, so a long job is never a black box."""
     prefix = "Would run" if dry_run else "Running"
     table = Table(
+        "Parameter",
+        "Value",
         title=f"{prefix} {_func_name(func)}{title_suffix}",
-        title_justify="left",
-        show_header=False,
-        box=None,
         padding=(0, 2, 0, 0),
     )
-    table.add_column(style="bold cyan", no_wrap=True)
-    table.add_column(overflow="fold")
 
     for name, value in call_kwargs.items():
         table.add_row(name.replace("_", " "), _format_value(name, value))
-
-    console = Console()
-    console.print(table)
-    # keep the summary visually separate from the log output that follows it
-    console.print()
+    buffer = io.StringIO()
+    Console(file=buffer).print(table)
+    for line in buffer.getvalue().splitlines():
+        logger.info(line)
 
 
 def run_recipe_cli(
