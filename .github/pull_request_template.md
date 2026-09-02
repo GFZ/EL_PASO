@@ -1,11 +1,4 @@
 <!--
-SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
-SPDX-FileContributor: Sahil Jhawar
-
-SPDX-License-Identifier: Apache-2.0
--->
-
-<!--
 Expand the section below that matches this PR, fill it in, and delete the other sections.
 -->
 
