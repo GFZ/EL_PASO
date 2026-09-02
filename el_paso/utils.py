@@ -58,7 +58,7 @@ def get_el_paso_indices_solar_wind_param_path() -> Path:
     """Return the directory used to store downloaded solar wind index/parameter data.
 
     Resolved from the `EL_PASO_INDICES_SW_PARAM_DATA_PATH` environment variable
-    if set, otherwise defaults to `~/.elpaso/indices_solar_wind`. The directory
+    if set, otherwise defaults to `~/.elpaso/`. The directory
     is created if it does not already exist.
 
     Returns:

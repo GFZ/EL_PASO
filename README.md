@@ -34,9 +34,13 @@ Full documentation can be viewed [here](https://el-paso.readthedocs.io/en/latest
     - MEPe
     - XEP (archived and real-time)
     - PWE density
+- **DMSP**
+    - SSJ (electrons)
 - **GOES-R**
     - MPS-High real-time
     - MPS-High
+- **GPS**
+    - GPS processing
 - **ESA**
     - NGRM satellites
 - **POES**
@@ -184,6 +188,10 @@ pytest tests --renew_solution=true
 ```
 
 Use this only when you intend to intentionally update the stored reference outputs.
+
+## Contributing
+
+Please read our comprehensive [contribution guide](CONTRIBUTING.md) before submitting a pull request.
 
 ## Citation
 

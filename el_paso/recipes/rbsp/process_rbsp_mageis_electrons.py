@@ -22,6 +22,7 @@ from el_paso.processing.magnetic_field_utils import InternalFieldModel, IrbemOpt
 
 BAD_CHANNELS = (13, 21, 22, 23, 24)
 
+
 def process_rbsp_mageis_electrons(
     start_time: datetime,
     end_time: datetime,
@@ -111,7 +112,7 @@ def process_rbsp_mageis_electrons(
         data_path=raw_data_path,
         file_name_stem=file_name_stem,
         extraction_infos=extraction_infos,
-        data_modifier=xgeo_data_modifier,
+        data_modifier=_xgeo_data_modifier,
     )
 
     variables["FEDU"].apply_thresholds_on_data(1e-21)
@@ -202,7 +203,10 @@ def process_rbsp_mageis_electrons(
     ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=False)
 
 
-def xgeo_data_modifier(variable_data: dict[str | int, NDArray[np.generic]], extraction_infos: Iterable[ep.ExtractionInfo]) -> dict[str | int, NDArray[np.generic]]:
+def _xgeo_data_modifier(
+    variable_data: dict[str | int, NDArray[np.generic]],
+    extraction_infos: Iterable[ep.ExtractionInfo],  # noqa: ARG001
+) -> dict[str | int, NDArray[np.generic]]:
 
     xgeo_data = variable_data["Position"].astype(np.float64)
 
