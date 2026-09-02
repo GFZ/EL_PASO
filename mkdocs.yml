@@ -107,7 +107,10 @@ nav:
       - Time Binning: tutorials/4_time_binning.ipynb
       - Magnetic Field Processing: tutorials/5_magnetic_field_processing.ipynb
       - Datasets: tutorials/6_loading_processed_data_using_datasets.ipynb
-      - Custom File Cadence: tutorials/7_custom_file_cadence.ipynb
+      - Custom File Cadence: tutorials/7_advanced_custom_download_and_variable_extraction.ipynb
+
+hooks:
+  - docs/hooks/live_cli_example.py
 
 markdown_extensions:
   - admonition
@@ -146,10 +149,18 @@ plugins:
       include_source: false # optionally include source or not
       allow_errors: true # fail build if execution errors
       ignore_h1_titles: true
+  - termynal:
+      title: "shell"
+      buttons: "macos"
+      prompt_literal_start:
+        - "$"
+        - ">"
+        - ">>>"
+  - search:
+      separator: '[\s\-,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
 
-# - to-pdf:
-#     output_path: docs/el_paso_documentation.pdf
-#     toc_level: 3
+extra_css:
+  - css/custom.css
 
 extra_javascript:
   # Use MathJax for rendering latex equations

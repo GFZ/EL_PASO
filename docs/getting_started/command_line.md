@@ -26,6 +26,15 @@ python -m el_paso.recipes.poes.process_poes_meped \
 Both forms expose exactly the same options, because both are generated from the
 recipe function's own signature.
 
+## Try it
+
+This is a genuine run of the RBSP HOPE electrons recipe for a single day, with
+the (comparatively slow) L\* calculation switched off. It is not a canned
+transcript: the block below is generated when these docs are built by
+actually running the command, downloading the real CDF from NASA SPDF and
+running the real IRBEM magnetic-field computations.
+
+<!-- LIVE_CLI_EXAMPLE -->
 ## Shared options
 
 | Option | Meaning |

@@ -1,0 +1,58 @@
+[INFO    ] 2026-09-02 11:48:21 - el_paso.cli:716 -         Running process_rbsp_hope_electrons
+[INFO    ] 2026-09-02 11:48:21 - el_paso.cli:716 - ┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+[INFO    ] 2026-09-02 11:48:21 - el_paso.cli:716 - ┃Parameter            ┃Value                      ┃
+[INFO    ] 2026-09-02 11:48:21 - el_paso.cli:716 - ┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+[INFO    ] 2026-09-02 11:48:21 - el_paso.cli:716 - │start time           │2013-10-15T00:00:00+00:00  │
+[INFO    ] 2026-09-02 11:48:21 - el_paso.cli:716 - │end time             │2013-10-15T23:59:59+00:00  │
+[INFO    ] 2026-09-02 11:48:21 - el_paso.cli:716 - │satellite            │a                          │
+[INFO    ] 2026-09-02 11:48:21 - el_paso.cli:716 - │mag field            │T89                        │
+[INFO    ] 2026-09-02 11:48:21 - el_paso.cli:716 - │raw data path        │.                          │
+[INFO    ] 2026-09-02 11:48:21 - el_paso.cli:716 - │processed data path  │.                          │
+[INFO    ] 2026-09-02 11:48:21 - el_paso.cli:716 - │bin cadence          │5min                       │
+[INFO    ] 2026-09-02 11:48:21 - el_paso.cli:716 - │num cores            │16                         │
+[INFO    ] 2026-09-02 11:48:21 - el_paso.cli:716 - │save strategy        │netcdf                     │
+[INFO    ] 2026-09-02 11:48:21 - el_paso.cli:716 - │calculate Lstar      │False                      │
+[INFO    ] 2026-09-02 11:48:21 - el_paso.cli:716 - └─────────────────────┴───────────────────────────┘
+[INFO    ] 2026-09-02 11:48:27 - el_paso.download:295 - Downloaded successfully: rbspa_rel04_ect-hope-pa-l3_20131015_v7.1.0.cdf
+  Downloading ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 1/1 0:00:06 0:00:00
+[INFO    ] 2026-09-02 11:48:27 - el_paso.download:64 - download finished in 6.179 seconds
+[INFO    ] 2026-09-02 11:48:27 - el_paso.extract_variables_from_files:118 - Extracting variables ...
+[INFO    ] 2026-09-02 11:48:27 - el_paso.processing.bin_by_time:165 - Binning by time...
+[INFO    ] 2026-09-02 11:48:27 - el_paso.processing.bin_by_time:122 - bin_by_time finished in 0.314 seconds
+[INFO    ] 2026-09-02 11:48:27 - el_paso.processing.fold_pitch_angles_and_flux:101 - Folding pitch angles and flux ...
+[INFO    ] 2026-09-02 11:48:27 - el_paso.processing.fold_pitch_angles_and_flux:130 - fold_pitch_angles_and_flux finished in 0.011 seconds
+[INFO    ] 2026-09-02 11:48:27 - el_paso.processing.compute_magnetic_field_variables:168 - No cache hit at /home/jhawar/.elpaso/joblib_cache — computing
+magnetic field variables.
+[INFO    ] 2026-09-02 11:48:27 - swvo.io.base:78 - KpOMNI data directory: /home/jhawar/.elpaso/OMNI_low_res
+[INFO    ] 2026-09-02 11:48:27 - swvo.io.base:78 - KpNiemegk data directory: /home/jhawar/.elpaso/KpNiemegk
+[INFO    ] 2026-09-02 11:48:27 - swvo.io.kp.read_kp_from_multiple_models:266 - Reading omni from 2013-10-15 00:00:09.150000+00:00 to 2013-10-15
+23:55:09.150000+00:00
+[INFO    ] 2026-09-02 11:48:29 - swvo.io.kp.read_kp_from_multiple_models:271 - Setting NaNs in omni from 2013-10-16 02:55:09.150000+00:00 to 2013-10-15
+23:55:09.150000+00:00
+[INFO    ] 2026-09-02 11:48:29 - swvo.io.utils:54 - Percentage of NaNs in data frame: 0.00%
+[INFO    ] 2026-09-02 11:48:29 - swvo.io.kp.read_kp_from_multiple_models:146 - Average filling enabled. Filling remaining missing values with average Kp
+of 4.
+[INFO    ] 2026-09-02 11:48:29 - el_paso.processing.magnetic_field_utils.magnetic_field_functions:380 -         Calculating local magnetic field values
+...
+[INFO    ] 2026-09-02 11:48:29 - el_paso.processing.magnetic_field_utils.magnetic_field_functions:299 - get_local_B_field finished in 0.003 seconds
+[INFO    ] 2026-09-02 11:48:29 - el_paso.processing.magnetic_field_utils.magnetic_field_functions:324 -         Calculating magnetic local time ...
+[INFO    ] 2026-09-02 11:48:29 - el_paso.processing.magnetic_field_utils.magnetic_field_functions:308 - get_MLT finished in 0.004 seconds
+[INFO    ] 2026-09-02 11:48:29 - el_paso.processing.magnetic_field_utils.magnetic_field_functions:133 -         Calculating magnetic field and radial
+distance at the equator ...
+  Calculating magnetic equator ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 288/288 0:00:00 0:00:00
+[INFO    ] 2026-09-02 11:48:30 - el_paso.processing.magnetic_field_utils.magnetic_field_functions:311 - get_magequator finished in 0.410 seconds
+[INFO    ] 2026-09-02 11:48:30 - el_paso.processing.compute_magnetic_field_variables:430 -      Calculating equatorial pitch angle ...
+[INFO    ] 2026-09-02 11:48:30 - el_paso.processing.compute_magnetic_field_variables:317 - Equatorial pitch angle calculation finished in 0.001 seconds
+[INFO    ] 2026-09-02 11:48:30 - el_paso.processing.magnetic_field_utils.magnetic_field_functions:594 -         Calculating Lstar and J ...
+  Calculating Lstar ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 288/288 0:00:00 0:00:00
+[INFO    ] 2026-09-02 11:48:30 - el_paso.processing.magnetic_field_utils.magnetic_field_functions:314 - get_Lstar finished in 0.485 seconds
+[INFO    ] 2026-09-02 11:48:30 - el_paso.processing.compute_magnetic_field_variables:522 -      Calculating invariant K ...
+[INFO    ] 2026-09-02 11:48:30 - el_paso.processing.magnetic_field_utils.magnetic_field_functions:477 -         Calculating mirror points ...
+  Calculating mirror points ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 288/288 0:00:00 0:00:00
+[INFO    ] 2026-09-02 11:48:31 - el_paso.processing.magnetic_field_utils.magnetic_field_functions:530 - get_mirror_point finished in 0.497 seconds
+[INFO    ] 2026-09-02 11:48:31 - el_paso.processing.compute_magnetic_field_variables:337 - Invariant K calculation finished in 0.498 seconds
+[INFO    ] 2026-09-02 11:48:31 - el_paso.processing.compute_magnetic_field_variables:485 -      Calculating invariant mu ...
+[INFO    ] 2026-09-02 11:48:31 - el_paso.processing.compute_magnetic_field_variables:326 - Invariant mu calculation finished in 0.001 seconds
+[INFO    ] 2026-09-02 11:48:31 - el_paso.processing.compute_phase_space_density:47 - Computing PSD...
+[INFO    ] 2026-09-02 11:48:31 - el_paso.saving_strategy:185 - Saving file: /home/jhawar/EL_PASO_GH/RBSP/rbspa/rbspa_hope_20131001to20131031_T89.nc
+[INFO    ] 2026-09-02 11:48:31 - el_paso.save:207 - save finished in 0.073 seconds
