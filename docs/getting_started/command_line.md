@@ -15,6 +15,7 @@ el-paso list                      # show every available recipe
 el-paso poes meped --help         # options for one recipe
 el-paso poes meped --start-time 2013-03-16 --end-time 2013-03-16T23:59:59
 ```
+<img width="1200" height="682" alt="el_paso_recipe" src="https://github.com/user-attachments/assets/1903bc32-eea6-41a0-8bf2-e48c4d9dcba9" />
 
 A recipe can equally be run as a module, which is useful inside job scripts:
 
@@ -26,15 +27,7 @@ python -m el_paso.recipes.poes.process_poes_meped \
 Both forms expose exactly the same options, because both are generated from the
 recipe function's own signature.
 
-## Try it
 
-This is a genuine run of the RBSP HOPE electrons recipe for a single day, with
-the (comparatively slow) L\* calculation switched off. It is not a canned
-transcript: the block below is generated when these docs are built by
-actually running the command, downloading the real CDF from NASA SPDF and
-running the real IRBEM magnetic-field computations.
-
-<!-- LIVE_CLI_EXAMPLE -->
 ## Shared options
 
 | Option | Meaning |
