@@ -31,6 +31,14 @@ def ensure_libirbem_built(source_root: Path) -> None:
     """Build el_paso/libirbem.so in source_root, rebuilding on every call."""
     dest_so = source_root / "el_paso" / "libirbem.so"
 
+    if not os.environ.get("EL_PASO_REBUILD_IRBEM") and dest_so.exists():
+        try:
+            ctypes.CDLL(str(dest_so))
+        except OSError:
+            pass  # existing .so is broken; fall through and rebuild it
+        else:
+            return
+
     tmp_dir = tempfile.mkdtemp(prefix="irbem_build_")
     try:
         _clone_irbem_repo(tmp_dir)
