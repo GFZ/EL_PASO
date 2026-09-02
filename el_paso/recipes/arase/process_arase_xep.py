@@ -265,7 +265,11 @@ def process_arase_xep(
     }
 
     if not use_level_3_orbit_data:
-        variables_to_save |= {"L_star": orb_variables["Lstar"], "InvK": orb_variables["InvK"], "InvMu": orb_variables["InvMu"]}
+        variables_to_save |= {
+            "L_star": orb_variables["Lstar"],
+            "InvK": orb_variables["InvK"],
+            "InvMu": orb_variables["InvMu"],
+        }
 
     saving_strategy = ep.saving_strategies.MonthlyRBStrategy(
         processed_data_path,
