@@ -108,7 +108,7 @@ If you add a new feature or fix a bug, add or update a test that covers it. Cove
 3. Make your changes, keeping the diff focused on one issue or feature.
 4. Make sure pre-commit hooks pass and `pytest` is green.
 5. Push to your fork: `git push origin feature-branch`.
-6. Open a PR against `main` in `GFZ/EL_PASO`, describing what changed and why. Reference any related issue.
+6. Open a PR against `main` in `GFZ/EL_PASO`, describing what changed and why. Reference any related issue. Adhere to the PR template provided.
 
 A maintainer will review your PR, may request changes, and will merge once it's ready.
 

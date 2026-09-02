@@ -40,9 +40,19 @@ jobs:
           VERSION=$(grep -oP '(?<=^current_version = ")[^"]+' pyproject.toml)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
+      - name: Cache Apptainer .deb
+        id: cache-apptainer-deb
+        uses: actions/cache@v6
+        with:
+          path: apptainer_${{ env.APPTAINER_VERSION }}_amd64.deb
+          key: apptainer-deb-${{ env.APPTAINER_VERSION }}
+
+      - name: Download Apptainer
+        if: steps.cache-apptainer-deb.outputs.cache-hit != 'true'
+        run: wget https://github.com/apptainer/apptainer/releases/download/v${{ env.APPTAINER_VERSION }}/apptainer_${{ env.APPTAINER_VERSION }}_amd64.deb
+
       - name: Install Apptainer
         run: |
-          wget https://github.com/apptainer/apptainer/releases/download/v${{ env.APPTAINER_VERSION }}/apptainer_${{ env.APPTAINER_VERSION }}_amd64.deb
           sudo apt-get update
           sudo apt-get install -y ./apptainer_${{ env.APPTAINER_VERSION }}_amd64.deb
 
@@ -56,6 +66,33 @@ jobs:
       - name: Test import in image
         run: |
           sudo apptainer exec --no-mount cwd ${{ env.IMAGE_NAME }}.sif python -c "import el_paso; print('Import successful',  el_paso.__file__)"
+
+      - name: Get zenodo record ID
+        id: zenodo-record
+        run: echo "id=$(grep -oP 'RECORD_ID="\K[^"]+' download_data_for_tests.sh)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache test data
+        id: cache-test-data
+        uses: actions/cache@v6
+        with:
+          path: tests/system
+          key: zenodo-test-data-${{ steps.zenodo-record.outputs.id }}
+
+      - name: Download test data from zenodo
+        if: steps.cache-test-data.outputs.cache-hit != 'true'
+        run: bash download_data_for_tests.sh
+
+      - name: Run full test suite in image
+        env:
+          ESA_CLIENT_ID: ${{ secrets.ESA_CLIENT_ID }}
+          ESA_CLIENT_SECRET: ${{ secrets.ESA_CLIENT_SECRET }}
+        run: |
+          sudo --preserve-env=ESA_CLIENT_ID,ESA_CLIENT_SECRET apptainer exec --no-mount cwd \
+            --bind "${PWD}/tests:/mnt/tests" \
+            --bind "${PWD}/pytest.ini:/mnt/pytest.ini" \
+            --pwd /mnt \
+            --env "ESA_CLIENT_ID=${ESA_CLIENT_ID},ESA_CLIENT_SECRET=${ESA_CLIENT_SECRET}" \
+            ${{ env.IMAGE_NAME }}.sif python -m pytest -rf /mnt/tests -m "basic" -c /mnt/pytest.ini --ignore /mnt/tests/unittests/test_release_mode.py
 
       - name: Log in to GHCR
         if: github.event_name == 'push' && github.repository_owner == 'GFZ'

@@ -174,6 +174,9 @@ def _get_data_dict_to_save(
             logger.debug(f"Variable {save_name} does not hold any content! Skipping ...", stacklevel=2)
             continue
 
+        if np.all(np.isnan(data_content)):
+            logger.warning(f"Variable {save_name} only holds NaN values!")
+
         # Save the data_content into a field named by save_name
         data_dict[save_name] = data_content
 
