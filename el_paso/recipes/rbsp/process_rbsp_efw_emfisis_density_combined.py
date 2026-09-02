@@ -28,7 +28,6 @@ def process_rbsp_efw_emfisis_density_combined(
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=1),
     num_cores: int = 16,
-    irbem_lib_path: str | Path = "../../libirbem.so",
     *,
     add_hiss_derived_densitites: bool = True,
     hiss_derived_densities_data_path: str | Path = ".",
@@ -54,8 +53,6 @@ def process_rbsp_efw_emfisis_density_combined(
             would be written to.
         bin_cadence (timedelta): Time-binning cadence applied to the density and position variables.
         num_cores (int): Number of CPU cores used for the magnetic field computations.
-        irbem_lib_path (str | Path): Path to the compiled IRBEM library, used for coordinate
-            transforms and magnetic field computations.
         add_hiss_derived_densitites (bool): If True, also load, time-bin, and map to the
             equator the hiss-derived density data.
         hiss_derived_densities_data_path (str | Path): Directory containing the
@@ -68,7 +65,6 @@ def process_rbsp_efw_emfisis_density_combined(
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     logging.getLogger().setLevel(logging.INFO)
 
-    irbem_lib_path = Path(irbem_lib_path)
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
 
@@ -113,7 +109,7 @@ def process_rbsp_efw_emfisis_density_combined(
 
     datetimes = [datetime.fromtimestamp(t, tz=timezone.utc) for t in binned_time_variable.get_data(ep.units.posixtime)]
 
-    xgeo_data = ep.processing.magnetic_field_utils.Coords(lib_path=irbem_lib_path).transform(
+    xgeo_data = ep.processing.magnetic_field_utils.Coords().transform(
         datetimes,
         efw_variables["xGSE"].get_data(ep.units.RE).astype(np.float64),
         ep.IRBEM_SYSAXIS_GSE,
@@ -135,7 +131,6 @@ def process_rbsp_efw_emfisis_density_combined(
         time_var=binned_time_variable,
         xgeo_var=efw_variables["xGEO"],
         variables_to_compute=variables_to_compute,
-        irbem_lib_path=str(irbem_lib_path),
         irbem_options=irbem_options,
         num_cores=num_cores,
     )
