@@ -43,7 +43,7 @@ jobs:
         id: cache-test-data
         uses: actions/cache@v6
         with:
-          path: tests/system
+          path: tests/system/data
           key: zenodo-test-data-${{ steps.zenodo-record.outputs.id }}
 
       - name: Download test data from zenodo
