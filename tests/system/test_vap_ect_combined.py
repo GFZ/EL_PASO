@@ -41,12 +41,12 @@ def test_rbsp_ect_combined_snapshot(
     process_rbsp_ect_combined(
         start_time=start_time,
         end_time=end_time,
-        sat_str="a",
+        satellite="a",
         mag_field=mag_field,
         raw_data_path=Path(__file__).parent / "data" / "raw",
         processed_data_path=processed_data_path,
         num_cores=32,
-        cadence=timedelta(hours=1),
+        bin_cadence=timedelta(hours=1),
         save_strategy=save_strategy,
     )
 

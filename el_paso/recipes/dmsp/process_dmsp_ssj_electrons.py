@@ -24,12 +24,14 @@ DMSPSatellites = Literal["f17"]
 
 
 def process_dmsp_ssj_electrons(
-    sat_str: DMSPSatellites,
-    processed_data_path: str | Path,
-    raw_data_path: str | Path,
     start_time: datetime,
     end_time: datetime,
-    num_cores: int = 32,
+    satellite: DMSPSatellites = "f17",
+    mag_field: ep.typing.MagneticFieldLiteral = "T89",
+    raw_data_path: str | Path = ".",
+    processed_data_path: str | Path = ".",
+    bin_cadence: timedelta = timedelta(seconds=10),
+    num_cores: int = 16,
 ) -> None:
     """Process DMSP SSJ precipitating electron data into omnidirectional fluxes with magnetic field coordinates.
 
@@ -38,34 +40,32 @@ def process_dmsp_ssj_electrons(
     differential energy flux into an omnidirectional differential flux (assuming a 90-degree SSJ-5
     field of view). It computes the spacecraft position in GEO coordinates, derives local pitch angles
     for the two SSJ telescopes from the SSM magnetic field, folds them around 90 degrees, and computes
-    T89 magnetic field model quantities (B_Calc, B_Eq, MLT, B_fofl, R_Eq, Alpha_Eq, Alpha_LC_Eq,
+    magnetic field model quantities (B_Calc, B_Eq, MLT, B_fofl, R_Eq, Alpha_Eq, Alpha_LC_Eq,
     Alpha_LC). The resulting variables are saved to disk using a daily LEO/RB saving strategy.
 
     Args:
-        sat_str (DMSPSatellites): Identifier of the DMSP satellite to process (e.g. "f17").
-        processed_data_path (str | Path): Base directory in which the processed output files are saved.
-        raw_data_path (str | Path): Base directory used for downloading and locating the raw SSM/SSJ CDF files.
         start_time (datetime): Start of the time range to process.
         end_time (datetime): End of the time range to process.
-        num_cores (int, optional): Number of CPU cores used for the magnetic field computations. Defaults to 32.
+        satellite (DMSPSatellites): Identifier of the DMSP satellite to process (e.g. "f17").
+        mag_field (MagneticFieldLiteral): Magnetic field model used for the derived quantities.
+        raw_data_path (str | Path): Base directory used for downloading and locating the raw SSM/SSJ CDF files.
+        processed_data_path (str | Path): Base directory in which the processed output files are saved.
+        bin_cadence (timedelta): Time cadence used to bin the SSM and SSJ variables.
+        num_cores (int): Number of CPU cores used for the magnetic field computations.
     """
-    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+    data_path_stem = f"{raw_data_path}/DMSP/{satellite}/YYYY/MM/"
 
-    data_path_stem = f"{raw_data_path}/DMSP/{sat_str}/YYYY/MM/"
-
-    ssm_vars = _get_ssm_variables(sat_str, data_path_stem, start_time, end_time)
-    ssj_vars = _get_ssj_variables(sat_str, data_path_stem, start_time, end_time)
+    ssm_vars = _get_ssm_variables(satellite, data_path_stem, start_time, end_time)
+    ssj_vars = _get_ssj_variables(satellite, data_path_stem, start_time, end_time)
 
     time_bin_methods_ssm = {
         "b_brf": ep.TimeBinMethod.NanMean,
     }
-    time_bin_cadence = timedelta(seconds=10)
-
     binned_time_var = ep.processing.bin_by_time(
         time_variable=ssm_vars["time"],
         variables=ssm_vars,
         time_bin_method_dict=time_bin_methods_ssm,
-        time_binning_cadence=time_bin_cadence,
+        time_binning_cadence=bin_cadence,
         start_time=start_time,
         end_time=end_time,
     )
@@ -82,7 +82,7 @@ def process_dmsp_ssj_electrons(
         time_variable=ssj_vars["time"],
         variables=ssj_vars,
         time_bin_method_dict=time_bin_methods_ssj,
-        time_binning_cadence=time_bin_cadence,
+        time_binning_cadence=bin_cadence,
         start_time=start_time,
         end_time=end_time,
     )
@@ -140,14 +140,14 @@ def process_dmsp_ssj_electrons(
 
     # Calculate magnetic field variables
     variables_to_compute: ep.processing.VariableRequest = [
-        ("B_Calc", "T89"),
-        ("B_Eq", "T89"),
-        ("MLT", "T89"),
-        ("B_fofl", "T89"),
-        ("R_Eq", "T89"),
-        ("Alpha_Eq", "T89"),
-        ("Alpha_LC_Eq", "T89"),
-        ("Alpha_LC", "T89"),
+        ("B_Calc", mag_field),
+        ("B_Eq", mag_field),
+        ("MLT", mag_field),
+        ("B_fofl", mag_field),
+        ("R_Eq", mag_field),
+        ("Alpha_Eq", mag_field),
+        ("Alpha_LC_Eq", mag_field),
+        ("Alpha_LC", mag_field),
     ]
 
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
@@ -166,25 +166,25 @@ def process_dmsp_ssj_electrons(
         "FEDO": ssj_vars["diff_omni_flux"],
         "Energy_FEDO": ssj_vars["diff_energy"],
         "Alpha_range": local_pa_var,
-        "Alpha_Eq_range": magnetic_field_variables["Alpha_Eq_T89"],
-        "R_Eq": magnetic_field_variables["R_Eq_T89"],
-        "MLT": magnetic_field_variables["MLT_T89"],
-        "B_Calc": magnetic_field_variables["B_Calc_T89"],
-        "B_Eq": magnetic_field_variables["B_Eq_T89"],
+        "Alpha_Eq_range": magnetic_field_variables[f"Alpha_Eq_{mag_field}"],
+        "R_Eq": magnetic_field_variables[f"R_Eq_{mag_field}"],
+        "MLT": magnetic_field_variables[f"MLT_{mag_field}"],
+        "B_Calc": magnetic_field_variables[f"B_Calc_{mag_field}"],
+        "B_Eq": magnetic_field_variables[f"B_Eq_{mag_field}"],
         "Position": xgeo_var,
         "Position_geo_alt": ssj_vars["R_geo"],
         "Position_geo_lat": ssj_vars["lat_geo"],
         "Position_geo_lon": ssj_vars["lon_geo"],
-        "Alpha_LC": magnetic_field_variables["Alpha_LC_T89"],
-        "Alpha_LC_Eq": magnetic_field_variables["Alpha_LC_Eq_T89"],
+        "Alpha_LC": magnetic_field_variables[f"Alpha_LC_{mag_field}"],
+        "Alpha_LC_Eq": magnetic_field_variables[f"Alpha_LC_Eq_{mag_field}"],
     }
 
     saving_strategy = ep.saving_strategies.DailyLEORBStrategy(
         base_data_path=Path(processed_data_path),
         mission="DMSP",
-        satellite=sat_str,
+        satellite=satellite,
         instrument="SSJ",
-        mag_field="T89",
+        mag_field=mag_field,
         data_standard=ep.data_standards.GFZStandard(),
     )
 
@@ -192,14 +192,14 @@ def process_dmsp_ssj_electrons(
 
 
 def _get_ssm_variables(
-    sat_str: DMSPSatellites,
+    satellite: DMSPSatellites,
     data_path_stem: str | Path,
     start_time: datetime,
     end_time: datetime,
 ) -> dict[str, ep.Variable]:
-    url = f"https://cdaweb.gsfc.nasa.gov/pub/data/dmsp/dmsp{sat_str}/ssm/magnetometer/YYYY/"
+    url = f"https://cdaweb.gsfc.nasa.gov/pub/data/dmsp/dmsp{satellite}/ssm/magnetometer/YYYY/"
 
-    file_name_stem = "dmsp-" + sat_str + "_ssm_magnetometer_YYYYMMDD_.{6}.cdf"
+    file_name_stem = "dmsp-" + satellite + "_ssm_magnetometer_YYYYMMDD_.{6}.cdf"
 
     ep.download(
         start_time,
@@ -227,14 +227,14 @@ def _get_ssm_variables(
 
 
 def _get_ssj_variables(
-    sat_str: DMSPSatellites,
+    satellite: DMSPSatellites,
     data_path_stem: str | Path,
     start_time: datetime,
     end_time: datetime,
 ) -> dict[str, ep.Variable]:
-    url = f"https://cdaweb.gsfc.nasa.gov/pub/data/dmsp/dmsp{sat_str}/ssj/precipitating-electrons-ions/YYYY/"
+    url = f"https://cdaweb.gsfc.nasa.gov/pub/data/dmsp/dmsp{satellite}/ssj/precipitating-electrons-ions/YYYY/"
 
-    file_name_stem = "dmsp-" + sat_str + "_ssj_precipitating-electrons-ions_YYYYMMDD_.{6}.cdf"
+    file_name_stem = "dmsp-" + satellite + "_ssj_precipitating-electrons-ions_YYYYMMDD_.{6}.cdf"
 
     ep.download(
         start_time,
@@ -269,18 +269,10 @@ def _get_ssj_variables(
     )
 
 
+CLI_DEFAULTS = {
+    "raw_data_path": "dmsp/raw/",
+    "processed_data_path": "dmsp/processed/",
+}
+
 if __name__ == "__main__":
-    start_time = datetime(2013, 12, 14, tzinfo=timezone.utc)
-    end_time = datetime(2013, 12, 14, 11, 59, tzinfo=timezone.utc)
-
-    satellites = ["f17"]
-
-    for sat in satellites:
-        process_dmsp_ssj_electrons(
-            sat_str=sat,  # ty:ignore[invalid-argument-type]
-            raw_data_path="dmsp/raw/",
-            processed_data_path="dmsp/processed/",
-            start_time=start_time,
-            end_time=end_time,
-            num_cores=64,
-        )
+    ep.run_recipe_cli(process_dmsp_ssj_electrons, defaults=CLI_DEFAULTS)

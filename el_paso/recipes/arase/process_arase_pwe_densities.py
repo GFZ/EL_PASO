@@ -22,11 +22,11 @@ from el_paso.recipes.arase.get_arase_orbit_variables import get_arase_orbit_leve
 def process_arase_pwe_density(
     start_time: datetime,
     end_time: datetime,
-    mag_field: Literal["T89", "TS04", "OP77Q"],
+    mag_field: Literal["T89", "TS04", "OP77Q"] = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
-    num_cores: int = 4,
-    cadence: timedelta = timedelta(minutes=5),
+    bin_cadence: timedelta = timedelta(minutes=5),
+    num_cores: int = 16,
 ) -> None:
     """Process Arase PWE/HFA electron density data and save the mapped equatorial density.
 
@@ -43,14 +43,13 @@ def process_arase_pwe_density(
         mag_field (Literal["T89", "TS04", "OP77Q"]): The magnetic field model used for the
                                                     magnetic-field-related output variables and
                                                     the equatorial density mapping.
-        raw_data_path (str | Path, optional): Directory where downloaded raw data files are
+        raw_data_path (str | Path): Directory where downloaded raw data files are
                                             stored. Defaults to ".".
-        processed_data_path (str | Path, optional): Base directory where the processed output
+        processed_data_path (str | Path): Base directory where the processed output
                                                     data is saved. Defaults to ".".
-        num_cores (int, optional): Number of CPU cores used for the IRBEM magnetic field
+        num_cores (int): Number of CPU cores used for the IRBEM magnetic field
                                 computations. Defaults to 4.
-        cadence (timedelta, optional): Time binning cadence applied to all variables.
-                                    Defaults to timedelta(minutes=5).
+        bin_cadence (timedelta): Time binning cadence applied to all variables.
     """
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     logging.getLogger().setLevel(logging.INFO)
@@ -104,7 +103,7 @@ def process_arase_pwe_density(
         pwe_variables["Epoch"],
         variables=pwe_variables,
         time_bin_method_dict=time_bin_methods,
-        time_binning_cadence=cadence,
+        time_binning_cadence=bin_cadence,
         start_time=start_time,
         end_time=end_time,
     )
@@ -119,7 +118,7 @@ def process_arase_pwe_density(
         orb_variables["Epoch"],
         variables=orb_variables,
         time_bin_method_dict=time_bin_methods,
-        time_binning_cadence=cadence,
+        time_binning_cadence=bin_cadence,
         start_time=start_time,
         end_time=end_time,
     )
@@ -175,15 +174,10 @@ def process_arase_pwe_density(
     ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)  # ty:ignore[invalid-argument-type]
 
 
-if __name__ == "__main__":
-    start_time = datetime(2017, 9, 1, tzinfo=timezone.utc)
-    end_time = datetime(2017, 9, 1, 23, 59, tzinfo=timezone.utc)
+CLI_DEFAULTS = {
+    "raw_data_path": "./data",
+    "processed_data_path": "./data",
+}
 
-    process_arase_pwe_density(
-        start_time,
-        end_time,
-        "T89",
-        raw_data_path="./data",
-        processed_data_path="./data",
-        num_cores=32,
-    )
+if __name__ == "__main__":
+    ep.run_recipe_cli(process_arase_pwe_density, defaults=CLI_DEFAULTS)

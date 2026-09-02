@@ -4,9 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
-import dateutil
-import argparse
 
+import argparse
 import logging
 import sys
 import tempfile
@@ -14,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
 
+import dateutil
 import numpy as np
 from astropy import units as u
 
@@ -28,11 +28,11 @@ from el_paso.recipes.arase import (
 def process_arase_xep(
     start_time: datetime,
     end_time: datetime,
-    mag_field: Literal["T89", "TS04", "OP77Q"],
+    mag_field: Literal["T89", "TS04", "OP77Q"] = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
-    num_cores: int = 4,
-    cadence: timedelta = timedelta(minutes=5),
+    bin_cadence: timedelta = timedelta(minutes=5),
+    num_cores: int = 16,
     *,
     use_level_3_orbit_data: bool = True,
 ) -> None:
@@ -57,22 +57,20 @@ def process_arase_xep(
         end_time (datetime): End of the time range to process.
         mag_field (Literal["T89", "TS04", "OP77Q"]): The magnetic field model used for the
                                                     magnetic-field-related output variables.
-        raw_data_path (str | Path, optional): Directory where downloaded raw data files are
+        raw_data_path (str | Path): Directory where downloaded raw data files are
                                             stored. Defaults to ".".
-        processed_data_path (str | Path, optional): Base directory where the processed output
+        processed_data_path (str | Path): Base directory where the processed output
                                                     data is saved. Defaults to ".".
-        num_cores (int, optional): Number of CPU cores used for the IRBEM magnetic field
+        num_cores (int): Number of CPU cores used for the IRBEM magnetic field
                                 computations (only used when `use_level_3_orbit_data` is
                                 False). Defaults to 4.
-        cadence (timedelta, optional): Time binning cadence applied to all variables.
-                                    Defaults to timedelta(minutes=5).
-        use_level_3_orbit_data (bool, optional): If True, use Arase Level 3 orbit data (which
+        bin_cadence (timedelta): Time binning cadence applied to all variables.
+        use_level_3_orbit_data (bool): If True, use Arase Level 3 orbit data (which
                                                 already contains precomputed magnetic field
                                                 quantities for `mag_field`); if False, use Level 2
                                                 orbit data and compute the magnetic field
                                                 quantities via IRBEM. Defaults to True.
     """
-
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
 
@@ -146,7 +144,7 @@ def process_arase_xep(
         xep_variables["Epoch"],
         variables=xep_variables,
         time_bin_method_dict=time_bin_methods,
-        time_binning_cadence=cadence,
+        time_binning_cadence=bin_cadence,
         start_time=start_time,
         end_time=end_time,
     )
@@ -167,7 +165,7 @@ def process_arase_xep(
             orb_variables["Epoch"],
             variables=orb_variables,
             time_bin_method_dict=time_bin_methods,
-            time_binning_cadence=cadence,
+            time_binning_cadence=bin_cadence,
             start_time=start_time,
             end_time=end_time,
         )
@@ -188,7 +186,7 @@ def process_arase_xep(
             orb_variables["Epoch"],
             variables=orb_variables,
             time_bin_method_dict=time_bin_methods,
-            time_binning_cadence=cadence,
+            time_binning_cadence=bin_cadence,
             start_time=start_time,
             end_time=end_time,
         )
@@ -266,7 +264,7 @@ def process_arase_xep(
         "PSD": psd_var,
     }
 
-    if not use_level_3_orbit_data: 
+    if not use_level_3_orbit_data:
         variables_to_save |= {"L_star": orb_variables["Lstar"], "InvK": orb_variables["InvK"], "InvMu": orb_variables["InvMu"]}
 
     saving_strategy = ep.saving_strategies.MonthlyRBStrategy(
@@ -282,40 +280,9 @@ def process_arase_xep(
     ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
 
 
+CLI_DEFAULTS = {
+    "use_level_3_orbit_data": False,
+}
+
 if __name__ == "__main__":
-
-    ep.setup_logging()
-
-    parser = argparse.ArgumentParser(
-        description="Process flux flux data from ECT/MagEIS instrument on VanAllenProbes."
-    )
-    parser.add_argument(
-        "--start_time",
-        type=str,
-        help="Start time in valid dateparse format. Example: YYYY-MM-DDTHH:MM:SS.",
-        default=datetime(2017, 9, 6, tzinfo=timezone.utc).isoformat(),
-        required=False,
-    )
-    parser.add_argument(
-        "--end_time",
-        type=str,
-        help="End time in valid dateparse format. Example: YYYY-MM-DDTHH:MM:SS.",
-        default=datetime(2017, 9, 12, 23, 59, 59, tzinfo=timezone.utc).isoformat(),
-        required=False,
-    )
-
-    args = parser.parse_args()
-
-    dt_start = dateutil.parser.parse(args.start_time)
-    dt_end = dateutil.parser.parse(args.end_time)
-
-    # with tempfile.TemporaryDirectory() as tmp_dir:
-    process_arase_xep(
-        dt_start,
-        dt_end,
-        "T89",
-        raw_data_path="/home/bhaas/el_paso_processing/raw/",
-        processed_data_path="/home/bhaas/el_paso_processing/data_processed/",
-        num_cores=64,
-        use_level_3_orbit_data=False,
-    )
+    ep.run_recipe_cli(process_arase_xep, defaults=CLI_DEFAULTS)

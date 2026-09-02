@@ -33,7 +33,7 @@ def arase_orbit_el_paso(
         mag_field,
         num_cores=48,
         use_level_3_orbit_data=False,
-        cadence=timedelta(minutes=1),
+        bin_cadence=timedelta(minutes=1),
         raw_data_path=Path("tests/comparisons/raw_data"),
         processed_data_path=Path("tests/comparisons/processed_data"),
     )

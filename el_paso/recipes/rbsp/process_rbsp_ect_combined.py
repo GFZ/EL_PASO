@@ -17,13 +17,13 @@ import el_paso as ep
 def process_rbsp_ect_combined(
     start_time: datetime,
     end_time: datetime,
-    sat_str: Literal["a", "b"],
-    mag_field: Literal["T89", "T96", "TS04", "OP77"],
+    satellite: Literal["a", "b"] = "a",
+    mag_field: Literal["T89", "T96", "TS04", "OP77"] = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
-    cadence: timedelta = timedelta(minutes=5),
+    bin_cadence: timedelta = timedelta(minutes=5),
+    num_cores: int = 16,
     save_strategy: Literal["gfz", "netcdf", "both"] = "netcdf",
-    num_cores: int = 4,
 ) -> None:
     """Process combined RBSP ECT (REPT/MagEIS) electron flux data into the EL-PASO data standard.
 
@@ -38,18 +38,17 @@ def process_rbsp_ect_combined(
     Args:
         start_time (datetime): Start of the time range to process.
         end_time (datetime): End of the time range to process.
-        sat_str (Literal["a", "b"]): RBSP satellite identifier ("a" or "b").
+        satellite (Literal["a", "b"]): RBSP satellite identifier ("a" or "b").
         mag_field (Literal["T89", "T96", "TS04", "OP77"]): Magnetic field model used to compute the
             magnetic-field-related variables.
-        raw_data_path (str | Path, optional): Directory where raw CDF files are downloaded to and
+        raw_data_path (str | Path): Directory where raw CDF files are downloaded to and
             read from. Defaults to ".".
-        processed_data_path (str | Path, optional): Directory where the processed output files are
+        processed_data_path (str | Path): Directory where the processed output files are
             written to. Defaults to ".".
-        cadence (timedelta, optional): Time-binning cadence applied to all variables. Defaults to
-            timedelta(minutes=5).
-        save_strategy (Literal["gfz", "netcdf", "both"], optional): Which saving strategy/strategies
+        bin_cadence (timedelta): Time-binning cadence applied to all variables.
+        save_strategy (Literal["gfz", "netcdf", "both"]): Which saving strategy/strategies
             to use for writing the processed output. Defaults to "netcdf".
-        num_cores (int, optional): Number of CPU cores used for the magnetic field computations.
+        num_cores (int): Number of CPU cores used for the magnetic field computations.
             Defaults to 4.
     """
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
@@ -58,13 +57,13 @@ def process_rbsp_ect_combined(
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
 
-    file_name_stem = "rbsp" + sat_str + "_ect-elec-L3_YYYYMMDD_.{6}.cdf"
+    file_name_stem = "rbsp" + satellite + "_ect-elec-L3_YYYYMMDD_.{6}.cdf"
 
     ep.download(
         start_time,
         end_time,
         save_path=raw_data_path,
-        download_url=f"https://rbsp-ect.newmexicoconsortium.org/data_pub/rbsp{sat_str}/ECT/level3/YYYY/",
+        download_url=f"https://rbsp-ect.newmexicoconsortium.org/data_pub/rbsp{satellite}/ECT/level3/YYYY/",
         file_name_stem=file_name_stem,
         file_cadence="daily",
         method="request",
@@ -133,7 +132,7 @@ def process_rbsp_ect_combined(
         variables["Epoch"],
         variables=variables,
         time_bin_method_dict=time_bin_methods,
-        time_binning_cadence=cadence,
+        time_binning_cadence=bin_cadence,
         start_time=start_time,
         end_time=end_time,
     )
@@ -198,7 +197,7 @@ def process_rbsp_ect_combined(
         strategy = ep.saving_strategies.GFZStrategy(
             processed_data_path,
             "RBSP",
-            "rbsp" + sat_str,
+            "rbsp" + satellite,
             "ect_combined",
             mag_field,
             data_standard=ep.data_standards.GFZStandard(),
@@ -208,7 +207,7 @@ def process_rbsp_ect_combined(
         strategy = ep.saving_strategies.MonthlyRBStrategy(
             base_data_path=Path(processed_data_path),
             mission="RBSP",
-            satellite=f"rbsp{sat_str}",
+            satellite=f"rbsp{satellite}",
             instrument="ect_combined",
             mag_field=mag_field,
             file_format="nc",
@@ -219,15 +218,4 @@ def process_rbsp_ect_combined(
 
 
 if __name__ == "__main__":
-    start_time = datetime(2017, 4, 20, tzinfo=timezone.utc)
-    end_time = datetime(2017, 4, 24, tzinfo=timezone.utc)
-
-    process_rbsp_ect_combined(
-        start_time,
-        end_time,
-        "a",
-        "T89",
-        raw_data_path=".",
-        processed_data_path=".",
-        num_cores=16,
-    )
+    ep.run_recipe_cli(process_rbsp_ect_combined)

@@ -33,7 +33,7 @@ def test_dmsp_ssj(
     process_dmsp_ssj_electrons(
         start_time=start_time,
         end_time=end_time,
-        sat_str="f17",
+        satellite="f17",
         raw_data_path=Path(__file__).parent / "data" / "raw",
         processed_data_path=processed_data_path,
         num_cores=32,

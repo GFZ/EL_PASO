@@ -19,8 +19,8 @@ import cdflib
 import h5py
 import netCDF4
 import numpy as np
-from numpy.typing import DTypeLike, NDArray
 import pandas as pd
+from numpy.typing import DTypeLike, NDArray
 
 from el_paso import Variable
 from el_paso.utils import enforce_utc_timezone, fill_str_template_with_time, get_file_by_version

@@ -33,7 +33,7 @@ def test_goes_realtime_snapshot(
     process_goes_real_time(
         start_time=start_time,
         end_time=end_time,
-        sat_str="primary",
+        satellite="primary",
         raw_data_path=Path(__file__).parent / "data" / "raw",
         processed_data_path=processed_data_path,
         num_cores=32,

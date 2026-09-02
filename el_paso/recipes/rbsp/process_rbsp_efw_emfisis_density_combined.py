@@ -19,15 +19,16 @@ import el_paso as ep
 logger = logging.getLogger(__name__)
 
 
-def process_efw_emfisis_density_combined(
+def process_rbsp_efw_emfisis_density_combined(
     start_time: datetime,
     end_time: datetime,
-    sat_str: Literal["a", "b"],
-    irbem_lib_path: str | Path,
-    mag_field: Literal["T89", "T96", "TS04"],
+    satellite: Literal["a", "b"] = "a",
+    mag_field: Literal["T89", "T96", "TS04"] = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
-    num_cores: int = 4,
+    bin_cadence: timedelta = timedelta(minutes=1),
+    num_cores: int = 16,
+    irbem_lib_path: str | Path = "../../libirbem.so",
     *,
     add_hiss_derived_densitites: bool = True,
     hiss_derived_densities_data_path: str | Path = ".",
@@ -35,7 +36,7 @@ def process_efw_emfisis_density_combined(
     """Process and combine RBSP EFW and EMFISIS electron density data.
 
     Downloads and extracts EFW (level-3) and EMFISIS (level-4) density data for the given time
-    range and satellite, time-bins both to a 1-minute cadence, cleans the EMFISIS density by
+    range and satellite, time-bins both to a common cadence, cleans the EMFISIS density by
     masking out "fpe"-flagged digitizer-type entries, transforms the EFW position from GSE to GEO
     coordinates using IRBEM, computes magnetic-field-related quantities (MLT, equatorial radial
     distance, equatorial position) with the given magnetic field model, and maps both the EFW and
@@ -45,21 +46,20 @@ def process_efw_emfisis_density_combined(
     Args:
         start_time (datetime): Start of the time range to process.
         end_time (datetime): End of the time range to process.
-        sat_str (Literal["a", "b"]): RBSP satellite identifier ("a" or "b").
-        irbem_lib_path (str | Path): Path to the compiled IRBEM library, used for coordinate
-            transforms and magnetic field computations.
+        satellite (Literal["a", "b"]): RBSP satellite identifier ("a" or "b").
         mag_field (Literal["T89", "T96", "TS04"]): Magnetic field model used to compute the
             magnetic-field-related variables.
-        raw_data_path (str | Path, optional): Directory where raw CDF files are downloaded to and
-            read from. Defaults to ".".
-        processed_data_path (str | Path, optional): Directory where the processed output files
-            would be written to. Defaults to ".".
-        num_cores (int, optional): Number of CPU cores used for the magnetic field computations.
-            Defaults to 4.
-        add_hiss_derived_densitites (bool, optional): If True, also load, time-bin, and map to the
-            equator the hiss-derived density data. Defaults to True.
-        hiss_derived_densities_data_path (str | Path, optional): Directory containing the
-            hiss-derived density text files. Defaults to ".".
+        raw_data_path (str | Path): Directory where raw CDF files are downloaded to and read from.
+        processed_data_path (str | Path): Directory where the processed output files
+            would be written to.
+        bin_cadence (timedelta): Time-binning cadence applied to the density and position variables.
+        num_cores (int): Number of CPU cores used for the magnetic field computations.
+        irbem_lib_path (str | Path): Path to the compiled IRBEM library, used for coordinate
+            transforms and magnetic field computations.
+        add_hiss_derived_densitites (bool): If True, also load, time-bin, and map to the
+            equator the hiss-derived density data.
+        hiss_derived_densities_data_path (str | Path): Directory containing the
+            hiss-derived density text files.
 
     Raises:
         NotImplementedError: Always raised before the processed variables are saved; saving via
@@ -73,10 +73,10 @@ def process_efw_emfisis_density_combined(
     processed_data_path = Path(processed_data_path)
 
     efw_variables = _get_efw_variables(
-        start_time - timedelta(minutes=10), end_time + timedelta(minutes=10), sat_str, raw_data_path
+        start_time - timedelta(minutes=10), end_time + timedelta(minutes=10), satellite, raw_data_path
     )
     emfisis_variables = _get_emfisis_variables(
-        start_time - timedelta(minutes=10), end_time + timedelta(minutes=10), sat_str, raw_data_path
+        start_time - timedelta(minutes=10), end_time + timedelta(minutes=10), satellite, raw_data_path
     )
 
     efw_time_bin_methods = {
@@ -88,7 +88,7 @@ def process_efw_emfisis_density_combined(
         efw_variables["Epoch"],
         variables=efw_variables,
         time_bin_method_dict=efw_time_bin_methods,
-        time_binning_cadence=timedelta(minutes=1),
+        time_binning_cadence=bin_cadence,
         start_time=start_time,
         end_time=end_time,
     )
@@ -102,7 +102,7 @@ def process_efw_emfisis_density_combined(
         emfisis_variables["Epoch"],
         variables=emfisis_variables,
         time_bin_method_dict=emfisis_time_bin_methods,
-        time_binning_cadence=timedelta(minutes=1),
+        time_binning_cadence=bin_cadence,
         start_time=start_time,
         end_time=end_time,
     )
@@ -155,7 +155,7 @@ def process_efw_emfisis_density_combined(
 
     if add_hiss_derived_densitites:
         hiss_derived_densities_vars = _get_and_time_bin_hiss_derived_densities(
-            hiss_derived_densities_data_path, start_time, end_time, sat_str
+            hiss_derived_densities_data_path, start_time, end_time, satellite, bin_cadence
         )
         hiss_derived_densities_vars["Density_mapped"] = ep.processing.compute_equatorial_plasmaspheric_density(
             hiss_derived_densities_vars["Density"],
@@ -187,7 +187,7 @@ def process_efw_emfisis_density_combined(
 
     saving_strategy = ep.saving_strategies.DensityNetCDFStrategy(
         base_data_path=processed_data_path,
-        file_name_stem=f"rbsp_{sat_str}_densities_combined",
+        file_name_stem=f"rbsp_{satellite}_densities_combined",
         mag_field=mag_field,
         satellite="RBSP",
     )
@@ -196,15 +196,15 @@ def process_efw_emfisis_density_combined(
 
 
 def _get_efw_variables(
-    start_time: datetime, end_time: datetime, sat_str: Literal["a", "b"], raw_data_path: Path
+    start_time: datetime, end_time: datetime, satellite: Literal["a", "b"], raw_data_path: Path
 ) -> dict[str, ep.Variable]:
-    file_name_stem = "rbsp" + sat_str + "_efw-l3_YYYYMMDD_.{3}.cdf"
+    file_name_stem = "rbsp" + satellite + "_efw-l3_YYYYMMDD_.{3}.cdf"
 
     ep.download(
         start_time,
         end_time,
         save_path=raw_data_path,
-        download_url=f"https://spdf.gsfc.nasa.gov/pub/data/rbsp/rbsp{sat_str}/l3/efw/YYYY/",
+        download_url=f"https://spdf.gsfc.nasa.gov/pub/data/rbsp/rbsp{satellite}/l3/efw/YYYY/",
         file_name_stem=file_name_stem,
         file_cadence="daily",
         method="request",
@@ -246,15 +246,15 @@ def _get_efw_variables(
 
 
 def _get_emfisis_variables(
-    start_time: datetime, end_time: datetime, sat_str: Literal["a", "b"], raw_data_path: Path
+    start_time: datetime, end_time: datetime, satellite: Literal["a", "b"], raw_data_path: Path
 ) -> dict[str, ep.Variable]:
-    file_name_stem = "rbsp-" + sat_str + "_density_emfisis-l4_YYYYMMDD_.{6,7}.cdf"
+    file_name_stem = "rbsp-" + satellite + "_density_emfisis-l4_YYYYMMDD_.{6,7}.cdf"
 
     ep.download(
         start_time,
         end_time,
         save_path=raw_data_path,
-        download_url=f"https://spdf.gsfc.nasa.gov/pub/data/rbsp/rbsp{sat_str}/l4/emfisis/density/YYYY/",
+        download_url=f"https://spdf.gsfc.nasa.gov/pub/data/rbsp/rbsp{satellite}/l4/emfisis/density/YYYY/",
         file_name_stem=file_name_stem,
         file_cadence="daily",
         method="request",
@@ -307,11 +307,12 @@ def _get_and_time_bin_hiss_derived_densities(
     hiss_derived_densities_data_path: str | Path,
     start_time: datetime,
     end_time: datetime,
-    sat_str: Literal["a", "b"],
+    satellite: Literal["a", "b"],
+    bin_cadence: timedelta,
 ) -> dict[str, ep.Variable]:
     logger.info("Processing hiss-derived densities!")
 
-    if sat_str == "a":
+    if satellite == "a":
         file_name_stem = "rbsp-a_hiss_density_arase_recalibrated.txt"
     else:
         file_name_stem = "rbsp-b_hiss_density_arase_recalibrated_v2.txt"
@@ -351,7 +352,7 @@ def _get_and_time_bin_hiss_derived_densities(
         hiss_derived_vars["Epoch"],
         variables=hiss_derived_vars,
         time_bin_method_dict=time_bin_methods,
-        time_binning_cadence=timedelta(minutes=1),
+        time_binning_cadence=bin_cadence,
         start_time=start_time,
         end_time=end_time,
     )
@@ -359,48 +360,10 @@ def _get_and_time_bin_hiss_derived_densities(
     return hiss_derived_vars
 
 
+CLI_DEFAULTS = {
+    "satellite": ["b"],
+    "add_hiss_derived_densitites": True,
+}
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Process density data from EFW and EMFISIS instrument on VanAllenProbes."
-    )
-    parser.add_argument(
-        "start_time",
-        type=str,
-        nargs="?",
-        help="Start time in valid dateparse format. Example: YYYY-MM-DDTHH:MM:SS.",
-        default=datetime(2013, 3, 1, tzinfo=timezone.utc).isoformat(),
-    )
-    parser.add_argument(
-        "end_time",
-        type=str,
-        nargs="?",
-        help="End time in valid dateparse format. Example: YYYY-MM-DDTHH:MM:SS.",
-        default=datetime(2013, 3, 31, 23, 59, 59, tzinfo=timezone.utc).isoformat(),
-    )
-    parser.add_argument(
-        "irbem_lib_path",
-        type=str,
-        nargs="?",
-        help="Path towards the compiled IRBEM library..",
-        default="../../libirbem.so",
-    )
-
-    args = parser.parse_args()
-
-    dt_start = dateutil.parser.parse(args.start_time)
-    dt_end = dateutil.parser.parse(args.end_time)
-
-    #    with tempfile.TemporaryDirectory() as tmpdir:
-    for sat_str in ["b"]:
-        process_efw_emfisis_density_combined(
-            dt_start,
-            dt_end,
-            sat_str,
-            args.irbem_lib_path,
-            "T89",
-            raw_data_path=".",
-            processed_data_path=".",
-            num_cores=32,
-            add_hiss_derived_densitites=True,
-            hiss_derived_densities_data_path="/home/bhaas/data/rbsp_hiss_densities/",
-        )
+    ep.run_recipe_cli(process_rbsp_efw_emfisis_density_combined, defaults=CLI_DEFAULTS)

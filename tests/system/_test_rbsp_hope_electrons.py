@@ -32,7 +32,7 @@ def test_rbsp_hope_electrons(
     process_rbsp_hope_electrons(
         start_time=start_time,
         end_time=end_time,
-        sat_str="a",
+        satellite="a",
         mag_field="T89",
         raw_data_path=Path(__file__).parent / "data" / "raw",
         processed_data_path=processed_data_path,

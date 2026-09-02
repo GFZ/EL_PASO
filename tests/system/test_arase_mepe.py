@@ -41,7 +41,7 @@ def test_arase_mepe_snapshot(
         raw_data_path=Path(__file__).parent / "data" / "raw",
         processed_data_path=processed_data_path,
         num_cores=32,
-        cadence=timedelta(hours=1),
+        bin_cadence=timedelta(hours=1),
         save_strategy="netcdf",
         use_level_3_orbit_data=False,
     )

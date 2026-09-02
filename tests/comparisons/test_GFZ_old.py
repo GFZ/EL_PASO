@@ -19,14 +19,14 @@ from swvo.io.RBMDataSet import InstrumentEnum, MfmEnum, RBMDataSet
 import el_paso as ep
 from el_paso.recipes.rbsp import process_rbsp_hope_electrons
 
-sat_str_list = ["a", "b"]
+satellite_list = ["a", "b"]
 mag_field_list = ["TS04", "T89"]
 
 
-@pytest.mark.parametrize("sat_str", sat_str_list)
+@pytest.mark.parametrize("satellite", satellite_list)
 @pytest.mark.parametrize("mag_field", mag_field_list)
 @pytest.mark.visual
-def test_gfz_old(sat_str: Literal["a", "b"], mag_field: Literal["T89", "TS04"]):
+def test_gfz_old(satellite: Literal["a", "b"], mag_field: Literal["T89", "TS04"]):
     start_time = datetime(2013, 3, 17, tzinfo=timezone.utc)
     end_time = start_time + timedelta(days=0, hours=23, minutes=59)
 
@@ -36,7 +36,7 @@ def test_gfz_old(sat_str: Literal["a", "b"], mag_field: Literal["T89", "TS04"]):
     # process_rbsp_hope_electrons(
     #     start_time,
     #     end_time,
-    #     sat_str,
+    #     satellite,
     #     mag_field,
     #     raw_data_path="tests/comparisons/raw_data",
     #     processed_data_path="tests/comparisons/processed_data",

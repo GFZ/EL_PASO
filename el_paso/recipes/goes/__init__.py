@@ -5,3 +5,8 @@
 
 from el_paso.recipes.goes.process_goes_r_mps_high import process_goes_r_mps_high
 from el_paso.recipes.goes.process_goes_realtime import process_goes_real_time
+
+__all__ = [
+    "process_goes_r_mps_high",
+    "process_goes_real_time",
+]

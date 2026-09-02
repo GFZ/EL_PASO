@@ -36,7 +36,7 @@ def test_rbsp_emfisis_waves(
     process_rbsp_emfisis_waves(
         start_time=start_time,
         end_time=end_time,
-        sat_str="a",
+        satellite="a",
         raw_data_path=Path(__file__).parent / "data" / "raw",
         processed_data_path=processed_data_path,
     )

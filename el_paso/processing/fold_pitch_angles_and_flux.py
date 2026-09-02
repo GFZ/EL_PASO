@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -57,7 +58,8 @@ def _fold_pitch_angles_and_flux(
                 axes[i, ie].hist(diff_energy[mask_diff].compressed(), bins=10)
                 axes[i, ie].set_title(f"Energy = {ie}, alpha = {angle}")
 
-        with np.errstate(invalid="ignore"):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="Mean of empty slice", category=RuntimeWarning)
             folded_flux[:, :, i] = np.nanmean(masked_flux, axis=2)
 
     # add time dimension

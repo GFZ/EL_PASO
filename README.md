@@ -45,10 +45,17 @@ Full documentation can be viewed [here](https://el-paso.readthedocs.io/en/latest
 - **PROBA-V**
     - EPT (electrons and protons)
 - **Van Allen Probes**
-    - HOPE (electrons)
-    - MagEIS (electrons)
+    - HOPE (electrons and protons)
+    - MagEIS (electrons and protons)
+    - RBSPICE (protons)
     - ECT-combined
+    - EMFISIS waves
     - EMFISIS and EFW density
+- **DMSP**
+    - SSJ (electrons)
+
+Every recipe shares one command line interface; see
+[Running a recipe](#running-a-recipe) below.
 
 ## Installation
 
@@ -92,6 +99,41 @@ python examples/minimal_example.py
 > apptainer exec elpaso.sif python examples/minimal_example.py
 > ```
 > Available tags mirror the CI build: `latest` (most recent build on `main`), a specific commit SHA, or a released package version (e.g. `oras://ghcr.io/gfz/el_paso:2.1.2`).
+
+## Running a recipe
+
+Installing EL-PASO provides the `el-paso` command, which exposes every recipe
+under a common set of options:
+
+```bash
+el-paso list                 # show every available recipe
+el-paso poes meped --help    # options for one recipe
+
+el-paso poes meped \
+    --start-time 2013-03-16 --end-time 2013-03-16T23:59:59 \
+    --satellite noaa15 --mag-field T89 --bin-cadence 10s \
+    --raw-data-path ./raw --processed-data-path ./processed
+```
+
+Recipes can equally be run as modules, which is convenient inside job scripts:
+
+```bash
+python -m el_paso.recipes.poes.process_poes_meped \
+    --start-time 2013-03-16 --end-time 2013-03-16T23:59:59
+```
+
+Both forms accept the same options, because both are generated from the recipe
+function's own signature. `--start-time` and `--end-time` are required; the rest
+have per-recipe defaults. Common options are
+`--satellite` (repeat it to process several), `--mag-field`, `--bin-cadence`
+(`10s`, `5min`, `1h`), `--raw-data-path`, `--processed-data-path` and
+`--num-cores`. Add `--dry-run` to print the resolved arguments without
+processing anything, and `--install-completion` to set up shell completion.
+Which options a given recipe accepts depends on what it actually supports, so
+check `--help`.
+
+See the [command line documentation](docs/getting_started/command_line.md) for
+the full list.
 
 ## Testing
 

@@ -35,6 +35,7 @@ dependencies = [
     "swvo>=1.2.7rc0",
     "tabulate==0.9.0",
     "tqdm>=4.67.2",
+    "typer>=0.15",
     "wget>=3.2",
     "wheel==0.46.3",
     "skyfield==1.54",
@@ -56,6 +57,10 @@ classifiers = [
     'Operating System :: Unix',
     'Operating System :: MacOS',
 ]
+
+
+[project.scripts]
+el-paso = "el_paso.cli.app:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["el_paso"]

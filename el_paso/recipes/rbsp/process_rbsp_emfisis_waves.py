@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 def process_rbsp_emfisis_waves(
     start_time: datetime,
     end_time: datetime,
-    sat_str: Literal["a", "b"],
+    satellite: Literal["a", "b"] = "a",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
 ) -> None:
@@ -46,18 +46,18 @@ def process_rbsp_emfisis_waves(
     Args:
         start_time (datetime): Start of the time range to process.
         end_time (datetime): End of the time range to process.
-        sat_str (Literal["a", "b"]): RBSP satellite identifier ("a" or "b").
-        raw_data_path (str | Path, optional): Base directory where raw CDF files are downloaded to
+        satellite (Literal["a", "b"]): RBSP satellite identifier ("a" or "b").
+        raw_data_path (str | Path): Base directory where raw CDF files are downloaded to
             and read from. Defaults to ".".
-        processed_data_path (str | Path, optional): Directory where the processed output files are
+        processed_data_path (str | Path): Directory where the processed output files are
             written to. Defaults to ".".
     """
-    wfr_vars = _get_wfr_data(start_time, end_time, Path(raw_data_path), sat_str)
+    wfr_vars = _get_wfr_data(start_time, end_time, Path(raw_data_path), satellite)
 
     target_time_var = wfr_vars["Epoch"]
-    density_vars = _get_density_data(start_time, end_time, Path(raw_data_path), sat_str, target_time_var)
-    mag_vars = _get_magnetometer_data(start_time, end_time, Path(raw_data_path), sat_str, target_time_var)
-    wna_vars = _get_wna_data(start_time, end_time, Path(raw_data_path), sat_str)
+    density_vars = _get_density_data(start_time, end_time, Path(raw_data_path), satellite, target_time_var)
+    mag_vars = _get_magnetometer_data(start_time, end_time, Path(raw_data_path), satellite, target_time_var)
+    wna_vars = _get_wna_data(start_time, end_time, Path(raw_data_path), satellite)
 
     mag_vars = _clean_magnetometer_data(mag_vars)
 
@@ -74,7 +74,7 @@ def process_rbsp_emfisis_waves(
     }
 
     saving_strat = ep.saving_strategies.DailyWaveStrategy(
-        processed_data_path, "RBSP", f"rbsp{sat_str}", "EMFISIS", ep.data_standards.GFZStandard()
+        processed_data_path, "RBSP", f"rbsp{satellite}", "EMFISIS", ep.data_standards.GFZStandard()
     )
 
     ep.save(vars_to_save, saving_strat, start_time, end_time)
@@ -121,10 +121,10 @@ def _calculate_orbital_vars(mag_vars: dict[str, ep.Variable]) -> dict[str, ep.Va
 
 
 def _get_wfr_data(
-    start_time: datetime, end_time: datetime, raw_data_path: Path, sat_str: Literal["a", "b"]
+    start_time: datetime, end_time: datetime, raw_data_path: Path, satellite: Literal["a", "b"]
 ) -> dict[str, ep.Variable]:
-    url = f"https://cdaweb.gsfc.nasa.gov/pub/data/rbsp/rbsp{sat_str}/l2/emfisis/wfr/spectral-matrix-diagonal/YYYY/"
-    file_name_stem = "rbsp-" + sat_str + r"_wfr-spectral-matrix-diagonal_emfisis-l2_YYYYMMDD_.{6}.cdf"
+    url = f"https://cdaweb.gsfc.nasa.gov/pub/data/rbsp/rbsp{satellite}/l2/emfisis/wfr/spectral-matrix-diagonal/YYYY/"
+    file_name_stem = "rbsp-" + satellite + r"_wfr-spectral-matrix-diagonal_emfisis-l2_YYYYMMDD_.{6}.cdf"
 
     raw_data_path = raw_data_path / "YYYY" / "MM" / "wfr"
 
@@ -168,10 +168,10 @@ def _get_wna_data(
     start_time: datetime,
     end_time: datetime,
     raw_data_path: Path,
-    sat_str: Literal["a", "b"],
+    satellite: Literal["a", "b"],
 ) -> dict[str, ep.Variable]:
-    url = f"https://cdaweb.gsfc.nasa.gov/pub/data/rbsp/rbsp{sat_str}/l4/emfisis/wna-survey-sheath-corrected-e/YYYY/"
-    file_name_stem = "rbsp-" + sat_str + r"_wna-survey-sheath-corrected-e_emfisis-l4_YYYYMMDD_.{6}.cdf"
+    url = f"https://cdaweb.gsfc.nasa.gov/pub/data/rbsp/rbsp{satellite}/l4/emfisis/wna-survey-sheath-corrected-e/YYYY/"
+    file_name_stem = "rbsp-" + satellite + r"_wna-survey-sheath-corrected-e_emfisis-l4_YYYYMMDD_.{6}.cdf"
 
     raw_data_path = raw_data_path / "YYYY" / "MM" / "sna"
 
@@ -207,11 +207,11 @@ def _get_density_data(
     start_time: datetime,
     end_time: datetime,
     raw_data_path: Path,
-    sat_str: Literal["a", "b"],
+    satellite: Literal["a", "b"],
     target_time_var: ep.Variable,
 ) -> dict[str, ep.Variable]:
-    url = f"https://cdaweb.gsfc.nasa.gov/pub/data/rbsp/rbsp{sat_str}/l4/emfisis/density/YYYY/"
-    file_name_stem = "rbsp-" + sat_str + r"_density_emfisis-l4_YYYYMMDD_.{7}.cdf"
+    url = f"https://cdaweb.gsfc.nasa.gov/pub/data/rbsp/rbsp{satellite}/l4/emfisis/density/YYYY/"
+    file_name_stem = "rbsp-" + satellite + r"_density_emfisis-l4_YYYYMMDD_.{7}.cdf"
 
     raw_data_path = raw_data_path / "YYYY" / "MM" / "density"
 
@@ -255,11 +255,11 @@ def _get_magnetometer_data(
     start_time: datetime,
     end_time: datetime,
     raw_data_path: Path,
-    sat_str: Literal["a", "b"],
+    satellite: Literal["a", "b"],
     target_time_var: ep.Variable,
 ) -> dict[str, ep.Variable]:
-    url = f"https://cdaweb.gsfc.nasa.gov/pub/data/rbsp/rbsp{sat_str}/l3/emfisis/magnetometer/4sec/sm/YYYY/"
-    file_name_stem = "rbsp-" + sat_str + r"_magnetometer_4sec-sm_emfisis-l3_YYYYMMDD_.{6}.cdf"
+    url = f"https://cdaweb.gsfc.nasa.gov/pub/data/rbsp/rbsp{satellite}/l3/emfisis/magnetometer/4sec/sm/YYYY/"
+    file_name_stem = "rbsp-" + satellite + r"_magnetometer_4sec-sm_emfisis-l3_YYYYMMDD_.{6}.cdf"
 
     raw_data_path = raw_data_path / "YYYY" / "MM" / "magnetometer"
 
@@ -457,36 +457,4 @@ def _plot_wna(wna_vars: dict[str, ep.Variable]) -> None:
 
 
 if __name__ == "__main__":
-    ep.setup_logging()
-
-    parser = argparse.ArgumentParser(
-        description="Process density data from EFW and EMFISIS instrument on VanAllenProbes."
-    )
-    parser.add_argument(
-        "--start_time",
-        type=str,
-        help="Start time in valid dateparse format. Example: YYYY-MM-DDTHH:MM:SS.",
-        default=datetime(2017, 4, 1, tzinfo=timezone.utc).isoformat(),
-        required=False,
-    )
-    parser.add_argument(
-        "--end_time",
-        type=str,
-        help="End time in valid dateparse format. Example: YYYY-MM-DDTHH:MM:SS.",
-        default=datetime(2017, 4, 1, 0, 5, 59, tzinfo=timezone.utc).isoformat(),
-        required=False,
-    )
-
-    args = parser.parse_args()
-
-    dt_start = dateutil.parser.parse(args.start_time)
-    dt_end = dateutil.parser.parse(args.end_time)
-
-    for sat_str in ["a", "b"]:
-        process_rbsp_emfisis_waves(
-            dt_start,
-            dt_end,
-            sat_str=sat_str,
-            raw_data_path=".",
-            processed_data_path=".",
-        )
+    ep.run_recipe_cli(process_rbsp_emfisis_waves)

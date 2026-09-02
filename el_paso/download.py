@@ -172,9 +172,9 @@ def download(
     curr_time = start_time
     tasks = []
 
-    while curr_time < end_time:
+    while curr_time <= end_time:
         next_time = _get_next_time(curr_time, file_cadence)
-        next_time = end_time if next_time is None else min(next_time, end_time)
+        next_time = end_time if next_time is None else next_time
 
         tasks.append((curr_time, next_time))
         curr_time = next_time

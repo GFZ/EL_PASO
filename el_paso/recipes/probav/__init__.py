@@ -3,9 +3,10 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from el_paso.recipes.probav.process_ept_electron_fluxes import (
-    process_ept_electron_fluxes as process_ept_electron_fluxes,
-)
-from el_paso.recipes.probav.process_ept_proton_fluxes import (
-    process_ept_proton_fluxes as process_ept_proton_fluxes,
-)
+from el_paso.recipes.probav.process_ept_electron_fluxes import process_ept_electron_fluxes
+from el_paso.recipes.probav.process_ept_proton_fluxes import process_ept_proton_fluxes
+
+__all__ = [
+    "process_ept_electron_fluxes",
+    "process_ept_proton_fluxes",
+]

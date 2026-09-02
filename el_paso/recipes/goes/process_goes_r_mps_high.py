@@ -25,13 +25,15 @@ TELE_BETA_ANGLES = np.array([-35.0, 35.0, -70.0, 0, 70.0])
 
 
 def process_goes_r_mps_high(
-    sat_str: Literal["goes18", "goes19"],
-    processed_data_path: str | Path,
-    raw_data_path: str | Path,
     start_time: datetime,
     end_time: datetime,
-    save_strategy: Literal["gfz", "netcdf"] = "netcdf",
-    num_cores: int = 32,
+    satellite: Literal["goes18", "goes19"] = "goes18",
+    mag_field: ep.typing.MagneticFieldLiteral = "T89",
+    raw_data_path: str | Path = ".",
+    processed_data_path: str | Path = ".",
+    bin_cadence: timedelta = timedelta(minutes=5),
+    num_cores: int = 16,
+    save_strategy: Literal["gfz", "netcdf", "both"] = "netcdf",
 ) -> None:
     """Process GOES-R MPS-HI MAGED electron data into pitch-angle resolved phase space densities.
 
@@ -39,29 +41,28 @@ def process_goes_r_mps_high(
     ephemeris (EPHE) L2 data products for the given GOES-R satellite, bins them onto a common
     5-minute time cadence, computes the local telescope pitch angles from the magnetic field
     direction, sorts the differential electron fluxes by ascending pitch angle, transforms the
-    spacecraft position to GEO coordinates, computes T89 magnetic field quantities (B_Calc, B_Eq,
+    spacecraft position to GEO coordinates, computes magnetic field quantities (B_Calc, B_Eq,
     MLT, R_Eq, Alpha_Eq, L_star, L_m, InvMu, InvK), and derives the electron phase space density.
     The resulting variables are saved using the requested saving strategy.
 
     Args:
-        sat_str (Literal["goes18", "goes19"]): The GOES-R satellite to process.
-        processed_data_path (str | Path): Directory where the processed output files are saved.
-        raw_data_path (str | Path): Directory where the raw downloaded data files are stored.
         start_time (datetime): Start of the time interval to process.
         end_time (datetime): End of the time interval to process.
-        save_strategy (Literal["gfz", "netcdf"], optional): Strategy used to save the processed
-            data. "gfz" saves using the GFZ format, "netcdf" saves monthly NetCDF files. Defaults
-            to "netcdf".
-        num_cores (int, optional): Number of CPU cores used for the magnetic field computations.
-            Defaults to 32.
+        satellite (Literal["goes18", "goes19"]): The GOES-R satellite to process.
+        mag_field (MagneticFieldLiteral): Magnetic field model used for the derived quantities.
+        raw_data_path (str | Path): Directory where the raw downloaded data files are stored.
+        processed_data_path (str | Path): Directory where the processed output files are saved.
+        bin_cadence (timedelta): Time cadence used to bin the extracted variables.
+        num_cores (int): Number of CPU cores used for the magnetic field computations.
+        save_strategy (Literal["gfz", "netcdf", "both"]): Strategy used to save the processed
+            data. "gfz" saves using the GFZ format, "netcdf" saves monthly NetCDF files, and
+            "both" saves using both strategies.
     """
-    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+    data_path_stem = f"{raw_data_path}/YYYY/MM/{satellite}/"
 
-    data_path_stem = f"{raw_data_path}/YYYY/MM/{sat_str}/"
-
-    magn_vars = _get_magn_variables(sat_str, data_path_stem, start_time, end_time)
-    mps_vars = _get_mps_high_variables(sat_str, data_path_stem, start_time, end_time)
-    ephe_vars = _get_ephe_variables(sat_str, data_path_stem, start_time, end_time)
+    magn_vars = _get_magn_variables(satellite, data_path_stem, start_time, end_time)
+    mps_vars = _get_mps_high_variables(satellite, data_path_stem, start_time, end_time)
+    ephe_vars = _get_ephe_variables(satellite, data_path_stem, start_time, end_time)
 
     time_bin_methods_magn = {
         "b_brf": ep.TimeBinMethod.NanMean,
@@ -71,7 +72,7 @@ def process_goes_r_mps_high(
         time_variable=magn_vars["time"],
         variables=magn_vars,
         time_bin_method_dict=time_bin_methods_magn,
-        time_binning_cadence=timedelta(minutes=5),
+        time_binning_cadence=bin_cadence,
         start_time=start_time,
         end_time=end_time,
     )
@@ -89,7 +90,7 @@ def process_goes_r_mps_high(
         time_variable=mps_vars["time"],
         variables=mps_vars,
         time_bin_method_dict=time_bin_methods_mps,
-        time_binning_cadence=timedelta(minutes=5),
+        time_binning_cadence=bin_cadence,
         start_time=start_time,
         end_time=end_time,
     )
@@ -102,7 +103,7 @@ def process_goes_r_mps_high(
         time_variable=ephe_vars["time"],
         variables=ephe_vars,
         time_bin_method_dict=time_bin_methods_ephe,
-        time_binning_cadence=timedelta(minutes=5),
+        time_binning_cadence=bin_cadence,
         start_time=start_time,
         end_time=end_time,
     )
@@ -151,15 +152,15 @@ def process_goes_r_mps_high(
 
     # Calculate magnetic field variables
     variables_to_compute: ep.processing.VariableRequest = [
-        ("B_Calc", "T89"),
-        ("B_Eq", "T89"),
-        ("MLT", "T89"),
-        ("R_Eq", "T89"),
-        ("Alpha_Eq", "T89"),
-        ("L_star", "T89"),
-        ("L_m", "T89"),
-        ("InvMu", "T89"),
-        ("InvK", "T89"),
+        ("B_Calc", mag_field),
+        ("B_Eq", mag_field),
+        ("MLT", mag_field),
+        ("R_Eq", mag_field),
+        ("Alpha_Eq", mag_field),
+        ("L_star", mag_field),
+        ("L_m", mag_field),
+        ("InvMu", mag_field),
+        ("InvK", mag_field),
     ]
 
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
@@ -184,32 +185,32 @@ def process_goes_r_mps_high(
         "Energy_FEDU": mps_vars["diff_energy"],
         "Alpha": local_pa_var,
         "PSD": psd_var,
-        "Alpha_Eq": magnetic_field_variables["Alpha_Eq_T89"],
-        "MLT": magnetic_field_variables["MLT_T89"],
-        "L_star": magnetic_field_variables["L_star_T89"],
-        "R_Eq": magnetic_field_variables["R_Eq_T89"],
-        "B_Eq": magnetic_field_variables["B_Eq_T89"],
-        "B_Calc": magnetic_field_variables["B_Calc_T89"],
-        "InvMu": magnetic_field_variables["InvMu_T89"],
-        "InvK": magnetic_field_variables["InvK_T89"],
+        "Alpha_Eq": magnetic_field_variables[f"Alpha_Eq_{mag_field}"],
+        "MLT": magnetic_field_variables[f"MLT_{mag_field}"],
+        "L_star": magnetic_field_variables[f"L_star_{mag_field}"],
+        "R_Eq": magnetic_field_variables[f"R_Eq_{mag_field}"],
+        "B_Eq": magnetic_field_variables[f"B_Eq_{mag_field}"],
+        "B_Calc": magnetic_field_variables[f"B_Calc_{mag_field}"],
+        "InvMu": magnetic_field_variables[f"InvMu_{mag_field}"],
+        "InvK": magnetic_field_variables[f"InvK_{mag_field}"],
     }
 
     if save_strategy in ("gfz", "both"):
         saving_strategy = ep.saving_strategies.GFZStrategy(
             Path(processed_data_path),
             mission="GOES",
-            satellite=sat_str,
+            satellite=satellite,
             instrument="MAGED",
-            mag_field="T89",
+            mag_field=mag_field,
             data_standard=ep.data_standards.GFZStandard(),
         )
     if save_strategy in ("netcdf", "both"):
         saving_strategy = ep.saving_strategies.MonthlyRBStrategy(
             Path(processed_data_path),
             mission="GOES",
-            satellite=sat_str,
+            satellite=satellite,
             instrument="MAGED",
-            mag_field="T89",
+            mag_field=mag_field,
             file_format="nc",
             data_standard=ep.data_standards.GFZStandard(),
         )
@@ -218,14 +219,14 @@ def process_goes_r_mps_high(
 
 
 def _get_magn_variables(
-    sat_str: Literal["goes18", "goes19"],
+    satellite: Literal["goes18", "goes19"],
     data_path_stem: str | Path,
     start_time: datetime,
     end_time: datetime,
 ) -> dict[str, ep.Variable]:
-    url = f"https://data.ngdc.noaa.gov/platforms/solar-space-observing-satellites/goes/{sat_str}/l2/data/magn-l2-avg1m/YYYY/MM/"
+    url = f"https://data.ngdc.noaa.gov/platforms/solar-space-observing-satellites/goes/{satellite}/l2/data/magn-l2-avg1m/YYYY/MM/"
 
-    sat_stem = "g18" if sat_str == "goes18" else "g19"
+    sat_stem = "g18" if satellite == "goes18" else "g19"
     file_name_stem = f"dn_magn-l2-avg1m_{sat_stem}_dYYYYMMDD_.{r'{6}'}.nc"
 
     ep.download(
@@ -254,14 +255,14 @@ def _get_magn_variables(
 
 
 def _get_ephe_variables(
-    sat_str: Literal["goes18", "goes19"],
+    satellite: Literal["goes18", "goes19"],
     data_path_stem: str | Path,
     start_time: datetime,
     end_time: datetime,
 ) -> dict[str, ep.Variable]:
-    url = f"https://data.ngdc.noaa.gov/platforms/solar-space-observing-satellites/goes/{sat_str}/l2/data/ephe-l2-orb1m/YYYY/MM/"
+    url = f"https://data.ngdc.noaa.gov/platforms/solar-space-observing-satellites/goes/{satellite}/l2/data/ephe-l2-orb1m/YYYY/MM/"
 
-    sat_stem = "g18" if sat_str == "goes18" else "g19"
+    sat_stem = "g18" if satellite == "goes18" else "g19"
     file_name_stem = f"dn_ephe-l2-orb1m_{sat_stem}_dYYYYMMDD_.{r'{6}'}.nc"
 
     ep.download(
@@ -289,14 +290,14 @@ def _get_ephe_variables(
 
 
 def _get_mps_high_variables(
-    sat_str: Literal["goes18", "goes19"],
+    satellite: Literal["goes18", "goes19"],
     data_path_stem: str | Path,
     start_time: datetime,
     end_time: datetime,
 ) -> dict[str, ep.Variable]:
-    url = f"https://data.ngdc.noaa.gov/platforms/solar-space-observing-satellites/goes/{sat_str}/l2/data/mpsh-l2-avg5m_science/YYYY/MM/"
+    url = f"https://data.ngdc.noaa.gov/platforms/solar-space-observing-satellites/goes/{satellite}/l2/data/mpsh-l2-avg5m_science/YYYY/MM/"
 
-    sat_stem = "g18" if sat_str == "goes18" else "g19"
+    sat_stem = "g18" if satellite == "goes18" else "g19"
     file_name_stem = f"sci_mpsh-l2-avg5m_{sat_stem}_dYYYYMMDD_.{r'{6}'}.nc"
 
     ep.download(
@@ -338,19 +339,10 @@ def _get_mps_high_variables(
     )
 
 
+CLI_DEFAULTS = {
+    "raw_data_path": "goes/raw/",
+    "processed_data_path": "goes/processed/",
+}
+
 if __name__ == "__main__":
-    start_time = datetime(2026, 7, 25, tzinfo=timezone.utc)
-    end_time = datetime(2026, 7, 31, 23, 59, tzinfo=timezone.utc)
-
-    Satellite = Literal["goes18", "goes19"]
-    sats: list[Satellite] = ["goes18", "goes19"]
-
-    for sat in sats:
-        process_goes_r_mps_high(
-            sat_str=sat,
-            raw_data_path="goes/raw/",
-            processed_data_path="goes/processed/",
-            start_time=start_time,
-            end_time=end_time,
-            num_cores=64,
-        )
+    ep.run_recipe_cli(process_goes_r_mps_high, defaults=CLI_DEFAULTS)

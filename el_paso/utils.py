@@ -11,6 +11,7 @@ import os
 import re
 import timeit
 import typing
+import warnings
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from pathlib import Path
@@ -237,11 +238,14 @@ def datenum_to_datetime(datenum_val: float) -> datetime:
     Returns:
         datetime: The converted datetime object with UTC timezone.
     """
-    return (
-        pd.to_datetime(datenum_val - 719529, unit="D", origin=pd.Timestamp("1970-01-01"))
-        .to_pydatetime()
-        .replace(tzinfo=timezone.utc)
-    )
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="Discarding nonzero nanoseconds", category=UserWarning)
+
+        return (
+            pd.to_datetime(datenum_val - 719529, unit="D", origin=pd.Timestamp("1970-01-01"))
+            .to_pydatetime()
+            .replace(tzinfo=timezone.utc)
+        )
 
 
 def datetime_to_datenum(datetime_val: datetime) -> float:

@@ -32,6 +32,8 @@ from el_paso.download import download
 from el_paso.extract_variables_from_files import extract_variables_from_files, ExtractionInfo
 from el_paso.load_indices_solar_wind_parameters import load_indices_solar_wind_parameters
 from el_paso.logger import setup_logging
+from el_paso.cli.recipe_cli import build_recipe_command, run_recipe_cli
+from el_paso import cli
 from el_paso import dataset
 from el_paso import recipes
 
@@ -49,6 +51,8 @@ __all__ = [
     "TimeBinMethod",
     "Variable",
     "activate_release_mode",
+    "build_recipe_command",
+    "cli",
     "data_standards",
     "download",
     "extract_variables_from_files",
@@ -58,6 +62,7 @@ __all__ = [
     "physics",
     "processing",
     "recipes",
+    "run_recipe_cli",
     "save",
     "saving_strategies",
     "setup_logging",

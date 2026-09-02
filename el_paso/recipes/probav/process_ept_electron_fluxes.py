@@ -30,16 +30,17 @@ load_dotenv()
 
 @timed_function("process_ept_electron_fluxes")
 def process_ept_electron_fluxes(
-    raw_data_path: str | Path,
-    processed_data_path: str | Path,
     start_time: datetime,
     end_time: datetime,
-    num_cores: int = 32,
+    mag_field: ep.typing.MagneticFieldLiteral = "T89",
+    raw_data_path: str | Path = ".",
+    processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(seconds=10),
-    skip_existing: bool = True,  # noqa: FBT001, FBT002,
+    num_cores: int = 16,
     client_id: str | None = None,
     client_secret: str | None = None,
     save_strategy: typing.Literal["gfz", "netcdf", "both"] = "netcdf",
+    skip_existing: bool = True,  # noqa: FBT001, FBT002,
     *,
     apply_correction_factors: bool = False,
 ) -> None:
@@ -53,26 +54,25 @@ def process_ept_electron_fluxes(
     center energies are computed from a fixed set of energy limits. The data is then time-binned to
     `bin_cadence`, the spacecraft position is transformed from spherical to GEO coordinates, and
     magnetic field model quantities (B_Calc, B_Eq, MLT_Eq, R_Eq, Alpha_Eq, L_m) are computed using
-    the T89 model. The resulting variables are saved to disk (appending to existing files) using a
+    `mag_field`. The resulting variables are saved to disk (appending to existing files) using a
     GFZ and/or NetCDF daily LEO/RB saving strategy depending on `save_strategy`.
 
     Args:
-        raw_data_path (str | Path): Base directory used for downloading and locating the raw EPT data files.
-        processed_data_path (str | Path): Base directory in which the processed output files are saved.
         start_time (datetime): Start of the time range to process.
         end_time (datetime): End of the time range to process.
-        num_cores (int, optional): Number of CPU cores used for the magnetic field computations. Defaults to 32.
-        bin_cadence (timedelta, optional): Time binning cadence applied to the extracted variables.
-            Defaults to timedelta(seconds=10).
-        skip_existing (bool, optional): If True, skip downloading files that already exist locally.
-            Defaults to True.
-        client_id (str | None, optional): Client ID for the ESA SWE authentication. If None, it is read
-            from the `CLIENT_ID` environment variable. Defaults to None.
-        client_secret (str | None, optional): Client secret for the ESA SWE authentication. If None, it
-            is read from the `CLIENT_SECRET` environment variable. Defaults to None.
-        save_strategy (typing.Literal["gfz", "netcdf", "both"], optional): Which saving strategy (or
-            strategies) to use for the processed output. Defaults to "netcdf".
-        apply_correction_factors (bool): Flag whether to apply correction factors to fluxes. Defaults to False.
+        mag_field (MagneticFieldLiteral): Magnetic field model used for the derived quantities.
+        raw_data_path (str | Path): Base directory used for downloading and locating the raw EPT data files.
+        processed_data_path (str | Path): Base directory in which the processed output files are saved.
+        bin_cadence (timedelta): Time binning cadence applied to the extracted variables.
+        num_cores (int): Number of CPU cores used for the magnetic field computations.
+        client_id (str | None): Client ID for the ESA SWE authentication. If None, it is read
+            from the `CLIENT_ID` environment variable.
+        client_secret (str | None): Client secret for the ESA SWE authentication. If None, it
+            is read from the `CLIENT_SECRET` environment variable.
+        save_strategy (typing.Literal["gfz", "netcdf", "both"]): Which saving strategy (or
+            strategies) to use for the processed output.
+        skip_existing (bool): If True, skip downloading files that already exist locally.
+        apply_correction_factors (bool): Flag whether to apply correction factors to fluxes.
 
     Raises:
         ValueError: If `client_id` or `client_secret` is not provided and not available via the
@@ -240,12 +240,12 @@ def process_ept_electron_fluxes(
     del variables["rad"], variables["lon"], variables["lat"]
 
     variables_to_compute: ep.processing.VariableRequest = [
-        ("B_Calc", "T89"),
-        ("B_Eq", "T89"),
-        ("MLT_Eq", "T89"),
-        ("R_Eq", "T89"),
-        ("Alpha_Eq", "T89"),
-        ("L_m", "T89"),
+        ("B_Calc", mag_field),
+        ("B_Eq", mag_field),
+        ("MLT_Eq", mag_field),
+        ("R_Eq", mag_field),
+        ("Alpha_Eq", mag_field),
+        ("L_m", mag_field),
     ]
 
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
@@ -268,12 +268,12 @@ def process_ept_electron_fluxes(
         "FEDU": variables["FEDU"],
         "Energy_FEDU": variables["Energy_FEDU"],
         "Alpha": variables["PA_local"],
-        "Alpha_Eq": magnetic_field_variables["Alpha_Eq_T89"],
-        "R_Eq": magnetic_field_variables["R_Eq_T89"],
-        "MLT": magnetic_field_variables["MLT_Eq_T89"],
-        "L_m": magnetic_field_variables["L_m_T89"],
-        "B_Calc": magnetic_field_variables["B_Calc_T89"],
-        "B_Eq": magnetic_field_variables["B_Eq_T89"],
+        "Alpha_Eq": magnetic_field_variables[f"Alpha_Eq_{mag_field}"],
+        "R_Eq": magnetic_field_variables[f"R_Eq_{mag_field}"],
+        "MLT": magnetic_field_variables[f"MLT_Eq_{mag_field}"],
+        "L_m": magnetic_field_variables[f"L_m_{mag_field}"],
+        "B_Calc": magnetic_field_variables[f"B_Calc_{mag_field}"],
+        "B_Eq": magnetic_field_variables[f"B_Eq_{mag_field}"],
         "Position": variables["xGEO"],
     }
 
@@ -283,7 +283,7 @@ def process_ept_electron_fluxes(
             mission="PROBAV",
             satellite="probav",
             instrument="ept",
-            mag_field="T89",
+            mag_field=mag_field,
             data_standard=ep.data_standards.GFZStandard(),
         )
 
@@ -293,7 +293,7 @@ def process_ept_electron_fluxes(
             mission="PROBAV",
             satellite="probav",
             instrument="ept",
-            mag_field="T89",
+            mag_field=mag_field,
             file_format=".nc",
             data_standard=ep.data_standards.GFZStandard(),
         )
@@ -301,36 +301,4 @@ def process_ept_electron_fluxes(
 
 
 if __name__ == "__main__":
-    logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
-    logging.getLogger().setLevel(logging.INFO)
-
-    parser = argparse.ArgumentParser(description="Process EPT electron fulx data.")
-    parser.add_argument(
-        "--start_time",
-        type=str,
-        help="Start time in valid dateparse format. Example: YYYY-MM-DDTHH:MM:SS.",
-        default=datetime(2024, 5, 8, tzinfo=timezone.utc).isoformat(),
-        required=False,
-    )
-    parser.add_argument(
-        "--end_time",
-        type=str,
-        help="End time in valid dateparse format. Example: YYYY-MM-DDTHH:MM:SS.",
-        default=datetime(2024, 5, 8, 23, 59, 59, tzinfo=timezone.utc).isoformat(),
-        required=False,
-    )
-
-    args = parser.parse_args()
-
-    dt_start = dateutil.parser.parse(args.start_time)
-    dt_end = dateutil.parser.parse(args.end_time)
-
-    #    with tempfile.TemporaryDirectory() as tmpdir:
-    process_ept_electron_fluxes(
-        start_time=dt_start,
-        end_time=dt_end,
-        raw_data_path=".",
-        processed_data_path=".",
-        num_cores=64,
-        bin_cadence=timedelta(seconds=10),
-    )
+    ep.run_recipe_cli(process_ept_electron_fluxes)

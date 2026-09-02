@@ -336,7 +336,7 @@ def test_skip_existing_false_does_not_overwrite_files_outside_time_range(
 
     ep.download(
         start_time=datetime(2013, 1, 2, tzinfo=timezone.utc),
-        end_time=datetime(2013, 1, 4, tzinfo=timezone.utc),
+        end_time=datetime(2013, 1, 3, 23, 59, tzinfo=timezone.utc),
         save_path=tmp_path,
         file_cadence="daily",
         download_url="https://fake.server/data/",

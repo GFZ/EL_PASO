@@ -26,14 +26,16 @@ import el_paso as ep
 
 
 @timed_function("process_arase_xep_real_time")
-def process_arase_xep_real_time(  # noqa: D417
-    processed_data_path: str | Path,
-    download_data_dir: str | Path,
+def process_arase_xep_real_time(
     start_time: datetime,
     end_time: datetime,
+    mag_field: ep.typing.MagneticFieldLiteral = "T89",
+    raw_data_path: str | Path = ".",
+    processed_data_path: str | Path = ".",
+    bin_cadence: timedelta = timedelta(minutes=5),
+    num_cores: int = 16,
     erg_user: str | None = None,
     erg_password: str | None = None,
-    num_cores: int = 32,
     save_strategy: Literal["gfz", "netcdf", "both"] = "netcdf",
     *,
     download: bool = True,
@@ -45,32 +47,30 @@ def process_arase_xep_real_time(  # noqa: D417
     Downloads (unless `download` is False) and extracts the daily Arase real-time XEP
     omnidirectional flux (FEDO) text files and the real-time orbit position text files for the
     requested time range, converts the orbit position from SM to GEO coordinates, time-bins the
-    flux and position variables onto a 5-minute cadence, computes magnetic-field-related
-    quantities (B_Calc, B_Eq, MLT, R_Eq, Alpha_Eq, L_star, L_m, InvMu, InvK) for the T89 model via
+    flux and position variables onto a common cadence, computes magnetic-field-related
+    quantities (B_Calc, B_Eq, MLT, R_Eq, Alpha_Eq, L_star, L_m, InvMu, InvK) for `mag_field` via
     IRBEM, constructs a pitch-angle distribution (FEDU) from the omnidirectional flux, applies a
     lower flux threshold, computes the electron phase space density, and saves the resulting
     variables using the requested saving strategy/strategies.
 
     Args:
-        processed_data_path (str | Path): Base directory where the processed output data is saved.
-        download_data_dir (str | Path): Base directory where downloaded raw data files are stored.
         start_time (datetime): Start of the time range to process.
         end_time (datetime): End of the time range to process.
-        erg_user (str | None, optional): Username for the ERG data server. If None, it is read
-                                        from the ``ERG_USER`` environment variable.
-                                        Defaults to None.
-        erg_password (str | None, optional): Password for the ERG data server. If None, it is
-                                            read from the ``ERG_PASSWORD`` environment variable.
-                                            Defaults to None.
-        num_cores (int, optional): Number of CPU cores used for the IRBEM magnetic field
-                                computations. Defaults to 32.
-        save_strategy (Literal["gfz", "netcdf", "both"], optional): Which saving strategy/strategies
-                                                                    to use for writing the processed
-                                                                    data. Defaults to "netcdf".
-        download (bool, optional): Whether to download the raw data files before processing.
-                                Defaults to True.
-        skip_existing (bool, optional): Whether to skip downloading files that already exist
-                                        locally. Defaults to True.
+        mag_field (MagneticFieldLiteral): Magnetic field model used for the derived quantities.
+        raw_data_path (str | Path): Base directory where downloaded raw data files are stored.
+        processed_data_path (str | Path): Base directory where the processed output data is saved.
+        bin_cadence (timedelta): Time binning cadence applied to the flux and position variables.
+        num_cores (int): Number of CPU cores used for the IRBEM magnetic field computations.
+        erg_user (str | None): Username for the ERG data server. If None, it is read
+            from the ``ERG_USER`` environment variable.
+        erg_password (str | None): Password for the ERG data server. If None, it is
+            read from the ``ERG_PASSWORD`` environment variable.
+        save_strategy (Literal["gfz", "netcdf", "both"]): Which saving strategy/strategies
+            to use for writing the processed data.
+        download (bool): Whether to download the raw data files before processing.
+        skip_existing (bool): Whether to skip downloading files that already exist locally.
+        do_xep_extraction (bool): Whether to extract the XEP flux product. If False, only the
+            orbit data is processed.
 
     Raises:
         ValueError: If `erg_user` is not provided and the ``ERG_USER`` environment variable is
@@ -94,7 +94,7 @@ def process_arase_xep_real_time(  # noqa: D417
 
     if do_xep_extraction:
         xep_variables = _get_xep_variables(
-            download_data_dir,
+            raw_data_path,
             start_time,
             end_time,
             erg_user,
@@ -103,7 +103,7 @@ def process_arase_xep_real_time(  # noqa: D417
             skip_existing=skip_existing,
         )
     orb_variables = _get_orb_variables(
-        download_data_dir,
+        raw_data_path,
         start_time,
         end_time,
         erg_user,
@@ -121,7 +121,7 @@ def process_arase_xep_real_time(  # noqa: D417
         xep_variables["Epoch"],
         xep_variables,
         time_bin_methods_xep,
-        time_binning_cadence=timedelta(minutes=5),
+        time_binning_cadence=bin_cadence,
         start_time=start_time,
         end_time=end_time,
     )
@@ -133,7 +133,7 @@ def process_arase_xep_real_time(  # noqa: D417
         orb_variables["Epoch"],
         orb_variables,
         time_bin_methods_orb,
-        time_binning_cadence=timedelta(minutes=5),
+        time_binning_cadence=bin_cadence,
         start_time=start_time,
         end_time=end_time,
     )
@@ -141,15 +141,15 @@ def process_arase_xep_real_time(  # noqa: D417
     variables_combined = xep_variables | orb_variables
 
     variables_to_compute: ep.processing.VariableRequest = [
-        ("B_Calc", "T89"),
-        ("B_Eq", "T89"),
-        ("MLT", "T89"),
-        ("R_Eq", "T89"),
-        ("Alpha_Eq", "T89"),
-        ("L_star", "T89"),
-        ("L_m", "T89"),
-        ("InvMu", "T89"),
-        ("InvK", "T89"),
+        ("B_Calc", mag_field),
+        ("B_Eq", mag_field),
+        ("MLT", mag_field),
+        ("R_Eq", mag_field),
+        ("Alpha_Eq", mag_field),
+        ("L_star", mag_field),
+        ("L_m", mag_field),
+        ("InvMu", mag_field),
+        ("InvK", mag_field),
     ]
 
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
@@ -168,12 +168,12 @@ def process_arase_xep_real_time(  # noqa: D417
     FEDU_var = ep.processing.construct_pitch_angle_distribution(
         variables_combined["FEDO"],
         variables_combined["PA_local_FEDU"],
-        magnetic_field_variables["Alpha_Eq_T89"],
+        magnetic_field_variables[f"Alpha_Eq_{mag_field}"],
         flux_type="omni",
         method="sin",
         time_var=binned_time_var,
-        L_var=magnetic_field_variables["R_Eq_T89"],
-        MLT_var=magnetic_field_variables["MLT_T89"],
+        L_var=magnetic_field_variables[f"R_Eq_{mag_field}"],
+        MLT_var=magnetic_field_variables[f"MLT_{mag_field}"],
         energy_var=variables_combined["Energy_FEDO"],
     )
     FEDU_var.apply_thresholds_on_data(lower_threshold=0)
@@ -187,15 +187,15 @@ def process_arase_xep_real_time(  # noqa: D417
         "FEDU": FEDU_var,
         "Energy_FEDU": variables_combined["Energy_FEDO"],
         "Alpha": variables_combined["PA_local_FEDU"],
-        "Alpha_Eq": magnetic_field_variables["Alpha_Eq_T89"],
-        "R_Eq": magnetic_field_variables["R_Eq_T89"],
-        "MLT": magnetic_field_variables["MLT_T89"],
-        "L_star": magnetic_field_variables["L_star_T89"],
-        "B_Calc": magnetic_field_variables["B_Calc_T89"],
-        "B_Eq": magnetic_field_variables["B_Eq_T89"],
+        "Alpha_Eq": magnetic_field_variables[f"Alpha_Eq_{mag_field}"],
+        "R_Eq": magnetic_field_variables[f"R_Eq_{mag_field}"],
+        "MLT": magnetic_field_variables[f"MLT_{mag_field}"],
+        "L_star": magnetic_field_variables[f"L_star_{mag_field}"],
+        "B_Calc": magnetic_field_variables[f"B_Calc_{mag_field}"],
+        "B_Eq": magnetic_field_variables[f"B_Eq_{mag_field}"],
         "PSD": psd_var,
-        "InvMu": magnetic_field_variables["InvMu_T89"],
-        "InvK": magnetic_field_variables["InvK_T89"],
+        "InvMu": magnetic_field_variables[f"InvMu_{mag_field}"],
+        "InvK": magnetic_field_variables[f"InvK_{mag_field}"],
         "Position": variables_combined["xGEO"],
     }
 
@@ -205,7 +205,7 @@ def process_arase_xep_real_time(  # noqa: D417
             mission="Arase",
             satellite="Arase",
             instrument="XEP",
-            mag_field="T89",
+            mag_field=mag_field,
         )
 
         ep.save(
@@ -223,7 +223,7 @@ def process_arase_xep_real_time(  # noqa: D417
             mission="Arase",
             satellite="arase",
             instrument="xep",
-            mag_field="T89",
+            mag_field=mag_field,
             data_standard=ep.data_standards.GFZStandard(),
         )
 
@@ -238,7 +238,7 @@ def process_arase_xep_real_time(  # noqa: D417
 
 
 def _get_xep_variables(
-    download_data_dir: str | Path,
+    raw_data_path: str | Path,
     start_time: datetime,
     end_time: datetime,
     erg_user: str,
@@ -252,7 +252,7 @@ def _get_xep_variables(
     energy_max = np.asarray((600.0, 1000.0, 1500.0, 2200.0, 3500.0, 4300.0, 5400.0, 9800.0))
     energy_mean = _get_mean_energy(energy_min, energy_max)
 
-    data_path_stem = f"{download_data_dir}/ARASE/YYYY/MM/"
+    data_path_stem = f"{raw_data_path}/ARASE/YYYY/MM/"
     file_name_stem = "erg_real_xep_YYYYMMDD_v002.txt"
     url = "https://ergsc.isee.nagoya-u.ac.jp/data/ergsc/satellite/erg/swx/xep/l2/"
 
@@ -345,7 +345,7 @@ def _get_xep_variables(
 
 
 def _get_orb_variables(
-    download_data_dir: str | Path,
+    raw_data_path: str | Path,
     start_time: datetime,
     end_time: datetime,
     erg_user: str,
@@ -354,7 +354,7 @@ def _get_orb_variables(
     download: bool,
     skip_existing: bool,
 ) -> dict[str, ep.Variable]:
-    data_path_stem = f"{download_data_dir}/ARASE/YYYY/MM/"
+    data_path_stem = f"{raw_data_path}/ARASE/YYYY/MM/"
     file_name_stem = "erg_orb_pre_l2_YYYYMMDD_v01.txt"
     url = "https://ergsc.isee.nagoya-u.ac.jp/data/ergsc/satellite/erg/swx/orb/"
 
@@ -422,18 +422,9 @@ def _get_mean_energy(e_min: NDArray[np.float64], e_max: NDArray[np.float64]) -> 
     return -np.log(tmp) / b
 
 
+CLI_DEFAULTS = {
+    "download": False,
+}
+
 if __name__ == "__main__":
-    ep.setup_logging()
-
-    start_time = datetime(2026, 8, 20, tzinfo=timezone.utc)
-    end_time = start_time + timedelta(days=1)
-
-    process_arase_xep_real_time(
-        processed_data_path=".",
-        download_data_dir=".",
-        start_time=start_time,
-        end_time=end_time,
-        num_cores=64,
-        skip_existing=True,
-        download=False,
-    )
+    ep.run_recipe_cli(process_arase_xep_real_time, defaults=CLI_DEFAULTS)

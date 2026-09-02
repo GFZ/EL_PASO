@@ -21,11 +21,12 @@ from el_paso.processing.magnetic_field_utils import InternalFieldModel, IrbemOpt
 def process_rbsp_hope_protons(
     start_time: datetime,
     end_time: datetime,
-    sat_str: Literal["a", "b"],
-    mag_field: Literal["T89", "T96", "TS04"],
+    satellite: Literal["a", "b"] = "a",
+    mag_field: Literal["T89", "T96", "TS04"] = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
-    num_cores: int = 32,
+    bin_cadence: timedelta = timedelta(minutes=5),
+    num_cores: int = 16,
     save_strategy: Literal["gfz", "netcdf", "both"] = "both",
 ) -> None:
     """Process RBSP ECT/HOPE proton flux data into the EL-PASO data standard.
@@ -33,7 +34,7 @@ def process_rbsp_hope_protons(
     Downloads the daily RBSP HOPE pitch-angle level-3 proton CDF files for the given time range
     and satellite, extracts the energy/pitch-angle-resolved flux (FPDU) and position, applies a
     lower bound threshold to the flux, truncates all variables to the requested time range, time-bins
-    all variables to a 5-minute cadence, folds the pitch angles and flux to the [0, 90] degree
+    all variables to a common cadence, folds the pitch angles and flux to the [0, 90] degree
     range, computes magnetic-field-related quantities (B field, equatorial pitch angle, L*, L_m,
     MLT, InvK, InvMu, etc.) with the given magnetic field model via IRBEM, computes the proton
     phase space density from FPDU, and saves all resulting variables using the requested
@@ -42,28 +43,29 @@ def process_rbsp_hope_protons(
     Args:
         start_time (datetime): Start of the time range to process.
         end_time (datetime): End of the time range to process.
-        sat_str (Literal["a", "b"]): RBSP satellite identifier ("a" or "b").
+        satellite (Literal["a", "b"]): RBSP satellite identifier ("a" or "b").
         mag_field (Literal["T89", "T96", "TS04"]): Magnetic field model used to compute the
             magnetic-field-related variables.
-        raw_data_path (str | Path, optional): Directory where raw CDF files are downloaded to and
+        raw_data_path (str | Path): Directory where raw CDF files are downloaded to and
             read from. Defaults to ".".
-        processed_data_path (str | Path, optional): Directory where the processed output files are
+        processed_data_path (str | Path): Directory where the processed output files are
             written to. Defaults to ".".
-        num_cores (int, optional): Number of CPU cores used for the magnetic field computations.
+        bin_cadence (timedelta): Time-binning cadence applied to all variables.
+        num_cores (int): Number of CPU cores used for the magnetic field computations.
             Defaults to 32.
-        save_strategy (Literal["gfz", "netcdf", "both"], optional): Which saving strategy/strategies
+        save_strategy (Literal["gfz", "netcdf", "both"]): Which saving strategy/strategies
             to use for writing the processed output. Defaults to "both".
     """
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
 
-    file_name_stem = "rbsp" + sat_str + "_rel04_ect-hope-pa-l3_YYYYMMDD_.{6}.cdf"
+    file_name_stem = "rbsp" + satellite + "_rel04_ect-hope-pa-l3_YYYYMMDD_.{6}.cdf"
 
     ep.download(
         start_time,
         end_time,
         save_path=raw_data_path,
-        download_url=f"https://spdf.gsfc.nasa.gov/pub/data/rbsp/rbsp{sat_str}/l3/ect/hope/pitchangle/rel04/YYYY/",
+        download_url=f"https://spdf.gsfc.nasa.gov/pub/data/rbsp/rbsp{satellite}/l3/ect/hope/pitchangle/rel04/YYYY/",
         file_name_stem=file_name_stem,
         file_cadence="daily",
         method="request",
@@ -126,7 +128,7 @@ def process_rbsp_hope_protons(
         variables["Epoch"],
         variables=variables,
         time_bin_method_dict=time_bin_methods,
-        time_binning_cadence=timedelta(minutes=5),
+        time_binning_cadence=bin_cadence,
     )
 
     variables["FPDU"].transpose_data([0, 2, 1])  # making it have dimensions (time, energy, pitch angle)
@@ -182,7 +184,7 @@ def process_rbsp_hope_protons(
         strategy = ep.saving_strategies.GFZStrategy(
             processed_data_path,
             mission="RBSP",
-            satellite="rbsp" + sat_str,
+            satellite="rbsp" + satellite,
             instrument="hope",
             mag_field=mag_field,
             data_standard=ep.data_standards.GFZStandard(),
@@ -193,7 +195,7 @@ def process_rbsp_hope_protons(
         strategy = ep.saving_strategies.MonthlyRBStrategy(
             base_data_path=Path(processed_data_path),
             mission="RBSP",
-            satellite="rbsp" + sat_str,
+            satellite="rbsp" + satellite,
             instrument="hope",
             mag_field=mag_field,
             file_format=".nc",
@@ -202,38 +204,10 @@ def process_rbsp_hope_protons(
         ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=True)
 
 
+CLI_DEFAULTS = {
+    "raw_data_path": "raw_hope",
+    "processed_data_path": "processed_hope",
+}
+
 if __name__ == "__main__":
-    logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
-    logging.getLogger().setLevel(logging.INFO)
-
-    parser = argparse.ArgumentParser(description="Process proton flux data from ECT/HOPE instrument on VanAllenProbes.")
-    parser.add_argument(
-        "--start_time",
-        type=str,
-        help="Start time in valid dateparse format. Example: YYYY-MM-DDTHH:MM:SS.",
-        default=datetime(2013, 3, 16, tzinfo=timezone.utc).isoformat(),
-        required=False,
-    )
-    parser.add_argument(
-        "--end_time",
-        type=str,
-        help="End time in valid dateparse format. Example: YYYY-MM-DDTHH:MM:SS.",
-        default=datetime(2013, 3, 18, 23, 59, 59, tzinfo=timezone.utc).isoformat(),
-        required=False,
-    )
-
-    args = parser.parse_args()
-
-    dt_start = dateutil.parser.parse(args.start_time)
-    dt_end = dateutil.parser.parse(args.end_time)
-
-    for sat_str in ["a", "b"]:
-        process_rbsp_hope_protons(
-            dt_start,
-            dt_end,
-            sat_str,
-            "T89",
-            raw_data_path="raw_hope",
-            processed_data_path="processed_hope",
-            num_cores=8,
-        )
+    ep.run_recipe_cli(process_rbsp_hope_protons, defaults=CLI_DEFAULTS)

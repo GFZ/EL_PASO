@@ -3,14 +3,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import argparse
-import logging
-import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Literal, get_args
 
-import dateutil
 import numpy as np
 from astropy import units as u
 
@@ -19,13 +14,14 @@ from el_paso.recipes.poes import poes_satellite_literal
 
 
 def process_poes_meped_electron(
-    satellite_str: poes_satellite_literal,
-    raw_data_path: str | Path,
-    processed_data_path: str | Path,
     start_time: datetime,
     end_time: datetime,
-    num_cores: int = 32,
+    satellite: poes_satellite_literal = "noaa15",
+    mag_field: ep.typing.MagneticFieldLiteral = "T89",
+    raw_data_path: str | Path = ".",
+    processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=5),
+    num_cores: int = 16,
 ) -> None:
     """Process POES/MetOp MEPED electron flux data into magnetic-field-resolved data products.
 
@@ -33,23 +29,22 @@ def process_poes_meped_electron(
     bins the integral electron flux, energy channels, local pitch angles, and ephemeris onto the
     given time cadence. The two local pitch angles (0 and 90 degrees relative to the spacecraft)
     are stacked into a single pitch-angle variable, and the geodetic position is converted to GEO
-    coordinates. T89 magnetic field quantities (B_Calc, B_Eq, MLT_Eq, R_Eq, Alpha_Eq, L_star, L_m)
+    coordinates. Magnetic field quantities (B_Calc, B_Eq, MLT_Eq, R_Eq, Alpha_Eq, L_star, L_m)
     are computed and the resulting variables are saved using a daily LEO saving strategy.
 
     Args:
-        satellite_str (poes_satellite_literal): The POES/MetOp satellite to process.
-        raw_data_path (str | Path): Directory where the raw downloaded data files are stored.
-        processed_data_path (str | Path): Directory where the processed output files are saved.
         start_time (datetime): Start of the time interval to process.
         end_time (datetime): End of the time interval to process.
-        num_cores (int, optional): Number of CPU cores used for the magnetic field computations.
-            Defaults to 32.
-        bin_cadence (timedelta, optional): Time cadence used to bin the extracted variables.
-            Defaults to timedelta(minutes=5).
+        satellite (poes_satellite_literal): The POES/MetOp satellite to process.
+        mag_field (MagneticFieldLiteral): Magnetic field model used for the derived quantities.
+        raw_data_path (str | Path): Directory where the raw downloaded data files are stored.
+        processed_data_path (str | Path): Directory where the processed output files are saved.
+        bin_cadence (timedelta): Time cadence used to bin the extracted variables.
+        num_cores (int): Number of CPU cores used for the magnetic field computations.
     """
-    data_path_stem = f"{raw_data_path}/POES/{satellite_str}/YYYY/MM/"
-    url = f"https://spdf.gsfc.nasa.gov/pub/data/noaa/{satellite_str}/sem2_fluxes-2sec/YYYY/"
-    file_name_stem = satellite_str + "_poes-sem2_fluxes-2sec_YYYYMMDD_.{3}.cdf"
+    data_path_stem = f"{raw_data_path}/POES/{satellite}/YYYY/MM/"
+    url = f"https://spdf.gsfc.nasa.gov/pub/data/noaa/{satellite}/sem2_fluxes-2sec/YYYY/"
+    file_name_stem = satellite + "_poes-sem2_fluxes-2sec_YYYYMMDD_.{3}.cdf"
 
     ep.download(
         start_time,
@@ -156,14 +151,14 @@ def process_poes_meped_electron(
     del variables["lat"]
 
     variables_to_compute: ep.processing.VariableRequest = [
-        ("B_Calc", "T89"),
-        ("B_Eq", "T89"),
-        ("MLT_Eq", "T89"),
-        ("B_Eq", "T89"),
-        ("R_Eq", "T89"),
-        ("Alpha_Eq", "T89"),
-        ("L_star", "T89"),
-        ("L_m", "T89"),
+        ("B_Calc", mag_field),
+        ("B_Eq", mag_field),
+        ("MLT_Eq", mag_field),
+        ("B_Eq", mag_field),
+        ("R_Eq", mag_field),
+        ("Alpha_Eq", mag_field),
+        ("L_star", mag_field),
+        ("L_m", mag_field),
     ]
 
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
@@ -184,58 +179,29 @@ def process_poes_meped_electron(
         "FEIU": variables["FEIU"],
         "Energy_FEIU": variables["Energy"],
         "Alpha": variables["PA_local"],
-        "Alpha_Eq": magnetic_field_variables["Alpha_Eq_T89"],
-        "R_Eq": magnetic_field_variables["R_Eq_T89"],
-        "MLT": magnetic_field_variables["MLT_Eq_T89"],
-        "B_Calc": magnetic_field_variables["B_Calc_T89"],
-        "B_Eq": magnetic_field_variables["B_Eq_T89"],
+        "Alpha_Eq": magnetic_field_variables[f"Alpha_Eq_{mag_field}"],
+        "R_Eq": magnetic_field_variables[f"R_Eq_{mag_field}"],
+        "MLT": magnetic_field_variables[f"MLT_Eq_{mag_field}"],
+        "B_Calc": magnetic_field_variables[f"B_Calc_{mag_field}"],
+        "B_Eq": magnetic_field_variables[f"B_Eq_{mag_field}"],
         "Position": variables["xGEO"],
     }
 
     saving_strategy = ep.saving_strategies.DailyLEORBStrategy(
         base_data_path=Path(processed_data_path),
         mission="POES",
-        satellite=satellite_str,
+        satellite=satellite,
         instrument="MEPED",
-        mag_field="T89",
+        mag_field=mag_field,
         data_standard=ep.data_standards.GFZStandard(),
     )
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var)  # ty:ignore[invalid-argument-type]
 
 
+CLI_DEFAULTS = {
+    "bin_cadence": timedelta(seconds=10),
+}
+
 if __name__ == "__main__":
-    logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
-    logging.getLogger().setLevel(logging.INFO)
-
-    parser = argparse.ArgumentParser(description="Process MEPED data from POES satellites.")
-    parser.add_argument(
-        "--start_time",
-        type=str,
-        help="Start time in valid dateparse format. Example: YYYY-MM-DDTHH:MM:SS.",
-        default=datetime(2013, 3, 16, tzinfo=timezone.utc).isoformat(),
-        required=False,
-    )
-    parser.add_argument(
-        "--end_time",
-        type=str,
-        help="End time in valid dateparse format. Example: YYYY-MM-DDTHH:MM:SS.",
-        default=datetime(2013, 3, 16, 23, 59, 59, tzinfo=timezone.utc).isoformat(),
-        required=False,
-    )
-
-    args = parser.parse_args()
-
-    dt_start = dateutil.parser.parse(args.start_time)
-    dt_end = dateutil.parser.parse(args.end_time)
-
-    for sat_str in "noaa15":
-        process_poes_meped_electron(
-            start_time=dt_start,
-            end_time=dt_end,
-            satellite_str=sat_str,  # ty:ignore[invalid-argument-type]
-            raw_data_path=".",
-            processed_data_path=".",
-            num_cores=64,
-            bin_cadence=timedelta(seconds=10),
-        )
+    ep.run_recipe_cli(process_poes_meped_electron, defaults=CLI_DEFAULTS)

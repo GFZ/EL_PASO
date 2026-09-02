@@ -3,14 +3,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import argparse
-import logging
-import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Literal, get_args
 
-import dateutil
 import numpy as np
 from astropy import units as u
 
@@ -19,13 +14,14 @@ from el_paso.recipes.poes import poes_satellite_literal
 
 
 def process_poes_ted_electron(
-    satellite_str: poes_satellite_literal,
-    raw_data_path: str | Path,
-    processed_data_path: str | Path,
     start_time: datetime,
     end_time: datetime,
-    num_cores: int = 32,
+    satellite: poes_satellite_literal = "noaa15",
+    mag_field: ep.typing.MagneticFieldLiteral = "T89",
+    raw_data_path: str | Path = ".",
+    processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=5),
+    num_cores: int = 16,
     *,
     calculate_Lm_Lstar: bool = False,
 ) -> None:
@@ -35,27 +31,26 @@ def process_poes_ted_electron(
     bins the differential electron flux, energy channels, local pitch angles, and ephemeris onto
     the given time cadence. The two local pitch angles (0 and 30 degrees relative to the
     spacecraft) are stacked into a single pitch-angle variable and folded into the 0-90 degree
-    range, and the geodetic position is converted to GEO and spherical GEO coordinates. T89
+    range, and the geodetic position is converted to GEO and spherical GEO coordinates. The
     magnetic field quantities (B_Calc, MLT, B_Eq, R_Eq, Alpha_Eq, Alpha_LC, Alpha_LC_Eq, and
     optionally L_star and L_m) are computed and the resulting variables are saved using a daily
     LEO saving strategy.
 
     Args:
-        satellite_str (poes_satellite_literal): The POES/MetOp satellite to process.
-        raw_data_path (str | Path): Directory where the raw downloaded data files are stored.
-        processed_data_path (str | Path): Directory where the processed output files are saved.
         start_time (datetime): Start of the time interval to process.
         end_time (datetime): End of the time interval to process.
-        num_cores (int, optional): Number of CPU cores used for the magnetic field computations.
-            Defaults to 32.
-        bin_cadence (timedelta, optional): Time cadence used to bin the extracted variables.
-            Defaults to timedelta(minutes=5).
-        calculate_Lm_Lstar (bool, optional): If True, additionally compute and save the L_m and
-            L_star magnetic field quantities. Defaults to False.
+        satellite (poes_satellite_literal): The POES/MetOp satellite to process.
+        mag_field (MagneticFieldLiteral): Magnetic field model used for the derived quantities.
+        raw_data_path (str | Path): Directory where the raw downloaded data files are stored.
+        processed_data_path (str | Path): Directory where the processed output files are saved.
+        bin_cadence (timedelta): Time cadence used to bin the extracted variables.
+        num_cores (int): Number of CPU cores used for the magnetic field computations.
+        calculate_Lm_Lstar (bool): If True, additionally compute and save the L_m and
+            L_star magnetic field quantities.
     """
-    data_path_stem = f"{raw_data_path}/POES/{satellite_str}/YYYY/MM/"
-    url = f"https://spdf.gsfc.nasa.gov/pub/data/noaa/{satellite_str}/sem2_fluxes-2sec/YYYY/"
-    file_name_stem = satellite_str + "_poes-sem2_fluxes-2sec_YYYYMMDD_.{3}.cdf"
+    data_path_stem = f"{raw_data_path}/POES/{satellite}/YYYY/MM/"
+    url = f"https://spdf.gsfc.nasa.gov/pub/data/noaa/{satellite}/sem2_fluxes-2sec/YYYY/"
+    file_name_stem = satellite + "_poes-sem2_fluxes-2sec_YYYYMMDD_.{3}.cdf"
 
     ep.download(
         start_time,
@@ -164,17 +159,17 @@ def process_poes_ted_electron(
     variables["geo_lon"] = ep.Variable(data=geo_sph_arr[:, 2], original_unit=u.deg)
 
     variables_to_compute: ep.processing.VariableRequest = [
-        ("B_Calc", "T89"),
-        ("MLT", "T89"),
-        ("B_Eq", "T89"),
-        ("R_Eq", "T89"),
-        ("Alpha_Eq", "T89"),
-        ("Alpha_LC", "T89"),
-        ("Alpha_LC_Eq", "T89"),
+        ("B_Calc", mag_field),
+        ("MLT", mag_field),
+        ("B_Eq", mag_field),
+        ("R_Eq", mag_field),
+        ("Alpha_Eq", mag_field),
+        ("Alpha_LC", mag_field),
+        ("Alpha_LC_Eq", mag_field),
     ]
 
     if calculate_Lm_Lstar:
-        variables_to_compute.extend([("L_star", "T89"), ("L_m", "T89")])  # ty:ignore[invalid-argument-type]
+        variables_to_compute.extend([("L_star", mag_field), ("L_m", mag_field)])  # ty:ignore[invalid-argument-type]
 
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
         time_var=binned_time_var,
@@ -194,68 +189,40 @@ def process_poes_ted_electron(
         "FEDU": variables["FEDU"],
         "Energy_FEDU": variables["Energy"],
         "Alpha": variables["PA_local"],
-        "Alpha_Eq": magnetic_field_variables["Alpha_Eq_T89"],
-        "R_Eq": magnetic_field_variables["R_Eq_T89"],
-        "MLT": magnetic_field_variables["MLT_T89"],
-        "B_Calc": magnetic_field_variables["B_Calc_T89"],
-        "B_Eq": magnetic_field_variables["B_Eq_T89"],
+        "Alpha_Eq": magnetic_field_variables[f"Alpha_Eq_{mag_field}"],
+        "R_Eq": magnetic_field_variables[f"R_Eq_{mag_field}"],
+        "MLT": magnetic_field_variables[f"MLT_{mag_field}"],
+        "B_Calc": magnetic_field_variables[f"B_Calc_{mag_field}"],
+        "B_Eq": magnetic_field_variables[f"B_Eq_{mag_field}"],
         "Position": variables["xGEO"],
         "Position_geo_alt": variables["geo_alt"],
         "Position_geo_lat": variables["geo_lat"],
         "Position_geo_lon": variables["geo_lon"],
-        "Alpha_LC": magnetic_field_variables["Alpha_LC_T89"],
-        "Alpha_LC_Eq": magnetic_field_variables["Alpha_LC_Eq_T89"],
+        "Alpha_LC": magnetic_field_variables[f"Alpha_LC_{mag_field}"],
+        "Alpha_LC_Eq": magnetic_field_variables[f"Alpha_LC_Eq_{mag_field}"],
     }
 
     if calculate_Lm_Lstar:
         variables_to_save |= {
-            "L_m": magnetic_field_variables["L_m_T89"],
-            "L_star": magnetic_field_variables["L_star_T89"],
+            "L_m": magnetic_field_variables[f"L_m_{mag_field}"],
+            "L_star": magnetic_field_variables[f"L_star_{mag_field}"],
         }
 
     saving_strategy = ep.saving_strategies.DailyLEORBStrategy(
         base_data_path=Path(processed_data_path),
         mission="POES",
-        satellite=satellite_str,
+        satellite=satellite,
         instrument="TED",
-        mag_field="T89",
+        mag_field=mag_field,
         data_standard=ep.data_standards.GFZStandard(),
     )
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var)  # ty:ignore[invalid-argument-type]
 
 
+CLI_DEFAULTS = {
+    "bin_cadence": timedelta(seconds=10),
+}
+
 if __name__ == "__main__":
-    logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
-    logging.getLogger().setLevel(logging.INFO)
-
-    parser = argparse.ArgumentParser(description="Process TED data from POES satellites.")
-    parser.add_argument(
-        "--start_time",
-        type=str,
-        help="Start time in valid dateparse format. Example: YYYY-MM-DDTHH:MM:SS.",
-        default=datetime(2013, 12, 14, tzinfo=timezone.utc).isoformat(),
-        required=False,
-    )
-    parser.add_argument(
-        "--end_time",
-        type=str,
-        help="End time in valid dateparse format. Example: YYYY-MM-DDTHH:MM:SS.",
-        default=datetime(2013, 12, 14, 11, 59, 59, tzinfo=timezone.utc).isoformat(),
-        required=False,
-    )
-    args = parser.parse_args()
-
-    dt_start = dateutil.parser.parse(args.start_time)
-    dt_end = dateutil.parser.parse(args.end_time)
-
-    for sat_str in ["noaa15"]:
-        process_poes_ted_electron(
-            start_time=dt_start,
-            end_time=dt_end,
-            satellite_str=sat_str,
-            raw_data_path=".",
-            processed_data_path=".",
-            num_cores=64,
-            bin_cadence=timedelta(seconds=10),
-        )
+    ep.run_recipe_cli(process_poes_ted_electron, defaults=CLI_DEFAULTS)

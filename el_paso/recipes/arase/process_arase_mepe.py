@@ -26,11 +26,11 @@ from el_paso.recipes.arase import (
 def process_arase_mepe(
     start_time: datetime,
     end_time: datetime,
-    mag_field: Literal["T89", "TS04", "OP77Q"],
+    mag_field: Literal["T89", "TS04", "OP77Q"] = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
-    num_cores: int = 4,
-    cadence: timedelta = timedelta(minutes=5),
+    bin_cadence: timedelta = timedelta(minutes=5),
+    num_cores: int = 16,
     save_strategy: Literal["gfz", "h5", "netcdf"] = "gfz",
     data_standard: Literal["gfz", "prbem"] = "gfz",
     *,
@@ -52,21 +52,20 @@ def process_arase_mepe(
         end_time (datetime): End of the time range to process.
         mag_field (Literal["T89", "TS04", "OP77Q"]): The magnetic field model used for the
                                                     magnetic-field-related output variables.
-        raw_data_path (str | Path, optional): Directory where downloaded raw data files are
+        raw_data_path (str | Path): Directory where downloaded raw data files are
                                             stored. Defaults to ".".
-        processed_data_path (str | Path, optional): Base directory where the processed output
+        processed_data_path (str | Path): Base directory where the processed output
                                                     data is saved. Defaults to ".".
-        num_cores (int, optional): Number of CPU cores used for the IRBEM magnetic field
+        num_cores (int): Number of CPU cores used for the IRBEM magnetic field
                                 computations (only used when `use_level_3_orbit_data` is
                                 False). Defaults to 4.
-        cadence (timedelta, optional): Time binning cadence applied to all variables.
-                                    Defaults to timedelta(minutes=5).
-        save_strategy (Literal["gfz", "h5", "netcdf"], optional): The saving strategy used to
+        bin_cadence (timedelta): Time binning cadence applied to all variables.
+        save_strategy (Literal["gfz", "h5", "netcdf"]): The saving strategy used to
                                                                 write the processed data.
                                                                 Defaults to "gfz".
-        data_standard (Literal["gfz", "prbem"], optional): The data standard used when saving
+        data_standard (Literal["gfz", "prbem"]): The data standard used when saving
                                                             the processed data. Defaults to "gfz".
-        use_level_3_orbit_data (bool, optional): If True, use Arase Level 3 orbit data (which
+        use_level_3_orbit_data (bool): If True, use Arase Level 3 orbit data (which
                                                 already contains precomputed magnetic field
                                                 quantities for `mag_field`); if False, use Level 2
                                                 orbit data and compute the magnetic field
@@ -150,7 +149,7 @@ def process_arase_mepe(
         mepe_variables["Epoch"],
         variables=mepe_variables,
         time_bin_method_dict=time_bin_methods,
-        time_binning_cadence=cadence,
+        time_binning_cadence=bin_cadence,
         start_time=start_time,
         end_time=end_time,
     )
@@ -173,7 +172,7 @@ def process_arase_mepe(
             orb_variables["Epoch"],
             variables=orb_variables,
             time_bin_method_dict=time_bin_methods,
-            time_binning_cadence=cadence,
+            time_binning_cadence=bin_cadence,
             start_time=start_time,
             end_time=end_time,
         )
@@ -194,7 +193,7 @@ def process_arase_mepe(
             orb_variables["Epoch"],
             variables=orb_variables,
             time_bin_method_dict=time_bin_methods,
-            time_binning_cadence=cadence,
+            time_binning_cadence=bin_cadence,
             start_time=start_time,
             end_time=end_time,
         )
@@ -296,16 +295,4 @@ def process_arase_mepe(
 
 
 if __name__ == "__main__":
-    start_time = datetime(2017, 7, 1, tzinfo=timezone.utc)
-    end_time = datetime(2017, 9, 30, 23, 59, tzinfo=timezone.utc)
-
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        process_arase_mepe(
-            start_time,
-            end_time,
-            "T89",
-            raw_data_path=tmp_dir,
-            processed_data_path=".",
-            num_cores=32,
-            save_strategy="gfz",
-        )
+    ep.run_recipe_cli(process_arase_mepe)

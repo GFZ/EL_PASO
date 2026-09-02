@@ -21,14 +21,14 @@ import el_paso as ep
 from el_paso.recipes.rbsp import process_rbsp_hope_electrons
 
 
-sat_str_list = ["a", "b"]
+satellite_list = ["a", "b"]
 mag_field_list = ["TS04", "T89"]
 
 
-@pytest.mark.parametrize("sat_str", sat_str_list)
+@pytest.mark.parametrize("satellite", satellite_list)
 @pytest.mark.parametrize("mag_field", mag_field_list)
 @pytest.mark.visual
-def test_mageph_rbsp(sat_str: Literal["a", "b"], mag_field: Literal["T89", "TS04"]):  # noqa: PLR0915
+def test_mageph_rbsp(satellite: Literal["a", "b"], mag_field: Literal["T89", "TS04"]):  # noqa: PLR0915
     # process Lstar using el paso
     start_time = datetime(2017, 1, 1, tzinfo=timezone.utc)
     end_time = start_time + timedelta(days=2, hours=23, minutes=59)
@@ -39,7 +39,7 @@ def test_mageph_rbsp(sat_str: Literal["a", "b"], mag_field: Literal["T89", "TS04
     # process_hope_electrons(
     #     start_time,
     #     end_time,
-    #     sat_str,
+    #     satellite,
     #     "IRBEM/libirbem.so",
     #     mag_field,
     #     raw_data_path="tests/comparisons/raw_data",
@@ -75,13 +75,13 @@ def test_mageph_rbsp(sat_str: Literal["a", "b"], mag_field: Literal["T89", "TS04
             mag_field_str_data = "T89D"
         case "TS04":
             mag_field_str_data = "TS04D"
-    file_name_stem = "rbsp" + sat_str + "_def_MagEphem_" + mag_field_str_data + "_YYYYMMDD_v3.0.0.h5"
+    file_name_stem = "rbsp" + satellite + "_def_MagEphem_" + mag_field_str_data + "_YYYYMMDD_v3.0.0.h5"
 
     # ep.download(
     #     start_time,
     #     end_time,
     #     save_path="tests/comparisons/raw_data",
-    #     download_url=f"https://rbsp-ect.newmexicoconsortium.org/data_pub/rbsp{sat_str}/MagEphem/definitive/YYYY/",
+    #     download_url=f"https://rbsp-ect.newmexicoconsortium.org/data_pub/rbsp{satellite}/MagEphem/definitive/YYYY/",
     #     file_name_stem=file_name_stem,
     #     file_cadence="daily",
     #     method="request",

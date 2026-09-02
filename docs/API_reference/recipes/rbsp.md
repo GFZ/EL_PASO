@@ -7,7 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 
 ::: el_paso.recipes.rbsp.process_rbsp_ect_combined.process_rbsp_ect_combined
 
-::: el_paso.recipes.rbsp.process_rbsp_efw_emfisis_density_combined.process_efw_emfisis_density_combined
+::: el_paso.recipes.rbsp.process_rbsp_efw_emfisis_density_combined.process_rbsp_efw_emfisis_density_combined
 
 ::: el_paso.recipes.rbsp.process_rbsp_emfisis_waves.process_rbsp_emfisis_waves
 

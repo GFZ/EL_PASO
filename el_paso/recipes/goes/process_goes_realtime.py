@@ -38,13 +38,15 @@ def _remove_unit_from_energy_channels(energy_channels: NDArray[np.generic]) -> N
 
 @timed_function("process_goes_real_time")
 def process_goes_real_time(
-    sat_str: Literal["primary", "secondary"],
-    processed_data_path: str | Path,
-    raw_data_path: str | Path,
     start_time: datetime,
     end_time: datetime,
+    satellite: Literal["primary", "secondary"] = "primary",
+    mag_field: ep.typing.MagneticFieldLiteral = "T89",
+    raw_data_path: str | Path = ".",
+    processed_data_path: str | Path = ".",
+    bin_cadence: timedelta = timedelta(minutes=5),
+    num_cores: int = 16,
     save_strategy: Literal["gfz", "netcdf", "both"] = "netcdf",
-    num_cores: int = 32,
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
 ) -> None:
     """Process GOES real-time differential electron flux data into pitch-angle resolved phase space densities.
@@ -53,30 +55,30 @@ def process_goes_real_time(
     given GOES satellite, converts the timestamps and energy channel labels, sorts the energy
     channels and fluxes in ascending order, and bins the data onto a 5-minute time cadence.
     A fixed spacecraft position (from `GEOCOORDS_DICT`) and a fixed set of local pitch angles
-    (5 to 90 degrees in 5-degree steps) are assigned, T89 magnetic field quantities (B_Calc, B_Eq,
+    (5 to 90 degrees in 5-degree steps) are assigned, magnetic field quantities (B_Calc, B_Eq,
     MLT, R_Eq, Alpha_Eq, L_star, L_m, InvMu, InvK) are computed, the omnidirectional flux is
     converted to a pitch-angle distribution, and the electron phase space density is derived.
     The resulting variables are saved using the requested saving strategy.
 
     Args:
-        sat_str (Literal["primary", "secondary"]): Which GOES real-time satellite to process
-            ("primary" corresponds to GOES19, "secondary" to GOES18).
-        processed_data_path (str | Path): Directory where the processed output files are saved.
-        raw_data_path (str | Path): Directory where the raw downloaded data files are stored.
         start_time (datetime): Start of the time interval to process.
         end_time (datetime): End of the time interval to process.
-        save_strategy (Literal["gfz", "netcdf", "both"], optional): Strategy used to save the
+        satellite (Literal["primary", "secondary"]): Which GOES real-time satellite to process
+            ("primary" corresponds to GOES19, "secondary" to GOES18).
+        mag_field (MagneticFieldLiteral): Magnetic field model used for the derived quantities.
+        raw_data_path (str | Path): Directory where the raw downloaded data files are stored.
+        processed_data_path (str | Path): Directory where the processed output files are saved.
+        bin_cadence (timedelta): Time cadence used to bin the extracted variables.
+        num_cores (int): Number of CPU cores used for the magnetic field computations.
+        save_strategy (Literal["gfz", "netcdf", "both"]): Strategy used to save the
             processed data. "gfz" saves using the GFZ format, "netcdf" saves monthly NetCDF files,
-            and "both" saves using both strategies. Defaults to "netcdf".
-        num_cores (int, optional): Number of CPU cores used for the magnetic field computations.
-            Defaults to 32.
-        skip_existing (bool, optional): If True, skip downloading files that already exist on
-            disk. Defaults to True.
+            and "both" saves using both strategies.
+        skip_existing (bool): If True, skip downloading files that already exist on disk.
     """
     # Part 1: specify source files to extract variables
-    data_path_stem = f"{raw_data_path}/GOES/YYYY/MM/{sat_str}/"
-    rename_file_name_stem = f"{sat_str}_YYYYMMDD.json"
-    url = f"https://services.swpc.noaa.gov/json/goes/{sat_str}/"
+    data_path_stem = f"{raw_data_path}/GOES/YYYY/MM/{satellite}/"
+    rename_file_name_stem = f"{satellite}_YYYYMMDD.json"
+    url = f"https://services.swpc.noaa.gov/json/goes/{satellite}/"
 
     ep.download(
         start_time,
@@ -151,13 +153,13 @@ def process_goes_real_time(
         time_variable=variables["Epoch"],
         variables=variables,
         time_bin_method_dict=time_bin_methods,
-        time_binning_cadence=timedelta(minutes=5),
+        time_binning_cadence=bin_cadence,
         start_time=start_time,
         end_time=end_time,
     )
 
     binned_datetimes = [datetime.fromtimestamp(t, tz=timezone.utc) for t in binned_time_var.get_data()]
-    geo_coords = GEOCOORDS_DICT[sat_str]
+    geo_coords = GEOCOORDS_DICT[satellite]
     variables["xGEO"] = ep.Variable(data=np.tile(geo_coords, (len(binned_datetimes), 1)), original_unit=ep.units.RE)
 
     # Local pitch angles from 5 to 90 deg
@@ -166,15 +168,15 @@ def process_goes_real_time(
 
     # Calculate magnetic field variables
     variables_to_compute: ep.processing.VariableRequest = [
-        ("B_Calc", "T89"),
-        ("B_Eq", "T89"),
-        ("MLT", "T89"),
-        ("R_Eq", "T89"),
-        ("Alpha_Eq", "T89"),
-        ("L_star", "T89"),
-        ("L_m", "T89"),
-        ("InvMu", "T89"),
-        ("InvK", "T89"),
+        ("B_Calc", mag_field),
+        ("B_Eq", mag_field),
+        ("MLT", mag_field),
+        ("R_Eq", mag_field),
+        ("Alpha_Eq", mag_field),
+        ("L_star", mag_field),
+        ("L_m", mag_field),
+        ("InvMu", mag_field),
+        ("InvK", mag_field),
     ]
 
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
@@ -191,7 +193,7 @@ def process_goes_real_time(
     FEDU_var = ep.processing.construct_pitch_angle_distribution(
         variables["FEDO"],
         variables["PA_local_FEDU"],
-        magnetic_field_variables["Alpha_Eq_T89"],
+        magnetic_field_variables[f"Alpha_Eq_{mag_field}"],
         flux_type="spin_average",
     )
     FEDU_var.apply_thresholds_on_data(lower_threshold=0)
@@ -205,23 +207,23 @@ def process_goes_real_time(
         "Energy_FEDU": variables["Energy"],
         "Alpha": variables["PA_local_FEDU"],
         "PSD": psd_var,
-        "Alpha_Eq": magnetic_field_variables["Alpha_Eq_T89"],
-        "MLT": magnetic_field_variables["MLT_T89"],
-        "L_star": magnetic_field_variables["L_star_T89"],
-        "R_Eq": magnetic_field_variables["R_Eq_T89"],
-        "B_Eq": magnetic_field_variables["B_Eq_T89"],
-        "B_Calc": magnetic_field_variables["B_Calc_T89"],
-        "InvMu": magnetic_field_variables["InvMu_T89"],
-        "InvK": magnetic_field_variables["InvK_T89"],
+        "Alpha_Eq": magnetic_field_variables[f"Alpha_Eq_{mag_field}"],
+        "MLT": magnetic_field_variables[f"MLT_{mag_field}"],
+        "L_star": magnetic_field_variables[f"L_star_{mag_field}"],
+        "R_Eq": magnetic_field_variables[f"R_Eq_{mag_field}"],
+        "B_Eq": magnetic_field_variables[f"B_Eq_{mag_field}"],
+        "B_Calc": magnetic_field_variables[f"B_Calc_{mag_field}"],
+        "InvMu": magnetic_field_variables[f"InvMu_{mag_field}"],
+        "InvK": magnetic_field_variables[f"InvK_{mag_field}"],
     }
 
     if save_strategy in ("gfz", "both"):
         strategy = ep.saving_strategies.GFZStrategy(
             processed_data_path,
             mission="GOES",
-            satellite="goes_" + sat_str,
+            satellite="goes_" + satellite,
             instrument="mps-high",
-            mag_field="T89",
+            mag_field=mag_field,
             data_standard=ep.data_standards.GFZStandard(),
         )
 
@@ -229,9 +231,9 @@ def process_goes_real_time(
         strategy = ep.saving_strategies.MonthlyRBStrategy(
             base_data_path=Path(processed_data_path),
             mission="GOES",
-            satellite="goes_" + sat_str,
+            satellite="goes_" + satellite,
             instrument="mps-high",
-            mag_field="T89",
+            mag_field=mag_field,
             file_format=".nc",
             data_standard=ep.data_standards.GFZStandard(),
         )
@@ -239,17 +241,10 @@ def process_goes_real_time(
     ep.save(vars_to_save, strategy, start_time, end_time, time_var=binned_time_var, append=True)
 
 
-if __name__ == "__main__":
-    start_time = (datetime.now(timezone.utc)).replace(hour=0, minute=0, second=0, microsecond=0)
-    end_time = start_time + timedelta(hours=1)
+CLI_DEFAULTS = {
+    "raw_data_path": "goes/raw/",
+    "processed_data_path": "goes/processed/",
+}
 
-    for sat in ["primary", "secondary"]:
-        process_goes_real_time(
-            sat_str=sat,
-            raw_data_path="goes/raw/",
-            processed_data_path="goes/processed/",
-            start_time=start_time,
-            end_time=end_time,
-            num_cores=64,
-            skip_existing=True,
-        )
+if __name__ == "__main__":
+    ep.run_recipe_cli(process_goes_real_time, defaults=CLI_DEFAULTS)
