@@ -14,13 +14,14 @@ from typing import Literal
 
 import dateutil
 import numpy as np
-from numpy.typing import NDArray
 from astropy import units as u
+from numpy.typing import NDArray
 
 import el_paso as ep
 from el_paso.processing.magnetic_field_utils import InternalFieldModel, IrbemOptions, LstarQuantity
 
 BAD_CHANNELS = (13, 21, 22, 23, 24)
+
 
 def process_rbsp_mageis_electrons(
     start_time: datetime,
@@ -109,7 +110,7 @@ def process_rbsp_mageis_electrons(
         data_path=raw_data_path,
         file_name_stem=file_name_stem,
         extraction_infos=extraction_infos,
-        data_modifier=xgeo_data_modifier,
+        data_modifier=_xgeo_data_modifier,
     )
 
     variables["FEDU"].apply_thresholds_on_data(1e-21)
@@ -200,23 +201,23 @@ def process_rbsp_mageis_electrons(
     ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=False)
 
 
-def xgeo_data_modifier(variable_data: dict[str | int, NDArray[np.generic]], extraction_infos: Iterable[ep.ExtractionInfo]) -> dict[str | int, NDArray[np.generic]]:
+def _xgeo_data_modifier(
+    variable_data: dict[str | int, NDArray[np.generic]], extraction_infos: Iterable[ep.ExtractionInfo]  # noqa: ARG001
+) -> dict[str | int, NDArray[np.generic]]:
 
     xgeo_data = variable_data["Position"].astype(np.float64)
 
     if np.max(xgeo_data) > 100:  # unit is km
         xgeo_data = (xgeo_data * u.km).to_value(ep.units.RE)
         variable_data["Position"] = xgeo_data
-    
+
     return variable_data
 
 
 if __name__ == "__main__":
     ep.setup_logging()
 
-    parser = argparse.ArgumentParser(
-        description="Process flux flux data from ECT/MagEIS instrument on VanAllenProbes."
-    )
+    parser = argparse.ArgumentParser(description="Process flux flux data from ECT/MagEIS instrument on VanAllenProbes.")
     parser.add_argument(
         "--start_time",
         type=str,
