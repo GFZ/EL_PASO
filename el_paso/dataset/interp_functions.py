@@ -1,4 +1,6 @@
-# SPDX-FileCopyrightText: 2025 GFZ Helmholtz Centre for Geosciences
+# SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
+# SPDX-FileContributor: Bernhard Haas
+# SPDX-FileCo-Contributor: Parvathy Santhini
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -17,7 +19,6 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
     from el_paso.dataset import DataSet
-    from el_paso.typing import InternalName
 
 
 class TargetType(Enum):
@@ -109,13 +110,10 @@ def interp_flux(
     target_al: float | list[float],
     target_type: TargetType | Literal["TargetPairs", "TargetMesh"],
     n_threads: int = 10,
-    flux_internal_name: InternalName = "FEDU",
-    energy_internal_name: InternalName = "Energy_FEDU",
 ) -> NDArray[np.float64]:
     """Interpolate flux to requested (energy, pitch angle) targets for every time.
 
-    For each time step, the flux variable named by `flux_internal_name` is interpolated
-    in energy (using the grid named by `energy_internal_name`) at the two pitch angles
+    For each time step, `self.Flux` is interpolated in energy at the two pitch angles
     (from `self.alpha_eq_model`) bracketing each target pitch angle, and the two
     resulting flux values are then linearly interpolated in pitch angle to the target.
 
@@ -133,12 +131,6 @@ def interp_flux(
             `(time, n_en, n_al)`.
         n_threads (int, optional): Number of worker processes used to parallelize the
             interpolation over time. Defaults to `10`.
-        flux_internal_name (InternalName, optional): Internal name of the flux variable
-            to interpolate (e.g. `"FEDU"` for electrons, `"FPDU"` for protons).
-            Defaults to `"FEDU"`.
-        energy_internal_name (InternalName, optional): Internal name of the matching
-            energy grid (e.g. `"Energy_FEDU"`, `"Energy_FPDU"`). Must correspond to
-            the species of `flux_internal_name`. Defaults to `"Energy_FEDU"`.
 
     Returns:
         NDArray[np.float64]: The interpolated flux values, with shape `(time, N)` for
@@ -157,8 +149,8 @@ def interp_flux(
         target_type = TargetType[target_type]
 
     epoch = self.get_by_internal_name("Epoch")
-    flux = self.get_by_internal_name(flux_internal_name)
-    energy = self.get_by_internal_name(energy_internal_name)
+    flux = self.get_by_internal_name("FEDU")
+    energy = self.get_by_internal_name("Energy_FEDU")
     alpha_eq = self.get_by_internal_name("Alpha_Eq")
 
     if target_type == TargetType.TargetPairs:
@@ -315,41 +307,58 @@ def _interp_psd_parallel(
 
 def interp_psd(
     self: DataSet,
-    target_mu: float | list[float] | NDArray[np.float64],
     target_K: float | list[float] | NDArray[np.float64],
     target_type: TargetType | Literal["TargetPairs", "TargetMesh"],
+    target_mu: float | list[float] | NDArray[np.float64] | None = None,
+    target_v: float | list[float] | NDArray[np.float64] | None = None,
     n_threads: int = 10,
 ) -> NDArray[np.float64]:
-    """Interpolate phase space density (PSD) to requested (mu, K) targets for every time.
+    """Interpolate phase space density (PSD) to requested (mu, K) or (V, K) targets for every time.
 
-    For each time step, `self.PSD` is interpolated in `self.InvMu` at the two K values
-    (from `self.InvK`) bracketing each target K, and the two resulting PSD values are
-    then linearly interpolated in K to the target.
+    Provide exactly one of `target_mu` or `target_v`. Whichever one is given selects
+    both the axis (`self.InvMu` vs `self.InvV`) PSD is interpolated against, and the
+    matching bracketing/interpolation behavior described below is otherwise identical.
+
+    For each time step, `self.PSD` is interpolated in the selected axis (InvMu or InvV)
+    at the two K values (from `self.InvK`) bracketing each target K, and the two
+    resulting PSD values are then linearly interpolated in K to the target.
 
     Args:
         self (DataSet): The DataSet instance this method operates on.
-        target_mu (float | list[float] | NDArray[np.float64]): Target first adiabatic
-            invariant (mu) value(s) to interpolate to.
         target_K (float | list[float] | NDArray[np.float64]): Target second adiabatic
             invariant (K) value(s) to interpolate to.
         target_type (TargetType | Literal["TargetPairs", "TargetMesh"]): How to combine
-            `target_mu` and `target_K`. `TargetPairs` interpolates each `(mu, K)` pair
+            the (mu or V) targets and `target_K`. `TargetPairs` interpolates each pair
             (the two vectors must have the same length), producing a result of shape
             `(time, N)`. `TargetMeshGrid` interpolates every combination of the two
-            vectors, producing a result of shape `(time, n_mu, n_K)`.
+            vectors, producing a result of shape `(time, n_first, n_K)`.
+        target_mu (float | list[float] | NDArray[np.float64] | None, optional): Target
+            first adiabatic invariant (mu) value(s) to interpolate to. Mutually
+            exclusive with `target_v`. Defaults to `None`.
+        target_v (float | list[float] | NDArray[np.float64] | None, optional): Target
+            value(s) of `self.InvV` to interpolate to, used instead of mu. Mutually
+            exclusive with `target_mu`. Defaults to `None`.
         n_threads (int, optional): Number of worker processes used to parallelize the
             interpolation over time. Defaults to `10`.
 
     Returns:
         NDArray[np.float64]: The interpolated PSD values, with shape `(time, N)` for
-        `TargetType.TargetPairs` or `(time, n_mu, n_K)` for `TargetType.TargetMeshGrid`.
+        `TargetType.TargetPairs` or `(time, n_first, n_K)` for `TargetType.TargetMeshGrid`.
 
     Raises:
-        AssertionError: If `target_type` is `TargetType.TargetPairs` and `target_mu`
-            and `target_K` do not have the same length.
+        ValueError: If neither or both of `target_mu` and `target_v` are given.
+        AssertionError: If `target_type` is `TargetType.TargetPairs` and the selected
+            (mu or V) vector and `target_K` do not have the same length.
     """
-    if not isinstance(target_mu, Iterable):
-        target_mu = [target_mu]
+    if (target_mu is None) == (target_v is None):
+        msg = "Provide exactly one of `target_mu` or `target_v`, not both or neither."
+        raise ValueError(msg)
+
+    use_mu = target_mu is not None
+    target_first = target_mu if use_mu else target_v
+
+    if not isinstance(target_first, Iterable):
+        target_first = [target_first]
     if not isinstance(target_K, Iterable):
         target_K = [target_K]
 
@@ -358,21 +367,26 @@ def interp_psd(
 
     epoch = self.get_by_internal_name("Epoch")
     psd = self.get_by_internal_name("PSD")
-    inv_mu = self.get_by_internal_name("InvMu")
+    inv_first = self.get_by_internal_name("InvMu") if use_mu else self.InvV
     inv_k = self.get_by_internal_name("InvK")
 
+    label = "mu" if use_mu else "V"
+
     if target_type == TargetType.TargetPairs:
-        assert len(target_mu) == len(target_K), "For TargetType.Pairs, mu and K vectors must have the same size!"  # ty:ignore[invalid-argument-type]
-        result_arr = np.empty((len(epoch), len(target_mu)))  # ty:ignore[invalid-argument-type]
-        targets = cast("TARGETS", list(zip(target_mu, target_K, strict=False)))
+        assert len(target_first) == len(target_K), (  # ty: ignore[invalid-argument-type]
+            f"For TargetType.Pairs, {label} and K vectors must have the same size!"
+        )
+        result_arr = np.empty((len(epoch), len(target_first)))  # ty:ignore[invalid-argument-type]
+        targets = cast("TARGETS", list(zip(target_first, target_K, strict=False)))
     else:
-        result_arr = np.empty((len(epoch), len(target_mu), len(target_K)))  # ty:ignore[invalid-argument-type]
-        targets = cast("TARGETS", list(itertools.product(target_mu, target_K)))
+        result_arr = np.empty((len(epoch), len(target_first), len(target_K)))  # ty:ignore[invalid-argument-type]
+        targets = cast("TARGETS", list(itertools.product(target_first, target_K)))
 
     # parallel over time (same pattern as interp_flux)
-    func = partial(_interp_psd_parallel, psd, inv_mu, inv_k, targets)
+    func = partial(_interp_psd_parallel, psd, inv_first, inv_k, targets)
 
     chunksize = max(1, len(epoch) // n_threads // 4)  # same as multiprocessing.Pool's default
+
     parallel_results = p_map(
         func,
         range(len(epoch)),
@@ -388,9 +402,9 @@ def interp_psd(
             for t, _ in enumerate(targets):
                 result_arr[i, t] = parallel_results[i][t]
     else:
-        n_mu, n_K = len(target_mu), len(target_K)  # ty:ignore[invalid-argument-type]
+        n_first, n_K = len(target_first), len(target_K)  # ty:ignore[invalid-argument-type]
         for i in range(result_arr.shape[0]):
-            for im, iK in itertools.product(range(n_mu), range(n_K)):
-                result_arr[i, im, iK] = parallel_results[i][im * n_K + iK]
+            for i1, iK in itertools.product(range(n_first), range(n_K)):
+                result_arr[i, i1, iK] = parallel_results[i][i1 * n_K + iK]
 
     return result_arr
