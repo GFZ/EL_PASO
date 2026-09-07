@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
+# SPDX-FileContributor: Sahil Jhawar
+#
+# SPDX-License-Identifier: Apache-2.0
+
+
+[[rules]]
+paths = ["el_paso/processing/magnetic_field_utils/irbem.py"]
+copyright = "GFZ Helmholtz Centre for Geosciences"
+license = "LGPL-3.0-only"
+
+
+[default]
+copyright = "GFZ Helmholtz Centre for Geosciences"
+license = 'Apache-2.0'

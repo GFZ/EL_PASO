@@ -15,11 +15,6 @@ repos:
       - id: check-added-large-files
       - id: check-toml
 
-  - repo: https://github.com/fsfe/reuse-tool
-    rev: v6.2.0
-    hooks:
-      - id: reuse
-
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.6
     hooks:
@@ -44,3 +39,7 @@ repos:
         language: system
         pass_filenames: false
         files: ^(el_paso/data_standards/(gfz_standard|prbem_standard)\.py|scripts/generate_metadata_stubs\.py)$
+  - repo: https://github.com/sahiljhawar/reuseify
+    rev: 1.0.1
+    hooks:
+      - id: reuseify-lint
