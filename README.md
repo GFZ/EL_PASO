@@ -45,6 +45,7 @@ Full documentation can be viewed [here](https://el-paso.readthedocs.io/en/latest
     - GPS processing
 - **ESA**
     - NGRM satellites
+    - GSSC EMU (Galileo gsat0207, gsat0215)
 - **POES**
     - MEPED (electrons)
     - TED (electrons)
