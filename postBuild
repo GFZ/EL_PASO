@@ -5,7 +5,7 @@
 
 #!/bin/bash
 
-set -e 
+set -e
 
 cd paper
 mkdir raw_data

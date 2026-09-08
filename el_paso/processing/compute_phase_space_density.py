@@ -8,8 +8,8 @@ import typing
 from typing import Literal
 
 import numpy as np
-from astropy import units as u
 from astropy import constants as const
+from astropy import units as u
 
 import el_paso as ep
 
@@ -46,7 +46,7 @@ def compute_phase_space_density(
     logger = logging.getLogger(__name__)
     logger.info("Computing PSD...")
 
-    flux_data = flux_var.get_data(typing.cast("u.UnitBase", (u.cm**2 * u.s * u.keV * u.sr) ** (-1)))  
+    flux_data = flux_var.get_data(typing.cast("u.UnitBase", (u.cm**2 * u.s * u.keV * u.sr) ** (-1)))
     energies = energy_var.get_data(u.MeV)
 
     # Calculate pct for each energy value

@@ -93,7 +93,10 @@ class PRBEMStandard(DataStandard[PRBEMName]):
                 dependencies=["Epoch", "Alpha"],
             ),
             "InvMu": VariableInfo[PRBEMName](
-                "InvMu", "Calculated first adiabatic invariant.", u.MeV / u.G, ["Epoch", ("Energy_FEDU", "Energy_FPDU"), "Alpha"]
+                "InvMu",
+                "Calculated first adiabatic invariant.",
+                u.MeV / u.G,
+                ["Epoch", ("Energy_FEDU", "Energy_FPDU"), "Alpha"],
             ),
             "InvK": VariableInfo[PRBEMName](
                 "InvK", "Calculated modified second adiabatic invariant.", ep.units.RE * u.G**0.5, ["Epoch", "Alpha"]
