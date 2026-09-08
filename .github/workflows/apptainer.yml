@@ -11,6 +11,7 @@ on:
       - "*.def"
       - "el_paso/**"
       - "pyproject.toml"
+      - "uv.lock"
       - "scripts/**"
       - ".github/workflows/apptainer.yml"
   pull_request:
@@ -19,6 +20,7 @@ on:
       - "*.def"
       - "el_paso/**"
       - "pyproject.toml"
+      - "uv.lock"
       - "scripts/**"
       - ".github/workflows/apptainer.yml"
   workflow_dispatch:

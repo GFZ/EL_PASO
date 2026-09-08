@@ -15,6 +15,7 @@ From: astral/uv:python3.12-bookworm-slim
     el_paso /opt/el_paso/
     scripts /opt/el_paso
     pyproject.toml /opt/el_paso
+    uv.lock /opt/el_paso
     _irbem_build.py /opt/el_paso
     hatch_build.py /opt/el_paso
     README.md /opt/el_paso
@@ -38,7 +39,7 @@ From: astral/uv:python3.12-bookworm-slim
     export XDG_CONFIG_HOME
 
     cd /opt/el_paso/
-    uv sync
+    uv sync --locked
 
 %runscript
     exec "$@"
