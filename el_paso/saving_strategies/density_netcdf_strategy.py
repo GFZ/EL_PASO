@@ -145,7 +145,12 @@ class DensityNetCDFStrategy(MonthlyRBStrategy):
         return dimensions
 
     def standardize_variable(
-        self, variable: ep.Variable, name_in_file: str, *, first_call_of_interval: bool, available_keys: set[InternalName] | None = None,
+        self,
+        variable: ep.Variable,
+        name_in_file: str,
+        *,
+        first_call_of_interval: bool,
+        available_keys: set[InternalName] | None = None,
     ) -> ep.Variable:
         """Standardizes a variable based on the configured `DataStandard`.
 
@@ -157,6 +162,7 @@ class DensityNetCDFStrategy(MonthlyRBStrategy):
             variable (ep.Variable): The variable instance to be standardized.
             name_in_file (str): The name of the variable as it will appear in the file.
             first_call_of_interval (bool): Flag to indicate if it is the first call of a time interval
+            available_keys (set[InternalName] | None): A set of available keys for the variable.
 
         Returns:
             ep.Variable: The standardized variable.

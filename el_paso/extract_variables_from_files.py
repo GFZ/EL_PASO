@@ -25,7 +25,6 @@ from el_paso import Variable
 from el_paso.utils import enforce_utc_timezone, fill_str_template_with_time, get_file_by_version
 
 if TYPE_CHECKING:
-
     from astropy import units as u
 
     from el_paso.typing import FileCadence, TimeInterval
@@ -78,7 +77,11 @@ class ExtractionInfo:
     dependent_variables: list[str] | None = None
     np_dtype: DTypeLike | None = None
 
-DataModifierType = Callable[[dict[str | int, NDArray[np.generic]], Iterable[ExtractionInfo]], dict[str | int, NDArray[np.generic]]]
+
+DataModifierType = Callable[
+    [dict[str | int, NDArray[np.generic]], Iterable[ExtractionInfo]], dict[str | int, NDArray[np.generic]]
+]
+
 
 def extract_variables_from_files(
     start_time: datetime,
@@ -136,7 +139,9 @@ def extract_variables_from_files(
         logger.error(msg)
         raise ValueError(msg)
 
-    variable_data = _extract_data_from_files(files_list, extraction_infos, pd_read_csv_kwargs, custom_extractors, data_modifier)
+    variable_data = _extract_data_from_files(
+        files_list, extraction_infos, pd_read_csv_kwargs, custom_extractors, data_modifier
+    )
 
     # create variables based on the extraction_infos
     variables: dict[str, Variable] = {}
