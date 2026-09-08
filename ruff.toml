@@ -16,24 +16,24 @@ ignore = [
     "COM812",  # disable trailing whitespace because we use formatter
     "S101",    # allow assert statements
     "RET504",  # allow assignment before return
-    "UP045",
-    "PLW",
-    "D102",
-    "N806",
-    "N803",
-    "SLF001",
-    "C901",
-    "PLR0912",
-    "PLR0915",
-    "PLR2004",
-    "D105",
-    "N802",
-    "N999",
-    "PLR0917",
-    "CPY001",
-    "UP046",
-    "UP040",
-    "UP047",
+    "UP045",   # allow typing.Optional[X] instead of forcing X | None syntax
+    "PLW",     # disable the whole Pylint "warning" rule category
+    "D102",    # allow undocumented public methods
+    "N806",    # allow non-lowercase local variable names in functions (e.g. matrices, physics variables)
+    "N803",    # allow non-snake_case argument names
+    "SLF001",  # allow accessing "private" (underscore-prefixed) attributes
+    "C901",    # disable the cyclomatic-complexity check on functions
+    "PLR0912", # allow functions with many branches
+    "PLR0915", # allow functions with many statements
+    "PLR2004", # allow comparisons against unnamed "magic" numbers
+    "D105",    # allow undocumented magic methods (e.g. __init__, __eq__)
+    "N802",    # allow non-snake_case function names
+    "N999",    # allow module names that don't follow snake_case
+    "PLR0917", # allow functions with many positional arguments
+    "CPY001",  # don't require a copyright notice header in every file
+    "UP046",   # allow Generic[T] classes instead of forcing PEP 695 `class Foo[T]:` syntax
+    "UP040",   # allow plain type aliases instead of forcing the PEP 695 `type` statement
+    "UP047",   # allow TypeVar-based generic functions instead of forcing PEP 695 `def foo[T]():` syntax
 ]
 exclude = ["*.ipynb"]
 
@@ -41,4 +41,9 @@ exclude = ["*.ipynb"]
 convention = "google"
 
 [lint.per-file-ignores]
-"tests/*" = ["D103", "INP001", "ANN201", "N806"]
+"tests/*" = [
+    "D103",   # allow undocumented test functions
+    "INP001", # allow test files without an __init__.py (implicit namespace packages)
+    "ANN201", # allow test functions without a return type annotation
+    "N806",   # allow non-lowercase local variable names in tests
+]
