@@ -111,7 +111,7 @@ def process_gssc_emu(
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = DEFAULT_BIN_CADENCE,
-    num_cores: int = 32,
+    num_cores: int = 16,
     username: str | None = None,
     password: str | None = None,
     saving_strategy: ep.SavingStrategy | None = None,
