@@ -10,7 +10,6 @@ import atexit
 import logging
 import os
 import typing
-from collections.abc import Sequence
 from pathlib import Path
 from typing import Literal, NamedTuple
 
@@ -27,8 +26,8 @@ from el_paso.utils import make_dict_hashable, timed_function
 
 logger = logging.getLogger(__name__)
 
-VariableRequest = Sequence[tuple[MagFieldVarTypes, MagneticFieldLiteral | mag_utils.MagneticField]]
-"""Type alias for a request to compute magnetic field variables, consisting of a sequence of tuples where each tuple
+VariableRequest = list[tuple[MagFieldVarTypes, MagneticFieldLiteral | mag_utils.MagneticField]]
+"""Type alias for a request to compute magnetic field variables, consisting of a list of tuples where each tuple
     specifies the variable type and the magnetic field model to use for its computation."""
 
 
@@ -131,7 +130,7 @@ def compute_magnetic_field_variables(
     if cache_dir == "_default_":
         cache_dir = get_cache_dir()
 
-    if (env_cache_flag := os.environ.get("EL_PASO_USE_MAG_FIELD_CACHE")) is not None:
+    if (env_cache_flag := os.environ.get("EL_PASO_USE_MAG_FIELD_CACHE")) is not None:  # noqa: SIM102
         if env_cache_flag.strip().lower() in ("0", "false", "no", "off", ""):
             cache_dir = None
 

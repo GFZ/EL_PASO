@@ -169,7 +169,7 @@ def process_poes_ted_electron(
     ]
 
     if calculate_Lm_Lstar:
-        variables_to_compute.extend([("L_star", mag_field), ("L_m", mag_field)])  # ty:ignore[invalid-argument-type]
+        variables_to_compute.extend([("L_star", mag_field), ("L_m", mag_field)])
 
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
         time_var=binned_time_var,
