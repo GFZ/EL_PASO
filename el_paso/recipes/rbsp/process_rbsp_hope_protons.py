@@ -4,14 +4,10 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import argparse
-import logging
-import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Literal
 
-import dateutil
 from astropy import units as u
 
 import el_paso as ep

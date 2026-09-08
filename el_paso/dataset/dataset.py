@@ -16,7 +16,6 @@ from typing import TYPE_CHECKING, Any, cast
 import distance
 import numpy as np
 import xarray as xr
-from astropy.time import Time
 from swvo.io.utils import enforce_utc_timezone
 
 import el_paso as ep

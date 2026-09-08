@@ -8,10 +8,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, cast
-
-import numpy as np
-from scipy.io import savemat
+from typing import TYPE_CHECKING, Optional
 
 import el_paso as ep
 from el_paso.data_standards import GFZStandard
@@ -20,10 +17,7 @@ from el_paso.saving_strategy import OutputFile, SavingStrategy
 if TYPE_CHECKING:
     from datetime import datetime
 
-    from numpy.typing import NDArray
-
-    from el_paso import Variable
-    from el_paso.typing import DataStandard, InternalName, SavedDataDict, StandardName, TimeInterval
+    from el_paso.typing import DataStandard, StandardName, TimeInterval
 
 logger = logging.getLogger(__name__)
 

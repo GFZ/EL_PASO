@@ -10,7 +10,7 @@ import logging
 import os
 import sys
 import typing
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 

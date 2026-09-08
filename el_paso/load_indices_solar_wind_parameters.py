@@ -3,7 +3,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import os
 import typing
 from collections.abc import Iterable
 from datetime import datetime, timedelta, timezone

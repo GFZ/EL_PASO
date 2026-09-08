@@ -11,18 +11,13 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import el_paso as ep
 from el_paso.saving_strategy import OutputFile, SavingStrategy
 from el_paso.utils import write_netcdf_file
 
 if TYPE_CHECKING:
     from el_paso.typing import (
         DataStandard,
-        FileLoader,
-        FileWriter,
         InternalName,
-        MagneticFieldLiteral,
-        MFSFormats,
         SavedDataDict,
         StandardName,
         TimeInterval,

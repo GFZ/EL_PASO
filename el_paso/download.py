@@ -17,7 +17,6 @@ import shutil
 import sys
 import typing
 import urllib.parse
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from functools import cache, partial
 from pathlib import Path

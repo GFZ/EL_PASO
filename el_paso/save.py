@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import itertools
 import logging
 import stat
 from typing import TYPE_CHECKING, Any, get_args

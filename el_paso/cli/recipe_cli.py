@@ -45,7 +45,7 @@ from typing import TYPE_CHECKING, Annotated, Any, Literal, get_args, get_origin
 import dateutil.parser
 import typer
 from rich.console import Console
-from rich.table import Column, Table
+from rich.table import Table
 
 # `el_paso` is imported for its module-level flags and helpers, which are only read at
 # call time. This module is imported from `el_paso/__init__.py`, so binding the module

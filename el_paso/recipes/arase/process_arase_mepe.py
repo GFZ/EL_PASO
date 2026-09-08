@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import logging
 import sys
-import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal

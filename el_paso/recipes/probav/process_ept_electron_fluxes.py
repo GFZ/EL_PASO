@@ -2,15 +2,12 @@
 # SPDX-FileContributor: Bernhard Haas
 #
 # SPDX-License-Identifier: Apache-2.0
-import argparse
 import logging
 import os
-import sys
 import typing
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-import dateutil
 import numpy as np
 from astropy import units as u
 from dotenv import load_dotenv
