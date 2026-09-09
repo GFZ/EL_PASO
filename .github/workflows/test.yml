@@ -15,7 +15,38 @@ on:
   workflow_dispatch:
 
 jobs:
+  ruff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/ruff-action@main
+        with:
+          version: "latest"
+          src: el_paso
+
+  ty:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@main
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install project and ty
+        run: |
+          uv sync --locked
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+
+      - name: Run ty
+        run: ty check
+
   tests:
+    needs: [ruff, ty]
     strategy:
       fail-fast: false
       matrix:
@@ -25,15 +56,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: |
-          pip install .
-          pip install coveralls coverage pytest-cov
+          uv sync
+          uv pip install coveralls coverage pytest-cov
 
       - name: Get zenodo record ID
         id: zenodo-record
@@ -57,11 +88,11 @@ jobs:
           GSSC_USER: ${{ secrets.GSSC_USER }}
           GSSC_PASS: ${{ secrets.GSSC_PASSWORD }}
           _TYPER_FORCE_DISABLE_TERMINAL: "1"
-        run: python -m coverage run --source el_paso -m pytest -rf tests -m basic --indices_sw_param_data_path tests/system/data/indices_sw_params
+        run: uv run coverage run --source el_paso -m pytest -rf tests -m basic --indices_sw_param_data_path tests/system/data/indices_sw_params
 
       - name: Run Coveralls
         if: ${{ success() && matrix.python-version == '3.12' }}
         run: |
-          coveralls --service=github
+          uv run coveralls --service=github
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
