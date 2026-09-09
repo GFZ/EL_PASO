@@ -91,12 +91,27 @@ jobs:
           GSSC_USER: ${{ secrets.GSSC_USER }}
           GSSC_PASS: ${{ secrets.GSSC_PASSWORD }}
         run: |
-          sudo --preserve-env=ESA_CLIENT_ID,ESA_CLIENT_SECRET,GSSC_USER,GSSC_PASS apptainer exec --no-mount cwd \
+          ENV_FILE=$(mktemp)
+          {
+            echo "ESA_CLIENT_ID_B64=$(printf '%s' "${ESA_CLIENT_ID}" | base64 -w0)"
+            echo "ESA_CLIENT_SECRET_B64=$(printf '%s' "${ESA_CLIENT_SECRET}" | base64 -w0)"
+            echo "GSSC_USER_B64=$(printf '%s' "${GSSC_USER}" | base64 -w0)"
+            echo "GSSC_PASS_B64=$(printf '%s' "${GSSC_PASS}" | base64 -w0)"
+          } > "$ENV_FILE"
+          sudo apptainer exec --no-mount cwd \
             --bind "${PWD}/tests:/mnt/tests" \
             --bind "${PWD}/pytest.ini:/mnt/pytest.ini" \
             --pwd /mnt \
-            --env "ESA_CLIENT_ID=${ESA_CLIENT_ID},ESA_CLIENT_SECRET=${ESA_CLIENT_SECRET},GSSC_USER=${GSSC_USER},GSSC_PASS=${GSSC_PASS},_TYPER_FORCE_DISABLE_TERMINAL=1" \
-            ${{ env.IMAGE_NAME }}.sif python -m pytest -rf /mnt/tests -m "basic" -c /mnt/pytest.ini --ignore /mnt/tests/unittests/test_release_mode.py
+            --env-file "$ENV_FILE" \
+            ${{ env.IMAGE_NAME }}.sif sh -c '
+              export ESA_CLIENT_ID="$(echo "$ESA_CLIENT_ID_B64" | base64 -d)"
+              export ESA_CLIENT_SECRET="$(echo "$ESA_CLIENT_SECRET_B64" | base64 -d)"
+              export GSSC_USER="$(echo "$GSSC_USER_B64" | base64 -d)"
+              export GSSC_PASS="$(echo "$GSSC_PASS_B64" | base64 -d)"
+              export _TYPER_FORCE_DISABLE_TERMINAL=1
+              python -m pytest -rf /mnt/tests -m "basic" -c /mnt/pytest.ini --ignore /mnt/tests/unittests/test_release_mode.py
+            '
+          rm -f "$ENV_FILE"
 
       - name: Log in to GHCR
         if: github.event_name == 'push' && github.repository_owner == 'GFZ'
