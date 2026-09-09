@@ -103,8 +103,8 @@ def _download_gssc_emu_omm(
     return rows[0]
 
 
-@timed_function("process_gssc_emu")
-def process_gssc_emu(
+@timed_function("process_gssc_emu_electrons")
+def process_gssc_emu_electrons(
     start_time: datetime,
     end_time: datetime,
     satellite: Literal["gsat0207", "gsat0215"] = "gsat0207",
@@ -119,19 +119,18 @@ def process_gssc_emu(
     *,
     calculate_Lstar: bool = True,
 ) -> None:
-    """Process ESA GSSC EMU (NGRM) Galileo data into pitch-angle resolved fluxes and PSD.
+    """Process ESA GSSC EMU (Galileo) electron data into pitch-angle resolved flux and PSD.
 
     Galileo satellites are in MEO (~23,222 km altitude). Downloads the raw EMU L1 CDF files for
     the given satellite from the ESA GSSC FTP server, extracts the differential electron flux
-    (FEDO), differential proton flux (FPDO), and spacecraft position (J2000, treated as ECI),
-    converts the position to GEO. For samples where the CDF's own position (`ODI_Position`) is
-    zero-filled or NaN, position is instead reconstructed from Celestrak's current orbital
-    elements for the satellite (see `_download_gssc_emu_omm`). T89 magnetic field quantities
-    (B_Calc, B_Eq, MLT, R_Eq, Alpha_Eq, L_m, and optionally L_star) are computed for both
-    electrons and protons using the IRBEM library, the pitch angle distributions (FEDU, FPDU) and
-    phase space densities (electron and proton PSD) are derived from the omnidirectional fluxes,
-    and the resulting variables are saved to disk (appending to existing files) using either the
-    provided `saving_strategy` or a default daily strategy.
+    (FEDO) and spacecraft position (J2000, treated as ECI), converts the position to GEO. For
+    samples where the CDF's own position (`ODI_Position`) is zero-filled or NaN, position is
+    instead reconstructed from Celestrak's current orbital elements for the satellite (see
+    `_download_gssc_emu_omm`). T89 magnetic field quantities (B_Calc, B_Eq, MLT, R_Eq, Alpha_Eq,
+    L_m, and optionally L_star) are computed using the IRBEM library, the pitch angle distribution
+    (FEDU) and phase space density (electron PSD) are derived from the omnidirectional flux, and
+    the resulting variables are saved to disk (appending to existing files) using either the
+    provided `saving_strategy` or a default monthly strategy.
 
     Args:
         start_time (datetime): Start of the time range to process.
@@ -144,14 +143,14 @@ def process_gssc_emu(
         bin_cadence (timedelta, optional): Time binning cadence applied to the extracted
             variables. Defaults to timedelta(minutes=1) (EMU's native cadence).
         num_cores (int, optional): Number of CPU cores used for the magnetic field computations.
-            Defaults to 32.
+            Defaults to 16.
         username (str | None, optional): FTP username for GSSC. If None, read from the
             `GSSC_USER` environment variable. Defaults to None.
         password (str | None, optional): FTP password for GSSC. If None, read from the
             `GSSC_PASS` environment variable. Defaults to None.
-        saving_strategy (ep.SavingStrategy | None, optional): Strategy used to save both the
-            electron and proton processed variables. If None, two separate `MonthlyRBStrategy`
-            instances are used (instrument "emu-electron" and "emu-proton"). Defaults to None.
+        saving_strategy (ep.SavingStrategy | None, optional): Strategy used to save the
+            processed variables. If None, a `MonthlyRBStrategy` (instrument "emu-electron") is
+            used. Defaults to None.
         skip_existing (bool, optional): If True, skip downloading files that already exist
             locally. Defaults to True.
         calculate_Lstar (bool, optional): If True, also compute the L* magnetic field quantity.
@@ -190,7 +189,7 @@ def process_gssc_emu(
         skip_existing=skip_existing,
     )
 
-    # Native CDF units for FEDO/FPDO are cm^-2 s^-1 sr^-1 MeV^-1. construct_pitch_angle_distribution()
+    # Native CDF units for FEDO are cm^-2 s^-1 sr^-1 MeV^-1. construct_pitch_angle_distribution()
     # below expects an sr-free omnidirectional flux and introduces the "/sr" factor itself, so the
     # sr^-1 is converted to an equivalent 4*pi-integrated omnidirectional flux, same as
     # process_ngrm_satellite.py does for NGRM's differential flux channels.
@@ -200,9 +199,7 @@ def process_gssc_emu(
     extraction_infos = [
         ep.ExtractionInfo(result_key="Epoch", name_or_column="Epoch", unit=ep.units.cdf_epoch),
         ep.ExtractionInfo(result_key="FEDO", name_or_column="FEDO", unit=flux_unit_per_sr),
-        ep.ExtractionInfo(result_key="FPDO", name_or_column="FPDO", unit=flux_unit_per_sr),
         ep.ExtractionInfo(result_key="Energy_FEDO", name_or_column="FEDO_Energy", unit=u.MeV, is_time_dependent=False),
-        ep.ExtractionInfo(result_key="Energy_FPDO", name_or_column="FPDO_Energy", unit=u.MeV, is_time_dependent=False),
         ep.ExtractionInfo(result_key="x_ECI", name_or_column="ODI_Position", unit=u.km),
     ]
 
@@ -241,20 +238,13 @@ def process_gssc_emu(
     del variables["x_ECI"]
 
     variables["FEDO"].apply_thresholds_on_data(lower_threshold=0)
-    variables["FPDO"].apply_thresholds_on_data(lower_threshold=0)
-
     variables["FEDO"] = ep.Variable(
         data=variables["FEDO"].get_data(flux_unit_per_sr) * 4 * np.pi, original_unit=flux_unit_omni
-    )
-    variables["FPDO"] = ep.Variable(
-        data=variables["FPDO"].get_data(flux_unit_per_sr) * 4 * np.pi, original_unit=flux_unit_omni
     )
 
     time_bin_methods = {
         "Energy_FEDO": ep.TimeBinMethod.Repeat,
-        "Energy_FPDO": ep.TimeBinMethod.Repeat,
         "FEDO": ep.TimeBinMethod.NanMedian,
-        "FPDO": ep.TimeBinMethod.NanMedian,
         "xGEO": ep.TimeBinMethod.NanMean,
     }
 
@@ -283,7 +273,7 @@ def process_gssc_emu(
         else ep.processing.magnetic_field_utils.LstarQuantity.NONE,
     )
 
-    electron_mag_field_variables = ep.processing.compute_magnetic_field_variables(
+    magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
         time_var=binned_time_var,
         xgeo_var=variables["xGEO"],
         energy_var=variables["Energy_FEDO"],
@@ -294,72 +284,33 @@ def process_gssc_emu(
         num_cores=num_cores,
     )
 
-    proton_mag_field_variables = ep.processing.compute_magnetic_field_variables(
-        time_var=binned_time_var,
-        xgeo_var=variables["xGEO"],
-        energy_var=variables["Energy_FPDO"],
-        pa_local_var=variables["PA_local"],
-        particle_species="proton",
-        variables_to_compute=variables_to_compute,
-        irbem_options=irbem_options,
-        num_cores=num_cores,
-    )
-
     FEDU_var = ep.processing.construct_pitch_angle_distribution(
-        variables["FEDO"], variables["PA_local"], electron_mag_field_variables["Alpha_Eq_T89"], flux_type="omni"
+        variables["FEDO"], variables["PA_local"], magnetic_field_variables["Alpha_Eq_T89"], flux_type="omni"
     )
     FEDU_var.apply_thresholds_on_data(lower_threshold=0)
 
-    FPDU_var = ep.processing.construct_pitch_angle_distribution(
-        variables["FPDO"], variables["PA_local"], proton_mag_field_variables["Alpha_Eq_T89"], flux_type="omni"
-    )
-    FPDU_var.apply_thresholds_on_data(lower_threshold=0)
+    psd_var = ep.processing.compute_phase_space_density(FEDU_var, variables["Energy_FEDO"], particle_species="electron")
 
-    electron_psd_var = ep.processing.compute_phase_space_density(
-        FEDU_var, variables["Energy_FEDO"], particle_species="electron"
-    )
-    proton_psd_var = ep.processing.compute_phase_space_density(
-        FPDU_var, variables["Energy_FPDO"], particle_species="proton"
-    )
-
-    # MonthlyRBStrategy's fixed output schema only has one FEDU/Energy_FEDU slot, so electrons and
-    # protons are saved as separate monthly files (same convention as process_rbsp_mageis_protons.py).
-    electron_variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+    variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
         "Epoch": binned_time_var,
         "FEDU": FEDU_var,
         "Energy_FEDU": variables["Energy_FEDO"],
         "Alpha": variables["PA_local"],
-        "Alpha_Eq": electron_mag_field_variables["Alpha_Eq_T89"],
-        "R_Eq": electron_mag_field_variables["R_Eq_T89"],
-        "MLT": electron_mag_field_variables["MLT_Eq_T89"],
-        "B_Calc": electron_mag_field_variables["B_Calc_T89"],
-        "B_Eq": electron_mag_field_variables["B_Eq_T89"],
+        "Alpha_Eq": magnetic_field_variables["Alpha_Eq_T89"],
+        "R_Eq": magnetic_field_variables["R_Eq_T89"],
+        "MLT": magnetic_field_variables["MLT_Eq_T89"],
+        "B_Calc": magnetic_field_variables["B_Calc_T89"],
+        "B_Eq": magnetic_field_variables["B_Eq_T89"],
         "Position": variables["xGEO"],
-        "PSD": electron_psd_var,
-    }
-
-    proton_variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
-        "Epoch": binned_time_var,
-        "FEDU": FPDU_var,
-        "Energy_FEDU": variables["Energy_FPDO"],
-        "Alpha": variables["PA_local"],
-        "Alpha_Eq": proton_mag_field_variables["Alpha_Eq_T89"],
-        "R_Eq": proton_mag_field_variables["R_Eq_T89"],
-        "MLT": proton_mag_field_variables["MLT_Eq_T89"],
-        "B_Calc": proton_mag_field_variables["B_Calc_T89"],
-        "B_Eq": proton_mag_field_variables["B_Eq_T89"],
-        "Position": variables["xGEO"],
-        "PSD": proton_psd_var,
+        "PSD": psd_var,
     }
 
     if calculate_Lstar:
-        electron_variables_to_save["L_star"] = electron_mag_field_variables["L_star_T89"]
-        electron_variables_to_save["L_m"] = electron_mag_field_variables["L_m_T89"]
-        proton_variables_to_save["L_star"] = proton_mag_field_variables["L_star_T89"]
-        proton_variables_to_save["L_m"] = proton_mag_field_variables["L_m_T89"]
+        variables_to_save["L_star"] = magnetic_field_variables["L_star_T89"]
+        variables_to_save["L_m"] = magnetic_field_variables["L_m_T89"]
 
     if saving_strategy is None:
-        electron_saving_strategy: ep.SavingStrategy = ep.saving_strategies.MonthlyRBStrategy(
+        saving_strategy = ep.saving_strategies.MonthlyRBStrategy(
             base_data_path=Path(processed_data_path),
             mission="ESA",
             satellite=satellite,
@@ -368,35 +319,8 @@ def process_gssc_emu(
             file_format=".nc",
             data_standard=ep.data_standards.GFZStandard(),
         )
-        proton_saving_strategy: ep.SavingStrategy = ep.saving_strategies.MonthlyRBStrategy(
-            base_data_path=Path(processed_data_path),
-            mission="ESA",
-            satellite=satellite,
-            instrument="emu-proton",
-            mag_field="T89",
-            file_format=".nc",
-            data_standard=ep.data_standards.GFZStandard(),
-        )
-    else:
-        electron_saving_strategy = saving_strategy
-        proton_saving_strategy = saving_strategy
 
-    ep.save(
-        electron_variables_to_save,
-        electron_saving_strategy,
-        start_time,
-        end_time,
-        time_var=binned_time_var,
-        append=True,
-    )
-    ep.save(
-        proton_variables_to_save,
-        proton_saving_strategy,
-        start_time,
-        end_time,
-        time_var=binned_time_var,
-        append=True,
-    )
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=True)
 
 
 CLI_DEFAULTS = {
@@ -405,4 +329,4 @@ CLI_DEFAULTS = {
 }
 
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_gssc_emu, defaults=CLI_DEFAULTS)
+    ep.run_recipe_cli(process_gssc_emu_electrons, defaults=CLI_DEFAULTS)
