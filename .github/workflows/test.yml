@@ -22,6 +22,7 @@ jobs:
       - uses: astral-sh/ruff-action@main
         with:
           version: "latest"
+          src: el_paso
 
   ty:
     runs-on: ubuntu-latest
