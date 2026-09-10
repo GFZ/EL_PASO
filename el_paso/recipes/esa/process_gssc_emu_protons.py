@@ -43,6 +43,7 @@ _CELESTRAK_TIMEOUT_SECONDS = 30
 def gssc_emu_proton_strategy(
     base_data_path: str | Path,
     satellite: str,
+    mag_field: ep.typing.MagneticFieldLiteral,
     *,
     file_format: ep.typing.MFSFormats = ".nc",
 ) -> ep.SavingStrategy:
@@ -52,7 +53,7 @@ def gssc_emu_proton_strategy(
         mission="ESA",
         satellite=satellite,
         instrument="emu-proton",
-        mag_field="T89",
+        mag_field=mag_field,
         file_format=file_format,
         data_standard=ep.data_standards.GFZStandard(),
     )
@@ -126,13 +127,14 @@ def process_gssc_emu_protons(
     start_time: datetime,
     end_time: datetime,
     satellite: Literal["gsat0207", "gsat0215"] = "gsat0207",
+    mag_field: ep.typing.MagneticFieldLiteral = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = DEFAULT_BIN_CADENCE,
     num_cores: int = 16,
     username: str | None = None,
     password: str | None = None,
-    saving_strategy: ep.SavingStrategy | None = None,
+    save_strategy: ep.SavingStrategy | None = None,
     skip_existing: bool = True,  # noqa: FBT001, FBT002
     *,
     calculate_Lstar: bool = True,
@@ -144,16 +146,17 @@ def process_gssc_emu_protons(
     (FPDO) and spacecraft position (J2000, treated as ECI), converts the position to GEO. For
     samples where the CDF's own position (`ODI_Position`) is zero-filled or NaN, position is
     instead reconstructed from Celestrak's current orbital elements for the satellite (see
-    `_download_gssc_emu_omm`). T89 magnetic field quantities (B_Calc, B_Eq, MLT, R_Eq, Alpha_Eq,
-    L_m, and optionally L_star) are computed using the IRBEM library, the pitch angle distribution
+    `_download_gssc_emu_omm`). Magnetic field quantities (B_Calc, B_Eq, MLT, R_Eq, Alpha_Eq,
+    L_m, and optionally L_star) are computed using `mag_field` via the IRBEM library, the pitch angle distribution
     (FPDU) and phase space density (proton PSD) are derived from the omnidirectional flux, and
     the resulting variables are saved to disk (appending to existing files) using either the
-    provided `saving_strategy` or a default monthly strategy.
+    provided `save_strategy` or a default monthly strategy.
 
     Args:
         start_time (datetime): Start of the time range to process.
         end_time (datetime): End of the time range to process.
         satellite (Literal["gsat0207", "gsat0215"]): Which Galileo satellite's EMU data to process.
+        mag_field (MagneticFieldLiteral): Magnetic field model used for the derived quantities.
         raw_data_path (str | Path): Base directory used for downloading and locating the raw EMU
             CDF files.
         processed_data_path (str | Path): Base directory in which the processed output files are
@@ -166,7 +169,7 @@ def process_gssc_emu_protons(
             `GSSC_USER` environment variable. Defaults to None.
         password (str | None, optional): FTP password for GSSC. If None, read from the
             `GSSC_PASS` environment variable. Defaults to None.
-        saving_strategy (ep.SavingStrategy | None, optional): Strategy used to save the
+        save_strategy (ep.SavingStrategy | None, optional): Strategy used to save the
             processed variables. If None, a `MonthlyRBStrategy` (instrument "emu-proton") is
             used. Defaults to None.
         skip_existing (bool, optional): If True, skip downloading files that already exist
@@ -274,16 +277,16 @@ def process_gssc_emu_protons(
     variables["PA_local"] = ep.Variable(data=pa_local_data, original_unit=u.deg)
 
     variables_to_compute: ep.processing.VariableRequest = [
-        ("B_Calc", "T89"),
-        ("B_Eq", "T89"),
-        ("MLT_Eq", "T89"),
-        ("R_Eq", "T89"),
-        ("Alpha_Eq", "T89"),
+        ("B_Calc", mag_field),
+        ("B_Eq", mag_field),
+        ("MLT_Eq", mag_field),
+        ("R_Eq", mag_field),
+        ("Alpha_Eq", mag_field),
     ]
 
     if calculate_Lstar:
-        variables_to_compute.append(("L_star", "T89"))
-        variables_to_compute.append(("L_m", "T89"))
+        variables_to_compute.append(("L_star", mag_field))
+        variables_to_compute.append(("L_m", mag_field))
 
     irbem_options = ep.processing.magnetic_field_utils.IrbemOptions(
         lstar_quantity=ep.processing.magnetic_field_utils.LstarQuantity.LSTAR
@@ -303,7 +306,7 @@ def process_gssc_emu_protons(
     )
 
     FPDU_var = ep.processing.construct_pitch_angle_distribution(
-        variables["FPDO"], variables["PA_local"], magnetic_field_variables["Alpha_Eq_T89"], flux_type="omni"
+        variables["FPDO"], variables["PA_local"], magnetic_field_variables[f"Alpha_Eq_{mag_field}"], flux_type="omni"
     )
     FPDU_var.apply_thresholds_on_data(lower_threshold=0)
 
@@ -314,23 +317,23 @@ def process_gssc_emu_protons(
         "FEDU": FPDU_var,
         "Energy_FEDU": variables["Energy_FPDO"],
         "Alpha": variables["PA_local"],
-        "Alpha_Eq": magnetic_field_variables["Alpha_Eq_T89"],
-        "R_Eq": magnetic_field_variables["R_Eq_T89"],
-        "MLT": magnetic_field_variables["MLT_Eq_T89"],
-        "B_Calc": magnetic_field_variables["B_Calc_T89"],
-        "B_Eq": magnetic_field_variables["B_Eq_T89"],
+        "Alpha_Eq": magnetic_field_variables[f"Alpha_Eq_{mag_field}"],
+        "R_Eq": magnetic_field_variables[f"R_Eq_{mag_field}"],
+        "MLT": magnetic_field_variables[f"MLT_Eq_{mag_field}"],
+        "B_Calc": magnetic_field_variables[f"B_Calc_{mag_field}"],
+        "B_Eq": magnetic_field_variables[f"B_Eq_{mag_field}"],
         "Position": variables["xGEO"],
         "PSD": psd_var,
     }
 
     if calculate_Lstar:
-        variables_to_save["L_star"] = magnetic_field_variables["L_star_T89"]
-        variables_to_save["L_m"] = magnetic_field_variables["L_m_T89"]
+        variables_to_save["L_star"] = magnetic_field_variables[f"L_star_{mag_field}"]
+        variables_to_save["L_m"] = magnetic_field_variables[f"L_m_{mag_field}"]
 
-    if saving_strategy is None:
-        saving_strategy = gssc_emu_proton_strategy(processed_data_path, satellite)
+    if save_strategy is None:
+        save_strategy = gssc_emu_proton_strategy(processed_data_path, satellite, mag_field)
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=True)
+    ep.save(variables_to_save, save_strategy, start_time, end_time, time_var=binned_time_var, append=True)
 
 
 CLI_DEFAULTS = {
