@@ -8,7 +8,6 @@ from __future__ import annotations
 import json
 import logging
 import re
-import warnings
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone

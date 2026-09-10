@@ -91,14 +91,17 @@ def fill_str_template_with_time(input_str: str, time: datetime) -> str:
     mm_str = time.strftime("%m")
     dd_str = time.strftime("%d")
 
-    return (
-        input_str.replace("yyyymmdd", yyyymmdd_str)
-        .replace("YYYYMMDD", yyyymmdd_str)
-        .replace("YYYY", yyyy_str)
-        .replace("MM", mm_str)
-        .replace("DD", dd_str)
-        .replace("YY", yy_str)
-    )
+    result = input_str.replace("yyyymmdd", yyyymmdd_str).replace("YYYYMMDD", yyyymmdd_str).replace("YYYY", yyyy_str)
+
+    # MM/DD/YY are short enough to collide with ordinary letters in a path (e.g. "OMM", "ODD"), so
+    # they are only substituted where the neighboring letter, if any, is itself one of the Y/M/D
+    # placeholder letters (as in the combined "YYMMDD" idiom) rather than an unrelated letter.
+    not_a_placeholder_letter = "[A-CE-LN-XZa-z]"
+    for placeholder, value in (("MM", mm_str), ("DD", dd_str), ("YY", yy_str)):
+        pattern = rf"(?<!{not_a_placeholder_letter}){placeholder}(?!{not_a_placeholder_letter})"
+        result = re.sub(pattern, value, result)
+
+    return result
 
 
 def extract_version(file_name: str | Path) -> tuple[str, version_pkg.Version]:

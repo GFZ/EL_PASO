@@ -5,15 +5,10 @@
 
 from __future__ import annotations
 
-import argparse
-import logging
-import sys
-import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
 
-import dateutil
 import numpy as np
 from astropy import units as u
 
@@ -25,16 +20,49 @@ from el_paso.recipes.arase import (
 )
 
 
+def arase_xep_strategy(
+    base_data_path: str | Path,
+    mag_field: ep.typing.MagneticFieldLiteral,
+    *,
+    file_format: ep.typing.MFSFormats = "nc",
+) -> ep.SavingStrategy:
+    """Monthly saving strategy for Arase XEP."""
+    return ep.saving_strategies.MonthlyRBStrategy(
+        Path(base_data_path),
+        "Arase",
+        "arase",
+        "xep",
+        mag_field,
+        data_standard=ep.data_standards.GFZStandard(),
+        file_format=file_format,
+    )
+
+
+def arase_xep_gfz_strategy(base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral) -> ep.SavingStrategy:
+    """Legacy GFZ .mat saving strategy for Arase XEP."""
+    return ep.saving_strategies.GFZStrategy(
+        Path(base_data_path),
+        "Arase",
+        "Arase",
+        "XEP",
+        mag_field,
+        data_standard=ep.data_standards.GFZStandard(),
+    )
+
+
 def process_arase_xep(
     start_time: datetime,
     end_time: datetime,
+    satellite: Literal["arase"] = "arase",
     mag_field: Literal["T89", "TS04", "OP77Q"] = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=5),
     num_cores: int = 16,
+    save_strategy: Literal["gfz", "netcdf"] = "netcdf",
     *,
     use_level_3_orbit_data: bool = True,
+    skip_existing: bool = True,
 ) -> None:
     """Process Arase XEP Level 2 omnidirectional electron flux data and save derived products.
 
@@ -55,6 +83,8 @@ def process_arase_xep(
     Args:
         start_time (datetime): Start of the time range to process.
         end_time (datetime): End of the time range to process.
+        satellite (Literal["arase"]): Identifier of the satellite to process. Arase is a
+                                                    single-satellite mission, so this has only one value.
         mag_field (Literal["T89", "TS04", "OP77Q"]): The magnetic field model used for the
                                                     magnetic-field-related output variables.
         raw_data_path (str | Path): Directory where downloaded raw data files are
@@ -65,19 +95,29 @@ def process_arase_xep(
                                 computations (only used when `use_level_3_orbit_data` is
                                 False). Defaults to 4.
         bin_cadence (timedelta): Time binning cadence applied to all variables.
+        save_strategy (Literal["gfz", "netcdf"]): The saving strategy used to write the
+                                                    processed data. Defaults to "netcdf".
         use_level_3_orbit_data (bool): If True, use Arase Level 3 orbit data (which
                                                 already contains precomputed magnetic field
                                                 quantities for `mag_field`); if False, use Level 2
                                                 orbit data and compute the magnetic field
                                                 quantities via IRBEM. Defaults to True.
+        skip_existing (bool): If True, skip downloading files that already exist locally.
+                                            Defaults to True.
     """
+    del satellite
+
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
 
     if use_level_3_orbit_data:
-        orb_variables = get_arase_orbit_level_3_variables(start_time, end_time, mag_field, raw_data_path=raw_data_path)
+        orb_variables = get_arase_orbit_level_3_variables(
+            start_time, end_time, mag_field, raw_data_path=raw_data_path, skip_existing=skip_existing
+        )
     else:
-        orb_variables = get_arase_orbit_level_2_variables(start_time, end_time, raw_data_path=raw_data_path)
+        orb_variables = get_arase_orbit_level_2_variables(
+            start_time, end_time, raw_data_path=raw_data_path, skip_existing=skip_existing
+        )
 
     file_name_stem = "erg_xep_l2_omniflux_YYYYMMDD_.{6}.cdf"
     url = "https://spdf.gsfc.nasa.gov/pub/data/arase/xep/l2/omniflux/YYYY/"
@@ -90,7 +130,7 @@ def process_arase_xep(
         file_name_stem=file_name_stem,
         file_cadence="daily",
         method="request",
-        skip_existing=True,
+        skip_existing=skip_existing,
     )
 
     extraction_infos = [
@@ -271,15 +311,11 @@ def process_arase_xep(
             "InvMu": orb_variables["InvMu"],
         }
 
-    saving_strategy = ep.saving_strategies.MonthlyRBStrategy(
-        processed_data_path,
-        "Arase",
-        "arase",
-        "xep",
-        mag_field=mag_field,
-        file_format="nc",
-        data_standard=ep.data_standards.GFZStandard(),
-    )
+    match save_strategy:
+        case "gfz":
+            saving_strategy = arase_xep_gfz_strategy(processed_data_path, mag_field)
+        case "netcdf":
+            saving_strategy = arase_xep_strategy(processed_data_path, mag_field)
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
 

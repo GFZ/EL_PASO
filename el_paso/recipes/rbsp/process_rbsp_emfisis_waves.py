@@ -2,13 +2,10 @@
 # SPDX-FileContributor: Alwin Roy
 #
 # SPDX-License-Identifier: Apache-2.0
-import argparse
-import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
-import dateutil
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
@@ -16,19 +13,39 @@ from astropy import units as u
 from astropy.constants import e, m_e  # ty:ignore[unresolved-import]
 
 import el_paso as ep
-from el_paso.units import RE
 from el_paso.variable import Variable
 
 if TYPE_CHECKING:
     from el_paso.processing.interpolate_in_time import InterpolationMethod
 
 
+def rbsp_emfisis_waves_strategy(
+    base_data_path: str | Path,
+    satellite: str,
+    data_standard: ep.typing.DataStandard[ep.typing.StandardName] | None = None,
+) -> ep.SavingStrategy:
+    """Daily NetCDF wave saving strategy for RBSP EMFISIS."""
+    return ep.saving_strategies.DailyWaveStrategy(
+        Path(base_data_path),
+        "RBSP",
+        "rbsp" + satellite,
+        "EMFISIS",
+        data_standard or ep.data_standards.GFZStandard(),
+    )
+
+
 def process_rbsp_emfisis_waves(
     start_time: datetime,
     end_time: datetime,
     satellite: Literal["a", "b"] = "a",
+    mag_field: Literal["T89", "T96", "TS04"] = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
+    bin_cadence: timedelta = timedelta(minutes=5),
+    num_cores: int = 16,
+    save_strategy: Literal["netcdf"] = "netcdf",
+    *,
+    skip_existing: bool = True,
 ) -> None:
     """Process RBSP EMFISIS wave, density, and magnetometer data and save derived wave properties.
 
@@ -47,17 +64,41 @@ def process_rbsp_emfisis_waves(
         start_time (datetime): Start of the time range to process.
         end_time (datetime): End of the time range to process.
         satellite (Literal["a", "b"]): RBSP satellite identifier ("a" or "b").
+        mag_field (Literal["T89", "T96", "TS04"]): Unused by this recipe; accepted only for
+            interface consistency with other EL-PASO recipes, since EMFISIS wave processing
+            derives its orbital quantities (L-shell, MLAT, MLT, electron cyclotron frequency)
+            directly from the magnetometer data without using a magnetic field model.
         raw_data_path (str | Path): Base directory where raw CDF files are downloaded to
             and read from. Defaults to ".".
         processed_data_path (str | Path): Directory where the processed output files are
             written to. Defaults to ".".
+        bin_cadence (timedelta): Unused by this recipe; accepted only for interface
+            consistency with other EL-PASO recipes, since EMFISIS wave processing uses the
+            instrument's own WFR time grid instead of a configurable binning cadence.
+        num_cores (int): Unused by this recipe; accepted only for interface consistency
+            with other EL-PASO recipes, since EMFISIS wave processing does not run parallel
+            IRBEM computations.
+        save_strategy (Literal["netcdf"]): Unused by this recipe; accepted only for
+            interface consistency with other EL-PASO recipes, since the EMFISIS wave saving
+            strategy factory only supports a single output format. Defaults to "netcdf".
+        skip_existing (bool): If True, skip downloading files that already exist locally.
+            Defaults to True.
     """
-    wfr_vars = _get_wfr_data(start_time, end_time, Path(raw_data_path), satellite)
+    del mag_field
+    del bin_cadence
+    del num_cores
+    del save_strategy
+
+    wfr_vars = _get_wfr_data(start_time, end_time, Path(raw_data_path), satellite, skip_existing=skip_existing)
 
     target_time_var = wfr_vars["Epoch"]
-    density_vars = _get_density_data(start_time, end_time, Path(raw_data_path), satellite, target_time_var)
-    mag_vars = _get_magnetometer_data(start_time, end_time, Path(raw_data_path), satellite, target_time_var)
-    wna_vars = _get_wna_data(start_time, end_time, Path(raw_data_path), satellite)
+    density_vars = _get_density_data(
+        start_time, end_time, Path(raw_data_path), satellite, target_time_var, skip_existing=skip_existing
+    )
+    mag_vars = _get_magnetometer_data(
+        start_time, end_time, Path(raw_data_path), satellite, target_time_var, skip_existing=skip_existing
+    )
+    wna_vars = _get_wna_data(start_time, end_time, Path(raw_data_path), satellite, skip_existing=skip_existing)
 
     mag_vars = _clean_magnetometer_data(mag_vars)
 
@@ -73,9 +114,7 @@ def process_rbsp_emfisis_waves(
         "Wave_ellipticity": wna_vars["ellipticity"],
     }
 
-    saving_strat = ep.saving_strategies.DailyWaveStrategy(
-        processed_data_path, "RBSP", f"rbsp{satellite}", "EMFISIS", ep.data_standards.GFZStandard()
-    )
+    saving_strat = rbsp_emfisis_waves_strategy(processed_data_path, satellite)
 
     ep.save(vars_to_save, saving_strat, start_time, end_time)
 
@@ -121,7 +160,12 @@ def _calculate_orbital_vars(mag_vars: dict[str, ep.Variable]) -> dict[str, ep.Va
 
 
 def _get_wfr_data(
-    start_time: datetime, end_time: datetime, raw_data_path: Path, satellite: Literal["a", "b"]
+    start_time: datetime,
+    end_time: datetime,
+    raw_data_path: Path,
+    satellite: Literal["a", "b"],
+    *,
+    skip_existing: bool = True,
 ) -> dict[str, ep.Variable]:
     url = f"https://cdaweb.gsfc.nasa.gov/pub/data/rbsp/rbsp{satellite}/l2/emfisis/wfr/spectral-matrix-diagonal/YYYY/"
     file_name_stem = "rbsp-" + satellite + r"_wfr-spectral-matrix-diagonal_emfisis-l2_YYYYMMDD_.{6}.cdf"
@@ -136,7 +180,7 @@ def _get_wfr_data(
         file_name_stem=file_name_stem,
         file_cadence="daily",
         method="request",
-        skip_existing=True,
+        skip_existing=skip_existing,
     )
 
     extraction_infos = [
@@ -169,6 +213,8 @@ def _get_wna_data(
     end_time: datetime,
     raw_data_path: Path,
     satellite: Literal["a", "b"],
+    *,
+    skip_existing: bool = True,
 ) -> dict[str, ep.Variable]:
     url = f"https://cdaweb.gsfc.nasa.gov/pub/data/rbsp/rbsp{satellite}/l4/emfisis/wna-survey-sheath-corrected-e/YYYY/"
     file_name_stem = "rbsp-" + satellite + r"_wna-survey-sheath-corrected-e_emfisis-l4_YYYYMMDD_.{6}.cdf"
@@ -183,7 +229,7 @@ def _get_wna_data(
         file_name_stem=file_name_stem,
         file_cadence="daily",
         method="request",
-        skip_existing=True,
+        skip_existing=skip_existing,
     )
 
     extraction_infos = [
@@ -209,6 +255,8 @@ def _get_density_data(
     raw_data_path: Path,
     satellite: Literal["a", "b"],
     target_time_var: ep.Variable,
+    *,
+    skip_existing: bool = True,
 ) -> dict[str, ep.Variable]:
     url = f"https://cdaweb.gsfc.nasa.gov/pub/data/rbsp/rbsp{satellite}/l4/emfisis/density/YYYY/"
     file_name_stem = "rbsp-" + satellite + r"_density_emfisis-l4_YYYYMMDD_.{7}.cdf"
@@ -223,7 +271,7 @@ def _get_density_data(
         file_name_stem=file_name_stem,
         file_cadence="daily",
         method="request",
-        skip_existing=True,
+        skip_existing=skip_existing,
     )
 
     extraction_infos = [
@@ -257,6 +305,8 @@ def _get_magnetometer_data(
     raw_data_path: Path,
     satellite: Literal["a", "b"],
     target_time_var: ep.Variable,
+    *,
+    skip_existing: bool = True,
 ) -> dict[str, ep.Variable]:
     url = f"https://cdaweb.gsfc.nasa.gov/pub/data/rbsp/rbsp{satellite}/l3/emfisis/magnetometer/4sec/sm/YYYY/"
     file_name_stem = "rbsp-" + satellite + r"_magnetometer_4sec-sm_emfisis-l3_YYYYMMDD_.{6}.cdf"
@@ -271,7 +321,7 @@ def _get_magnetometer_data(
         file_name_stem=file_name_stem,
         file_cadence="daily",
         method="request",
-        skip_existing=True,
+        skip_existing=skip_existing,
     )
 
     extraction_infos = [

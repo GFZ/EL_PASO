@@ -8,14 +8,9 @@ from __future__ import annotations
 
 import calendar
 import logging
-import shutil
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
-
-import netCDF4 as nC
-import numpy as np
+from typing import TYPE_CHECKING
 
 import el_paso as ep
 from el_paso.saving_strategy import OutputFile, SavingStrategy
@@ -23,15 +18,11 @@ from el_paso.saving_strategy import OutputFile, SavingStrategy
 if TYPE_CHECKING:
     from el_paso.typing import (
         DataStandard,
-        FileLoader,
-        FileWriter,
         InternalName,
         MagneticFieldLiteral,
         MFSFormats,
-        SavedDataDict,
         StandardName,
         TimeInterval,
-        Variable,
     )
 
 logger = logging.getLogger(__name__)

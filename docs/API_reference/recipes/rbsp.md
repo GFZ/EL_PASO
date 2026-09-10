@@ -13,4 +13,10 @@ SPDX-License-Identifier: Apache-2.0
 
 ::: el_paso.recipes.rbsp.process_rbsp_hope_electrons.process_rbsp_hope_electrons
 
+::: el_paso.recipes.rbsp.process_rbsp_hope_protons.process_rbsp_hope_protons
+
 ::: el_paso.recipes.rbsp.process_rbsp_mageis_electrons.process_rbsp_mageis_electrons
+
+::: el_paso.recipes.rbsp.process_rbsp_mageis_protons.process_rbsp_mageis_protons
+
+::: el_paso.recipes.rbsp.process_rbsp_rbspice_protons.process_rbsp_rbspice_protons

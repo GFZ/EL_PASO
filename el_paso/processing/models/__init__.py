@@ -3,4 +3,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from el_paso.processing.models.pa_distribution_smirnov_et_al_2022 import get_pa_distribution_smirnov_et_al_2022
+from el_paso.processing.models.pa_distribution_smirnov_et_al_2022 import (
+    get_pa_distribution_smirnov_et_al_2022 as get_pa_distribution_smirnov_et_al_2022,
+)

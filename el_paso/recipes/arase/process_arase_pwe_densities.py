@@ -19,14 +19,31 @@ from el_paso.processing.magnetic_field_utils.irbem import Coords
 from el_paso.recipes.arase.get_arase_orbit_variables import get_arase_orbit_level_2_variables
 
 
+def arase_pwe_densities_strategy(
+    base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral
+) -> ep.SavingStrategy:
+    """Monthly NetCDF density saving strategy for Arase PWE."""
+    return ep.saving_strategies.DensityNetCDFStrategy(
+        base_data_path=base_data_path,
+        mission="Arase",
+        satellite="Other",
+        instrument="PWE",
+        mag_field=mag_field,
+    )
+
+
 def process_arase_pwe_density(
     start_time: datetime,
     end_time: datetime,
+    satellite: Literal["arase"] = "arase",
     mag_field: Literal["T89", "TS04", "OP77Q"] = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=5),
     num_cores: int = 16,
+    save_strategy: Literal["netcdf"] = "netcdf",
+    *,
+    skip_existing: bool = True,
 ) -> None:
     """Process Arase PWE/HFA electron density data and save the mapped equatorial density.
 
@@ -40,6 +57,8 @@ def process_arase_pwe_density(
     Args:
         start_time (datetime): Start of the time range to process.
         end_time (datetime): End of the time range to process.
+        satellite (Literal["arase"]): Identifier of the satellite to process. Arase is a
+                                                    single-satellite mission, so this has only one value.
         mag_field (Literal["T89", "TS04", "OP77Q"]): The magnetic field model used for the
                                                     magnetic-field-related output variables and
                                                     the equatorial density mapping.
@@ -50,14 +69,24 @@ def process_arase_pwe_density(
         num_cores (int): Number of CPU cores used for the IRBEM magnetic field
                                 computations. Defaults to 4.
         bin_cadence (timedelta): Time binning cadence applied to all variables.
+        save_strategy (Literal["netcdf"]): The saving strategy used to write the processed
+                                                    data. Arase PWE density data only has one
+                                                    saving strategy, so this has only one value.
+        skip_existing (bool): If True, skip downloading files that already exist locally.
+                                            Defaults to True.
     """
+    del satellite
+    del save_strategy
+
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     logging.getLogger().setLevel(logging.INFO)
 
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
 
-    orb_variables = get_arase_orbit_level_2_variables(start_time, end_time, raw_data_path=raw_data_path)
+    orb_variables = get_arase_orbit_level_2_variables(
+        start_time, end_time, raw_data_path=raw_data_path, skip_existing=skip_existing
+    )
 
     file_name_stem = "erg_pwe_hfa_l3_1min_YYYYMMDD_.{6}.cdf"
     url = "https://ergsc.isee.nagoya-u.ac.jp/data/ergsc/satellite/erg/pwe/hfa/l3/YYYY/MM/"
@@ -70,7 +99,7 @@ def process_arase_pwe_density(
         file_name_stem=file_name_stem,
         file_cadence="daily",
         method="request",
-        skip_existing=True,
+        skip_existing=skip_existing,
     )
 
     extraction_infos = [
@@ -153,13 +182,7 @@ def process_arase_pwe_density(
         pwe_variables["Density"], pos_geo_var, magnetic_field_variables["xGEO_eq_" + mag_field], method="Denton_average"
     )
 
-    saving_strategy = ep.saving_strategies.DensityNetCDFStrategy(
-        base_data_path=processed_data_path,
-        mission="Arase",
-        satellite="Other",
-        instrument="PWE",
-        mag_field=mag_field,
-    )
+    saving_strategy = arase_pwe_densities_strategy(processed_data_path, mag_field)
 
     variables_to_save = {
         "time": binned_time_variable,

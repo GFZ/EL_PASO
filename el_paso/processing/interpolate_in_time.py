@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-import typing
 from datetime import datetime, timedelta
 from typing import Literal
 
@@ -13,9 +12,6 @@ from scipy.interpolate import interp1d
 
 import el_paso as ep
 from el_paso.utils import datenum_to_datetime, timed_function
-
-if typing.TYPE_CHECKING:
-    from numpy.typing import NDArray
 
 InterpolationMethod = Literal["linear", "nearest", "zero", "slinear", "quadratic", "cubic", "previous", "next"]
 

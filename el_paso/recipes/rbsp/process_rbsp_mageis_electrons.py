@@ -4,15 +4,11 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import argparse
-import logging
-import sys
 from collections.abc import Iterable
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Literal
 
-import dateutil
 import numpy as np
 from astropy import units as u
 from numpy.typing import NDArray
@@ -21,6 +17,25 @@ import el_paso as ep
 from el_paso.processing.magnetic_field_utils import InternalFieldModel, IrbemOptions, LstarQuantity
 
 BAD_CHANNELS = (13, 21, 22, 23, 24)
+
+
+def rbsp_mageis_electron_strategy(
+    base_data_path: str | Path,
+    mag_field: ep.typing.MagneticFieldLiteral,
+    satellite: str,
+    *,
+    file_format: ep.typing.MFSFormats = "nc",
+) -> ep.SavingStrategy:
+    """Monthly NetCDF saving strategy for RBSP MagEIS electrons."""
+    return ep.saving_strategies.MonthlyRBStrategy(
+        Path(base_data_path),
+        "RBSP",
+        "rbsp" + satellite,
+        "mageis",
+        mag_field,
+        data_standard=ep.data_standards.GFZStandard(),
+        file_format=file_format,
+    )
 
 
 def process_rbsp_mageis_electrons(
@@ -32,6 +47,8 @@ def process_rbsp_mageis_electrons(
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=5),
     num_cores: int = 16,
+    skip_existing: bool = True,  # noqa: FBT001, FBT002,
+    save_strategy: Literal["netcdf"] = "netcdf",
 ) -> None:
     """Process RBSP ECT/MagEIS electron flux data into the EL-PASO data standard.
 
@@ -58,7 +75,12 @@ def process_rbsp_mageis_electrons(
         bin_cadence (timedelta): Time-binning cadence applied to all variables.
         num_cores (int): Number of CPU cores used for the magnetic field computations.
             Defaults to 32.
+        skip_existing (bool): If True, skip downloading files that already exist in
+            raw_data_path. Defaults to True.
+        save_strategy (Literal["netcdf"]): Saving strategy used for the output files.
+            Only "netcdf" is currently supported for this recipe. Defaults to "netcdf".
     """
+    del save_strategy
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
 
@@ -72,7 +94,7 @@ def process_rbsp_mageis_electrons(
         file_name_stem=file_name_stem,
         file_cadence="daily",
         method="request",
-        skip_existing=True,
+        skip_existing=skip_existing,
     )
 
     extraction_infos = [
@@ -191,15 +213,7 @@ def process_rbsp_mageis_electrons(
         "PSD": psd_var,
     }
 
-    strategy = ep.saving_strategies.MonthlyRBStrategy(
-        base_data_path=Path(processed_data_path),
-        mission="RBSP",
-        satellite="rbsp" + satellite,
-        instrument="mageis",
-        mag_field=mag_field,
-        file_format=".nc",
-        data_standard=ep.data_standards.GFZStandard(),
-    )
+    strategy = rbsp_mageis_electron_strategy(processed_data_path, mag_field, satellite)
     ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=False)
 
 

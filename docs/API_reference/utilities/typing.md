@@ -57,6 +57,10 @@ SPDX-License-Identifier: Apache-2.0
     options:
       members: false
 
+::: el_paso.typing.Recipe
+    options:
+      members: false
+
 ::: el_paso.typing.SavingStrategy
     options:
       members: false

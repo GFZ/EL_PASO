@@ -5,13 +5,39 @@
 
 import logging
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Literal
 
 from astropy import units as u
 
 import el_paso as ep
+
+
+def rbsp_ect_combined_gfz_strategy(
+    base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral, satellite: str
+) -> ep.SavingStrategy:
+    """Legacy GFZ .mat saving strategy for RBSP ECT-combined."""
+    return ep.saving_strategies.GFZStrategy(Path(base_data_path), "RBSP", "rbsp" + satellite, "ect_combined", mag_field)
+
+
+def rbsp_ect_combined_netcdf_strategy(
+    base_data_path: str | Path,
+    mag_field: ep.typing.MagneticFieldLiteral,
+    satellite: str,
+    *,
+    file_format: ep.typing.MFSFormats = "nc",
+) -> ep.SavingStrategy:
+    """Monthly NetCDF saving strategy for RBSP ECT-combined."""
+    return ep.saving_strategies.MonthlyRBStrategy(
+        Path(base_data_path),
+        "RBSP",
+        "rbsp" + satellite,
+        "ect_combined",
+        mag_field,
+        data_standard=ep.data_standards.GFZStandard(),
+        file_format=file_format,
+    )
 
 
 def process_rbsp_ect_combined(
@@ -24,6 +50,7 @@ def process_rbsp_ect_combined(
     bin_cadence: timedelta = timedelta(minutes=5),
     num_cores: int = 16,
     save_strategy: Literal["gfz", "netcdf", "both"] = "netcdf",
+    skip_existing: bool = True,  # noqa: FBT001, FBT002,
 ) -> None:
     """Process combined RBSP ECT (REPT/MagEIS) electron flux data into the EL-PASO data standard.
 
@@ -50,6 +77,7 @@ def process_rbsp_ect_combined(
             to use for writing the processed output. Defaults to "netcdf".
         num_cores (int): Number of CPU cores used for the magnetic field computations.
             Defaults to 4.
+        skip_existing (bool): If True, skip downloading files that already exist on disk.
     """
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     logging.getLogger().setLevel(logging.INFO)
@@ -67,7 +95,7 @@ def process_rbsp_ect_combined(
         file_name_stem=file_name_stem,
         file_cadence="daily",
         method="request",
-        skip_existing=True,
+        skip_existing=skip_existing,
     )
 
     extraction_infos = [
@@ -194,25 +222,10 @@ def process_rbsp_ect_combined(
     }
 
     if save_strategy in ("gfz", "both"):
-        strategy = ep.saving_strategies.GFZStrategy(
-            processed_data_path,
-            "RBSP",
-            "rbsp" + satellite,
-            "ect_combined",
-            mag_field,
-            data_standard=ep.data_standards.GFZStandard(),
-        )
+        strategy = rbsp_ect_combined_gfz_strategy(processed_data_path, mag_field, satellite)
 
     if save_strategy in ("netcdf", "both"):
-        strategy = ep.saving_strategies.MonthlyRBStrategy(
-            base_data_path=Path(processed_data_path),
-            mission="RBSP",
-            satellite=f"rbsp{satellite}",
-            instrument="ect_combined",
-            mag_field=mag_field,
-            file_format="nc",
-            data_standard=ep.data_standards.GFZStandard(),
-        )
+        strategy = rbsp_ect_combined_netcdf_strategy(processed_data_path, mag_field, satellite)
 
     ep.save(variables_to_save, strategy, start_time, end_time, binned_time_variable, append=True)
 

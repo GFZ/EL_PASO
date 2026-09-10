@@ -18,18 +18,24 @@ if typing.TYPE_CHECKING:
 
 
 def get_arase_orbit_level_2_variables(
-    start_time: datetime, end_time: datetime, raw_data_path: str | Path = "."
+    start_time: datetime,
+    end_time: datetime,
+    raw_data_path: str | Path = ".",
+    *,
+    skip_existing: bool = True,
 ) -> dict[str, ep.Variable]:
     """Download and extract Arase Level 2 orbit (definitive) data.
 
     Downloads the daily Arase ``orb/def`` Level 2 CDF files covering the requested time range
-    (skipping files that already exist) and extracts the epoch and SM position variables from them.
+    and extracts the epoch and SM position variables from them.
 
     Args:
         start_time (datetime): Start of the time range to retrieve data for.
         end_time (datetime): End of the time range to retrieve data for.
         raw_data_path (str | Path, optional): Directory where the downloaded raw data files are
                                             stored. Defaults to ".".
+        skip_existing (bool): If True, skip downloading files that already exist locally.
+                                            Defaults to True.
 
     Returns:
         dict[str, ep.Variable]: A dictionary containing the extracted "Epoch" and "pos_sm" variables.
@@ -47,7 +53,7 @@ def get_arase_orbit_level_2_variables(
         file_name_stem=file_name_stem,
         file_cadence="daily",
         method="request",
-        skip_existing=True,
+        skip_existing=skip_existing,
     )
 
     extraction_infos = [
@@ -79,13 +85,15 @@ def get_arase_orbit_level_3_variables(
     end_time: datetime,
     mag_field: Literal["OP77Q", "T89", "TS04"],
     raw_data_path: str | Path = ".",
+    *,
+    skip_existing: bool = True,
 ) -> dict[str, ep.Variable]:
     """Download and extract Arase Level 3 orbit data for a given magnetic field model.
 
     Downloads the daily Arase ``orb/l3`` Level 3 CDF files corresponding to the given `mag_field`
-    model (skipping files that already exist), extracts the epoch, local and equatorial magnetic
-    field magnitude, Lm, Lstar and equatorial position variables, truncates all variables to the
-    requested time range, and derives "MLT" and "R0" variables from the equatorial position.
+    model, extracts the epoch, local and equatorial magnetic field magnitude, Lm, Lstar and
+    equatorial position variables, truncates all variables to the requested time range, and
+    derives "MLT" and "R0" variables from the equatorial position.
 
     Args:
         start_time (datetime): Start of the time range to retrieve data for.
@@ -94,6 +102,8 @@ def get_arase_orbit_level_3_variables(
                                                     data should be downloaded and extracted.
         raw_data_path (str | Path, optional): Directory where the downloaded raw data files are
                                             stored. Defaults to ".".
+        skip_existing (bool): If True, skip downloading files that already exist locally.
+                                            Defaults to True.
 
     Returns:
         dict[str, ep.Variable]: A dictionary containing the extracted and derived variables
@@ -129,7 +139,7 @@ def get_arase_orbit_level_3_variables(
         file_name_stem=file_name_stem,
         file_cadence="daily",
         method="request",
-        skip_existing=True,
+        skip_existing=skip_existing,
     )
 
     match mag_field:

@@ -139,20 +139,43 @@ def extract_data_from_lanl_gps_ascii(file_path, extraction_infos):  # noqa: ANN0
     return data
 
 
+def gps_cxd_strategy(
+    base_data_path: str | Path,
+    mag_field: ep.typing.MagneticFieldLiteral,
+    satellite: str,
+    *,
+    file_format: ep.typing.MFSFormats = "nc",
+) -> ep.SavingStrategy:
+    """Monthly NetCDF saving strategy for LANL GPS CXD."""
+    return ep.saving_strategies.MonthlyRBStrategy(
+        Path(base_data_path),
+        "GPS",
+        satellite,
+        "cxd",
+        mag_field,
+        data_standard=ep.data_standards.GFZStandard(),
+        file_format=file_format,
+    )
+
+
 def process_gps_data(
     start_time: datetime,
     end_time: datetime,
     satellite: LANL_SAT = "ns41",
+    mag_field: ep.typing.MagneticFieldLiteral = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=4),
     num_cores: int = 16,
+    save_strategy: Literal["netcdf"] = "netcdf",
+    *,
+    skip_existing: bool = True,
 ) -> None:
     """Process LANL GPS electron flux data into magnetic-field-resolved data products.
 
     Downloads and extracts the omnidirectional electron differential flux from ascii files
     for the given LANL GPS satellite, converts the geocentric position to GEO coordinates,
-    computes T89 magnetic field quantities (B_Calc, B_Eq, MLT, R_Eq, L_m, L_star, Alpha_Eq)
+    computes magnetic field quantities (B_Calc, B_Eq, MLT, R_Eq, L_m, L_star, Alpha_Eq)
     at sampled local pitch angles (5-90 deg, step 5), and expands the omnidirectional flux
     into a full pitch-angle-resolved flux via construct_pitch_angle_distribution (sine PAD
     shape, "omni" normalization). Results are saved using a monthly RB saving strategy.
@@ -171,11 +194,19 @@ def process_gps_data(
         start_time (datetime): Start of the time interval to process.
         end_time (datetime): End of the time interval to process.
         satellite (LANL_SAT): The LANL GPS satellite to process.
+        mag_field (MagneticFieldLiteral): Magnetic field model used for the derived quantities.
         raw_data_path (str | Path): Directory where the raw downloaded data files are stored.
         processed_data_path (str | Path): Directory where the processed output files are saved.
         bin_cadence (timedelta): Time cadence used to bin the extracted variables.
         num_cores (int): Number of CPU cores used for the magnetic field computations.
+        save_strategy (Literal["netcdf"]): The saving strategy used to write the processed
+                                                    data. GPS CXD data only supports a single
+                                                    netCDF-based strategy.
+        skip_existing (bool): If True, skip downloading files that already exist locally.
+                                            Defaults to True.
     """
+    del save_strategy
+
     data_path_stem = f"{raw_data_path}/GPS/{satellite}/YY/MM/DD"
     url = f"https://www.ngdc.noaa.gov/stp/space-weather/satellite-data/satellite-systems/lanl_gps/version_v1.10r2/{satellite}"
     file_name_stem = satellite + "_YYMMDD_v1.10.ascii"
@@ -192,6 +223,7 @@ def process_gps_data(
         file_cadence=weekly,
         download_url=url,
         file_name_stem=file_name_stem,
+        skip_existing=skip_existing,
     )
 
     extraction_infos = [
@@ -279,15 +311,15 @@ def process_gps_data(
     del variables["lat"]
 
     variables_to_compute: ep.processing.VariableRequest = [
-        ("B_Calc", "T89"),
-        ("B_Eq", "T89"),
-        ("MLT", "T89"),
-        ("R_Eq", "T89"),
-        ("L_m", "T89"),
-        ("L_star", "T89"),
-        ("Alpha_Eq", "T89"),
-        ("InvMu", "T89"),
-        ("InvK", "T89"),
+        ("B_Calc", mag_field),
+        ("B_Eq", mag_field),
+        ("MLT", mag_field),
+        ("R_Eq", mag_field),
+        ("L_m", mag_field),
+        ("L_star", mag_field),
+        ("Alpha_Eq", mag_field),
+        ("InvMu", mag_field),
+        ("InvK", mag_field),
     ]
 
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
@@ -304,7 +336,7 @@ def process_gps_data(
     FEDU_var = ep.processing.construct_pitch_angle_distribution(
         variables["FEDO"],
         variables["PA_local_FEDO"],
-        magnetic_field_variables["Alpha_Eq_T89"],
+        magnetic_field_variables[f"Alpha_Eq_{mag_field}"],
         flux_type="omni",
     )
     FEDU_var.apply_thresholds_on_data(lower_threshold=0)
@@ -316,27 +348,20 @@ def process_gps_data(
         "FEDU": FEDU_var,
         "Energy_FEDU": variables["Energy_FEDO"],
         "Alpha": variables["PA_local_FEDO"],
-        "R_Eq": magnetic_field_variables["R_Eq_T89"],
-        "MLT": magnetic_field_variables["MLT_T89"],
-        "B_Calc": magnetic_field_variables["B_Calc_T89"],
-        "B_Eq": magnetic_field_variables["B_Eq_T89"],
-        "L_m": magnetic_field_variables["L_m_T89"],
-        "L_star": magnetic_field_variables["L_star_T89"],
-        "Alpha_Eq": magnetic_field_variables["Alpha_Eq_T89"],
+        "R_Eq": magnetic_field_variables[f"R_Eq_{mag_field}"],
+        "MLT": magnetic_field_variables[f"MLT_{mag_field}"],
+        "B_Calc": magnetic_field_variables[f"B_Calc_{mag_field}"],
+        "B_Eq": magnetic_field_variables[f"B_Eq_{mag_field}"],
+        "L_m": magnetic_field_variables[f"L_m_{mag_field}"],
+        "L_star": magnetic_field_variables[f"L_star_{mag_field}"],
+        "Alpha_Eq": magnetic_field_variables[f"Alpha_Eq_{mag_field}"],
         "Position": variables["xGEO"],
         "PSD": psd_var,
-        "InvMu": magnetic_field_variables["InvMu_T89"],
-        "InvK": magnetic_field_variables["InvK_T89"],
+        "InvMu": magnetic_field_variables[f"InvMu_{mag_field}"],
+        "InvK": magnetic_field_variables[f"InvK_{mag_field}"],
     }
 
-    saving_strategy = ep.saving_strategies.MonthlyRBStrategy(
-        base_data_path=Path(processed_data_path),
-        mission="GPS",
-        satellite=satellite,
-        instrument="cxd",
-        mag_field="T89",
-        data_standard=ep.data_standards.GFZStandard(),
-    )
+    saving_strategy = gps_cxd_strategy(processed_data_path, mag_field, satellite)
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var)  # ty:ignore[invalid-argument-type]
 

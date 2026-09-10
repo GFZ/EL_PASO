@@ -37,7 +37,7 @@ def test_arase_mepe_snapshot(
     process_arase_mepe(
         start_time,
         end_time,
-        mag_field,
+        mag_field=mag_field,
         raw_data_path=Path(__file__).parent / "data" / "raw",
         processed_data_path=processed_data_path,
         num_cores=32,

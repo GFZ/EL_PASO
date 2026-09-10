@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
+import click
 import pytest
 import typer
 from typer.testing import CliRunner
@@ -437,7 +438,9 @@ def test_every_recipe_builds_and_binds(entry: RecipeEntry, caplog: pytest.LogCap
     # the time range is mandatory, so an invocation without it must be rejected
     missing_time_result = runner.invoke(app, ["--dry-run"], env={"COLUMNS": "200"})
     assert missing_time_result.exit_code != 0
-    assert "--start-time" in missing_time_result.output
+    # click/rich may style the option name with ANSI codes that split "--start-time" up,
+    # depending on how many options the recipe's error panel has to wrap around.
+    assert "--start-time" in click.unstyle(missing_time_result.output)
 
     # --dry-run binds the resolved arguments against the recipe signature, so this
     # fails loudly if a recipe signature ever drifts away from its command line.
@@ -453,11 +456,22 @@ def test_every_recipe_builds_and_binds(entry: RecipeEntry, caplog: pytest.LogCap
 @pytest.mark.basic
 @pytest.mark.parametrize("entry", RECIPES, ids=lambda e: f"{e.mission}-{e.command}")
 def test_every_recipe_has_the_shared_option_surface(entry: RecipeEntry) -> None:
-    """Time range and data paths are the options every recipe must accept."""
+    """Every recipe must accept the full shared parameter surface enforced by `ep.typing.Recipe`."""
     func, defaults = load_recipe(entry)
     parameters = inspect.signature(func).parameters
 
-    for name in ("start_time", "end_time", "raw_data_path", "processed_data_path"):
+    for name in (
+        "start_time",
+        "end_time",
+        "satellite",
+        "mag_field",
+        "raw_data_path",
+        "processed_data_path",
+        "bin_cadence",
+        "num_cores",
+        "skip_existing",
+        "save_strategy",
+    ):
         assert name in parameters, f"{func.__name__} is missing {name}"
 
     # Apart from the mandatory time range, every parameter must have a default, so that

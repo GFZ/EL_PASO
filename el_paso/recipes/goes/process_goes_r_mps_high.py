@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
@@ -20,6 +19,33 @@ if TYPE_CHECKING:
 logging.captureWarnings(capture=True)
 logger = logging.getLogger(__name__)
 
+
+def goes_r_mps_high_gfz_strategy(
+    base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral, satellite: str
+) -> ep.SavingStrategy:
+    """Legacy GFZ .mat saving strategy for GOES-R MPS-HI/MAGED."""
+    return ep.saving_strategies.GFZStrategy(Path(base_data_path), "GOES", satellite, "MAGED", mag_field)
+
+
+def goes_r_mps_high_netcdf_strategy(
+    base_data_path: str | Path,
+    mag_field: ep.typing.MagneticFieldLiteral,
+    satellite: str,
+    *,
+    file_format: ep.typing.MFSFormats = "nc",
+) -> ep.SavingStrategy:
+    """Monthly NetCDF saving strategy for GOES-R MPS-HI/MAGED."""
+    return ep.saving_strategies.MonthlyRBStrategy(
+        Path(base_data_path),
+        "GOES",
+        satellite,
+        "MAGED",
+        mag_field,
+        data_standard=ep.data_standards.GFZStandard(),
+        file_format=file_format,
+    )
+
+
 TELE_ALPHA_ANGLES = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
 TELE_BETA_ANGLES = np.array([-35.0, 35.0, -70.0, 0, 70.0])
 
@@ -34,6 +60,7 @@ def process_goes_r_mps_high(
     bin_cadence: timedelta = timedelta(minutes=5),
     num_cores: int = 16,
     save_strategy: Literal["gfz", "netcdf", "both"] = "netcdf",
+    skip_existing: bool = True,  # noqa: FBT001, FBT002,
 ) -> None:
     """Process GOES-R MPS-HI MAGED electron data into pitch-angle resolved phase space densities.
 
@@ -57,12 +84,13 @@ def process_goes_r_mps_high(
         save_strategy (Literal["gfz", "netcdf", "both"]): Strategy used to save the processed
             data. "gfz" saves using the GFZ format, "netcdf" saves monthly NetCDF files, and
             "both" saves using both strategies.
+        skip_existing (bool): If True, skip downloading files that already exist on disk.
     """
     data_path_stem = f"{raw_data_path}/YYYY/MM/{satellite}/"
 
-    magn_vars = _get_magn_variables(satellite, data_path_stem, start_time, end_time)
-    mps_vars = _get_mps_high_variables(satellite, data_path_stem, start_time, end_time)
-    ephe_vars = _get_ephe_variables(satellite, data_path_stem, start_time, end_time)
+    magn_vars = _get_magn_variables(satellite, data_path_stem, start_time, end_time, skip_existing=skip_existing)
+    mps_vars = _get_mps_high_variables(satellite, data_path_stem, start_time, end_time, skip_existing=skip_existing)
+    ephe_vars = _get_ephe_variables(satellite, data_path_stem, start_time, end_time, skip_existing=skip_existing)
 
     time_bin_methods_magn = {
         "b_brf": ep.TimeBinMethod.NanMean,
@@ -196,24 +224,9 @@ def process_goes_r_mps_high(
     }
 
     if save_strategy in ("gfz", "both"):
-        saving_strategy = ep.saving_strategies.GFZStrategy(
-            Path(processed_data_path),
-            mission="GOES",
-            satellite=satellite,
-            instrument="MAGED",
-            mag_field=mag_field,
-            data_standard=ep.data_standards.GFZStandard(),
-        )
+        saving_strategy = goes_r_mps_high_gfz_strategy(processed_data_path, mag_field, satellite)
     if save_strategy in ("netcdf", "both"):
-        saving_strategy = ep.saving_strategies.MonthlyRBStrategy(
-            Path(processed_data_path),
-            mission="GOES",
-            satellite=satellite,
-            instrument="MAGED",
-            mag_field=mag_field,
-            file_format="nc",
-            data_standard=ep.data_standards.GFZStandard(),
-        )
+        saving_strategy = goes_r_mps_high_netcdf_strategy(processed_data_path, mag_field, satellite)
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=True)
 
@@ -223,6 +236,8 @@ def _get_magn_variables(
     data_path_stem: str | Path,
     start_time: datetime,
     end_time: datetime,
+    *,
+    skip_existing: bool = True,
 ) -> dict[str, ep.Variable]:
     url = f"https://data.ngdc.noaa.gov/platforms/solar-space-observing-satellites/goes/{satellite}/l2/data/magn-l2-avg1m/YYYY/MM/"
 
@@ -236,6 +251,7 @@ def _get_magn_variables(
         file_cadence="daily",
         download_url=url,
         file_name_stem=file_name_stem,
+        skip_existing=skip_existing,
     )
 
     extraction_infos = [
@@ -259,6 +275,8 @@ def _get_ephe_variables(
     data_path_stem: str | Path,
     start_time: datetime,
     end_time: datetime,
+    *,
+    skip_existing: bool = True,
 ) -> dict[str, ep.Variable]:
     url = f"https://data.ngdc.noaa.gov/platforms/solar-space-observing-satellites/goes/{satellite}/l2/data/ephe-l2-orb1m/YYYY/MM/"
 
@@ -272,6 +290,7 @@ def _get_ephe_variables(
         file_cadence="daily",
         download_url=url,
         file_name_stem=file_name_stem,
+        skip_existing=skip_existing,
     )
 
     extraction_infos = [
@@ -294,6 +313,8 @@ def _get_mps_high_variables(
     data_path_stem: str | Path,
     start_time: datetime,
     end_time: datetime,
+    *,
+    skip_existing: bool = True,
 ) -> dict[str, ep.Variable]:
     url = f"https://data.ngdc.noaa.gov/platforms/solar-space-observing-satellites/goes/{satellite}/l2/data/mpsh-l2-avg5m_science/YYYY/MM/"
 
@@ -307,6 +328,7 @@ def _get_mps_high_variables(
         file_cadence="daily",
         download_url=url,
         file_name_stem=file_name_stem,
+        skip_existing=skip_existing,
     )
 
     extraction_infos = [

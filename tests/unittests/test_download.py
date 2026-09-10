@@ -16,6 +16,7 @@ from astropy import units as u
 import el_paso as ep
 
 
+@pytest.mark.basic
 def test_esa_api(tmp_path: Path, skip_if_unreachable: Callable[..., None]):
 
     skip_if_unreachable("https://swe.ssa.esa.int", "https://sso.s2p.esa.int")

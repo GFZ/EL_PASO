@@ -40,6 +40,24 @@ _GSSC_EMU_SATELLITE_TO_NORAD_ID: dict[str, int] = {
 _CELESTRAK_TIMEOUT_SECONDS = 30
 
 
+def gssc_emu_proton_strategy(
+    base_data_path: str | Path,
+    satellite: str,
+    *,
+    file_format: ep.typing.MFSFormats = ".nc",
+) -> ep.SavingStrategy:
+    """Monthly RB saving strategy for GSSC EMU protons."""
+    return ep.saving_strategies.MonthlyRBStrategy(
+        base_data_path=Path(base_data_path),
+        mission="ESA",
+        satellite=satellite,
+        instrument="emu-proton",
+        mag_field="T89",
+        file_format=file_format,
+        data_standard=ep.data_standards.GFZStandard(),
+    )
+
+
 def _download_gssc_emu_omm(
     satellite: Literal["gsat0207", "gsat0215"],
     raw_data_path: str | Path,
@@ -264,8 +282,8 @@ def process_gssc_emu_protons(
     ]
 
     if calculate_Lstar:
-        variables_to_compute.append(("L_star", "T89"))  # ty:ignore[invalid-argument-type]
-        variables_to_compute.append(("L_m", "T89"))  # ty:ignore[invalid-argument-type]
+        variables_to_compute.append(("L_star", "T89"))
+        variables_to_compute.append(("L_m", "T89"))
 
     irbem_options = ep.processing.magnetic_field_utils.IrbemOptions(
         lstar_quantity=ep.processing.magnetic_field_utils.LstarQuantity.LSTAR
@@ -310,15 +328,7 @@ def process_gssc_emu_protons(
         variables_to_save["L_m"] = magnetic_field_variables["L_m_T89"]
 
     if saving_strategy is None:
-        saving_strategy = ep.saving_strategies.MonthlyRBStrategy(
-            base_data_path=Path(processed_data_path),
-            mission="ESA",
-            satellite=satellite,
-            instrument="emu-proton",
-            mag_field="T89",
-            file_format=".nc",
-            data_standard=ep.data_standards.GFZStandard(),
-        )
+        saving_strategy = gssc_emu_proton_strategy(processed_data_path, satellite)
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=True)
 

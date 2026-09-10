@@ -3,17 +3,39 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import argparse
-import logging
-import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Literal
 
-import dateutil
 from astropy import units as u
 
 import el_paso as ep
+
+
+def rbsp_hope_electron_gfz_strategy(
+    base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral, satellite: str
+) -> ep.SavingStrategy:
+    """Legacy GFZ .mat saving strategy for RBSP HOPE electrons."""
+    return ep.saving_strategies.GFZStrategy(Path(base_data_path), "RBSP", "rbsp" + satellite, "hope", mag_field)
+
+
+def rbsp_hope_electron_netcdf_strategy(
+    base_data_path: str | Path,
+    mag_field: ep.typing.MagneticFieldLiteral,
+    satellite: str,
+    *,
+    file_format: ep.typing.MFSFormats = "nc",
+) -> ep.SavingStrategy:
+    """Monthly NetCDF saving strategy for RBSP HOPE electrons."""
+    return ep.saving_strategies.MonthlyRBStrategy(
+        Path(base_data_path),
+        "RBSP",
+        "rbsp" + satellite,
+        "hope",
+        mag_field,
+        data_standard=ep.data_standards.GFZStandard(),
+        file_format=file_format,
+    )
 
 
 def process_rbsp_hope_electrons(
@@ -28,6 +50,7 @@ def process_rbsp_hope_electrons(
     save_strategy: Literal["gfz", "netcdf", "both"] = "netcdf",
     *,
     calculate_Lstar: bool = True,
+    skip_existing: bool = True,
 ) -> None:
     """Process RBSP ECT/HOPE electron flux data into the EL-PASO data standard.
 
@@ -55,6 +78,7 @@ def process_rbsp_hope_electrons(
         save_strategy (Literal["gfz", "netcdf", "both"]): Which saving strategy/strategies
             to use for writing the processed output. Defaults to "netcdf".
         calculate_Lstar (bool): Whether Lstar should be calculated or not. Defaults to True.
+        skip_existing (bool): If True, skip downloading files that already exist on disk.
     """
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
@@ -69,7 +93,7 @@ def process_rbsp_hope_electrons(
         file_name_stem=file_name_stem,
         file_cadence="daily",
         method="request",
-        skip_existing=True,
+        skip_existing=skip_existing,
     )
 
     extraction_infos = [
@@ -184,25 +208,10 @@ def process_rbsp_hope_electrons(
     }
 
     if save_strategy in ("gfz", "both"):
-        strategy = ep.saving_strategies.GFZStrategy(
-            processed_data_path,
-            mission="RBSP",
-            satellite="rbsp" + satellite,
-            instrument="hope",
-            mag_field=mag_field,
-            data_standard=ep.data_standards.GFZStandard(),
-        )
+        strategy = rbsp_hope_electron_gfz_strategy(processed_data_path, mag_field, satellite)
 
     if save_strategy in ("netcdf", "both"):
-        strategy = ep.saving_strategies.MonthlyRBStrategy(
-            base_data_path=Path(processed_data_path),
-            mission="RBSP",
-            satellite="rbsp" + satellite,
-            instrument="hope",
-            mag_field=mag_field,
-            file_format=".nc",
-            data_standard=ep.data_standards.GFZStandard(),
-        )
+        strategy = rbsp_hope_electron_netcdf_strategy(processed_data_path, mag_field, satellite)
 
     ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=True)
 

@@ -45,6 +45,12 @@ repos:
         language: system
         pass_filenames: false
         files: ^(el_paso/data_standards/(gfz_standard|prbem_standard)\.py|scripts/generate_metadata_stubs\.py)$
+      - id: check-recipe-strategies
+        name: check-recipe-strategies
+        entry: python hooks/check_recipe_strategies.py
+        language: system
+        pass_filenames: false
+        files: ^el_paso/recipes/
   - repo: https://github.com/sahiljhawar/reuseify
     rev: 1.0.2
     hooks:

@@ -2,15 +2,12 @@
 # SPDX-FileContributor: Bernhard Haas
 #
 # SPDX-License-Identifier: Apache-2.0
-import argparse
 import logging
 import os
-import sys
 import typing
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-import dateutil
 import numpy as np
 from astropy import units as u
 from dotenv import load_dotenv
@@ -25,6 +22,28 @@ EPT_ELECTRON_CORRECTION_FACTORS = [2, 5, 3, 4, 10, 10]
 logger = logging.getLogger(__name__)
 
 
+def probav_ept_electron_gfz_strategy(
+    base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral
+) -> ep.SavingStrategy:
+    """Legacy GFZ .mat saving strategy for PROBA-V EPT electrons."""
+    return ep.saving_strategies.GFZStrategy(Path(base_data_path), "PROBAV", "probav", "ept", mag_field)
+
+
+def probav_ept_electron_netcdf_strategy(
+    base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral, *, file_format: ep.typing.MFSFormats = ".nc"
+) -> ep.SavingStrategy:
+    """Daily LEO/RB NetCDF saving strategy for PROBA-V EPT electrons."""
+    return ep.saving_strategies.DailyLEORBStrategy(
+        Path(base_data_path),
+        "PROBAV",
+        "probav",
+        "ept",
+        mag_field,
+        data_standard=ep.data_standards.GFZStandard(),
+        file_format=file_format,
+    )
+
+
 load_dotenv()
 
 
@@ -32,6 +51,7 @@ load_dotenv()
 def process_ept_electron_fluxes(
     start_time: datetime,
     end_time: datetime,
+    satellite: typing.Literal["probav"] = "probav",
     mag_field: ep.typing.MagneticFieldLiteral = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
@@ -60,6 +80,8 @@ def process_ept_electron_fluxes(
     Args:
         start_time (datetime): Start of the time range to process.
         end_time (datetime): End of the time range to process.
+        satellite (Literal["probav"]): Identifier of the satellite/platform to process.
+            PROBA-V is a single-platform mission, so this has only one value.
         mag_field (MagneticFieldLiteral): Magnetic field model used for the derived quantities.
         raw_data_path (str | Path): Base directory used for downloading and locating the raw EPT data files.
         processed_data_path (str | Path): Base directory in which the processed output files are saved.
@@ -78,6 +100,8 @@ def process_ept_electron_fluxes(
         ValueError: If `client_id` or `client_secret` is not provided and not available via the
             `CLIENT_ID`/`CLIENT_SECRET` environment variables.
     """
+    del satellite
+
     if client_id is None:
         client_id = os.environ.get("CLIENT_ID")
     if client_secret is None:
@@ -278,25 +302,10 @@ def process_ept_electron_fluxes(
     }
 
     if save_strategy in ("gfz", "both"):
-        strategy = ep.saving_strategies.GFZStrategy(
-            processed_data_path,
-            mission="PROBAV",
-            satellite="probav",
-            instrument="ept",
-            mag_field=mag_field,
-            data_standard=ep.data_standards.GFZStandard(),
-        )
+        strategy = probav_ept_electron_gfz_strategy(processed_data_path, mag_field)
 
     if save_strategy in ("netcdf", "both"):
-        strategy = ep.saving_strategies.DailyLEORBStrategy(
-            base_data_path=Path(processed_data_path),
-            mission="PROBAV",
-            satellite="probav",
-            instrument="ept",
-            mag_field=mag_field,
-            file_format=".nc",
-            data_standard=ep.data_standards.GFZStandard(),
-        )
+        strategy = probav_ept_electron_netcdf_strategy(processed_data_path, mag_field)
     ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_var, append=True)
 
 

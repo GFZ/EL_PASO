@@ -4,19 +4,41 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import argparse
-import logging
-import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Literal
 
-import dateutil
 import numpy as np
 from astropy import units as u
 
 import el_paso as ep
 from el_paso.processing.magnetic_field_utils import InternalFieldModel, IrbemOptions, LstarQuantity
+
+
+def rbsp_rbspice_proton_gfz_strategy(
+    base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral, satellite: str
+) -> ep.SavingStrategy:
+    """Legacy GFZ .mat saving strategy for RBSP RBSPICE protons."""
+    return ep.saving_strategies.GFZStrategy(Path(base_data_path), "RBSP", "rbsp" + satellite, "rbspice", mag_field)
+
+
+def rbsp_rbspice_proton_netcdf_strategy(
+    base_data_path: str | Path,
+    mag_field: ep.typing.MagneticFieldLiteral,
+    satellite: str,
+    *,
+    file_format: ep.typing.MFSFormats = "nc",
+) -> ep.SavingStrategy:
+    """Monthly NetCDF saving strategy for RBSP RBSPICE protons."""
+    return ep.saving_strategies.MonthlyRBStrategy(
+        Path(base_data_path),
+        "RBSP",
+        "rbsp" + satellite,
+        "rbspice",
+        mag_field,
+        data_standard=ep.data_standards.GFZStandard(),
+        file_format=file_format,
+    )
 
 
 def process_rbsp_rbspice_protons(
@@ -29,6 +51,7 @@ def process_rbsp_rbspice_protons(
     bin_cadence: timedelta = timedelta(minutes=5),
     num_cores: int = 16,
     save_strategy: Literal["gfz", "netcdf", "both"] = "both",
+    skip_existing: bool = True,  # noqa: FBT001, FBT002,
 ) -> None:
     """Process RBSP RBSPICE proton flux data into the EL-PASO data standard.
 
@@ -57,6 +80,7 @@ def process_rbsp_rbspice_protons(
             Defaults to 32.
         save_strategy (Literal["gfz", "netcdf", "both"]): Which saving strategy/strategies
             to use for writing the processed output. Defaults to "both".
+        skip_existing (bool): If True, skip downloading files that already exist on disk.
     """
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
@@ -71,7 +95,7 @@ def process_rbsp_rbspice_protons(
         file_name_stem=file_name_stem,
         file_cadence="daily",
         method="request",
-        skip_existing=True,
+        skip_existing=skip_existing,
     )
 
     extraction_infos_fpdu = [
@@ -201,26 +225,11 @@ def process_rbsp_rbspice_protons(
     }
 
     if save_strategy in ("gfz", "both"):
-        strategy = ep.saving_strategies.GFZStrategy(
-            processed_data_path,
-            mission="RBSP",
-            satellite="rbsp" + satellite,
-            instrument="rbspice",
-            mag_field=mag_field,
-            data_standard=ep.data_standards.GFZStandard(),
-        )
+        strategy = rbsp_rbspice_proton_gfz_strategy(processed_data_path, mag_field, satellite)
         ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=True)
 
     if save_strategy in ("netcdf", "both"):
-        strategy = ep.saving_strategies.MonthlyRBStrategy(
-            base_data_path=Path(processed_data_path),
-            mission="RBSP",
-            satellite="rbsp" + satellite,
-            instrument="rbspice",
-            mag_field=mag_field,
-            file_format=".nc",
-            data_standard=ep.data_standards.GFZStandard(),
-        )
+        strategy = rbsp_rbspice_proton_netcdf_strategy(processed_data_path, mag_field, satellite)
         ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=True)
 
 

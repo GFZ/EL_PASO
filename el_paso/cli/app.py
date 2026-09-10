@@ -27,10 +27,11 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+import el_paso as ep
 from el_paso.cli.recipe_cli import build_recipe_command, parse_docstring
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from el_paso.typing import Recipe
 
 
 class RecipeEntry(NamedTuple):
@@ -104,14 +105,14 @@ RECIPES: tuple[RecipeEntry, ...] = (
 )
 
 
-def load_recipe(entry: RecipeEntry) -> tuple[Callable[..., None], dict[str, object]]:
+def load_recipe(entry: RecipeEntry) -> tuple[Recipe, dict[str, object]]:
     """Import a recipe and return its function together with its CLI defaults.
 
     Args:
         entry (RecipeEntry): The registry entry to load.
 
     Returns:
-        tuple[Callable[..., None], dict[str, object]]: The recipe function and the
+        tuple[Recipe, dict[str, object]]: The recipe function and the
         ``CLI_DEFAULTS`` declared in its module (an empty dict if it declares none).
     """
     module = importlib.import_module(entry.module)
@@ -133,6 +134,7 @@ app = typer.Typer(
     help="Download, process and save satellite particle observation data.",
     no_args_is_help=True,
     pretty_exceptions_show_locals=False,
+    context_settings={"help_option_names": ["-h", "--help"]},
 )
 
 _mission_apps: dict[str, typer.Typer] = {}
@@ -144,7 +146,12 @@ for _entry in RECIPES:
         app.add_typer(mission_app)
 
     _func, _defaults = load_recipe(_entry)
-    _mission_apps[_entry.mission].command(name=_entry.command)(build_recipe_command(_func, defaults=_defaults))
+    _mission_apps[_entry.mission].command(name=_entry.command, no_args_is_help=True)(
+        build_recipe_command(_func, defaults=_defaults)
+    )
+
+
+app.command("omm")(build_recipe_command(ep.download_omm))
 
 
 @app.command("list")

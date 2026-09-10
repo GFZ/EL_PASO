@@ -2,16 +2,13 @@
 # SPDX-FileContributor: Bernhard Haas
 #
 # SPDX-License-Identifier: Apache-2.0
-import argparse
 import logging
 import os
-import sys
 import typing
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Literal
 
-import dateutil
 import numpy as np
 from astropy import units as u
 from astropy.coordinates import GCRS, ITRS, CartesianRepresentation
@@ -20,6 +17,31 @@ import el_paso as ep
 from el_paso.utils import timed_function
 
 logger = logging.getLogger(__name__)
+
+
+def esa_ngrm_strategy(
+    base_data_path: str | Path,
+    mag_field: ep.typing.MagneticFieldLiteral,
+    satellite: str,
+    *,
+    file_format: ep.typing.MFSFormats = ".nc",
+) -> ep.SavingStrategy:
+    """NetCDF saving strategy for ESA NGRM, daily for S6 satellites and monthly otherwise."""
+    strategy_cls = (
+        ep.saving_strategies.DailyLEORBStrategy
+        if satellite.startswith("S6")
+        else ep.saving_strategies.MonthlyRBStrategy
+    )
+    return strategy_cls(
+        Path(base_data_path),
+        "ESA",
+        satellite.lower(),
+        "ngrm",
+        mag_field,
+        data_standard=ep.data_standards.GFZStandard(),
+        file_format=file_format,
+    )
+
 
 CHI2_BAD_QUALITY_THRESHOLD = 2
 EPT_ENERGY_LIMITS = [0.5, 0.6, 0.7, 0.8, 1.0, 2.4, 8.0]
@@ -46,7 +68,7 @@ def process_ngrm_electron_fluxes(
     num_cores: int = 16,
     client_id: str | None = None,
     client_secret: str | None = None,
-    saving_strategy: ep.SavingStrategy | None = None,
+    save_strategy: Literal["netcdf"] = "netcdf",
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
     *,
     calculate_Lstar: bool = True,
@@ -61,8 +83,8 @@ def process_ngrm_electron_fluxes(
     `bin_cadence`, magnetic field model quantities (B_Calc, B_Eq, MLT_Eq, R_Eq, Alpha_Eq, L_m, and
     optionally L_star) are computed using `mag_field` for a fixed set of local pitch angles, the
     pitch angle distribution (FEDU) and phase space density (PSD) are derived from the omnidirectional
-    flux, and all resulting variables are saved to disk (appending to existing files) using either the
-    provided `saving_strategy` or a default daily/monthly strategy depending on the satellite.
+    flux, and all resulting variables are saved to disk (appending to existing files) using the
+    `esa_ngrm_strategy`.
 
     Args:
         start_time (datetime): Start of the time range to process.
@@ -78,9 +100,8 @@ def process_ngrm_electron_fluxes(
             from the `CLIENT_ID` environment variable.
         client_secret (str | None): Client secret for the ESA SWE authentication. If None, it
             is read from the `CLIENT_SECRET` environment variable.
-        saving_strategy (ep.SavingStrategy | None): Strategy used to save the processed
-            variables. If None, a `DailyLEORBStrategy` is used for the Sentinel-6 satellites and a
-            `MonthlyRBStrategy` for all others. Not available on the command line.
+        save_strategy (Literal["netcdf"]): The saving strategy used to write the processed
+            variables. ESA NGRM data only supports a single netCDF-based strategy.
         skip_existing (bool): If True, skip downloading files that already exist locally.
         calculate_Lstar (bool): If True, also compute the L* magnetic field quantity.
 
@@ -88,6 +109,8 @@ def process_ngrm_electron_fluxes(
         ValueError: If `client_id` or `client_secret` is not provided and not available via the
             `CLIENT_ID`/`CLIENT_SECRET` environment variables.
     """
+    del save_strategy
+
     data_path_stem = f"{raw_data_path}/NGRM/{satellite}/YYYY/MM/"
     file_name_stem = f"{satellite}_ngrm_YYYYMMDD_L1d.csv"
 
@@ -245,8 +268,8 @@ def process_ngrm_electron_fluxes(
     ]
 
     if calculate_Lstar:
-        variables_to_compute.append(("L_star", mag_field))  # ty:ignore[invalid-argument-type]
-        variables_to_compute.append(("L_m", mag_field))  # ty:ignore[invalid-argument-type]
+        variables_to_compute.append(("L_star", mag_field))
+        variables_to_compute.append(("L_m", mag_field))
 
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
         time_var=binned_time_var,
@@ -294,22 +317,7 @@ def process_ngrm_electron_fluxes(
         variables_to_save["L_star"] = magnetic_field_variables[f"L_star_{mag_field}"]
         variables_to_save["L_m"] = magnetic_field_variables[f"L_m_{mag_field}"]
 
-    if saving_strategy is None:
-        save_srat_class = (
-            ep.saving_strategies.DailyLEORBStrategy
-            if satellite.startswith("S6")
-            else ep.saving_strategies.MonthlyRBStrategy
-        )
-
-        saving_strategy = save_srat_class(
-            base_data_path=Path(processed_data_path),
-            mission="ESA",
-            satellite=f"{satellite.lower()}",
-            instrument="ngrm",
-            mag_field=mag_field,
-            file_format=".nc",
-            data_standard=ep.data_standards.GFZStandard(),
-        )
+    saving_strategy = esa_ngrm_strategy(processed_data_path, mag_field, satellite)
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=True)
 

@@ -19,6 +19,32 @@ logging.captureWarnings(capture=True)
 logger = logging.getLogger(__name__)
 
 
+def goes_realtime_gfz_strategy(
+    base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral, satellite: str
+) -> ep.SavingStrategy:
+    """Legacy GFZ .mat saving strategy for GOES realtime mps-high."""
+    return ep.saving_strategies.GFZStrategy(Path(base_data_path), "GOES", "goes_" + satellite, "mps-high", mag_field)
+
+
+def goes_realtime_netcdf_strategy(
+    base_data_path: str | Path,
+    mag_field: ep.typing.MagneticFieldLiteral,
+    satellite: str,
+    *,
+    file_format: ep.typing.MFSFormats = ".nc",
+) -> ep.SavingStrategy:
+    """Monthly NetCDF saving strategy for GOES realtime mps-high."""
+    return ep.saving_strategies.MonthlyRBStrategy(
+        Path(base_data_path),
+        "GOES",
+        "goes_" + satellite,
+        "mps-high",
+        mag_field,
+        data_standard=ep.data_standards.GFZStandard(),
+        file_format=file_format,
+    )
+
+
 LONGITUDES_DICT: dict[Literal["primary", "secondary"], float] = {
     "primary": 72.5,  # goes19
     "secondary": 137.0,  # goes18
@@ -218,25 +244,10 @@ def process_goes_real_time(
     }
 
     if save_strategy in ("gfz", "both"):
-        strategy = ep.saving_strategies.GFZStrategy(
-            processed_data_path,
-            mission="GOES",
-            satellite="goes_" + satellite,
-            instrument="mps-high",
-            mag_field=mag_field,
-            data_standard=ep.data_standards.GFZStandard(),
-        )
+        strategy = goes_realtime_gfz_strategy(processed_data_path, mag_field, satellite)
 
     if save_strategy in ("netcdf", "both"):
-        strategy = ep.saving_strategies.MonthlyRBStrategy(
-            base_data_path=Path(processed_data_path),
-            mission="GOES",
-            satellite="goes_" + satellite,
-            instrument="mps-high",
-            mag_field=mag_field,
-            file_format=".nc",
-            data_standard=ep.data_standards.GFZStandard(),
-        )
+        strategy = goes_realtime_netcdf_strategy(processed_data_path, mag_field, satellite)
 
     ep.save(vars_to_save, strategy, start_time, end_time, time_var=binned_time_var, append=True)
 

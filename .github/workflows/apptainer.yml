@@ -90,6 +90,8 @@ jobs:
           ESA_CLIENT_SECRET: ${{ secrets.ESA_CLIENT_SECRET }}
           GSSC_USER: ${{ secrets.GSSC_USER }}
           GSSC_PASS: ${{ secrets.GSSC_PASSWORD }}
+          SPACETRACK_USER: ${{ secrets.SPACETRACK_USER }}
+          SPACETRACK_PASS: ${{ secrets.SPACETRACK_PASS }}
         run: |
           ENV_FILE=$(mktemp)
           {
@@ -97,6 +99,8 @@ jobs:
             echo "ESA_CLIENT_SECRET_B64=$(printf '%s' "${ESA_CLIENT_SECRET}" | base64 -w0)"
             echo "GSSC_USER_B64=$(printf '%s' "${GSSC_USER}" | base64 -w0)"
             echo "GSSC_PASS_B64=$(printf '%s' "${GSSC_PASS}" | base64 -w0)"
+            echo "SPACETRACK_USER_B64=$(printf '%s' "${SPACETRACK_USER}" | base64 -w0)"
+            echo "SPACETRACK_PASS_B64=$(printf '%s' "${SPACETRACK_PASS}" | base64 -w0)"
           } > "$ENV_FILE"
           sudo apptainer exec --no-mount cwd \
             --bind "${PWD}/tests:/mnt/tests" \
@@ -108,6 +112,8 @@ jobs:
               export ESA_CLIENT_SECRET="$(echo "$ESA_CLIENT_SECRET_B64" | base64 -d)"
               export GSSC_USER="$(echo "$GSSC_USER_B64" | base64 -d)"
               export GSSC_PASS="$(echo "$GSSC_PASS_B64" | base64 -d)"
+              export SPACETRACK_USER="$(echo "$SPACETRACK_USER_B64" | base64 -d)"
+              export SPACETRACK_PASS="$(echo "$SPACETRACK_PASS_B64" | base64 -d)"
               export _TYPER_FORCE_DISABLE_TERMINAL=1
               python -m pytest -rf /mnt/tests -m "basic" -c /mnt/pytest.ini --ignore /mnt/tests/unittests/test_release_mode.py
             '

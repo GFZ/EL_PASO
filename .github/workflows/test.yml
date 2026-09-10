@@ -87,6 +87,8 @@ jobs:
           ESA_CLIENT_SECRET: ${{ secrets.ESA_CLIENT_SECRET }}
           GSSC_USER: ${{ secrets.GSSC_USER }}
           GSSC_PASS: ${{ secrets.GSSC_PASSWORD }}
+          SPACETRACK_USER: ${{ secrets.SPACETRACK_USER }}
+          SPACETRACK_PASS: ${{ secrets.SPACETRACK_PASS }}
           _TYPER_FORCE_DISABLE_TERMINAL: "1"
         run: uv run coverage run --source el_paso -m pytest -rf tests -m basic --indices_sw_param_data_path tests/system/data/indices_sw_params
 

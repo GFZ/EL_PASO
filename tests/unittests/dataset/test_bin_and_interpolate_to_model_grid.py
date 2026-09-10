@@ -5,14 +5,14 @@
 # ruff: noqa: D101, D107
 from __future__ import annotations
 
-import os
+import importlib
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
 import numpy as np
 import pytest
 
-import el_paso.dataset.bin_and_interpolate_to_model_grid as bai
+# patch module import and call
+bai = importlib.import_module("el_paso.dataset.bin_and_interpolate_to_model_grid")
 
 # Empty-slice means and 0/0 divisions are part of the current implementation.
 pytestmark = pytest.mark.filterwarnings("ignore::RuntimeWarning")

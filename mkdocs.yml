@@ -97,6 +97,7 @@ nav:
           - DMSP: API_reference/recipes/dmsp.md
           - ESA (NGRM): API_reference/recipes/esa.md
           - GOES: API_reference/recipes/goes.md
+          - GPS: API_reference/recipes/gps.md
           - POES: API_reference/recipes/poes.md
           - ProbaV: API_reference/recipes/probav.md
           - RBSP: API_reference/recipes/rbsp.md

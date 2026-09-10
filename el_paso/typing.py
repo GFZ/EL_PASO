@@ -14,7 +14,7 @@ initialization.
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timedelta
 from importlib import import_module
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias
@@ -191,6 +191,40 @@ class FileWriter(Protocol):
         ...
 
 
+class Recipe(Protocol):
+    """Callable interface for a mission recipe under `el_paso.recipes`.
+
+    A recipe downloads, processes, and saves one mission's data for a time range.
+    `start_time` and `end_time` are its only required parameters; every recipe
+    also accepts the rest of this shared surface, each with its own default so
+    :func:`el_paso.cli.recipe_cli.build_recipe_command` can expose it as an
+    optional command line option.
+
+    `satellite`, `mag_field`, and `save_strategy` are typed as `Any` here rather
+    than as a concrete `Literal` or `str`: each recipe narrows them to its own
+    mission-specific `Literal` of valid values, and parameter types are checked
+    contravariantly, so a protocol member typed any narrower than `Any` (e.g.
+    `str`) would reject every recipe's narrower `Literal` annotation.
+    """
+
+    def __call__(
+        self,
+        start_time: datetime,
+        end_time: datetime,
+        *,
+        satellite: Any = ...,  # noqa: ANN401 (must be Any: see class docstring on contravariance)
+        mag_field: Any = ...,  # noqa: ANN401 (must be Any: see class docstring on contravariance)
+        raw_data_path: str | Path = ...,
+        processed_data_path: str | Path = ...,
+        bin_cadence: timedelta = ...,
+        num_cores: int = ...,
+        skip_existing: bool = ...,
+        save_strategy: Any = ...,  # noqa: ANN401 (must be Any: see class docstring on contravariance)
+    ) -> None:
+        """Process and save data for the interval from `start_time` to `end_time`."""
+        ...
+
+
 _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     "ConsistencyCheck": ("el_paso.data_standard", "ConsistencyCheck"),
     "DailyWaveStrategy": ("el_paso.saving_strategies.daily_wave_strategy", "DailyWaveStrategy"),
@@ -255,6 +289,7 @@ __all__ = [
     "PRBEMMetaData",
     "PRBEMName",
     "PRBEMStandard",
+    "Recipe",
     "SavedDataDict",
     "SavingStrategy",
     "SingleFileStrategy",
