@@ -7,7 +7,7 @@
 # See https://pre-commit.com/hooks.html for more hooks
 repos:
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.12.10
+    rev: 0.12.13
     hooks:
       - id: uv-lock
 
