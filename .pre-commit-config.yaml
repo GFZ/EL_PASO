@@ -7,7 +7,7 @@
 # See https://pre-commit.com/hooks.html for more hooks
 repos:
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.12.10
+    rev: 0.12.13
     hooks:
       - id: uv-lock
 
@@ -22,7 +22,7 @@ repos:
       - id: check-toml
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.6
+    rev: v0.16.7
     hooks:
       - id: ruff-check
         types_or: [python, pyi]
@@ -32,7 +32,7 @@ repos:
         files: ^el_paso/
 
   - repo: https://github.com/astral-sh/ty-pre-commit
-    rev: v0.0.79
+    rev: v0.0.80
     hooks:
       - id: ty
         files: ^el_paso/
