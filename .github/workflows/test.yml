@@ -85,6 +85,8 @@ jobs:
         env:
           ESA_CLIENT_ID: ${{ secrets.ESA_CLIENT_ID }}
           ESA_CLIENT_SECRET: ${{ secrets.ESA_CLIENT_SECRET }}
+          GSSC_USER: ${{ secrets.GSSC_USER }}
+          GSSC_PASS: ${{ secrets.GSSC_PASSWORD }}
           SPACETRACK_USER: ${{ secrets.SPACETRACK_USER }}
           SPACETRACK_PASS: ${{ secrets.SPACETRACK_PASS }}
           _TYPER_FORCE_DISABLE_TERMINAL: "1"
