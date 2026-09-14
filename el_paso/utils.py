@@ -23,7 +23,9 @@ import netCDF4 as nC
 import numpy as np
 import pandas as pd
 import xarray as xr
+from mat73 import loadmat as mat73_loadmat
 from packaging import version as version_pkg
+from scipy.io import loadmat as sci_loadmat
 from scipy.io.matlab import loadmat, savemat
 
 import el_paso as ep
@@ -508,7 +510,11 @@ def load_mat_data(file_path: Path) -> dict[StandardName, Any]:
         array values converted to plain Python scalars/lists (or ``""`` for
         empty arrays) for JSON/MATLAB-struct compatibility.
     """
-    loaded = loadmat(str(file_path), simplify_cells=True)
+    try:
+        loaded = mat73_loadmat(str(file_path))  # v7.3 / HDF5 files
+    except TypeError:
+        loaded = loadmat(str(file_path), simplify_cells=True)  # pre-7.3 files, via scipy
+
     data: dict[StandardName, Any] = {key: value for key, value in loaded.items() if not key.startswith("__")}
 
     if "metadata" in data and isinstance(data["metadata"], dict):
