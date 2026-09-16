@@ -13,6 +13,7 @@ from astropy import units as u
 from astropy.constants import e, m_e  # ty:ignore[unresolved-import]
 
 import el_paso as ep
+from el_paso.recipes.rbsp import RBSPSatellite
 from el_paso.variable import Variable
 
 if TYPE_CHECKING:
@@ -21,7 +22,7 @@ if TYPE_CHECKING:
 
 def rbsp_emfisis_waves_strategy(
     base_data_path: str | Path,
-    satellite: str,
+    satellite: RBSPSatellite,
     data_standard: ep.typing.DataStandard[ep.typing.StandardName] | None = None,
 ) -> ep.SavingStrategy:
     """Daily NetCDF wave saving strategy for RBSP EMFISIS."""
@@ -37,7 +38,7 @@ def rbsp_emfisis_waves_strategy(
 def process_rbsp_emfisis_waves(
     start_time: datetime,
     end_time: datetime,
-    satellite: Literal["a", "b"] = "a",
+    satellite: RBSPSatellite = "a",
     mag_field: Literal["T89", "T96", "TS04"] = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
@@ -163,7 +164,7 @@ def _get_wfr_data(
     start_time: datetime,
     end_time: datetime,
     raw_data_path: Path,
-    satellite: Literal["a", "b"],
+    satellite: RBSPSatellite,
     *,
     skip_existing: bool = True,
 ) -> dict[str, ep.Variable]:
@@ -212,7 +213,7 @@ def _get_wna_data(
     start_time: datetime,
     end_time: datetime,
     raw_data_path: Path,
-    satellite: Literal["a", "b"],
+    satellite: RBSPSatellite,
     *,
     skip_existing: bool = True,
 ) -> dict[str, ep.Variable]:
@@ -253,7 +254,7 @@ def _get_density_data(
     start_time: datetime,
     end_time: datetime,
     raw_data_path: Path,
-    satellite: Literal["a", "b"],
+    satellite: RBSPSatellite,
     target_time_var: ep.Variable,
     *,
     skip_existing: bool = True,
@@ -303,7 +304,7 @@ def _get_magnetometer_data(
     start_time: datetime,
     end_time: datetime,
     raw_data_path: Path,
-    satellite: Literal["a", "b"],
+    satellite: RBSPSatellite,
     target_time_var: ep.Variable,
     *,
     skip_existing: bool = True,

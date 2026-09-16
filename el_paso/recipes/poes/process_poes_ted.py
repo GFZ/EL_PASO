@@ -11,13 +11,13 @@ import numpy as np
 from astropy import units as u
 
 import el_paso as ep
-from el_paso.recipes.poes import poes_satellite_literal
+from el_paso.recipes.poes import POESSatellite
 
 
 def poes_ted_strategy(
     base_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
-    satellite: str,
+    satellite: POESSatellite,
     *,
     file_format: ep.typing.MFSFormats = "nc",
 ) -> ep.SavingStrategy:
@@ -36,7 +36,7 @@ def poes_ted_strategy(
 def process_poes_ted_electron(
     start_time: datetime,
     end_time: datetime,
-    satellite: poes_satellite_literal = "noaa15",
+    satellite: POESSatellite = "noaa15",
     mag_field: ep.typing.MagneticFieldLiteral = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
@@ -61,7 +61,7 @@ def process_poes_ted_electron(
     Args:
         start_time (datetime): Start of the time interval to process.
         end_time (datetime): End of the time interval to process.
-        satellite (poes_satellite_literal): The POES/MetOp satellite to process.
+        satellite (POESSatellite): The POES/MetOp satellite to process.
         mag_field (MagneticFieldLiteral): Magnetic field model used for the derived quantities.
         raw_data_path (str | Path): Directory where the raw downloaded data files are stored.
         processed_data_path (str | Path): Directory where the processed output files are saved.

@@ -6,7 +6,7 @@
 
 from typing import Literal
 
-poes_satellite_literal = Literal[
+POESSatellite = Literal[
     "metop1",
     "metop2",
     "metop3",
@@ -24,11 +24,13 @@ poes_satellite_literal = Literal[
     "noaa19",
 ]
 
-from el_paso.recipes.poes.process_poes_meped import process_poes_meped_electron
-from el_paso.recipes.poes.process_poes_ted import process_poes_ted_electron
+from el_paso.recipes.poes.process_poes_meped import poes_meped_strategy, process_poes_meped_electron
+from el_paso.recipes.poes.process_poes_ted import poes_ted_strategy, process_poes_ted_electron
 
 __all__ = [
-    "poes_satellite_literal",
+    "POESSatellite",
+    "poes_meped_strategy",
+    "poes_ted_strategy",
     "process_poes_meped_electron",
     "process_poes_ted_electron",
 ]

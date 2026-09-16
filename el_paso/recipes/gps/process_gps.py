@@ -11,44 +11,11 @@ import numpy as np
 from astropy import units as u
 
 import el_paso as ep
+from el_paso.recipes.gps import LANLSatellite
 
-LANL_SAT = Literal[
-    "ns41",
-    "ns48",
-    "ns53",
-    "ns54",
-    "ns55",
-    "ns56",
-    "ns57",
-    "ns58",
-    "ns59",
-    "ns60",
-    "ns61",
-    "ns62",
-    "ns63",
-    "ns64",
-    "ns65",
-    "ns66",
-    "ns67",
-    "ns68",
-    "ns69",
-    "ns70",
-    "ns71",
-    "ns72",
-    "ns73",
-    "ns74",
-    "ns75",
-    "ns76",
-    "ns77",
-    "ns78",
-    "ns79",
-    "ns80",
-    "ns81",
-]
+#  If you add a satellite, add it to BOTH: here, and to the Literal in el_paso/recipes/gps/__init__.py.
 
-#  If you add a satellite, add it to BOTH: here, and to the Literal.
-
-SATELLITE_ANCHOR_DATES: dict[LANL_SAT, datetime] = {
+SATELLITE_ANCHOR_DATES: dict[LANLSatellite, datetime] = {
     "ns41": datetime(2000, 12, 10, tzinfo=timezone.utc),
     "ns48": datetime(2008, 3, 23, tzinfo=timezone.utc),
     "ns53": datetime(2005, 10, 2, tzinfo=timezone.utc),
@@ -83,7 +50,7 @@ SATELLITE_ANCHOR_DATES: dict[LANL_SAT, datetime] = {
 }
 
 
-def snap_to_weekly_grid(satellite_str: LANL_SAT, target_date: datetime) -> datetime:
+def snap_to_weekly_grid(satellite_str: LANLSatellite, target_date: datetime) -> datetime:
     """Snap target_date onto the satellite's fixed weekly (Sunday) grid -- floor:
     nearest grid date <= target_date. Missing weeks in the archive don't shift this
     grid, so no live directory listing is needed once start_time is correctly phased.
@@ -142,7 +109,7 @@ def extract_data_from_lanl_gps_ascii(file_path, extraction_infos):  # noqa: ANN0
 def gps_cxd_strategy(
     base_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
-    satellite: str,
+    satellite: LANLSatellite,
     *,
     file_format: ep.typing.MFSFormats = "nc",
 ) -> ep.SavingStrategy:
@@ -161,7 +128,7 @@ def gps_cxd_strategy(
 def process_gps_data(
     start_time: datetime,
     end_time: datetime,
-    satellite: LANL_SAT = "ns41",
+    satellite: LANLSatellite = "ns41",
     mag_field: ep.typing.MagneticFieldLiteral = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
@@ -193,7 +160,7 @@ def process_gps_data(
     Args:
         start_time (datetime): Start of the time interval to process.
         end_time (datetime): End of the time interval to process.
-        satellite (LANL_SAT): The LANL GPS satellite to process.
+        satellite (LANLSatellite): The LANL GPS satellite to process.
         mag_field (MagneticFieldLiteral): Magnetic field model used for the derived quantities.
         raw_data_path (str | Path): Directory where the raw downloaded data files are stored.
         processed_data_path (str | Path): Directory where the processed output files are saved.

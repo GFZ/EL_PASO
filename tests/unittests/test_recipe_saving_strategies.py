@@ -16,6 +16,9 @@ class with the right attributes, and that overridable keyword-only arguments
 
 from __future__ import annotations
 
+import importlib
+import inspect
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -80,7 +83,6 @@ from el_paso.recipes.rbsp.process_rbsp_rbspice_protons import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from pathlib import Path
 
     from el_paso.saving_strategy import SavingStrategy
 
@@ -149,17 +151,17 @@ CASES: list[
     ),
     (
         esa_ngrm_strategy,
-        ("T89", "S6A"),
+        ("T89", "S6-MF"),
         {},
         ep.saving_strategies.DailyLEORBStrategy,
-        {"mission": "ESA", "satellite": "s6a", "instrument": "ngrm", "mag_field": "T89", "file_format": ".nc"},
+        {"mission": "ESA", "satellite": "s6-mf", "instrument": "ngrm", "mag_field": "T89", "file_format": ".nc"},
     ),
     (
         esa_ngrm_strategy,
-        ("T89", "Cluster1"),
+        ("T89", "EDRS-C"),
         {},
         ep.saving_strategies.MonthlyRBStrategy,
-        {"mission": "ESA", "satellite": "cluster1", "instrument": "ngrm", "mag_field": "T89", "file_format": ".nc"},
+        {"mission": "ESA", "satellite": "edrs-c", "instrument": "ngrm", "mag_field": "T89", "file_format": ".nc"},
     ),
     (
         goes_r_mps_high_gfz_strategy,
@@ -431,3 +433,34 @@ def test_rbsp_emfisis_waves_strategy_data_standard_override(tmp_path: Path) -> N
     strategy = rbsp_emfisis_waves_strategy(tmp_path, "b", prbem)
 
     assert strategy.data_standard is prbem
+
+
+@pytest.mark.basic
+def test_every_recipe_strategy_is_exported_from_its_mission_package() -> None:
+    """Every `<...>_strategy` factory must be importable as `el_paso.recipes.<mission>.<name>`.
+
+    Mirrors `test_every_recipe_is_exported_from_its_mission_package` in `test_recipe_cli.py`,
+    but for the strategy factories rather than the `process_*` entry points. Regression test
+    for https://github.com/GFZ/EL_PASO/issues/148, where none of the `<...>_strategy`
+    functions were re-exported from their mission's `__init__.py`.
+    """
+    recipes_dir = Path(ep.recipes.__file__).parent
+
+    for module_path in sorted(recipes_dir.glob("*/process_*.py")):
+        mission = module_path.parent.name
+        module_name = f"el_paso.recipes.{mission}.{module_path.stem}"
+        module = importlib.import_module(module_name)
+        mission_package = importlib.import_module(f"el_paso.recipes.{mission}")
+        exported_names = getattr(mission_package, "__all__", ())
+
+        strategy_factories = {
+            name: obj
+            for name, obj in vars(module).items()
+            if name.endswith("_strategy") and inspect.isfunction(obj) and obj.__module__ == module_name
+        }
+
+        for name, factory in strategy_factories.items():
+            assert any(getattr(mission_package, exported, None) is factory for exported in exported_names), (
+                f"{module_name}.{name} is not exported (under any name) from "
+                f"el_paso/recipes/{mission}/__init__.py"
+            )

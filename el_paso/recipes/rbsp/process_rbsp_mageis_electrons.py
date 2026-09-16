@@ -15,6 +15,7 @@ from numpy.typing import NDArray
 
 import el_paso as ep
 from el_paso.processing.magnetic_field_utils import InternalFieldModel, IrbemOptions, LstarQuantity
+from el_paso.recipes.rbsp import RBSPSatellite
 
 BAD_CHANNELS = (13, 21, 22, 23, 24)
 
@@ -22,7 +23,7 @@ BAD_CHANNELS = (13, 21, 22, 23, 24)
 def rbsp_mageis_electron_strategy(
     base_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
-    satellite: str,
+    satellite: RBSPSatellite,
     *,
     file_format: ep.typing.MFSFormats = "nc",
 ) -> ep.SavingStrategy:
@@ -41,7 +42,7 @@ def rbsp_mageis_electron_strategy(
 def process_rbsp_mageis_electrons(
     start_time: datetime,
     end_time: datetime,
-    satellite: Literal["a", "b"] = "a",
+    satellite: RBSPSatellite = "a",
     mag_field: Literal["T89", "T96", "TS04"] = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",

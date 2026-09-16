@@ -12,6 +12,7 @@ import numpy as np
 from astropy import units as u
 
 import el_paso as ep
+from el_paso.recipes.dmsp import DMSPSatellite
 
 logging.captureWarnings(capture=True)
 logger = logging.getLogger(__name__)
@@ -23,7 +24,7 @@ TELE_BETA_ANGLES = np.array([-180.0, 90.0])
 def dmsp_ssj_electron_strategy(
     base_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
-    satellite: str,
+    satellite: DMSPSatellite,
     *,
     file_format: ep.typing.MFSFormats = "nc",
 ) -> ep.SavingStrategy:
@@ -39,13 +40,10 @@ def dmsp_ssj_electron_strategy(
     )
 
 
-DMSPSatellites = Literal["f17"]
-
-
 def process_dmsp_ssj_electrons(
     start_time: datetime,
     end_time: datetime,
-    satellite: DMSPSatellites = "f17",
+    satellite: DMSPSatellite = "f17",
     mag_field: ep.typing.MagneticFieldLiteral = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
@@ -68,7 +66,7 @@ def process_dmsp_ssj_electrons(
     Args:
         start_time (datetime): Start of the time range to process.
         end_time (datetime): End of the time range to process.
-        satellite (DMSPSatellites): Identifier of the DMSP satellite to process (e.g. "f17").
+        satellite (DMSPSatellite): Identifier of the DMSP satellite to process (e.g. "f17").
         mag_field (MagneticFieldLiteral): Magnetic field model used for the derived quantities.
         raw_data_path (str | Path): Base directory used for downloading and locating the raw SSM/SSJ CDF files.
         processed_data_path (str | Path): Base directory in which the processed output files are saved.
@@ -214,7 +212,7 @@ def process_dmsp_ssj_electrons(
 
 
 def _get_ssm_variables(
-    satellite: DMSPSatellites,
+    satellite: DMSPSatellite,
     data_path_stem: str | Path,
     start_time: datetime,
     end_time: datetime,
@@ -251,7 +249,7 @@ def _get_ssm_variables(
 
 
 def _get_ssj_variables(
-    satellite: DMSPSatellites,
+    satellite: DMSPSatellite,
     data_path_stem: str | Path,
     start_time: datetime,
     end_time: datetime,

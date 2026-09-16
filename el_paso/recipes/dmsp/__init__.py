@@ -2,7 +2,12 @@
 # SPDX-FileContributor: Bernhard Haas
 #
 # SPDX-License-Identifier: Apache-2.0
+# ruff: noqa: E402
 
-from el_paso.recipes.dmsp.process_dmsp_ssj_electrons import process_dmsp_ssj_electrons
+from typing import Literal
 
-__all__ = ["process_dmsp_ssj_electrons"]
+DMSPSatellite = Literal["f17"]
+
+from el_paso.recipes.dmsp.process_dmsp_ssj_electrons import dmsp_ssj_electron_strategy, process_dmsp_ssj_electrons
+
+__all__ = ["DMSPSatellite", "dmsp_ssj_electron_strategy", "process_dmsp_ssj_electrons"]
