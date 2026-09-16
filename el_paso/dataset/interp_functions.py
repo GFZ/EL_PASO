@@ -213,6 +213,7 @@ def _interp_psd_parallel(
     out: list[float] = []
 
     # ---- 0) Extract this time slice
+
     psd_i = psd[it, :, :]  # (nE, nA)
     mu_i = invmu[it, :, :]  # (nE, nA)
     K_row = invk[it, :]  # (nA,)
@@ -367,6 +368,10 @@ def interp_psd(
 
     epoch = self.get_by_internal_name("Epoch")
     psd = self.get_by_internal_name("PSD")
+
+    if len(epoch) > psd.shape[0]:
+        epoch = epoch[: psd.shape[0]]
+
     inv_first = self.get_by_internal_name("InvMu") if use_mu else self.InvV
     inv_k = self.get_by_internal_name("InvK")
 
