@@ -60,6 +60,10 @@ RECIPES: tuple[RecipeEntry, ...] = (
         "arase", "xep-realtime", "el_paso.recipes.arase.process_arase_xep_realtime", "process_arase_xep_real_time"
     ),
     RecipeEntry("dmsp", "ssj", "el_paso.recipes.dmsp.process_dmsp_ssj_electrons", "process_dmsp_ssj_electrons"),
+    RecipeEntry(
+        "esa", "gssc-emu-electrons", "el_paso.recipes.esa.process_gssc_emu_electrons", "process_gssc_emu_electrons"
+    ),
+    RecipeEntry("esa", "gssc-emu-protons", "el_paso.recipes.esa.process_gssc_emu_protons", "process_gssc_emu_protons"),
     RecipeEntry("esa", "ngrm", "el_paso.recipes.esa.process_ngrm_satellite", "process_ngrm_electron_fluxes"),
     RecipeEntry("goes", "mps-high", "el_paso.recipes.goes.process_goes_r_mps_high", "process_goes_r_mps_high"),
     RecipeEntry("goes", "realtime", "el_paso.recipes.goes.process_goes_realtime", "process_goes_real_time"),
