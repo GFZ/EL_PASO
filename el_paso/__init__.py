@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: 2025 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -34,6 +35,15 @@ from el_paso.load_indices_solar_wind_parameters import load_indices_solar_wind_p
 from el_paso.logger import setup_logging
 from el_paso.cli.recipe_cli import build_recipe_command, run_recipe_cli
 from el_paso import cli
+from el_paso import dataset
+from el_paso.dataset import (
+    DataSet,
+    DatasetMetadata,
+    GFZDataSet,
+    GFZMetaData,
+    PRBEMDataSet,
+    PRBEMMetaData,
+)
 from el_paso import recipes
 
 __all__ = [
@@ -45,7 +55,13 @@ __all__ = [
     "IRBEM_SYSAXIS_GSM",
     "IRBEM_SYSAXIS_MAG",
     "IRBEM_SYSAXIS_SM",
+    "DataSet",
+    "DatasetMetadata",
     "ExtractionInfo",
+    "GFZDataSet",
+    "GFZMetaData",
+    "PRBEMDataSet",
+    "PRBEMMetaData",
     "SavingStrategy",
     "TimeBinMethod",
     "Variable",
@@ -53,6 +69,7 @@ __all__ = [
     "build_recipe_command",
     "cli",
     "data_standards",
+    "dataset",
     "download",
     "download_omm",
     "extract_variables_from_files",
