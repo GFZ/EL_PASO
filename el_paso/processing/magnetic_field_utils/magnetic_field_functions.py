@@ -5,16 +5,16 @@
 
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from functools import partial
 from pathlib import Path
-from typing import Literal, NamedTuple
+from typing import Literal, NamedTuple, TypeVar
 
 import numpy as np
 from astropy import units as u
 from numpy.typing import NDArray
-from richpool import p_map
+from richpool import MultiPool
 
 import el_paso as ep
 from el_paso.processing.magnetic_field_utils.construct_maginput import MagInputKeys
@@ -82,28 +82,132 @@ class IrbemOutput(NamedTuple):
     unit: u.UnitBase
 
 
-def _get_magequator_parallel(
-    irbem_args: tuple[Path | str, IrbemOptions, int, int],
+@dataclass
+class _IrbemWorkerContext:
+    """Holds the per-process state of a parallel IRBEM calculation.
+
+    The IRBEM model wraps a shared library handle and can therefore not be pickled into a worker
+    process. It is instead constructed once per worker by `_init_irbem_worker`, together with the
+    read-only input arrays which would otherwise be shipped to the workers with every chunk.
+
+    Attributes:
+        model (MagFields): The IRBEM model used by this worker process.
+        x_geo (NDArray[np.float64]): Satellite positions in GEO coordinates.
+        datetimes (list[datetime]): Timestamps of the satellite positions.
+        maginput (dict[MagInputKeys, NDArray[np.float64]]): Magnetic field input parameters for IRBEM.
+        pa_local (NDArray[np.float64] | None): Local pitch angles, if the calculation requires them.
+    """
+
+    model: MagFields
+    x_geo: NDArray[np.float64]
+    datetimes: list[datetime]
+    maginput: dict[MagInputKeys, NDArray[np.float64]]
+    pa_local: NDArray[np.float64] | None = None
+
+    def position_at(self, it: int) -> dict[Literal["x1", "x2", "x3"], np.float64]:
+        """Returns the satellite position of time step `it` in the dict format expected by IRBEM."""
+        return {
+            "x1": self.x_geo[it, 0],
+            "x2": self.x_geo[it, 1],
+            "x3": self.x_geo[it, 2],
+        }
+
+    def maginput_at(self, it: int) -> dict[MagInputKeys, np.float64]:
+        """Returns the magnetic field input parameters of time step `it`."""
+        return {key: arr[it] for key, arr in self.maginput.items()}
+
+    def pitch_angles_at(self, it: int) -> NDArray[np.float64]:
+        """Returns the local pitch angles of time step `it`.
+
+        Raises:
+            RuntimeError: If the worker was initialized without local pitch angles.
+        """
+        if self.pa_local is None:
+            msg = "The IRBEM worker was initialized without local pitch angles!"
+            raise RuntimeError(msg)
+        return self.pa_local[it, :]
+
+
+_worker_context: _IrbemWorkerContext | None = None
+
+
+def _init_irbem_worker(
+    irbem_args: tuple[str | Path, IrbemOptions, int, int],
     x_geo: NDArray[np.float64],
     datetimes: list[datetime],
     maginput: dict[MagInputKeys, NDArray[np.float64]],
-    it: int,
-) -> tuple[float, NDArray[np.float64]]:
-    model = MagFields(
-        lib_path=irbem_args[0],
-        options=irbem_args[1],
-        kext=irbem_args[2],
-        sysaxes=irbem_args[3],
+    pa_local: NDArray[np.float64] | None = None,
+) -> None:
+    """Initializes one worker process of a parallel IRBEM calculation.
+
+    This runs once per worker process instead of once per time step, so that the IRBEM shared
+    library is loaded only once and the input arrays are transferred only once per worker.
+    """
+    global _worker_context
+
+    _worker_context = _IrbemWorkerContext(
+        model=MagFields(
+            lib_path=irbem_args[0],
+            options=irbem_args[1],
+            kext=irbem_args[2],
+            sysaxes=irbem_args[3],
+        ),
+        x_geo=x_geo,
+        datetimes=datetimes,
+        maginput=maginput,
+        pa_local=pa_local,
     )
 
-    x_dict_single: dict[Literal["x1", "x2", "x3"], np.float64] = {
-        "x1": x_geo[it, 0],
-        "x2": x_geo[it, 1],
-        "x3": x_geo[it, 2],
-    }
-    maginput = {key: maginput[key][it] for key in maginput}
 
-    magequator_output = model.find_magequator(datetimes[it], x_dict_single, maginput)
+def _get_worker_context() -> _IrbemWorkerContext:
+    """Returns the context of the current worker process.
+
+    Raises:
+        RuntimeError: If the worker process was not initialized by `_init_irbem_worker`.
+    """
+    if _worker_context is None:
+        msg = "The IRBEM worker context is not initialized! _init_irbem_worker must run in every worker process."
+        raise RuntimeError(msg)
+    return _worker_context
+
+
+_T = TypeVar("_T")
+
+
+def _run_irbem_parallel(
+    worker_func: Callable[[int], _T],
+    irbem_input: IrbemInput,
+    x_geo: NDArray[np.float64],
+    datetimes: list[datetime],
+    *,
+    sysaxes: int,
+    desc: str,
+    pa_local: NDArray[np.float64] | None = None,
+) -> list[_T]:
+    """Maps `worker_func` over all time steps in a process pool with initialized IRBEM workers."""
+    irbem_args = (
+        irbem_input.irbem_lib_path,
+        irbem_input.irbem_options,
+        irbem_input.magnetic_field.get_kext(),
+        sysaxes,
+    )
+
+    chunksize = max(1, len(datetimes) // irbem_input.num_cores // 4)  # same as default
+
+    with MultiPool(
+        processes=irbem_input.num_cores,
+        initializer=_init_irbem_worker,
+        initargs=(irbem_args, x_geo, datetimes, irbem_input.maginput, pa_local),
+    ) as pool:
+        return pool.map(worker_func, range(len(datetimes)), chunksize=chunksize, desc=desc)
+
+
+def _get_magequator_parallel(it: int) -> tuple[float, NDArray[np.float64]]:
+    context = _get_worker_context()
+
+    magequator_output = context.model.find_magequator(
+        context.datetimes[it], context.position_at(it), context.maginput_at(it)
+    )
     bmin = magequator_output.bmin
     xgeo = magequator_output.xgeo
 
@@ -144,18 +248,12 @@ def get_magequator(xgeo_var: ep.Variable, time_var: ep.Variable, irbem_input: Ir
         msg = f"Encountered size mismatch for x_geo: len of x_geo data: {len(x_geo)}, requested len: {len(datetimes)}"
         raise ValueError(msg)
 
-    kext = irbem_input.magnetic_field.get_kext()
-
-    irbem_args = (irbem_input.irbem_lib_path, irbem_input.irbem_options, kext, sysaxes)
-
-    parallel_func = partial(_get_magequator_parallel, irbem_args, x_geo, datetimes, irbem_input.maginput)
-
-    chunksize = max(1, len(datetimes) // irbem_input.num_cores // 4)  # same as default
-    results = p_map(
-        parallel_func,
-        range(len(datetimes)),
-        num_cpus=irbem_input.num_cores,
-        chunksize=chunksize,
+    results = _run_irbem_parallel(
+        _get_magequator_parallel,
+        irbem_input,
+        x_geo,
+        datetimes,
+        sysaxes=sysaxes,
         desc="Calculating magnetic equator",
     )
 
@@ -219,28 +317,12 @@ def get_magequator(xgeo_var: ep.Variable, time_var: ep.Variable, irbem_input: Ir
     }
 
 
-def _get_footpoint_atmosphere_parallel(
-    irbem_args: tuple[str | Path, IrbemOptions, int, int],
-    x_geo: NDArray[np.float64],
-    datetimes: list[datetime],
-    maginput: dict[MagInputKeys, NDArray[np.float64]],
-    it: int,
-) -> NDArray[np.float64]:
-    model = MagFields(
-        lib_path=irbem_args[0],
-        options=irbem_args[1],
-        kext=irbem_args[2],
-        sysaxes=irbem_args[3],
+def _get_footpoint_atmosphere_parallel(it: int) -> NDArray[np.float64]:
+    context = _get_worker_context()
+
+    footpoint_output = context.model.find_foot_point(
+        context.datetimes[it], context.position_at(it), context.maginput_at(it), stop_alt=100, hemi_flag=0
     )
-
-    x_dict_single: dict[Literal["x1", "x2", "x3"], np.float64] = {
-        "x1": x_geo[it, 0],
-        "x2": x_geo[it, 1],
-        "x3": x_geo[it, 2],
-    }
-    maginput = {key: maginput[key][it] for key in maginput}
-
-    footpoint_output = model.find_foot_point(datetimes[it], x_dict_single, maginput, stop_alt=100, hemi_flag=0)
 
     return np.asarray(footpoint_output.b_foot_mag)
 
@@ -277,18 +359,12 @@ def get_footpoint_atmosphere(
         msg = f"Encountered size mismatch for x_geo: len of x_geo data: {len(x_geo)}, requested len: {len(datetimes)}"
         raise ValueError(msg)
 
-    kext = irbem_input.magnetic_field.get_kext()
-
-    irbem_args = (irbem_input.irbem_lib_path, irbem_input.irbem_options, kext, sysaxes)
-
-    parallel_func = partial(_get_footpoint_atmosphere_parallel, irbem_args, x_geo, datetimes, irbem_input.maginput)
-
-    chunksize = max(1, len(datetimes) // irbem_input.num_cores // 4)  # same as default
-    results = p_map(
-        parallel_func,
-        range(len(datetimes)),
-        num_cpus=irbem_input.num_cores,
-        chunksize=chunksize,
+    results = _run_irbem_parallel(
+        _get_footpoint_atmosphere_parallel,
+        irbem_input,
+        x_geo,
+        datetimes,
+        sysaxes=sysaxes,
         desc="Calculating foot point",
     )
 
@@ -426,32 +502,17 @@ def get_local_B_field(xgeo_var: ep.Variable, time_var: ep.Variable, irbem_input:
     return {create_var_name("B_Calc", irbem_input.magnetic_field): b_local_var}
 
 
-def _get_mirror_point_parallel(
-    irbem_args: tuple[str | Path, IrbemOptions, int, int],
-    x_geo: NDArray[np.float64],
-    datetimes: list[datetime],
-    maginput: dict[MagInputKeys, NDArray[np.float64]],
-    pa_local: NDArray[np.float64],
-    it: int,
-) -> NDArray[np.float64]:
-    model = MagFields(
-        lib_path=irbem_args[0],
-        options=irbem_args[1],
-        kext=irbem_args[2],
-        sysaxes=irbem_args[3],
-    )
+def _get_mirror_point_parallel(it: int) -> NDArray[np.float64]:
+    context = _get_worker_context()
 
-    x_dict_single: dict[Literal["x1", "x2", "x3"], np.floating] = {
-        "x1": x_geo[it, 0],
-        "x2": x_geo[it, 1],
-        "x3": x_geo[it, 2],
-    }
-    maginput = {key: maginput[key][it] for key in maginput}
+    x_dict_single = context.position_at(it)
+    maginput = context.maginput_at(it)
+    pitch_angles = context.pitch_angles_at(it)
 
-    bmin_output = np.empty_like(pa_local[it, :])
+    bmin_output = np.empty_like(pitch_angles)
 
-    for i, pa in enumerate(pa_local[it, :]):
-        bmin_output[i] = model.find_mirror_point(datetimes[it], x_dict_single, maginput, float(pa)).bmin
+    for i, pa in enumerate(pitch_angles):
+        bmin_output[i] = context.model.find_mirror_point(context.datetimes[it], x_dict_single, maginput, float(pa)).bmin
 
     return bmin_output.astype(np.float64)
 
@@ -503,19 +564,14 @@ def get_mirror_point(
         )
         raise ValueError(msg)
 
-    kext = irbem_input.magnetic_field.get_kext()
-
-    irbem_args = (irbem_input.irbem_lib_path, irbem_input.irbem_options, kext, sysaxes)
-
-    parallel_func = partial(_get_mirror_point_parallel, irbem_args, x_geo, datetimes, irbem_input.maginput, pa_local)
-
-    chunksize = max(1, len(datetimes) // irbem_input.num_cores // 4)  # same as default
-    results = p_map(
-        parallel_func,
-        range(len(datetimes)),
-        num_cpus=irbem_input.num_cores,
-        chunksize=chunksize,
+    results = _run_irbem_parallel(
+        _get_mirror_point_parallel,
+        irbem_input,
+        x_geo,
+        datetimes,
+        sysaxes=sysaxes,
         desc="Calculating mirror points",
+        pa_local=pa_local,
     )
 
     # write results into one array
@@ -537,33 +593,22 @@ def get_mirror_point(
 
 
 def _make_lstar_shell_splitting_parallel(
-    irbem_args: tuple[str | Path, IrbemOptions, int, int],
-    x_geo: NDArray[np.float64],
-    datetimes: list[datetime],
-    maginput: dict[MagInputKeys, NDArray[np.float64]],
-    pa_local: NDArray[np.float64],
     it: int,
 ) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]:
-    model = MagFields(
-        lib_path=irbem_args[0],
-        options=irbem_args[1],
-        kext=irbem_args[2],
-        sysaxes=irbem_args[3],
-    )
+    context = _get_worker_context()
 
-    x_dict_single: dict[Literal["x1", "x2", "x3"], np.float64] = {
-        "x1": x_geo[it, 0],
-        "x2": x_geo[it, 1],
-        "x3": x_geo[it, 2],
-    }
-    maginput = {key: maginput[key][it] for key in maginput}
+    x_dict_single = context.position_at(it)
+    maginput = context.maginput_at(it)
+    pitch_angles = context.pitch_angles_at(it)
 
-    Lm = np.empty_like(pa_local[it, :])
-    Lstar = np.empty_like(pa_local[it, :])
-    xj = np.empty_like(pa_local[it, :])
+    Lm = np.empty_like(pitch_angles)
+    Lstar = np.empty_like(pitch_angles)
+    xj = np.empty_like(pitch_angles)
 
-    for i, pa in enumerate(pa_local[it, :]):
-        Lstar_output_single = model.make_lstar_shell_splitting(datetimes[it], x_dict_single, maginput, pa)
+    for i, pa in enumerate(pitch_angles):
+        Lstar_output_single = context.model.make_lstar_shell_splitting(
+            context.datetimes[it], x_dict_single, maginput, pa
+        )
 
         Lm[i] = np.squeeze(Lstar_output_single.lm)
         Lstar[i] = np.squeeze(Lstar_output_single.lstar)
@@ -620,26 +665,14 @@ def get_Lstar(
         )
         raise ValueError(msg)
 
-    kext = irbem_input.magnetic_field.get_kext()
-
-    irbem_args = (irbem_input.irbem_lib_path, irbem_input.irbem_options, kext, sysaxes)
-
-    parallel_func = partial(
+    results = _run_irbem_parallel(
         _make_lstar_shell_splitting_parallel,
-        irbem_args,
+        irbem_input,
         x_geo,
         datetimes,
-        irbem_input.maginput,
-        pa_local,
-    )
-
-    chunksize = max(1, len(datetimes) // irbem_input.num_cores // 4)  # same as default
-    results = p_map(
-        parallel_func,
-        range(len(datetimes)),
-        num_cpus=irbem_input.num_cores,
-        chunksize=chunksize,
+        sysaxes=sysaxes,
         desc="Calculating Lstar",
+        pa_local=pa_local,
     )
 
     # write results into one array
