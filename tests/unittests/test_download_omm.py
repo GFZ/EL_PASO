@@ -382,7 +382,7 @@ def test_download_omm_live(tmp_path: Path, skip_if_unreachable: Callable[..., No
     username = os.environ.get("SPACETRACK_USER")
     password = os.environ.get("SPACETRACK_PASS")
 
-    if username is None or password is None:
+    if not username or not password:
         pytest.skip("SPACETRACK_USER/SPACETRACK_PASS not set; skipping live Space-Track test.")
 
     ep.download_omm(

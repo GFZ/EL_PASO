@@ -24,13 +24,8 @@ def test_esa_api(tmp_path: Path, skip_if_unreachable: Callable[..., None]):
     client_id = os.environ.get("ESA_CLIENT_ID")
     client_secret = os.environ.get("ESA_CLIENT_SECRET")
 
-    if client_id is None:
-        msg = "Client ID not found!"
-        raise ValueError(msg)
-
-    if client_secret is None:
-        msg = "Client secret not found!."
-        raise ValueError(msg)
+    if not client_id or not client_secret:
+        pytest.skip("ESA_CLIENT_ID/ESA_CLIENT_SECRET not set; skipping live ESA API test.")
 
     start_time = datetime(2025, 3, 17, tzinfo=timezone.utc)
     end_time = datetime(2025, 3, 17, 1, tzinfo=timezone.utc)

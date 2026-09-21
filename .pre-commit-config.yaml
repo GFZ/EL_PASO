@@ -52,6 +52,6 @@ repos:
         pass_filenames: false
         files: ^el_paso/recipes/
   - repo: https://github.com/sahiljhawar/reuseify
-    rev: 1.0.2
+    rev: 1.0.3
     hooks:
       - id: reuseify-lint
