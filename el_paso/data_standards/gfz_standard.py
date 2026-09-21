@@ -181,8 +181,19 @@ class GFZStandard(DataStandard[GFZVarNames]):
             "Wave_normal_angle": VariableInfo[GFZVarNames](
                 "wave_wna", "Frequency of the power spectral density.", u.degree, ["Epoch", "Wave_frequency"]
             ),
-            "MLat": VariableInfo[GFZVarNames]("MLat", "Frequency of the power spectral density.", u.degree, ["Epoch"]),
+            "MLat": VariableInfo[GFZVarNames](
+                "MLat", "Magnetic latitude of the satellite location.", u.degree, ["Epoch"]
+            ),
             "Magnetic_Power_Spectral_Density": VariableInfo[GFZVarNames](
-                "BB", "Frequency of the power spectral density.", u.dimensionless_unscaled, ["Epoch", "Wave_frequency"]
+                "BB",
+                "Magnetic power spectral density of the observed waves.",
+                (u.nT) ** 2 / u.Hz,
+                ["Epoch", "Wave_frequency"],
+            ),
+            "Number_density": VariableInfo[GFZVarNames](
+                "density", "Electron number density at the satellite location.", u.cm ** (-3), ["Epoch"]
+            ),
+            "Number_density_Eq": VariableInfo[GFZVarNames](
+                "density", "Electron number density at the magnetic equator.", u.cm ** (-3), ["Epoch"]
             ),
         }

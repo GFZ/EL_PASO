@@ -42,7 +42,7 @@ class GFZDataSet(DataSet):
         P (NDArray[np.float64]): Computed phase angle, derived from MLT.
         InvV (NDArray[np.float64]): Computed third adiabatic invariant, derived from InvK and InvMu.
         # BEGIN GENERATED GFZ_DATASET_ATTRS DOCS
-        BB (NDArray[np.float64]): Frequency of the power spectral density.
+        BB (NDArray[np.float64]): Magnetic power spectral density of the observed waves.
         B_eq (NDArray[np.float64]): Calculated magnetic field at the equator.
         B_sat (NDArray[np.float64]): Observered magnetic field at the satellite location.
         B_total (NDArray[np.float64]): Calculated magnetic field at the satellite location.
@@ -56,7 +56,7 @@ class GFZDataSet(DataSet):
         Lstar (NDArray[np.float64]): Calculated Lstar of the particles.
         MLT (NDArray[np.float64]): Magnetic local time at the satellite location.
         MLT0 (NDArray[np.float64]): Magnetic local time at the mapped magnetic equator.
-        MLat (NDArray[np.float64]): Frequency of the power spectral density.
+        MLat (NDArray[np.float64]): Magnetic latitude of the satellite location.
         PSD (NDArray[np.float64]): Calculated phase space density of particles.
         R0 (NDArray[np.float64]): Radial distance of the satellite location mapped to the equator.
         alpha_eq_model (NDArray[np.float64]): Calculated equatorial pitch angles of the particles.
@@ -65,6 +65,7 @@ class GFZDataSet(DataSet):
         alpha_lc_eq (NDArray[np.float64]): Local loss cone size at the satellite location mapped to the equator.
         alpha_local (NDArray[np.float64]): Local pitch angles of the particles.
         alpha_local_range (NDArray[np.float64]): Local pitch angle ranges of the particles.
+        density (NDArray[np.float64]): Electron number density at the satellite location.
         ellipticity (NDArray[np.float64]): Frequency of the power spectral density.
         energy_FEDO (NDArray[np.float64]): Central energy of measured omnidirecitonal flux.
         energy_FEIU (NDArray[np.float64]): Central energy of measured integral flux.
@@ -109,6 +110,7 @@ class GFZDataSet(DataSet):
     alpha_lc_eq: NDArray[np.float64]
     alpha_local: NDArray[np.float64]
     alpha_local_range: NDArray[np.float64]
+    density: NDArray[np.float64]
     ellipticity: NDArray[np.float64]
     energy_FEDO: NDArray[np.float64]  # noqa: N815
     energy_FEIU: NDArray[np.float64]  # noqa: N815
@@ -205,9 +207,23 @@ class PRBEMDataSet(DataSet):
         L_m (NDArray[np.float64]): Calculated L McIlwain's L parameter
         L_star (NDArray[np.float64]): Calculated Roederer's L* parameter
         MLT (NDArray[np.float64]): Magnetic local time at the satellite location.
+        Number_density (NDArray[np.float64]): Electron number density at the satellite location.
+        Number_density_Eq (NDArray[np.float64]): Electron number density mapped to the magnetic equator.
+        Number_density_efw (NDArray[np.float64]): Electron number density at the satellite location, derived from EFW.
+        Number_density_efw_Eq (NDArray[np.float64]): EFW-derived electron number density mapped to the magnetic equator.
+        Number_density_emfisis (NDArray[np.float64]): Electron number density at the satellite location, derived
+            from EMFISIS.
+        Number_density_emfisis_Eq (NDArray[np.float64]): EMFISIS-derived electron number density mapped to the
+            magnetic equator.
+        Number_density_hiss_derived (NDArray[np.float64]): Electron number density at the satellite location,
+            inferred from the hiss wave spectrum.
+        Number_density_hiss_derived_Eq (NDArray[np.float64]): Hiss-inferred electron number density mapped to the
+            magnetic equator.
         PSD (NDArray[np.float64]): Calculated phase space density of particles.
         Position (NDArray[np.float64]): Spacecraft position in geographic cartesian coordinates
         R_Eq (NDArray[np.float64]): Radial distance of the satellite location mapped to the equator.
+        xGEO_Eq (NDArray[np.float64]): Satellite position mapped to the magnetic equator, in geographic cartesian
+            coordinates.
         # END GENERATED PRBEM_DATASET_ATTRS DOCS
         metadata (PRBEMMetaData): Metadata container for all loaded variables.
     """
@@ -228,9 +244,18 @@ class PRBEMDataSet(DataSet):
     L_m: NDArray[np.float64]
     L_star: NDArray[np.float64]
     MLT: NDArray[np.float64]
+    Number_density: NDArray[np.float64]
+    Number_density_Eq: NDArray[np.float64]
+    Number_density_efw: NDArray[np.float64]
+    Number_density_efw_Eq: NDArray[np.float64]
+    Number_density_emfisis: NDArray[np.float64]
+    Number_density_emfisis_Eq: NDArray[np.float64]
+    Number_density_hiss_derived: NDArray[np.float64]
+    Number_density_hiss_derived_Eq: NDArray[np.float64]
     PSD: NDArray[np.float64]
     Position: NDArray[np.float64]
     R_Eq: NDArray[np.float64]
+    xGEO_Eq: NDArray[np.float64]  # noqa: N815
     # END GENERATED PRBEM_DATASET_ATTRS
     metadata: PRBEMMetaData
 

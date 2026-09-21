@@ -82,9 +82,10 @@ nav:
       - Saving Strategies:
           - Daily LEO RB Strategy: API_reference/saving_strategies/daily_leo_rb.md
           - Daily Wave Strategy: API_reference/saving_strategies/daily_wave.md
-          - Density NetCDF Strategy: API_reference/saving_strategies/density_netcdf.md
           - GFZ Strategy: API_reference/saving_strategies/gfz.md
+          - Monthly Density Strategy: API_reference/saving_strategies/monthly_density.md
           - Monthly File Strategy: API_reference/saving_strategies/monthly.md
+          - RBSP Density Strategy: API_reference/saving_strategies/rbsp_density.md
           - Single File Strategy: API_reference/saving_strategies/single_file.md
       - Data Standards:
           - PRBEM Standard: API_reference/data_standards/prbem.md
@@ -101,6 +102,7 @@ nav:
           - POES: API_reference/recipes/poes.md
           - ProbaV: API_reference/recipes/probav.md
           - RBSP: API_reference/recipes/rbsp.md
+          - THEMIS: API_reference/recipes/themis.md
   - Tutorial Notebooks:
       - Data Downloading and Extraction: tutorials/1_download_data_and_extracting_variables.ipynb
       - Variable Processing: tutorials/2_variable_class.ipynb

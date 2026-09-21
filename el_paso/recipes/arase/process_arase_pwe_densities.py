@@ -23,10 +23,10 @@ def arase_pwe_densities_strategy(
     base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral
 ) -> ep.SavingStrategy:
     """Monthly NetCDF density saving strategy for Arase PWE."""
-    return ep.saving_strategies.DensityNetCDFStrategy(
+    return ep.saving_strategies.MonthlyDensityStrategy(
         base_data_path=base_data_path,
         mission="Arase",
-        satellite="Other",
+        satellite="arase",
         instrument="PWE",
         mag_field=mag_field,
     )
@@ -52,7 +52,7 @@ def process_arase_pwe_density(
     onto a common cadence, applies a lower density threshold, converts the position to GEO
     coordinates, computes the magnetic-field-related quantities (MLT, equatorial radial distance
     and equatorial position) via IRBEM for the given `mag_field`, maps the local density to the
-    magnetic equator, and saves the resulting variables using a `DensityNetCDFStrategy`.
+    magnetic equator, and saves the resulting variables using a `MonthlyDensityStrategy`.
 
     Args:
         start_time (datetime): Start of the time range to process.
@@ -179,22 +179,22 @@ def process_arase_pwe_density(
     )
 
     pwe_variables["Density_mapped_" + mag_field] = ep.processing.compute_equatorial_plasmaspheric_density(
-        pwe_variables["Density"], pos_geo_var, magnetic_field_variables["xGEO_eq_" + mag_field], method="Denton_average"
+        pwe_variables["Density"], pos_geo_var, magnetic_field_variables["xGEO_Eq_" + mag_field], method="Denton_average"
     )
 
     saving_strategy = arase_pwe_densities_strategy(processed_data_path, mag_field)
 
-    variables_to_save = {
-        "time": binned_time_variable,
-        "density_local": pwe_variables["Density"],
-        "density_eq": pwe_variables["Density_mapped_" + mag_field],
+    variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+        "Epoch": binned_time_variable,
+        "Number_density": pwe_variables["Density"],
+        "Number_density_Eq": pwe_variables["Density_mapped_" + mag_field],
         "MLT": magnetic_field_variables["MLT_" + mag_field],
-        "R_eq": magnetic_field_variables["R_Eq_" + mag_field],
-        "xGEO": pos_geo_var,
-        "xGEO_eq": magnetic_field_variables["xGEO_Eq_" + mag_field],
+        "R_Eq": magnetic_field_variables["R_Eq_" + mag_field],
+        "Position": pos_geo_var,
+        "xGEO_Eq": magnetic_field_variables["xGEO_Eq_" + mag_field],
     }
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)  # ty:ignore[invalid-argument-type]
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
 
 
 CLI_DEFAULTS = {

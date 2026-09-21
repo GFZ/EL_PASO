@@ -144,7 +144,7 @@ class GFZMetaData(DatasetMetadata):
     Attributes:
         datetime (VariableMetadata): Metadata for the computed `datetime` variable.
         # BEGIN GENERATED GFZ_METADATA_ATTRS DOCS
-        BB (VariableMetadata): Frequency of the power spectral density.
+        BB (VariableMetadata): Magnetic power spectral density of the observed waves.
         B_eq (VariableMetadata): Calculated magnetic field at the equator.
         B_sat (VariableMetadata): Observered magnetic field at the satellite location.
         B_total (VariableMetadata): Calculated magnetic field at the satellite location.
@@ -158,7 +158,7 @@ class GFZMetaData(DatasetMetadata):
         Lstar (VariableMetadata): Calculated Lstar of the particles.
         MLT (VariableMetadata): Magnetic local time at the satellite location.
         MLT0 (VariableMetadata): Magnetic local time at the mapped magnetic equator.
-        MLat (VariableMetadata): Frequency of the power spectral density.
+        MLat (VariableMetadata): Magnetic latitude of the satellite location.
         PSD (VariableMetadata): Calculated phase space density of particles.
         R0 (VariableMetadata): Radial distance of the satellite location mapped to the equator.
         alpha_eq_model (VariableMetadata): Calculated equatorial pitch angles of the particles.
@@ -167,6 +167,7 @@ class GFZMetaData(DatasetMetadata):
         alpha_lc_eq (VariableMetadata): Local loss cone size at the satellite location mapped to the equator.
         alpha_local (VariableMetadata): Local pitch angles of the particles.
         alpha_local_range (VariableMetadata): Local pitch angle ranges of the particles.
+        density (VariableMetadata): Electron number density at the satellite location.
         ellipticity (VariableMetadata): Frequency of the power spectral density.
         energy_FEDO (VariableMetadata): Central energy of measured omnidirecitonal flux.
         energy_FEIU (VariableMetadata): Central energy of measured integral flux.
@@ -209,6 +210,7 @@ class GFZMetaData(DatasetMetadata):
     alpha_lc_eq: VariableMetadata
     alpha_local: VariableMetadata
     alpha_local_range: VariableMetadata
+    density: VariableMetadata
     ellipticity: VariableMetadata
     energy_FEDO: VariableMetadata  # noqa: N815
     energy_FEIU: VariableMetadata  # noqa: N815
@@ -250,9 +252,23 @@ class PRBEMMetaData(DatasetMetadata):
         L_m (VariableMetadata): Calculated L McIlwain's L parameter
         L_star (VariableMetadata): Calculated Roederer's L* parameter
         MLT (VariableMetadata): Magnetic local time at the satellite location.
+        Number_density (VariableMetadata): Electron number density at the satellite location.
+        Number_density_Eq (VariableMetadata): Electron number density mapped to the magnetic equator.
+        Number_density_efw (VariableMetadata): Electron number density at the satellite location, derived from EFW.
+        Number_density_efw_Eq (VariableMetadata): EFW-derived electron number density mapped to the magnetic equator.
+        Number_density_emfisis (VariableMetadata): Electron number density at the satellite location, derived from
+            EMFISIS.
+        Number_density_emfisis_Eq (VariableMetadata): EMFISIS-derived electron number density mapped to the magnetic
+            equator.
+        Number_density_hiss_derived (VariableMetadata): Electron number density at the satellite location, inferred
+            from the hiss wave spectrum.
+        Number_density_hiss_derived_Eq (VariableMetadata): Hiss-inferred electron number density mapped to the
+            magnetic equator.
         PSD (VariableMetadata): Calculated phase space density of particles.
         Position (VariableMetadata): Spacecraft position in geographic cartesian coordinates
         R_Eq (VariableMetadata): Radial distance of the satellite location mapped to the equator.
+        xGEO_Eq (VariableMetadata): Satellite position mapped to the magnetic equator, in geographic cartesian
+            coordinates.
         # END GENERATED PRBEM_METADATA_ATTRS DOCS
     """
 
@@ -272,7 +288,16 @@ class PRBEMMetaData(DatasetMetadata):
     L_m: VariableMetadata
     L_star: VariableMetadata
     MLT: VariableMetadata
+    Number_density: VariableMetadata
+    Number_density_Eq: VariableMetadata
+    Number_density_efw: VariableMetadata
+    Number_density_efw_Eq: VariableMetadata
+    Number_density_emfisis: VariableMetadata
+    Number_density_emfisis_Eq: VariableMetadata
+    Number_density_hiss_derived: VariableMetadata
+    Number_density_hiss_derived_Eq: VariableMetadata
     PSD: VariableMetadata
     Position: VariableMetadata
     R_Eq: VariableMetadata
+    xGEO_Eq: VariableMetadata  # noqa: N815
     # END GENERATED PRBEM_METADATA_ATTRS

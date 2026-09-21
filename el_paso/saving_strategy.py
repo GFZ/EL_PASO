@@ -424,7 +424,12 @@ class SavingStrategy(ABC):
             if resolved_name is not None:
                 var_to_save = deepcopy(variables_dict[resolved_name])
 
-                if start_time is not None and end_time is not None and time_var is not None:
+                if (
+                    start_time is not None
+                    and end_time is not None
+                    and time_var is not None
+                    and "Epoch" in self.data_standard.get_dependencies(resolved_name)
+                ):
                     var_to_save.truncate(time_var, start_time.timestamp(), end_time.timestamp())
 
                 var_to_save = self.standardize_variable(

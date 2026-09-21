@@ -21,7 +21,11 @@ SPDX-License-Identifier: Apache-2.0
     options:
       members: false
 
-::: el_paso.typing.DensityNetCDFStrategy
+::: el_paso.typing.MonthlyDensityStrategy
+    options:
+      members: false
+
+::: el_paso.typing.RBSPDensityStrategy
     options:
       members: false
 

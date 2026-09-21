@@ -98,6 +98,10 @@ RECIPES: tuple[RecipeEntry, ...] = (
     RecipeEntry(
         "rbsp", "rbspice-protons", "el_paso.recipes.rbsp.process_rbsp_rbspice_protons", "process_rbsp_rbspice_protons"
     ),
+    RecipeEntry(
+        "themis", "esa-density", "el_paso.recipes.themis.process_themis_esa_density", "process_themis_esa_density"
+    ),
+    RecipeEntry("themis", "fft-waves", "el_paso.recipes.themis.process_themis_fft_waves", "process_themis_fft_waves"),
 )
 
 

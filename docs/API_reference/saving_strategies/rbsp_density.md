@@ -5,7 +5,7 @@ SPDX-FileContributor: Bernhard Haas
 SPDX-License-Identifier: Apache-2.0
 -->
 
-::: el_paso.saving_strategies.density_netcdf_strategy.DensityNetCDFStrategy
+::: el_paso.saving_strategies.rbsp_density_strategy.RBSPDensityStrategy
     options:
       members:
         - __init__

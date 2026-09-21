@@ -111,4 +111,22 @@ class PRBEMStandard(DataStandard[PRBEMName]):
                 ["Epoch", ("Energy_FEDU", "Energy_FPDU"), "Alpha"],
             ),
             "MLT": VariableInfo[PRBEMName]("MLT", "Magnetic local time at the satellite location.", u.hour, ["Epoch"]),
+            "xGEO_Eq": VariableInfo[PRBEMName](
+                "xGEO_Eq",
+                "Satellite position mapped to the magnetic equator, in geographic cartesian coordinates.",
+                ep.units.RE,
+                ["Epoch", "Position_components"],
+            ),
+            "Number_density": VariableInfo[PRBEMName](
+                "Number_density",
+                "Electron number density at the satellite location.",
+                u.cm ** (-3),
+                ["Epoch"],
+            ),
+            "Number_density_Eq": VariableInfo[PRBEMName](
+                "Number_density_Eq",
+                "Electron number density mapped to the magnetic equator.",
+                u.cm ** (-3),
+                ["Epoch"],
+            ),
         }

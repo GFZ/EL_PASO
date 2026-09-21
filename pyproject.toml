@@ -40,6 +40,7 @@ dependencies = [
     "skyfield==1.54",
     "dotenv>=0.9.9",
     "xarray>=2026.4.0",
+    "pyspedas>=2.1.5",
 ]
 license = "(Apache-2.0 OR LGPL-3.0-only)"
 license-files = ["LICENSES/*"]
@@ -86,7 +87,6 @@ push = true
 
 [tool.ty.src]
 exclude = [
-    "el_paso/saving_strategies/density_netcdf_strategy.py",
     "el_paso/dataset/scripts/create_RBSP_line_data.py",
 ]
 include = ["el_paso/**/*.py"]
