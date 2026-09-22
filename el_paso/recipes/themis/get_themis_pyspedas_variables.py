@@ -117,6 +117,7 @@ def tplot_to_time_variable(tplot_name: str) -> ep.Variable:
         ep.Variable: The time base, in `ep.units.posixtime`.
     """
     times, _, _ = _unpack_tplot(tplot_name)
+
     return ep.Variable(
         original_unit=ep.units.posixtime,
         data=times,
@@ -177,6 +178,9 @@ def get_themis_position_geo(
 
     time_var = tplot_to_time_variable(pos_var_name)
     pos_gsm_var = tplot_to_variable(pos_var_name, u.km)
+
+    pos_gsm_var.truncate(time_var, start_time, end_time)
+    time_var.truncate(time_var, start_time, end_time)
 
     datetimes = [datetime.fromtimestamp(t, tz=timezone.utc) for t in time_var.get_data(ep.units.posixtime)]
 

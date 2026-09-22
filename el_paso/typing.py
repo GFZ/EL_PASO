@@ -52,6 +52,8 @@ MagFieldVarTypes: TypeAlias = Literal[
     "InvMu",
     "InvK",
     "I",
+    "f_ce",
+    "f_ce_Eq",
 ]
 
 FixedDimensionName = Literal["Position_components", "min_max"]
@@ -124,11 +126,14 @@ GFZVarNames: TypeAlias = Literal[
     "alpha_local",
     "alpha_local_range",
     "density",
+    "density_eq",
     "ellipticity",
     "energy_FEDO",
     "energy_FEIU",
     "energy_FPDU",
     "energy_channels",
+    "fce",
+    "fce_eq",
     "freq",
     "freq_bw",
     "geo_alt",

@@ -7,7 +7,6 @@ import shutil
 from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Literal
 
 import pytest
 

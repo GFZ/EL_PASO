@@ -6,8 +6,7 @@
 import numpy as np
 import pytest
 
-from el_paso.dataset.interp_functions import TargetType, _interp_flux_parallel, _linear_interp
-
+from el_paso.dataset.interp_functions import _interp_flux_parallel, _linear_interp
 
 # ── _linear_interp ────────────────────────────────────────────────────────────
 

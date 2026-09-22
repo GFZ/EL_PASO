@@ -5,16 +5,13 @@
 
 import logging
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
-import matplotlib.dates as mdates
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from astropy import units as u
-from astropy.constants import e, m_e  # ty:ignore[unresolved-import]
 from pyspedas.projects import themis
 
 import el_paso as ep
@@ -33,12 +30,6 @@ if TYPE_CHECKING:
     from el_paso.processing.interpolate_in_time import InterpolationMethod
 
 logger = logging.getLogger(__name__)
-
-_HISS_BAND = (40 * u.Hz, 2000 * u.Hz)
-"""Frequency band integrated to obtain the plasmaspheric hiss RMS amplitude."""
-
-_PLASMASPHERE_DENSITY_THRESHOLD = 100 * u.cm ** (-3)
-"""Density above which the spacecraft is taken to be inside the plasmasphere."""
 
 
 def themis_fft_waves_strategy(
@@ -77,9 +68,9 @@ def process_themis_fft_waves(
     recipe. The electron density derived from the spacecraft potential, the total magnetic field,
     and the spacecraft position are all interpolated onto that cadence. Magnetic local time and
     the mapped equatorial radial distance are computed with IRBEM for the given `mag_field`, while
-    the magnetic latitude is derived directly from the position. The results are written with
-    `DailyWaveStrategy`, one NetCDF file per day, and a summary plot of the density, the wave
-    spectrogram, and the plasmaspheric hiss amplitude is produced.
+    the magnetic latitude is derived directly from the position. The electron gyrofrequency and
+    its equatorial mapping are computed from the measured field, and the results are written
+    with `DailyWaveStrategy`, one NetCDF file per day.
 
     Args:
         start_time (datetime): Start of the time range to process.
@@ -99,11 +90,13 @@ def process_themis_fft_waves(
         save_strategy (Literal["netcdf"]): Unused by this recipe; accepted only for
             interface consistency with other EL-PASO recipes, since the THEMIS wave saving
             strategy factory only supports a single output format. Defaults to "netcdf".
-        skip_existing (bool): If True, let pyspedas reuse raw files that already exist locally
-            instead of re-downloading them. Defaults to True.
+        skip_existing (bool): Unused by this recipe; accepted only for interface consistency
+            with other EL-PASO recipes, since pyspedas decides on its own whether a locally
+            cached THEMIS file is still current. Defaults to True.
     """
     del bin_cadence
     del save_strategy
+    del skip_existing
 
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     logging.getLogger().setLevel(logging.INFO)
@@ -117,6 +110,13 @@ def process_themis_fft_waves(
     density_vars = _get_density_data(start_time, end_time, satellite, target_time_var)
     orbit_vars = _get_orbit_vars(start_time, end_time, satellite, target_time_var, mag_field, num_cores)
 
+    # Both the local gyrofrequency and its equatorial mapping come from the measured field.
+    # Pairing a measured f_ce with the model-derived "f_ce_Eq" from
+    # compute_magnetic_field_variables would make their ratio reflect field-model error
+    # rather than field-line geometry.
+    gyro_vars = {"f_ce": ep.processing.compute_electron_gyrofrequency(mag_vars["Bt"])}
+    gyro_vars["f_ce_Eq"] = ep.processing.map_to_dipole_equator(gyro_vars["f_ce"], orbit_vars["MLat"])
+
     vars_to_save: dict[ep.typing.InternalName, ep.Variable] = {
         "Epoch": target_time_var,
         "Wave_frequency": fft_vars["freq"],
@@ -126,13 +126,13 @@ def process_themis_fft_waves(
         "MLat": orbit_vars["MLat"],
         "MLT": orbit_vars["MLT_" + mag_field],
         "R_Eq": orbit_vars["R_Eq_" + mag_field],
+        "f_ce": gyro_vars["f_ce"],
+        "f_ce_Eq": gyro_vars["f_ce_Eq"],
     }
 
     saving_strat = themis_fft_waves_strategy(processed_data_path, satellite)
 
     ep.save(vars_to_save, saving_strat, start_time, end_time, time_var=target_time_var)
-
-    _plot_wave_summary(satellite, target_time_var, fft_vars, density_vars, mag_vars, orbit_vars)
 
 
 def _get_fft_data(
@@ -142,7 +142,7 @@ def _get_fft_data(
 ) -> dict[str, ep.Variable]:
     """Load the 32-bin FFT search-coil spectrum and sum it over the three SCM axes."""
     probe = str(satellite)
-    axis_names = [f"th{probe}_fff_32_scm{axis}" for axis in (2,3)]
+    axis_names = [f"th{probe}_fff_32_scm{axis}" for axis in (3,)]
 
     themis.fft(
         trange=build_trange(start_time, end_time),
@@ -158,6 +158,9 @@ def _get_fft_data(
         axis_psd = np.asarray(tplot_to_variable(axis_name, psd_unit).get_data(psd_unit)).astype(np.float64)
         total_psd = axis_psd if total_psd is None else total_psd + axis_psd
 
+    time_var = tplot_to_time_variable(axis_names[0])
+    freq_var = tplot_to_bin_variable(axis_names[0], u.Hz)
+
     bb_var = ep.Variable(
         original_unit=psd_unit,
         data=total_psd,
@@ -165,9 +168,12 @@ def _get_fft_data(
         processing_notes="Sum of the three search-coil axes of the THEMIS 32-bin FFT spectrum.",
     )
 
+    bb_var.truncate(time_var, start_time, end_time)
+    time_var.truncate(time_var, start_time, end_time)
+
     return {
-        "Epoch": tplot_to_time_variable(axis_names[0]),
-        "freq": tplot_to_bin_variable(axis_names[0], u.Hz),
+        "Epoch": time_var,
+        "freq": freq_var,
         "BB": bb_var,
     }
 
@@ -274,13 +280,7 @@ def _get_orbit_vars(
     del variables["Epoch"]
 
     # MLat is not among the quantities IRBEM computes here, so it is derived from the position.
-    pos = np.asarray(variables["xGEO"].get_data(ep.units.RE)).astype(np.float64)
-    mlat = np.degrees(np.arctan2(pos[:, 2], np.hypot(pos[:, 0], pos[:, 1])))
-    variables["MLat"] = ep.Variable(
-        original_unit=u.deg,
-        data=mlat,
-        description="Magnetic latitude of the satellite location.",
-    )
+    variables["MLat"] = ep.processing.compute_magnetic_latitude(target_time_var, variables["xGEO"])
 
     variables_to_compute: ep.processing.VariableRequest = [
         ("MLT", mag_field),
@@ -296,103 +296,6 @@ def _get_orbit_vars(
     )
 
     return variables | magnetic_field_variables
-
-
-def _equatorial_electron_gyrofrequency(mag_vars: dict[str, ep.Variable], mlat_var: ep.Variable) -> np.ndarray:
-    """Map the local electron gyrofrequency down to the magnetic equator."""
-    bt = np.asarray(mag_vars["Bt"].get_data(u.T)).astype(np.float64)
-    mlat_rad = np.radians(np.asarray(mlat_var.get_data(u.deg)).astype(np.float64))
-
-    fce = (e.si.value * bt) / (2 * np.pi * m_e.si.value)
-
-    return fce * np.cos(mlat_rad) ** 6 / np.sqrt(1 + 3 * np.sin(mlat_rad) ** 2)
-
-
-def _hiss_rms_amplitude(
-    fft_vars: dict[str, ep.Variable],
-    density_var: ep.Variable,
-) -> np.ndarray:
-    """Integrate the wave power over the hiss band to get an RMS amplitude in pT.
-
-    Only samples taken inside the plasmasphere are retained; everything else is returned as
-    NaN, since the same frequency band outside the plasmasphere is chorus rather than hiss.
-    """
-    psd_unit = (u.nT) ** 2 / u.Hz
-    psd = np.asarray(fft_vars["BB"].get_data(psd_unit)).astype(np.float64)
-    freq = np.asarray(fft_vars["freq"].get_data(u.Hz)).astype(np.float64)
-
-    # Integrate over frequency using the bin widths implied by the bin centres.
-    edges = np.zeros(len(freq) + 1)
-    edges[1:-1] = 0.5 * (freq[:-1] + freq[1:])
-    edges[0] = freq[0] - 0.5 * (freq[1] - freq[0])
-    edges[-1] = freq[-1] + 0.5 * (freq[-1] - freq[-2])
-    bin_widths = np.diff(edges)
-
-    band_mask = (freq >= _HISS_BAND[0].to_value(u.Hz)) & (freq <= _HISS_BAND[1].to_value(u.Hz))
-
-    # nT^2 -> pT^2 is a factor of 1e6.
-    integrated = np.nansum(psd[:, band_mask] * bin_widths[band_mask], axis=1) * 1e6
-    amplitude = np.sqrt(integrated)
-
-    density = np.asarray(density_var.get_data(u.cm ** (-3))).astype(np.float64)
-    inside_plasmasphere = density > _PLASMASPHERE_DENSITY_THRESHOLD.to_value(u.cm ** (-3))
-
-    return np.where(inside_plasmasphere, amplitude, np.nan)
-
-
-def _plot_wave_summary(
-    satellite: ThemisProbe,
-    time_var: ep.Variable,
-    fft_vars: dict[str, ep.Variable],
-    density_vars: dict[str, ep.Variable],
-    mag_vars: dict[str, ep.Variable],
-    orbit_vars: dict[str, ep.Variable],
-) -> None:
-    """Plot density, the wave spectrogram, and the hiss amplitude on a shared time axis."""
-    times = np.array([datetime.fromtimestamp(ts, timezone.utc) for ts in time_var.get_data(ep.units.posixtime)])
-    freq = np.asarray(fft_vars["freq"].get_data(u.Hz)).astype(np.float64)
-    psd = np.asarray(fft_vars["BB"].get_data((u.nT) ** 2 / u.Hz)).astype(np.float64)
-    density = np.asarray(density_vars["Density"].get_data(u.cm ** (-3))).astype(np.float64)
-
-    fce_eq = _equatorial_electron_gyrofrequency(mag_vars, orbit_vars["MLat"])
-    hiss_amplitude = _hiss_rms_amplitude(fft_vars, density_vars["Density"])
-
-    fig, (ax_density, ax_spectrum, ax_hiss) = plt.subplots(
-        3, 1, figsize=(12, 10), sharex=True, height_ratios=[1, 3, 1.5]
-    )
-    fig.suptitle(f"THEMIS-{str(satellite).upper()} wave observations")
-
-    ax_density.plot(times, density, color="darkgreen", lw=1.5)
-    ax_density.axhline(_PLASMASPHERE_DENSITY_THRESHOLD.to_value(u.cm ** (-3)), color="red", ls="--", lw=1)
-    ax_density.set_yscale("log")
-    ax_density.set_ylabel(r"$n_e$" + "\n(cm$^{-3}$)")
-    ax_density.grid(alpha=0.3)
-
-    with np.errstate(divide="ignore"):
-        log_psd = np.log10(np.where(psd > 0, psd, np.nan))
-
-    mesh = ax_spectrum.pcolormesh(times, freq, log_psd.T, shading="auto", cmap="turbo", vmin=-7, vmax=-4)
-    fig.colorbar(mesh, ax=ax_spectrum, label=r"log$_{10}$(nT$^2$/Hz)")
-
-    for fraction in (1.0, 0.5, 0.05):
-        ax_spectrum.plot(times, fraction * fce_eq, color="white", lw=1.2, ls=":")
-
-    ax_spectrum.set_yscale("log")
-    ax_spectrum.set_ylim(10, 3000)
-    ax_spectrum.set_ylabel("Frequency\n(Hz)")
-    ax_spectrum.grid(alpha=0.25)
-
-    ax_hiss.scatter(times, hiss_amplitude, color="black", s=4)
-    ax_hiss.set_ylabel("Hiss RMS\nBw (pT)")
-    ax_hiss.set_xlabel(f"UT ({times[0].strftime('%Y-%m-%d')})")
-    ax_hiss.grid(alpha=0.3)
-
-    ax_hiss.xaxis.set_major_locator(mdates.HourLocator(interval=2))
-    ax_hiss.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
-    plt.setp(ax_hiss.xaxis.get_majorticklabels(), rotation=45)
-
-    plt.tight_layout()
-    plt.savefig(f"themis_{satellite}_fft_waves.png")
 
 
 CLI_DEFAULTS = {

@@ -168,11 +168,14 @@ class GFZMetaData(DatasetMetadata):
         alpha_local (VariableMetadata): Local pitch angles of the particles.
         alpha_local_range (VariableMetadata): Local pitch angle ranges of the particles.
         density (VariableMetadata): Electron number density at the satellite location.
+        density_eq (VariableMetadata): Electron number density at the magnetic equator.
         ellipticity (VariableMetadata): Frequency of the power spectral density.
         energy_FEDO (VariableMetadata): Central energy of measured omnidirecitonal flux.
         energy_FEIU (VariableMetadata): Central energy of measured integral flux.
         energy_FPDU (VariableMetadata): Central energy of measured proton differential flux.
         energy_channels (VariableMetadata): Central energy of measured differential flux.
+        fce (VariableMetadata): Electron gyrofrequency at the satellite location.
+        fce_eq (VariableMetadata): Electron gyrofrequency mapped to the magnetic equator.
         freq (VariableMetadata): Frequency of the power spectral density.
         freq_bw (VariableMetadata): Frequency of the power spectral density.
         geo_alt (VariableMetadata): Altitude in geographic cartesian coordinates.
@@ -211,11 +214,14 @@ class GFZMetaData(DatasetMetadata):
     alpha_local: VariableMetadata
     alpha_local_range: VariableMetadata
     density: VariableMetadata
+    density_eq: VariableMetadata
     ellipticity: VariableMetadata
     energy_FEDO: VariableMetadata  # noqa: N815
     energy_FEIU: VariableMetadata  # noqa: N815
     energy_FPDU: VariableMetadata  # noqa: N815
     energy_channels: VariableMetadata
+    fce: VariableMetadata
+    fce_eq: VariableMetadata
     freq: VariableMetadata
     freq_bw: VariableMetadata
     geo_alt: VariableMetadata
@@ -254,16 +260,6 @@ class PRBEMMetaData(DatasetMetadata):
         MLT (VariableMetadata): Magnetic local time at the satellite location.
         Number_density (VariableMetadata): Electron number density at the satellite location.
         Number_density_Eq (VariableMetadata): Electron number density mapped to the magnetic equator.
-        Number_density_efw (VariableMetadata): Electron number density at the satellite location, derived from EFW.
-        Number_density_efw_Eq (VariableMetadata): EFW-derived electron number density mapped to the magnetic equator.
-        Number_density_emfisis (VariableMetadata): Electron number density at the satellite location, derived from
-            EMFISIS.
-        Number_density_emfisis_Eq (VariableMetadata): EMFISIS-derived electron number density mapped to the magnetic
-            equator.
-        Number_density_hiss_derived (VariableMetadata): Electron number density at the satellite location, inferred
-            from the hiss wave spectrum.
-        Number_density_hiss_derived_Eq (VariableMetadata): Hiss-inferred electron number density mapped to the
-            magnetic equator.
         PSD (VariableMetadata): Calculated phase space density of particles.
         Position (VariableMetadata): Spacecraft position in geographic cartesian coordinates
         R_Eq (VariableMetadata): Radial distance of the satellite location mapped to the equator.
@@ -290,12 +286,6 @@ class PRBEMMetaData(DatasetMetadata):
     MLT: VariableMetadata
     Number_density: VariableMetadata
     Number_density_Eq: VariableMetadata
-    Number_density_efw: VariableMetadata
-    Number_density_efw_Eq: VariableMetadata
-    Number_density_emfisis: VariableMetadata
-    Number_density_emfisis_Eq: VariableMetadata
-    Number_density_hiss_derived: VariableMetadata
-    Number_density_hiss_derived_Eq: VariableMetadata
     PSD: VariableMetadata
     Position: VariableMetadata
     R_Eq: VariableMetadata

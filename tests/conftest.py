@@ -8,7 +8,6 @@ import typing
 from collections.abc import Callable
 from urllib.parse import urlparse
 
-import netCDF4
 import pytest
 
 

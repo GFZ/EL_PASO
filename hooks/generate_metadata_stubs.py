@@ -1,3 +1,4 @@
+# noqa: INP001
 # SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Sahil Jhawar
 #

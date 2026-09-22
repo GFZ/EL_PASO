@@ -9,10 +9,12 @@ from el_paso.processing.calculate_geo_coords_from_file import (
     calculate_geo_coords_from_omm,
     calculate_geo_coords_from_tle,
 )
+from el_paso.processing.compute_electron_gyrofrequency import compute_electron_gyrofrequency
 from el_paso.processing.compute_equatorial_plasmaspheric_density import compute_equatorial_plasmaspheric_density
 from el_paso.processing.compute_invariant_K import compute_invariant_K
 from el_paso.processing.compute_invariant_mu import compute_invariant_mu
 from el_paso.processing.compute_magnetic_field_variables import VariableRequest, compute_magnetic_field_variables
+from el_paso.processing.compute_magnetic_latitude import compute_magnetic_latitude
 from el_paso.processing.compute_phase_space_density import compute_phase_space_density
 from el_paso.processing.compute_pitch_angles_for_telescopes import compute_pitch_angles_for_telescopes
 from el_paso.processing.construct_pitch_angle_distribution import construct_pitch_angle_distribution
@@ -21,6 +23,7 @@ from el_paso.processing.create_quality_flag_from_magnetometer import create_qual
 from el_paso.processing.fold_pitch_angles_and_flux import fold_pitch_angles_and_flux
 from el_paso.processing.get_real_time_tipsod import get_real_time_tipsod
 from el_paso.processing.interpolate_in_time import interpolate_in_time
+from el_paso.processing.map_to_dipole_equator import map_to_dipole_equator
 
 __all__ = [
     "TimeBinMethod",
@@ -28,10 +31,12 @@ __all__ = [
     "bin_by_time",
     "calculate_geo_coords_from_omm",
     "calculate_geo_coords_from_tle",
+    "compute_electron_gyrofrequency",
     "compute_equatorial_plasmaspheric_density",
     "compute_invariant_K",
     "compute_invariant_mu",
     "compute_magnetic_field_variables",
+    "compute_magnetic_latitude",
     "compute_phase_space_density",
     "compute_pitch_angles_for_telescopes",
     "construct_pitch_angle_distribution",
@@ -41,4 +46,5 @@ __all__ = [
     "get_real_time_tipsod",
     "interpolate_in_time",
     "magnetic_field_utils",
+    "map_to_dipole_equator",
 ]

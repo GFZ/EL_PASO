@@ -17,7 +17,6 @@ from swvo.io.kp import KpOMNI
 from swvo.io.RBMDataSet import InstrumentEnum, MfmEnum, RBMDataSet
 
 import el_paso as ep
-from el_paso.recipes.rbsp import process_rbsp_hope_electrons
 
 satellite_list = ["a", "b"]
 mag_field_list = ["TS04", "T89"]
@@ -33,15 +32,15 @@ def test_gfz_old(satellite: Literal["a", "b"], mag_field: Literal["T89", "TS04"]
     Path("tests/comparisons/raw_data").mkdir(exist_ok=True)
     Path("tests/comparisons/processed_data").mkdir(exist_ok=True)
 
-    # process_rbsp_hope_electrons(
-    #     start_time,
-    #     end_time,
-    #     satellite,
-    #     mag_field,
-    #     raw_data_path="tests/comparisons/raw_data",
-    #     processed_data_path="tests/comparisons/processed_data",
-    #     num_cores=64,
-    # )
+    ep.recipes.rbsp.process_rbsp_hope_electrons(
+        start_time,
+        end_time,
+        satellite,
+        mag_field,
+        raw_data_path="tests/comparisons/raw_data",
+        processed_data_path="tests/comparisons/processed_data",
+        num_cores=64,
+    )
 
     match mag_field:
         case "T89":
@@ -53,7 +52,12 @@ def test_gfz_old(satellite: Literal["a", "b"], mag_field: Literal["T89", "TS04"]
         start_time=start_time,
         end_time=end_time,
         saving_strategy=ep.saving_strategies.MonthlyRBStrategy(
-            Path("tests/comparisons/processed_data/"), "RBSP", "rbspb", "hope", mag_field, ep.data_standards.GFZStandard(),
+            Path("tests/comparisons/processed_data/"),
+            "RBSP",
+            "rbspb",
+            "hope",
+            mag_field,
+            ep.data_standards.GFZStandard(),
         ),
         verbose=True,
     )

@@ -21,6 +21,7 @@ import el_paso as ep
 import el_paso.processing.magnetic_field_utils as mag_utils
 from el_paso import Variable
 from el_paso.cache import clear_cache_on_success, get_cache_dir
+from el_paso.processing.compute_electron_gyrofrequency import compute_electron_gyrofrequency
 from el_paso.typing import MagFieldVarTypes, MagneticFieldLiteral
 from el_paso.utils import make_dict_hashable, timed_function
 
@@ -309,6 +310,15 @@ def _get_result(
         case "R_Eq" | "B_Eq" | "xGEO_Eq" | "MLT_Eq":
             result_dict = mag_utils.get_magequator(xgeo_var, time_var, irbem_input)
 
+        case "f_ce" | "f_ce_Eq":
+            result_dict = _get_electron_gyrofrequency(
+                var_type,
+                xgeo_var,
+                time_var,
+                computed_vars,
+                irbem_input,
+            )
+
         case "L_star" | "L_m" | "I":
             result_dict = mag_utils.get_Lstar(xgeo_var, time_var, pa_local_var, irbem_input)
 
@@ -404,6 +414,58 @@ def _requires_pa_var(vars_to_compute: list[MagFieldVar]) -> bool:
     var_types = [mag_field_var.type for mag_field_var in vars_to_compute]
 
     return any(var_type in ["L_star", "Alpha_Eq", "InvMu", "InvK", "B_mirr", "I", "L_m"] for var_type in var_types)
+
+
+@timed_function("Electron gyrofrequency calculation")
+def _get_electron_gyrofrequency(
+    var_type: Literal["f_ce", "f_ce_Eq"],
+    xgeo_var: Variable,
+    time_var: Variable,
+    computed_vars: dict[str, Variable],
+    irbem_input: mag_utils.IrbemInput,
+) -> dict[str, Variable]:
+    """Calculates the electron gyrofrequency from the modelled magnetic field strength.
+
+    The gyrofrequency follows from the field strength alone, so it inherits the magnetic field
+    model: `f_ce` uses the field at the satellite, `f_ce_Eq` the field at the magnetic equator
+    of the same field line.
+
+    Note that this is the gyrofrequency of the *modelled* field. A recipe holding a
+    magnetometer observation is usually better served computing it from that measurement
+    directly, which does not depend on a field model at all.
+
+    Args:
+        var_type (Literal["f_ce", "f_ce_Eq"]): Whether to use the local or the equatorial field.
+        xgeo_var (Variable): Variable containing geocentric (XGEO) coordinates.
+        time_var (Variable): Variable containing time data.
+        computed_vars (dict[str, Variable]): A dictionary of already computed variables to reuse.
+        irbem_input (mag_utils.IrbemInput): A named tuple containing all necessary IRBEM inputs.
+
+    Returns:
+        dict[str, Variable]: A dictionary containing the newly computed gyrofrequency variable.
+    """
+    logger.info("\tCalculating electron gyrofrequency ...")
+
+    if var_type == "f_ce_Eq":
+        b_name = mag_utils.create_var_name("B_Eq", irbem_input.magnetic_field)
+        if b_name not in computed_vars:
+            computed_vars |= mag_utils.get_magequator(xgeo_var, time_var, irbem_input)
+        source = "the magnetic equator"
+    else:
+        b_name = mag_utils.create_var_name("B_Calc", irbem_input.magnetic_field)
+        if b_name not in computed_vars:
+            computed_vars |= mag_utils.get_local_B_field(xgeo_var, time_var, irbem_input)
+        source = "the satellite location"
+
+    f_ce_var = compute_electron_gyrofrequency(computed_vars[b_name])
+    f_ce_var.metadata.add_processing_note(
+        f"Computed electron gyrofrequency from the magnetic field strength at {source} "
+        f"using {irbem_input.magnetic_field} and options: {irbem_input.irbem_options}."
+    )
+
+    computed_vars[mag_utils.create_var_name(var_type, irbem_input.magnetic_field)] = f_ce_var
+
+    return computed_vars
 
 
 @timed_function("Equatorial pitch angle calculation")

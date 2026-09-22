@@ -15,11 +15,9 @@ from astropy import units as u
 from matplotlib import pyplot as plt
 from swvo.io.dst import DSTOMNI
 from swvo.io.kp import KpOMNI
-from swvo.io.RBMDataSet import InstrumentEnum, MfmEnum, RBMDataSet
+from swvo.io.RBMDataSet import MfmEnum
 
 import el_paso as ep
-from el_paso.recipes.rbsp import process_rbsp_hope_electrons
-
 
 satellite_list = ["a", "b"]
 mag_field_list = ["TS04", "T89"]
@@ -28,7 +26,7 @@ mag_field_list = ["TS04", "T89"]
 @pytest.mark.parametrize("satellite", satellite_list)
 @pytest.mark.parametrize("mag_field", mag_field_list)
 @pytest.mark.visual
-def test_mageph_rbsp(satellite: Literal["a", "b"], mag_field: Literal["T89", "TS04"]):  # noqa: PLR0915
+def test_mageph_rbsp(satellite: Literal["a", "b"], mag_field: Literal["T89", "TS04"]):
     # process Lstar using el paso
     start_time = datetime(2017, 1, 1, tzinfo=timezone.utc)
     end_time = start_time + timedelta(days=2, hours=23, minutes=59)
@@ -36,35 +34,33 @@ def test_mageph_rbsp(satellite: Literal["a", "b"], mag_field: Literal["T89", "TS
     Path("tests/comparisons/raw_data").mkdir(exist_ok=True)
     Path("tests/comparisons/processed_data").mkdir(exist_ok=True)
 
-    # process_hope_electrons(
-    #     start_time,
-    #     end_time,
-    #     satellite,
-    #     "IRBEM/libirbem.so",
-    #     mag_field,
-    #     raw_data_path="tests/comparisons/raw_data",
-    #     processed_data_path="tests/comparisons/processed_data",
-    #     num_cores=12,
-    # )
+    ep.recipes.rbsp.process_rbsp_hope_electrons(
+        start_time,
+        end_time,
+        satellite,
+        "IRBEM/libirbem.so",
+        mag_field,
+        raw_data_path="tests/comparisons/raw_data",
+        processed_data_path="tests/comparisons/processed_data",
+        num_cores=12,
+    )
 
     match mag_field:
         case "T89":
             mfm_enum = MfmEnum.T89
         case "TS04":
-            mfm_enum = MfmEnum.T04s
+            mfm_enum = MfmEnum.T04s  # noqa: F841
 
-    # rbsp_data = RBMDataSet(
-    #     start_time=start_time,
-    #     end_time=end_time,
-    #     folder_path=Path("tests/comparisons/processed_data/"),
-    #     satellite="RBSPA",
-    #     instrument=InstrumentEnum.HOPE,
-    #     mfm=mfm_enum,
-    #     verbose=True,
-    # )
+    rbsp_data = ep.GFZDataSet(
+        ep.recipes.rbsp.rbsp_hope_electron_netcdf_strategy("tests/comparisons/processed_data", mag_field, satellite),
+        start_time=start_time,
+        end_time=end_time,
+    )
 
     rbsp_data = ep.dataset.GFZDataSet(
-        ep.saving_strategies.MonthlyRBStrategy("tests/comparisons/processed_data/", "RBSP", "rbspa", "hope", "TS04", ep.data_standards.GFZStandard()),
+        ep.saving_strategies.MonthlyRBStrategy(
+            "tests/comparisons/processed_data/", "RBSP", "rbspa", "hope", "TS04", ep.data_standards.GFZStandard()
+        ),
         start_time,
         end_time,
     )
@@ -77,16 +73,16 @@ def test_mageph_rbsp(satellite: Literal["a", "b"], mag_field: Literal["T89", "TS
             mag_field_str_data = "TS04D"
     file_name_stem = "rbsp" + satellite + "_def_MagEphem_" + mag_field_str_data + "_YYYYMMDD_v3.0.0.h5"
 
-    # ep.download(
-    #     start_time,
-    #     end_time,
-    #     save_path="tests/comparisons/raw_data",
-    #     download_url=f"https://rbsp-ect.newmexicoconsortium.org/data_pub/rbsp{satellite}/MagEphem/definitive/YYYY/",
-    #     file_name_stem=file_name_stem,
-    #     file_cadence="daily",
-    #     method="request",
-    #     skip_existing=True,
-    # )
+    ep.download(
+        start_time,
+        end_time,
+        save_path="tests/comparisons/raw_data",
+        download_url=f"https://rbsp-ect.newmexicoconsortium.org/data_pub/rbsp{satellite}/MagEphem/definitive/YYYY/",
+        file_name_stem=file_name_stem,
+        file_cadence="daily",
+        method="request",
+        skip_existing=True,
+    )
 
     extraction_infos = [
         ep.ExtractionInfo(

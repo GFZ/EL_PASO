@@ -66,11 +66,14 @@ class GFZDataSet(DataSet):
         alpha_local (NDArray[np.float64]): Local pitch angles of the particles.
         alpha_local_range (NDArray[np.float64]): Local pitch angle ranges of the particles.
         density (NDArray[np.float64]): Electron number density at the satellite location.
+        density_eq (NDArray[np.float64]): Electron number density at the magnetic equator.
         ellipticity (NDArray[np.float64]): Frequency of the power spectral density.
         energy_FEDO (NDArray[np.float64]): Central energy of measured omnidirecitonal flux.
         energy_FEIU (NDArray[np.float64]): Central energy of measured integral flux.
         energy_FPDU (NDArray[np.float64]): Central energy of measured proton differential flux.
         energy_channels (NDArray[np.float64]): Central energy of measured differential flux.
+        fce (NDArray[np.float64]): Electron gyrofrequency at the satellite location.
+        fce_eq (NDArray[np.float64]): Electron gyrofrequency mapped to the magnetic equator.
         freq (NDArray[np.float64]): Frequency of the power spectral density.
         freq_bw (NDArray[np.float64]): Frequency of the power spectral density.
         geo_alt (NDArray[np.float64]): Altitude in geographic cartesian coordinates.
@@ -111,11 +114,14 @@ class GFZDataSet(DataSet):
     alpha_local: NDArray[np.float64]
     alpha_local_range: NDArray[np.float64]
     density: NDArray[np.float64]
+    density_eq: NDArray[np.float64]
     ellipticity: NDArray[np.float64]
     energy_FEDO: NDArray[np.float64]  # noqa: N815
     energy_FEIU: NDArray[np.float64]  # noqa: N815
     energy_FPDU: NDArray[np.float64]  # noqa: N815
     energy_channels: NDArray[np.float64]
+    fce: NDArray[np.float64]
+    fce_eq: NDArray[np.float64]
     freq: NDArray[np.float64]
     freq_bw: NDArray[np.float64]
     geo_alt: NDArray[np.float64]
@@ -209,16 +215,6 @@ class PRBEMDataSet(DataSet):
         MLT (NDArray[np.float64]): Magnetic local time at the satellite location.
         Number_density (NDArray[np.float64]): Electron number density at the satellite location.
         Number_density_Eq (NDArray[np.float64]): Electron number density mapped to the magnetic equator.
-        Number_density_efw (NDArray[np.float64]): Electron number density at the satellite location, derived from EFW.
-        Number_density_efw_Eq (NDArray[np.float64]): EFW-derived electron number density mapped to the magnetic equator.
-        Number_density_emfisis (NDArray[np.float64]): Electron number density at the satellite location, derived
-            from EMFISIS.
-        Number_density_emfisis_Eq (NDArray[np.float64]): EMFISIS-derived electron number density mapped to the
-            magnetic equator.
-        Number_density_hiss_derived (NDArray[np.float64]): Electron number density at the satellite location,
-            inferred from the hiss wave spectrum.
-        Number_density_hiss_derived_Eq (NDArray[np.float64]): Hiss-inferred electron number density mapped to the
-            magnetic equator.
         PSD (NDArray[np.float64]): Calculated phase space density of particles.
         Position (NDArray[np.float64]): Spacecraft position in geographic cartesian coordinates
         R_Eq (NDArray[np.float64]): Radial distance of the satellite location mapped to the equator.
@@ -246,12 +242,6 @@ class PRBEMDataSet(DataSet):
     MLT: NDArray[np.float64]
     Number_density: NDArray[np.float64]
     Number_density_Eq: NDArray[np.float64]
-    Number_density_efw: NDArray[np.float64]
-    Number_density_efw_Eq: NDArray[np.float64]
-    Number_density_emfisis: NDArray[np.float64]
-    Number_density_emfisis_Eq: NDArray[np.float64]
-    Number_density_hiss_derived: NDArray[np.float64]
-    Number_density_hiss_derived_Eq: NDArray[np.float64]
     PSD: NDArray[np.float64]
     Position: NDArray[np.float64]
     R_Eq: NDArray[np.float64]

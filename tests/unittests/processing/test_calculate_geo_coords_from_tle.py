@@ -39,7 +39,7 @@ class TestCalculateGeoCoordsReturn:
         """Test that the function returns a tuple of three elements."""
         result = calculate_geo_coords_from_tle(sample_tle_file)
         assert isinstance(result, tuple)
-        assert len(result) == 3  # noqa: PLR2004
+        assert len(result) == 3
 
     def test_satellite_name(self, sample_tle_file: str):
         """Test that the satellite name is parsed correctly."""
@@ -49,14 +49,14 @@ class TestCalculateGeoCoordsReturn:
     def test_tle_times_length_and_type(self, sample_tle_file: str):
         """Test that TLE times are a list of UTC datetimes."""
         _, tle_times, _ = calculate_geo_coords_from_tle(sample_tle_file)
-        assert len(tle_times) == 2  # noqa: PLR2004
+        assert len(tle_times) == 2
         assert all(isinstance(t, datetime) for t in tle_times)
         assert all(t.tzinfo == timezone.utc for t in tle_times)
 
     def test_tle_time_values(self, sample_tle_file: str):
         """Test that extracted times are in the expected year."""
         _, tle_times, _ = calculate_geo_coords_from_tle(sample_tle_file)
-        assert all(t.year == 2026 for t in tle_times)  # noqa: PLR2004
+        assert all(t.year == 2026 for t in tle_times)
         assert all(t.month >= 1 for t in tle_times)
 
     def test_geo_coords_shape(self, sample_tle_file: str):
@@ -70,7 +70,7 @@ class TestCalculateGeoCoordsReturn:
         """Test that geo coordinates are reasonable (ISS orbits ~7000 km from Earth's center)."""
         _, _, coords_var = calculate_geo_coords_from_tle(sample_tle_file)
         distances = np.linalg.norm(coords_var.get_data(), axis=1)
-        assert all(6000 < d < 8000 for d in distances)  # noqa: PLR2004
+        assert all(6000 < d < 8000 for d in distances)
 
     def test_geo_coords_no_inf(self, sample_tle_file: str):
         """Test that coordinates don't contain infinite values."""

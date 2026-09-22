@@ -190,10 +190,16 @@ class GFZStandard(DataStandard[GFZVarNames]):
                 (u.nT) ** 2 / u.Hz,
                 ["Epoch", "Wave_frequency"],
             ),
+            "f_ce": VariableInfo[GFZVarNames](
+                "fce", "Electron gyrofrequency at the satellite location.", u.Hz, ["Epoch"]
+            ),
+            "f_ce_Eq": VariableInfo[GFZVarNames](
+                "fce_eq", "Electron gyrofrequency mapped to the magnetic equator.", u.Hz, ["Epoch"]
+            ),
             "Number_density": VariableInfo[GFZVarNames](
                 "density", "Electron number density at the satellite location.", u.cm ** (-3), ["Epoch"]
             ),
             "Number_density_Eq": VariableInfo[GFZVarNames](
-                "density", "Electron number density at the magnetic equator.", u.cm ** (-3), ["Epoch"]
+                "density_eq", "Electron number density at the magnetic equator.", u.cm ** (-3), ["Epoch"]
             ),
         }

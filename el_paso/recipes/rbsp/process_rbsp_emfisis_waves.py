@@ -2,15 +2,12 @@
 # SPDX-FileContributor: Alwin Roy
 #
 # SPDX-License-Identifier: Apache-2.0
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
-import matplotlib.dates as mdates
-import matplotlib.pyplot as plt
 import numpy as np
 from astropy import units as u
-from astropy.constants import e, m_e  # ty:ignore[unresolved-import]
 
 import el_paso as ep
 from el_paso.recipes.rbsp import RBSPSatellite
@@ -57,9 +54,8 @@ def process_rbsp_emfisis_waves(
     (L-shell, MLAT, MLT, electron cyclotron frequency) are derived from the cleaned magnetometer
     data, and the total magnetic wave power spectral density is computed from the WFR
     spectral-matrix components. The wave frequency, frequency bandwidth, wave normal angle,
-    planarity, and ellipticity are saved using `DailyWaveStrategy`. Finally, diagnostic plots of
-    the density, orbit, magnetometer, WFR spectrogram, and WNA properties are generated and shown
-    or saved to disk.
+    planarity, ellipticity, power spectral density, density, magnetic field, magnetic latitude,
+    magnetic local time and electron gyrofrequency are saved using `DailyWaveStrategy`.
 
     Args:
         start_time (datetime): Start of the time range to process.
@@ -113,24 +109,21 @@ def process_rbsp_emfisis_waves(
         "Wave_normal_angle": wna_vars["WNA"],
         "Wave_planarity": wna_vars["planarity"],
         "Wave_ellipticity": wna_vars["ellipticity"],
+        "Magnetic_Power_Spectral_Density": psd_var,
+        "Number_density": density_vars["Density"],
+        "B_total_obs": mag_vars["Bt"],
+        "MLat": orbit_vars["MLat"],
+        "MLT": orbit_vars["MLT"],
+        "f_ce": orbit_vars["f_ce"],
+        "f_ce_Eq": orbit_vars["f_ce_Eq"],
     }
 
     saving_strat = rbsp_emfisis_waves_strategy(processed_data_path, satellite)
 
     ep.save(vars_to_save, saving_strat, start_time, end_time)
 
-    wfr_vars["BB"] = psd_var
-
-    _plot_density(density_vars)
-    orbit_vars["Epoch"] = mag_vars["Epoch"]
-    _plot_orbit(orbit_vars)
-    _plot_magnetometer(mag_vars)
-    _plot_wfr(wfr_vars)
-    _plot_wna(wna_vars)
-
 
 def _calculate_orbital_vars(mag_vars: dict[str, ep.Variable]) -> dict[str, ep.Variable]:
-    bt = np.asarray(mag_vars["Bt"].get_data(u.T))
     coords = np.asarray(mag_vars["Coordinates"].get_data(u.km))
 
     x = coords[:, 0]
@@ -146,18 +139,21 @@ def _calculate_orbital_vars(mag_vars: dict[str, ep.Variable]) -> dict[str, ep.Va
     mlt = np.degrees(np.arctan2(y, x)) / 15.0 + 12.0
     mlt = np.mod(mlt, 24.0)
 
-    fce = (e.si * bt) / (2 * np.pi * m_e.si)
-    fce_eq = fce * (np.cos(mlat_rad) ** 6) / np.sqrt(1 + 3 * np.sin(mlat_rad) ** 2)
+    # The EMFISIS magnetometer product is already in SM coordinates, whose z-axis is the
+    # geomagnetic dipole axis, so the latitude in this frame is the magnetic latitude.
+    mlat_var = Variable(u.deg, data=mlat)
 
-    orbit_vars = {
+    # Computed from the measured field rather than a model, so this must not be paired with
+    # the "f_ce_Eq" that compute_magnetic_field_variables derives from a modelled B.
+    f_ce_var = ep.processing.compute_electron_gyrofrequency(mag_vars["Bt"])
+
+    return {
         "L": Variable(u.dimensionless_unscaled, data=l_shell),
-        "mlat": Variable(u.deg, data=mlat),
-        "mlt": Variable(u.hour, data=mlt),
-        "fce": Variable(u.Hz, data=fce),
-        "fce_eq": Variable(u.Hz, data=fce_eq),
+        "MLat": mlat_var,
+        "MLT": Variable(u.hour, data=mlt),
+        "f_ce": f_ce_var,
+        "f_ce_Eq": ep.processing.map_to_dipole_equator(f_ce_var, mlat_var),
     }
-
-    return orbit_vars
 
 
 def _get_wfr_data(
@@ -372,139 +368,6 @@ def _clean_magnetometer_data(mag_vars: dict[str, ep.Variable]) -> dict[str, ep.V
 def _compute_total_psd(wfr_vars: dict[str, ep.Variable]) -> ep.Variable:
     bb = wfr_vars["BuBu"].get_data().astype(np.float64) + wfr_vars["BvBv"].get_data() + wfr_vars["BwBw"].get_data()  # ty: ignore[unsupported-operator]
     return Variable((u.nT) ** 2 / u.Hz, data=bb)
-
-
-def _plot_density(density_vars: dict[str, ep.Variable]) -> None:
-    density_vars["Epoch"].convert_to_unit(ep.units.posixtime)
-    times = np.array([datetime.fromtimestamp(ts, timezone.utc) for ts in density_vars["Epoch"].get_data()])
-    density_data = density_vars["Density"].get_data()
-
-    _, ax = plt.subplots(figsize=(10, 6))
-    ax.plot(times, density_data)
-    ax.set_ylabel(r"Electron Density ($n_e$) [cm$^{-3}$]")
-    ax.set_yscale("log")
-    ax.set_xlabel("Time [UTC]")
-    ax.set_title(f"Density - {times[0].strftime('%Y-%m-%d %H:%M')} to {times[-1].strftime('%Y-%m-%d %H:%M')}")
-    ax.xaxis.set_major_locator(mdates.HourLocator(interval=2))
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
-    plt.setp(ax.xaxis.get_majorticklabels(), rotation=45)
-    plt.tight_layout()
-    plt.show()
-
-
-def _plot_orbit(mag_vars: dict[str, ep.Variable]) -> None:
-    mag_vars["Epoch"].convert_to_unit(ep.units.posixtime)
-    times = np.array([datetime.fromtimestamp(ts, timezone.utc) for ts in mag_vars["Epoch"].get_data()])
-
-    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(10, 8), sharex=True)
-    fig.suptitle("RBSP-A Orbit Parameters")
-
-    ax1.plot(times, mag_vars["L"].get_data(), "k-", linewidth=1)
-    ax1.set_ylabel("L-shell")
-    ax1.grid(alpha=0.3)
-
-    ax2.plot(times, mag_vars["mlat"].get_data(), "k-", linewidth=1)
-    ax2.set_ylabel(r"MLAT [°]")
-    ax2.grid(alpha=0.3)
-
-    ax3.plot(times, mag_vars["mlt"].get_data(), "k-", linewidth=1)
-    ax3.set_ylabel("MLT [h]")
-    ax3.set_xlabel(f"UT {times[0].strftime('%Y-%m-%d')}")
-    ax3.grid(alpha=0.3)
-
-    hours = mdates.HourLocator(interval=4)
-    hours_fmt = mdates.DateFormatter("%H:%M")
-    for ax in [ax1, ax2, ax3]:
-        ax.xaxis.set_major_locator(hours)
-        ax.xaxis.set_major_formatter(hours_fmt)
-        plt.setp(ax.xaxis.get_majorticklabels(), rotation=45)
-
-    plt.tight_layout()
-    plt.savefig("orbit.png")
-
-
-def _plot_magnetometer(mag_vars: dict[str, ep.Variable]) -> None:
-    mag_vars["Epoch"].convert_to_unit(ep.units.posixtime)
-    times = np.array([datetime.fromtimestamp(ts, timezone.utc) for ts in mag_vars["Epoch"].get_data()])
-    bt = mag_vars["Bt"].get_data()
-
-    _, ax = plt.subplots(figsize=(10, 6))
-    ax.plot(times, bt, "k-", linewidth=1)
-    ax.set_ylabel("Bt [nT]")
-    ax.set_xlabel(f"UT {times[0].strftime('%Y-%m-%d')}")
-    ax.set_title("Cleaned Magnetometer Data (Bt)")
-    ax.grid(alpha=0.3)
-
-    ax.xaxis.set_major_locator(mdates.HourLocator(interval=2))
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
-    plt.setp(ax.xaxis.get_majorticklabels(), rotation=45)
-    plt.tight_layout()
-    plt.savefig("mag.png")
-
-
-def _plot_wfr(wfr_vars: dict[str, ep.Variable]) -> None:
-    wfr_vars["Epoch"].convert_to_unit(ep.units.posixtime)
-    times = np.array([datetime.fromtimestamp(ts, timezone.utc) for ts in wfr_vars["Epoch"].get_data()])
-    bb = wfr_vars["BB"].get_data()
-
-    fig, ax = plt.subplots(figsize=(12, 8))
-
-    img = ax.imshow(
-        np.log10(bb.T),
-        origin="lower",
-        aspect="auto",
-        cmap="viridis",
-    )
-
-    ax.set_ylabel("Frequency bin")
-    ax.set_xlabel(f"Time UT ({times[0].strftime('%Y-%m-%d')})")
-
-    n_time = len(times)
-    tick_idx = np.linspace(0, n_time - 1, 6, dtype=int)
-    ax.set_xticks(tick_idx)
-    ax.set_xticklabels([times[i].strftime("%H:%M") for i in tick_idx], rotation=45)
-
-    ax.set_yticks([])
-
-    fig.colorbar(img, ax=ax, shrink=0.8, label=r"log$_{10}$(B$^2$) [nT$^2$/Hz]")
-    ax.set_title("RBSP-A Total Magnetic Wave Power Spectral Density")
-    plt.tight_layout()
-    plt.savefig("wfr.png")
-
-
-def _plot_wna(wna_vars: dict[str, ep.Variable]) -> None:
-    wna_vars["Epoch"].convert_to_unit(ep.units.posixtime)
-    times = np.array([datetime.fromtimestamp(ts, timezone.utc) for ts in wna_vars["Epoch"].get_data()])
-    freq = wna_vars["freq"].get_data()
-
-    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 10), sharex=True)
-    fig.suptitle("RBSP-A Wave Properties")
-
-    cax1 = ax1.pcolormesh(times, freq, wna_vars["WNA"].get_data().T, cmap="RdBu_r", shading="auto")
-    ax1.set_ylabel("Frequency [Hz]")
-    ax1.set_yscale("log")
-    fig.colorbar(cax1, ax=ax1, label="WNA [°]")
-
-    cax2 = ax2.pcolormesh(
-        times, freq, wna_vars["ellipticity"].get_data().T, vmin=0, vmax=1, cmap="viridis", shading="auto"
-    )
-    ax2.set_ylabel("Frequency [Hz]")
-    ax2.set_yscale("log")
-    fig.colorbar(cax2, ax=ax2, label="Ellipticity")
-
-    cax3 = ax3.pcolormesh(
-        times, freq, wna_vars["planarity"].get_data().T, vmin=0, vmax=1, cmap="plasma", shading="auto"
-    )
-    ax3.set_xlabel(f"Time UT ({times[0].strftime('%Y-%m-%d')})")
-    ax3.set_ylabel("Frequency [Hz]")
-    ax3.set_yscale("log")
-    fig.colorbar(cax3, ax=ax3, label="Planarity")
-
-    ax3.xaxis.set_major_locator(mdates.HourLocator(interval=2))
-    ax3.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
-    plt.setp(ax3.xaxis.get_majorticklabels(), rotation=45)
-    plt.tight_layout()
-    plt.savefig("wna.png")
 
 
 if __name__ == "__main__":

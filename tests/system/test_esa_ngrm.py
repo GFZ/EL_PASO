@@ -4,16 +4,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import shutil
 from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Literal
 
 import pytest
 
-import el_paso as ep
-from el_paso.dataset import GFZDataSet
 from el_paso.recipes.esa import process_ngrm_electron_fluxes
 
 
