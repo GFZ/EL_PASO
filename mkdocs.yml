@@ -7,6 +7,9 @@ site_name: ELaborative Particle Analysis from Particle Observations (EL PASO)
 site_url: https://example.com
 site_author: Bernhard Haas, Mátyás Szabó-Roberts
 
+hooks:
+  - docs/scripts/generate_spec0_gantt.py
+
 theme:
   name: material
   repo_url: https://github.com/GFZ/EL_PASO
@@ -39,6 +42,7 @@ nav:
       - Basic Workflow: getting_started/basic_workflow.md
       - Command Line Interface: getting_started/command_line.md
       - Tutorials: getting_started/tutorials.md
+      - Supported Versions: getting_started/supported_versions.md
 
   - API Reference:
       - API_reference/overview.md
@@ -113,7 +117,11 @@ nav:
 markdown_extensions:
   - admonition
   - pymdownx.highlight
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid-pz
+          class: mermaid-pz
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.arithmatex:
       generic: true # Enable support for block and inline math
 
@@ -154,3 +162,9 @@ extra_css:
 extra_javascript:
   # Use MathJax for rendering latex equations
   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+  # Renders .mermaid-pz fences and makes them zoomable/pannable (svg-pan-zoom
+  # must load first as a plain global; mermaid-panzoom.js is an ES module so
+  # it can `import` mermaid itself).
+  - https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.2/dist/svg-pan-zoom.min.js
+  - path: js/mermaid-panzoom.js
+    type: module
