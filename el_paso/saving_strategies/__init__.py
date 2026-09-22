@@ -17,7 +17,7 @@ __all__ = [
     "DailyWaveStrategy",
     "DensityNetCDFStrategy",
     "GFZStrategy",
-    "LCDSSTrategy",
+    "LCDSStrategy",
     "MonthlyRBStrategy",
     "SingleFileStrategy",
 ]

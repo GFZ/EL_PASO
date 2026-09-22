@@ -508,40 +508,4 @@ def _plot_wna(wna_vars: dict[str, ep.Variable]) -> None:
 
 
 if __name__ == "__main__":
-<<<<<<< HEAD
     ep.run_recipe_cli(process_rbsp_emfisis_waves)
-=======
-    ep.setup_logging()
-
-    parser = argparse.ArgumentParser(
-        description="Process density data from EFW and EMFISIS instrument on VanAllenProbes."
-    )
-    parser.add_argument(
-        "--start_time",
-        type=str,
-        help="Start time in valid dateparse format. Example: YYYY-MM-DDTHH:MM:SS.",
-        default=datetime(2017, 4, 1, tzinfo=timezone.utc).isoformat(),
-        required=False,
-    )
-    parser.add_argument(
-        "--end_time",
-        type=str,
-        help="End time in valid dateparse format. Example: YYYY-MM-DDTHH:MM:SS.",
-        default=datetime(2017, 4, 1, 0, 5, 59, tzinfo=timezone.utc).isoformat(),
-        required=False,
-    )
-
-    args = parser.parse_args()
-
-    dt_start = dateutil.parser.parse(args.start_time)
-    dt_end = dateutil.parser.parse(args.end_time)
-
-    for sat_str in ["a", "b"]:
-        process_rbsp_emfisis_waves(
-            dt_start,
-            dt_end,
-            sat_str=sat_str,
-            raw_data_path=".",
-            processed_data_path=".",
-        )
->>>>>>> f324477 (Backup for cluster.)

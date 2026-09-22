@@ -3,8 +3,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from el_paso.recipes import arase, dmsp, esa, goes, gps, poes, probav, rbsp
-from el_paso.recipes.compute_lcds import compute_lcds
+from el_paso.recipes import arase, dmsp, esa, goes, gps, model, poes, probav, rbsp
+from el_paso.recipes.model import compute_lcds
 
 __all__ = [
     "arase",
@@ -13,6 +13,7 @@ __all__ = [
     "esa",
     "goes",
     "gps",
+    "model",
     "poes",
     "probav",
     "rbsp",

@@ -31,6 +31,7 @@ __all__ = [
     "IrbemInput",
     "IrbemOptions",
     "IrbemOutput",
+    "LCDSSearchParams",
     "LstarQuantity",
     "MagneticField",
     "construct_maginput",

@@ -117,6 +117,8 @@ This section provides a detailed reference for all modules, classes, and functio
 
 [GOES](recipes/goes.md)
 
+[LCDS](recipes/lcds.md)
+
 [POES](recipes/poes.md)
 
 [ProbaV](recipes/probav.md)

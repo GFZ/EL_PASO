@@ -3,7 +3,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -12,7 +11,6 @@ from pathlib import Path
 from typing import Literal, NamedTuple, TypeVar
 
 import numpy as np
-import pandas as pd
 from astropy import units as u
 from numpy.typing import NDArray
 from richpool import MultiPool
@@ -21,7 +19,6 @@ import el_paso as ep
 from el_paso.processing.magnetic_field_utils import IrbemOptions
 from el_paso.processing.magnetic_field_utils.irbem import (
     FORTRAN_BAD_VALUE,
-    SYSAXES_STR_TO_INT,
     Coords,
     LCDSSearchParams,
     LstarQuantity,
@@ -98,20 +95,33 @@ class _IrbemWorkerContext:
 
     Attributes:
         model (MagFields): The IRBEM model used by this worker process.
-        x_geo (NDArray[np.float64]): Satellite positions in GEO coordinates.
         datetimes (list[datetime]): Timestamps of the satellite positions.
         maginput (dict[MagInputKeys, NDArray[np.float64]]): Magnetic field input parameters for IRBEM.
-        pa_local (NDArray[np.float64] | None): Local pitch angles, if the calculation requires them.
+        x_geo (NDArray[np.float64] | None): Satellite positions in GEO coordinates, if the calculation
+            starts from known positions. Searches like the LCDS one do not use any.
+        pitch_angles (NDArray[np.float64] | None): Pitch angles of every time step, if the calculation
+            requires them. Local pitch angles for the mirror point and L* searches, equatorial ones
+            for the LCDS search.
+        search_params (LCDSSearchParams | None): Radial search settings, if the calculation is an LCDS
+            search. Each worker owns its copy and updates it in place to warm-start the next time step.
     """
 
     model: MagFields
-    x_geo: NDArray[np.float64]
     datetimes: list[datetime]
     maginput: dict[MagInputKeys, NDArray[np.float64]]
-    pa_local: NDArray[np.float64] | None = None
+    x_geo: NDArray[np.float64] | None = None
+    pitch_angles: NDArray[np.float64] | None = None
+    search_params: LCDSSearchParams | None = None
 
     def position_at(self, it: int) -> dict[Literal["x1", "x2", "x3"], np.float64]:
-        """Returns the satellite position of time step `it` in the dict format expected by IRBEM."""
+        """Returns the satellite position of time step `it` in the dict format expected by IRBEM.
+
+        Raises:
+            RuntimeError: If the worker was initialized without satellite positions.
+        """
+        if self.x_geo is None:
+            msg = "The IRBEM worker was initialized without satellite positions!"
+            raise RuntimeError(msg)
         return {
             "x1": self.x_geo[it, 0],
             "x2": self.x_geo[it, 1],
@@ -123,15 +133,26 @@ class _IrbemWorkerContext:
         return {key: arr[it] for key, arr in self.maginput.items()}
 
     def pitch_angles_at(self, it: int) -> NDArray[np.float64]:
-        """Returns the local pitch angles of time step `it`.
+        """Returns the pitch angles of time step `it`.
 
         Raises:
-            RuntimeError: If the worker was initialized without local pitch angles.
+            RuntimeError: If the worker was initialized without pitch angles.
         """
-        if self.pa_local is None:
-            msg = "The IRBEM worker was initialized without local pitch angles!"
+        if self.pitch_angles is None:
+            msg = "The IRBEM worker was initialized without pitch angles!"
             raise RuntimeError(msg)
-        return self.pa_local[it, :]
+        return self.pitch_angles[it, :]
+
+    def lcds_search_params(self) -> LCDSSearchParams:
+        """Returns this worker's LCDS search settings.
+
+        Raises:
+            RuntimeError: If the worker was initialized without LCDS search settings.
+        """
+        if self.search_params is None:
+            msg = "The IRBEM worker was initialized without LCDS search parameters!"
+            raise RuntimeError(msg)
+        return self.search_params
 
 
 _worker_context: _IrbemWorkerContext | None = None
@@ -139,10 +160,11 @@ _worker_context: _IrbemWorkerContext | None = None
 
 def _init_irbem_worker(
     irbem_args: tuple[str | Path, IrbemOptions, int, int],
-    x_geo: NDArray[np.float64],
     datetimes: list[datetime],
     maginput: dict[MagInputKeys, NDArray[np.float64]],
-    pa_local: NDArray[np.float64] | None = None,
+    x_geo: NDArray[np.float64] | None = None,
+    pitch_angles: NDArray[np.float64] | None = None,
+    search_params: LCDSSearchParams | None = None,
 ) -> None:
     """Initializes one worker process of a parallel IRBEM calculation.
 
@@ -158,10 +180,11 @@ def _init_irbem_worker(
             kext=irbem_args[2],
             sysaxes=irbem_args[3],
         ),
-        x_geo=x_geo,
         datetimes=datetimes,
         maginput=maginput,
-        pa_local=pa_local,
+        x_geo=x_geo,
+        pitch_angles=pitch_angles,
+        search_params=search_params,
     )
 
 
@@ -183,12 +206,13 @@ _T = TypeVar("_T")
 def _run_irbem_parallel(
     worker_func: Callable[[int], _T],
     irbem_input: IrbemInput,
-    x_geo: NDArray[np.float64],
     datetimes: list[datetime],
     *,
     sysaxes: int,
     desc: str,
-    pa_local: NDArray[np.float64] | None = None,
+    x_geo: NDArray[np.float64] | None = None,
+    pitch_angles: NDArray[np.float64] | None = None,
+    search_params: LCDSSearchParams | None = None,
 ) -> list[_T]:
     """Maps `worker_func` over all time steps in a process pool with initialized IRBEM workers."""
     irbem_args = (
@@ -206,7 +230,7 @@ def _run_irbem_parallel(
     with MultiPool(
         processes=irbem_input.num_cores,
         initializer=_init_irbem_worker,
-        initargs=(irbem_args, x_geo, datetimes, irbem_input.maginput, pa_local),
+        initargs=(irbem_args, datetimes, irbem_input.maginput, x_geo, pitch_angles, search_params),
     ) as pool:
         return pool.map(worker_func, range(len(datetimes)), chunksize=chunksize, desc=desc)
 
@@ -260,10 +284,10 @@ def get_magequator(xgeo_var: ep.Variable, time_var: ep.Variable, irbem_input: Ir
     results = _run_irbem_parallel(
         _get_magequator_parallel,
         irbem_input,
-        x_geo,
         datetimes,
         sysaxes=sysaxes,
         desc="Calculating magnetic equator",
+        x_geo=x_geo,
     )
 
     # write results into one array
@@ -371,10 +395,10 @@ def get_footpoint_atmosphere(
     results = _run_irbem_parallel(
         _get_footpoint_atmosphere_parallel,
         irbem_input,
-        x_geo,
         datetimes,
         sysaxes=sysaxes,
         desc="Calculating foot point",
+        x_geo=x_geo,
     )
 
     # write results into one array
@@ -521,7 +545,9 @@ def _get_mirror_point_parallel(it: int) -> NDArray[np.float64]:
     bmin_output = np.empty_like(pitch_angles)
 
     for i, pa in enumerate(pitch_angles):
-        bmin_output[i] = context.model.find_mirror_point(context.datetimes[it], x_dict_single, maginput, float(pa)).bmin
+        bmin_output[i] = context.model.find_mirror_point(
+            context.datetimes[it], x_dict_single, maginput, float(pa)
+        ).bmirr
 
     return bmin_output.astype(np.float64)
 
@@ -576,11 +602,11 @@ def get_mirror_point(
     results = _run_irbem_parallel(
         _get_mirror_point_parallel,
         irbem_input,
-        x_geo,
         datetimes,
         sysaxes=sysaxes,
         desc="Calculating mirror points",
-        pa_local=pa_local,
+        x_geo=x_geo,
+        pitch_angles=pa_local,
     )
 
     # write results into one array
@@ -677,11 +703,11 @@ def get_Lstar(
     results = _run_irbem_parallel(
         _make_lstar_shell_splitting_parallel,
         irbem_input,
-        x_geo,
         datetimes,
         sysaxes=sysaxes,
         desc="Calculating Lstar",
-        pa_local=pa_local,
+        x_geo=x_geo,
+        pitch_angles=pa_local,
     )
 
     # write results into one array
@@ -730,38 +756,27 @@ def get_Lstar(
     }
 
 
-def _get_LCDS_parallel(
-    irbem_args: tuple[str | Path, IrbemOptions, int, int],
-    datetimes: list[datetime],
-    maginput: Mapping[MagInputKeys, NDArray[np.floating]],
-    pa_eq: NDArray[np.floating],
-    search_params: LCDSSearchParams,
-    index_chunk: Sequence[int],
-) -> tuple[NDArray[np.floating], NDArray[np.floating]]:
+def _get_LCDS_parallel(it: int) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    context = _get_worker_context()
+    search_params = context.lcds_search_params()
 
-    model = MagFields(
-        lib_path=irbem_args[0],
-        options=irbem_args[1],
-        kext=irbem_args[2],
-        sysaxes=irbem_args[3],
-    )
+    pitch_angles = context.pitch_angles_at(it)
 
-    lcds_result = np.full((len(index_chunk), pa_eq.shape[1]), np.inf)
-    inv_K_result = np.full((len(index_chunk), pa_eq.shape[1]), np.inf)
+    lcds = np.full(pitch_angles.shape, np.inf)
+    inv_k = np.full(pitch_angles.shape, np.inf)
 
-    for ic, it in enumerate(index_chunk):
-        it = int(it)
-        maginput_single = {key: maginput[key][it] for key in maginput}
+    result = context.model.get_lcds(context.datetimes[it], pitch_angles, context.maginput_at(it), search_params)
 
-        res = model.get_lcds(datetimes[it], pa_eq[it, :], maginput_single, search_params)
+    # Pitch angles whose shell is still closed at the ceiling keep the censored np.inf.
+    keep = ~result.at_ceiling
+    lcds[keep] = result.lcds[keep]
+    inv_k[keep] = result.inv_k[keep]
 
-        keep = ~res.at_ceiling
-        lcds_result[ic, keep] = res.lcds[keep]
-        inv_K_result[ic, keep] = res.inv_k[keep]
+    # The LCDS moves smoothly in time and every worker walks a contiguous block of time steps,
+    # so the next step starts its radial march at this step's boundary instead of at max_r.
+    search_params.start_r = result.x_sm if np.isfinite(result.x_sm) else search_params.max_r
 
-        search_params.start_r = res.x_sm if np.isfinite(res.x_sm) else search_params.max_r
-
-    return lcds_result, inv_K_result
+    return lcds.astype(np.float64), inv_k.astype(np.float64)
 
 
 @timed_function()
@@ -771,30 +786,30 @@ def get_LCDS(
     irbem_input: IrbemInput,
     search_params: LCDSSearchParams | None = None,
 ) -> tuple[ep.Variable, ep.Variable]:
-    """Compute the LCDS L* over a time series for one equatorial pitch angle.
+    """Calculates the last closed drift shell (LCDS) and its second adiabatic invariant K.
 
-    The N time steps are split into ``num_cores`` contiguous chunks; each chunk is
-    processed by one worker that reuses its IRBEM handle and warm-starts each step from
-    the previous one. (The first step of each chunk cold-starts at ``max_r``.)
+    For every time step, a radial search in the SM equatorial plane locates the outermost
+    drift shell that is still closed, separately for each equatorial pitch angle. The time
+    steps are distributed over `irbem_input.num_cores` worker processes; each worker walks a
+    contiguous block of time steps and warm-starts every step from the boundary found at the
+    previous one, which is much cheaper than restarting the search at `search_params.max_r`.
 
     Args:
-        times: Sequence of epochs (length N).
-        maginput: Magnetic-field-model inputs as arrays of length N keyed by IRBEM name.
-        alpha_eq_deg: Equatorial pitch angle in degrees.
-        num_cores: Number of worker processes / chunks (1 => serial).
-        warm_start_buffer: RE added above the previous solution when warm-starting the
-            coarse march. Defaults to ``coarse_step``; set 0 to start exactly at the
-            previous boundary.
-        censored_value: Value written for steps where the shell was still closed at
-            ``max_r`` (the boundary lies beyond the window, so L* is only a lower bound).
-            Default ``np.inf`` so a downstream "is L < LCDS?" test treats everything in
-            the window as trapped. Pass ``None`` to keep the lower-bound L*(max_r) value
-            instead, or ``np.nan`` to drop these steps.
-        (remaining args as in ``compute_lcds``.)
+        time_var (ep.Variable): The variable containing the timestamps.
+        pa_eq_var (ep.Variable): The variable containing the equatorial pitch angles, one row
+                                 per time step.
+        irbem_input (IrbemInput): A data class with all required IRBEM input parameters.
+        search_params (LCDSSearchParams | None): The settings of the radial search. Defaults to
+                                                 the settings of Kellerman's LCDS2 routine.
 
     Returns:
-        float64 array of length N with the LCDS L* per time step. Misses are NaN;
-        ceiling-censored steps are set to ``censored_value`` (unless it is ``None``).
+        tuple[ep.Variable, ep.Variable]: The LCDS L* and the corresponding invariant K, both of
+        shape (number of time steps, number of pitch angles). Pitch angles whose drift shell is
+        still closed at `search_params.max_r` are set to infinity, since their LCDS only has a
+        lower bound; failed searches are NaN.
+
+    Raises:
+        ValueError: If the maginput or pitch angle arrays do not match the number of time steps.
     """
     logger.info("\tCalculating LCDS ...")
 
@@ -814,6 +829,12 @@ def get_LCDS(
     datetimes = [datetime.fromtimestamp(t, tz=timezone.utc) for t in timestamps]
 
     pa_eq = pa_eq.astype(np.float64)
+    if pa_eq.ndim == 1:  # a single pitch angle per time step
+        pa_eq = pa_eq[:, np.newaxis]
+    if pa_eq.ndim != 2:
+        msg = f"pa_eq must have one row of pitch angles per time step, but has shape {pa_eq.shape}."
+        raise ValueError(msg)
+
     irbem_input.maginput = {key: arr.astype(np.float64) for key, arr in irbem_input.maginput.items()}
 
     n_times = len(datetimes)
@@ -827,29 +848,22 @@ def get_LCDS(
         msg = f"Encountered size mismatch for pa_eq: len of pa_eq data: {len(pa_eq)}, requested len: {n_times}"
         raise ValueError(msg)
 
-    kext = irbem_input.magnetic_field.kext()
-    irbem_args = (irbem_input.irbem_lib_path, irbem_input.irbem_options, kext, ep.IRBEM_SYSAXIS_SM)
+    results = _run_irbem_parallel(
+        _get_LCDS_parallel,
+        irbem_input,
+        datetimes,
+        sysaxes=ep.IRBEM_SYSAXIS_SM,
+        desc="Calculating LCDS",
+        pitch_angles=pa_eq,
+        search_params=search_params,
+    )
 
-    n_chunks = max(1, min(irbem_input.num_cores, n_times) * 4)
-    index_chunks = [[int(i) for i in chunk] for chunk in np.array_split(np.arange(n_times), n_chunks)]
-    parallel_func = partial(_get_LCDS_parallel, irbem_args, datetimes, irbem_input.maginput, pa_eq, search_params)
+    lcds = np.full(pa_eq.shape, np.inf, dtype=np.float64)
+    inv_K = np.full(pa_eq.shape, np.inf, dtype=np.float64)
 
-    if irbem_input.num_cores > 1:
-        logger.info("Computing LCDS for %d steps across %d chunks ...", n_times, n_chunks)
-        with Pool(processes=irbem_input.num_cores) as pool:
-            rs = pool.map_async(parallel_func, index_chunks)
-            show_process_bar_for_map_async(rs, len(index_chunks[0]))
-
-        results = rs.get()
-    else:
-        logger.info("Computing LCDS for %d steps serially ...", n_times)
-        results = [parallel_func(chunk) for chunk in index_chunks]
-
-    lcds = np.full((n_times, pa_eq.shape[1]), np.inf, dtype=np.float64)
-    inv_K = np.full((n_times, pa_eq.shape[1]), np.inf, dtype=np.float64)
-    for chunk_indices, chunk_result in zip(index_chunks, results, strict=True):
-        lcds[chunk_indices, :] = chunk_result[0]
-        inv_K[chunk_indices, :] = chunk_result[1]
+    for i in range(n_times):
+        lcds[i, :] = results[i][0]
+        inv_K[i, :] = results[i][1]
 
     lcds[lcds == FORTRAN_BAD_VALUE] = np.nan
     inv_K[inv_K == FORTRAN_BAD_VALUE] = np.nan

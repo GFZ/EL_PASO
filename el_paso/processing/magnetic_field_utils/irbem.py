@@ -306,6 +306,7 @@ class LCDSSearchParams:
         trace_r0: Field-line trace stop radius in RE.
         start_r: Starting distance of the search.
     """
+
     max_r: float = 10
     coarse_step: float = 1
     medium_step: float = 0.5
@@ -886,20 +887,16 @@ class MagFields:
         maginput: Mapping[MagInputKeys, NDArray[np.number] | list[np.number] | np.number],
         search_params: LCDSSearchParams | None = None,
     ) -> LCDSResult:
-        """Computes the LCDS (max closed L*) for one time and one equatorial pitch angle.
+        """Computes the LCDS (max closed L*) for one time and a vector of equatorial pitch angles.
 
         Args:
             time: Epoch (datetime, ISO string, or pandas Timestamp).
-            alpha_eq_deg: Equatorial pitch angle in degrees (LCDS is pitch-angle specific).
+            alpha_eq_deg: Equatorial pitch angles in degrees (the LCDS is pitch-angle specific).
             maginput: Scalar magnetic-field-model inputs keyed by IRBEM name (e.g. ``{"Kp": 3.0}``).
-            max_r: Outer ceiling for the search, in RE. If the shell is still closed here the
-                result is flagged ``at_ceiling`` (a lower bound, not a resolved boundary).
-            coarse_step: Radial step size (RE) for pass 1, the coarse inward march.
-            medium_step: Radial step size (RE) for pass 2, the medium outward march.
-            fine_step: Radial step size (RE) for pass 3, the fine outward refinement.
-            trace_r0: Field-line trace stop radius in RE (LCDS2 used 0.8).
-            search_start: Radius (RE) at which the coarse march begins. ``None`` => cold start
-                at ``max_r``. Pass the previous solution's ``x_sm`` (plus margin) to warm-start.
+            search_params: Settings of the radial search: its ceiling, its step sizes, the trace
+                stop radius, and the radius the coarse march starts at. Passing the previous time
+                step's ``x_sm`` as ``start_r`` warm-starts the search. Defaults to None, which
+                uses the settings of Kellerman's LCDS2 routine.
 
         Returns:
             LCDSResult with the L* of the last closed drift shell (check ``at_ceiling``).
