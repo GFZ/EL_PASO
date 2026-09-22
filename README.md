@@ -59,6 +59,8 @@ Full documentation can be viewed [here](https://el-paso.readthedocs.io/en/latest
     - EMFISIS and EFW density
 - **DMSP**
     - SSJ (electrons)
+- **Models** (no spacecraft data needed)
+    - Last closed drift shell (LCDS)
 
 Every recipe shares one command line interface; see
 [Running a recipe](#running-a-recipe) below.

@@ -306,6 +306,7 @@ class LCDSSearchParams:
         trace_r0: Field-line trace stop radius in RE.
         start_r: Starting distance of the search.
     """
+
     max_r: float = 10
     coarse_step: float = 1
     medium_step: float = 0.5
