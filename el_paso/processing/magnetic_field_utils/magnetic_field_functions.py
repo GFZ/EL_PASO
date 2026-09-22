@@ -4,13 +4,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-from collections.abc import Callable
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal, NamedTuple, TypeVar
 
 import numpy as np
+import pandas as pd
 from astropy import units as u
 from numpy.typing import NDArray
 from richpool import MultiPool
@@ -19,6 +20,7 @@ import el_paso as ep
 from el_paso.processing.magnetic_field_utils import IrbemOptions
 from el_paso.processing.magnetic_field_utils.irbem import (
     FORTRAN_BAD_VALUE,
+    SYSAXES_STR_TO_INT,
     Coords,
     LCDSSearchParams,
     LstarQuantity,

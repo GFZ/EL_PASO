@@ -3,7 +3,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 from datetime import datetime, timezone
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -67,7 +66,11 @@ def test_lcds_runs():
     time_var = ep.Variable(data=np.asarray(posixtimes), original_unit=ep.units.posixtime)
     pa_eq_var = ep.Variable(data=pa_eq, original_unit=u.deg)
 
+<<<<<<< HEAD
     lcds_var, _ = compute_LCDS(
+=======
+    lcds = compute_LCDS(
+>>>>>>> f324477a46632b0b25184732d22da4116f9d2ab2
         time_var,
         pa_eq_var,
         "T89",
@@ -75,7 +78,11 @@ def test_lcds_runs():
         num_cores=12,
     )
 
+<<<<<<< HEAD
     lcds_data = lcds_var.get_data()
+=======
+    lcds_data = lcds.get_data()
+>>>>>>> f324477a46632b0b25184732d22da4116f9d2ab2
 
     matlab_solution = np.asarray(LCDS_LSTAR_REF_T89)
 
