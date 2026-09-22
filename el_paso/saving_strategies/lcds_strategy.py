@@ -7,14 +7,9 @@ from __future__ import annotations
 
 import calendar
 import logging
-import shutil
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
-
-import netCDF4 as nC
-import numpy as np
+from typing import TYPE_CHECKING
 
 import el_paso as ep
 from el_paso.saving_strategy import OutputFile, SavingStrategy
@@ -22,15 +17,11 @@ from el_paso.saving_strategy import OutputFile, SavingStrategy
 if TYPE_CHECKING:
     from el_paso.typing import (
         DataStandard,
-        FileLoader,
-        FileWriter,
         InternalName,
         MagneticFieldLiteral,
         MFSFormats,
-        SavedDataDict,
         StandardName,
         TimeInterval,
-        Variable,
     )
 
 logger = logging.getLogger(__name__)
@@ -76,16 +67,7 @@ class LCDSStrategy(SavingStrategy):
         self.file_format = ep.utils.normalize_file_format(file_format)
 
         self.output_files = [
-            OutputFile("full", self._get_output_file_entries(), save_incomplete=True),
-        ]
-
-    def _get_output_file_entries(self) -> list[InternalName]:
-        """Return the standard variable list plus user-defined custom variables."""
-        return [
-            "Epoch",
-            "Alpha",
-            "LCDS",
-            "InvK",
+            OutputFile("full", ["Epoch", "Alpha", "LCDS", "InvK"], save_incomplete=True),
         ]
 
     def get_time_intervals_to_save(self, start_time: datetime | None, end_time: datetime | None) -> list[TimeInterval]:
