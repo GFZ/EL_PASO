@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Literal, NamedTuple, TypeVar
 
 import numpy as np
-import pandas as pd
 from astropy import units as u
 from numpy.typing import NDArray
 from richpool import MultiPool
