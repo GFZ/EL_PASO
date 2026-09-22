@@ -26,6 +26,7 @@ from el_paso.release_mode import activate_release_mode, get_release_msg, is_in_r
 from el_paso.variable import Variable
 from el_paso.saving_strategy import SavingStrategy
 from el_paso import physics, processing, saving_strategies, units, data_standards, utils, typing
+from el_paso import pyspedas_utils
 from el_paso.save import save
 from el_paso.processing import TimeBinMethod
 from el_paso.download import download
@@ -78,6 +79,7 @@ __all__ = [
     "load_indices_solar_wind_parameters",
     "physics",
     "processing",
+    "pyspedas_utils",
     "recipes",
     "run_recipe_cli",
     "save",

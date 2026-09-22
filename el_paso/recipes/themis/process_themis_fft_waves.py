@@ -15,15 +15,17 @@ from astropy import units as u
 from pyspedas.projects import themis
 
 import el_paso as ep
-from el_paso.recipes.themis import ThemisProbe
-from el_paso.recipes.themis.get_themis_pyspedas_variables import (
+from el_paso.pyspedas_utils import (
     build_trange,
-    get_themis_position_geo,
-    get_themis_scpot_density,
     set_pyspedas_data_dir,
     tplot_to_bin_variable,
     tplot_to_time_variable,
     tplot_to_variable,
+)
+from el_paso.recipes.themis import ThemisProbe
+from el_paso.recipes.themis.get_themis_pyspedas_variables import (
+    get_themis_position_geo,
+    get_themis_scpot_density,
 )
 
 if TYPE_CHECKING:
@@ -101,7 +103,7 @@ def process_themis_fft_waves(
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     logging.getLogger().setLevel(logging.INFO)
 
-    set_pyspedas_data_dir(raw_data_path)
+    set_pyspedas_data_dir("themis", raw_data_path)
 
     fft_vars = _get_fft_data(start_time, end_time, satellite)
     target_time_var = fft_vars["Epoch"]

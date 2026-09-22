@@ -8,19 +8,19 @@ from typing import Literal
 
 ThemisProbe = Literal["a", "b", "c", "d", "e"]
 
-from el_paso.recipes.themis.process_themis_esa_density import (
-    process_themis_esa_density,
-    themis_esa_density_strategy,
-)
 from el_paso.recipes.themis.process_themis_fft_waves import (
     process_themis_fft_waves,
     themis_fft_waves_strategy,
 )
+from el_paso.recipes.themis.process_themis_scpot_density import (
+    process_themis_scpot_density,
+    themis_scpot_density_strategy,
+)
 
 __all__ = [
     "ThemisProbe",
-    "process_themis_esa_density",
     "process_themis_fft_waves",
-    "themis_esa_density_strategy",
+    "process_themis_scpot_density",
     "themis_fft_waves_strategy",
+    "themis_scpot_density_strategy",
 ]

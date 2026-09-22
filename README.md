@@ -52,7 +52,7 @@ Full documentation can be viewed [here](https://el-paso.readthedocs.io/en/latest
     - EPT (electrons and protons)
 - **THEMIS**
     - FFT waves
-    - ESA density
+    - Spacecraft-potential density
 - **Van Allen Probes**
     - HOPE (electrons and protons)
     - MagEIS (electrons and protons)

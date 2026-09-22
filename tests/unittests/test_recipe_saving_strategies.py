@@ -80,8 +80,8 @@ from el_paso.recipes.rbsp.process_rbsp_rbspice_protons import (
     rbsp_rbspice_proton_gfz_strategy,
     rbsp_rbspice_proton_netcdf_strategy,
 )
-from el_paso.recipes.themis.process_themis_esa_density import themis_esa_density_strategy
 from el_paso.recipes.themis.process_themis_fft_waves import themis_fft_waves_strategy
+from el_paso.recipes.themis.process_themis_scpot_density import themis_scpot_density_strategy
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -145,11 +145,11 @@ CASES: list[
         {"mission": "Arase", "satellite": "arase", "instrument": "PWE", "mag_field": "T89"},
     ),
     (
-        themis_esa_density_strategy,
+        themis_scpot_density_strategy,
         ("a", "T89"),
         {},
         ep.saving_strategies.MonthlyDensityStrategy,
-        {"mission": "THEMIS", "satellite": "tha", "instrument": "ESA", "mag_field": "T89"},
+        {"mission": "THEMIS", "satellite": "tha", "instrument": "SCPOT", "mag_field": "T89"},
     ),
     (
         dmsp_ssj_electron_strategy,
@@ -358,7 +358,7 @@ CASE_IDS = [_case_id(factory, kwargs) for factory, _args, kwargs, _cls, _attrs i
 # extra positional arguments their factory needs after `base_data_path`.
 _PRBEM_DEFAULTING_FACTORIES: dict[Callable[..., SavingStrategy], tuple[Any, ...]] = {
     arase_pwe_densities_strategy: ("T89",),
-    themis_esa_density_strategy: ("a", "T89"),
+    themis_scpot_density_strategy: ("a", "T89"),
 }
 
 

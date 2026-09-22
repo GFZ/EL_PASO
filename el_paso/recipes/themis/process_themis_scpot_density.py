@@ -10,11 +10,11 @@ from pathlib import Path
 from typing import Literal
 
 import el_paso as ep
+from el_paso.pyspedas_utils import set_pyspedas_data_dir
 from el_paso.recipes.themis import ThemisProbe
 from el_paso.recipes.themis.get_themis_pyspedas_variables import (
     get_themis_position_geo,
     get_themis_scpot_density,
-    set_pyspedas_data_dir,
 )
 
 logger = logging.getLogger(__name__)
@@ -23,22 +23,22 @@ _MINIMUM_PHYSICAL_DENSITY = 1e-21
 """Lower threshold in cm^-3, below which a density sample is treated as a fill value."""
 
 
-def themis_esa_density_strategy(
+def themis_scpot_density_strategy(
     base_data_path: str | Path,
     satellite: ThemisProbe,
     mag_field: ep.typing.MagneticFieldLiteral,
 ) -> ep.SavingStrategy:
-    """Monthly NetCDF density saving strategy for THEMIS ESA."""
+    """Monthly NetCDF density saving strategy for the THEMIS spacecraft-potential density."""
     return ep.saving_strategies.MonthlyDensityStrategy(
         base_data_path=base_data_path,
         mission="THEMIS",
         satellite="th" + satellite,
-        instrument="ESA",
+        instrument="SCPOT",
         mag_field=mag_field,
     )
 
 
-def process_themis_esa_density(
+def process_themis_scpot_density(
     start_time: datetime,
     end_time: datetime,
     satellite: ThemisProbe = "a",
@@ -51,7 +51,7 @@ def process_themis_esa_density(
     *,
     skip_existing: bool = True,
 ) -> None:
-    """Process THEMIS ESA electron density data and save the mapped equatorial density.
+    """Process the THEMIS spacecraft-potential electron density and save the mapped equatorial density.
 
     Downloads the THEMIS ESA Level 2 moments and the Level 1 state data for the given probe and
     time range via pyspedas, derives the electron density from the spacecraft potential, and
@@ -86,7 +86,7 @@ def process_themis_esa_density(
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     logging.getLogger().setLevel(logging.INFO)
 
-    set_pyspedas_data_dir(raw_data_path)
+    set_pyspedas_data_dir("themis", raw_data_path)
 
     density_variables = get_themis_scpot_density(satellite, start_time, end_time)
     orbit_variables = get_themis_position_geo(satellite, start_time, end_time)
@@ -136,7 +136,7 @@ def process_themis_esa_density(
         method="Denton_average",
     )
 
-    saving_strategy = themis_esa_density_strategy(processed_data_path, satellite, mag_field)
+    saving_strategy = themis_scpot_density_strategy(processed_data_path, satellite, mag_field)
 
     variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
         "Epoch": binned_time_variable,
@@ -157,4 +157,4 @@ CLI_DEFAULTS = {
 }
 
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_themis_esa_density, defaults=CLI_DEFAULTS)
+    ep.run_recipe_cli(process_themis_scpot_density, defaults=CLI_DEFAULTS)
