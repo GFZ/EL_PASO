@@ -11,15 +11,15 @@ import lazy_loader as lazy
 # `el_paso.recipes.rbsp` does not also pay for arase/esa/goes/gps/poes/probav/dmsp/themis.
 __getattr__, __dir__, __all__ = lazy.attach(
     __name__,
-    submodules=["arase", "dmsp", "esa", "goes", "gps", "poes", "probav", "rbsp", "themis"],
+    submodules=["arase", "dmsp", "esa", "goes", "gps", "model", "poes", "probav", "rbsp", "themis"],
     submod_attrs={
-        "compute_lcds": ["compute_lcds"],
+        "model": ["compute_lcds"],
     },
 )
 
 if TYPE_CHECKING:
-    from el_paso.recipes import arase, dmsp, esa, goes, gps, poes, probav, rbsp, themis
-    from el_paso.recipes.compute_lcds import compute_lcds
+    from el_paso.recipes import arase, dmsp, esa, goes, gps, model, poes, probav, rbsp, themis
+    from el_paso.recipes.model import compute_lcds
 
     __all__ = [
         "arase",
@@ -28,6 +28,7 @@ if TYPE_CHECKING:
         "esa",
         "goes",
         "gps",
+        "model",
         "poes",
         "probav",
         "rbsp",
