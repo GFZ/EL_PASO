@@ -192,6 +192,9 @@ def _run_irbem_parallel(
         sysaxes,
     )
 
+    # try to build the MagFields object to see if any errors occur
+    MagFields(lib_path=irbem_args[0], options=irbem_args[1], kext=irbem_args[2], sysaxes=irbem_args[3])
+
     chunksize = max(1, len(datetimes) // irbem_input.num_cores // 4)  # same as default
 
     with MultiPool(
