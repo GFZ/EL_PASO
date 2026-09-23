@@ -4,6 +4,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+from typing import TYPE_CHECKING
+
 import lazy_loader as lazy
 
 # useful custom IRBEM aliases
@@ -86,3 +88,72 @@ from el_paso.cache import cleanup_stale_cache as _cleanup_stale_cache  # noqa: E
 _cleanup_stale_cache()
 
 __version__ = "2.1.3rc1"
+
+
+if TYPE_CHECKING:
+    from el_paso import (
+        cli,
+        data_standards,
+        dataset,
+        physics,
+        processing,
+        recipes,
+        saving_strategies,
+        typing,
+        units,
+        utils,
+    )
+    from el_paso.cli.recipe_cli import build_recipe_command, run_recipe_cli
+    from el_paso.dataset import (
+        DataSet,
+        DatasetMetadata,
+        GFZDataSet,
+        GFZMetaData,
+        PRBEMDataSet,
+        PRBEMMetaData,
+    )
+    from el_paso.download import download
+    from el_paso.download_omm import download_omm
+    from el_paso.extract_variables_from_files import ExtractionInfo, extract_variables_from_files
+    from el_paso.load_indices_solar_wind_parameters import load_indices_solar_wind_parameters
+    from el_paso.logger import setup_logging
+    from el_paso.processing import TimeBinMethod
+    from el_paso.release_mode import activate_release_mode, get_release_msg, is_in_release_mode
+    from el_paso.save import save
+    from el_paso.saving_strategy import SavingStrategy
+    from el_paso.variable import Variable
+
+    __all__ = [
+        # Public constants
+        "DataSet",
+        "DatasetMetadata",
+        "ExtractionInfo",
+        "GFZDataSet",
+        "GFZMetaData",
+        "PRBEMDataSet",
+        "PRBEMMetaData",
+        "SavingStrategy",
+        "TimeBinMethod",
+        "Variable",
+        "activate_release_mode",
+        "build_recipe_command",
+        "cli",
+        "data_standards",
+        "dataset",
+        "download",
+        "download_omm",
+        "extract_variables_from_files",
+        "get_release_msg",
+        "is_in_release_mode",
+        "load_indices_solar_wind_parameters",
+        "physics",
+        "processing",
+        "recipes",
+        "run_recipe_cli",
+        "save",
+        "saving_strategies",
+        "setup_logging",
+        "typing",
+        "units",
+        "utils",
+    ]
