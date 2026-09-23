@@ -58,6 +58,8 @@ classifiers = [
 
 [project.scripts]
 el-paso = "el_paso.cli.app:main"
+ep = "el_paso.cli.app:main"
+el_paso = "el_paso.cli.app:main"
 
 [tool.hatch.version]
 path = "el_paso/__init__.py"
