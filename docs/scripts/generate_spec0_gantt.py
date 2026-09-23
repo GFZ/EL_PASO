@@ -201,15 +201,13 @@ def load_project_pins() -> dict[str, str]:
 
 
 def render_mermaid(all_segments: dict[str, list[Segment]], today: date) -> str:
-    # Rendered as a custom "mermaid-pz" fence rather than mkdocs-material's
-    # built-in "mermaid" one: Material renders mermaid diagrams into a closed
-    # shadow root, which is unreachable from outside JS -- including the
-    # svg-pan-zoom script this page needs for interactivity. The "mermaid-pz"
-    # fence (see mkdocs.yml's custom_fences and docs/js/mermaid-panzoom.js)
-    # is rendered by our own script directly into the light DOM instead.
     history_horizon = today - relativedelta(months=15)
     lines = [
         "```mermaid",
+        "%%{init: {  'theme': 'theme', 'gantt': {'fontSize': 24, 'sectionFontSize': 44, "
+        "'barHeight': 40, 'barGap': 14, 'topPadding': 80, 'leftPadding': 100, "
+        "'titleTopMargin': 70}, "
+        "'themeCSS': '.titleText{font-size:84px;} .tick text{font-size:44px;}'}}%%",
         "gantt",
         "    dateFormat YYYY-MM-DD",
         "    axisFormat %m/%Y",
