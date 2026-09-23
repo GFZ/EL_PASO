@@ -102,3 +102,10 @@ dev = [
     "coverage>=7.14.0",
     "pytest>=9.0.2",
 ]
+docs = [
+    "mkdocs",
+    "mkdocs-material",
+    "mkdocstrings-python",
+    "mkdocs-jupyter",
+    "termynal",
+]
