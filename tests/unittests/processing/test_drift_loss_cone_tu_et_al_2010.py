@@ -237,7 +237,7 @@ def test_replot_drift_loss_cone_map() -> None:
 
     # --- figure ----------------------------------------------------------------------------------------
     fig, axes = plt.subplots(1, 2, figsize=(14, 4.6), constrained_layout=True)
-    for ax, values, title in ((axes[0], lc, "Precipitating Loss Cone"), (axes[1], dlc, "Drift Loss Cone")):
+    for ax, values, title in ((axes[0], lc, "Bounce Loss Cone"), (axes[1], dlc, "Drift Loss Cone")):
         mesh = ax.pcolormesh(lon_edges, lat_edges, values, cmap="jet", vmin=60, vmax=90)
         contours = ax.contour(lon_c, lat_c, lm_grid, levels=list(L_CONTOURS), colors="w", linestyles="dashed")
         ax.clabel(contours, fmt=lambda level: f"L={level:g}", fontsize=8)

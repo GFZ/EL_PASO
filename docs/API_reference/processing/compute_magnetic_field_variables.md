@@ -50,8 +50,10 @@ Examples of valid entries: *("B_Calc", "T89")*, returned as *B_Calc_T89*, and *(
 
 Two loss cones are available, each both as a local pitch angle at the satellite and mapped to the magnetic equator (*_Eq*):
 
-- **Alpha_LC**: the bounce loss cone. Particles below it mirror below 100 km on the local field line and are lost within a
-  bounce. It uses the foot point in the satellite's own hemisphere (*B_fofl*).
+- **Alpha_LC**: the bounce loss cone. Particles below it mirror below 100 km on the local field line, in either hemisphere,
+  and are lost within a bounce. It is set by the weaker of the two foot point fields at 100 km (*B_fofl*), since particles
+  reach lower in that hemisphere. Where that field is below the local one, every particle seen locally is lost at the far
+  end and *Alpha_LC* is 90 degrees.
 - **Alpha_DLC**: the drift loss cone. Particles between the two cones survive the local bounce but mirror below 100 km
   somewhere else on their drift orbit, essentially always over the South Atlantic Anomaly, and are lost within a drift
   period. Above it they are stably trapped. *Alpha_DLC* is never smaller than *Alpha_LC*, and 90 degrees is a genuine result:
