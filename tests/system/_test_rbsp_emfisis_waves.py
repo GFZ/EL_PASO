@@ -19,12 +19,10 @@ from el_paso.recipes.rbsp.process_rbsp_emfisis_waves import process_rbsp_emfisis
 @pytest.mark.basic
 def test_rbsp_emfisis_waves(
     tmpdir: Path,
-    skip_if_unreachable: Callable[..., None],
     monkeypatch: pytest.MonkeyPatch,
     *,
     renew_solution: bool,
 ) -> None:
-    skip_if_unreachable("https://cdaweb.gsfc.nasa.gov")
 
     monkeypatch.setattr(plt, "show", lambda: None)
 
@@ -41,12 +39,7 @@ def test_rbsp_emfisis_waves(
         processed_data_path=processed_data_path,
     )
 
-    out_path = (
-        processed_data_path
-        / "RBSP"
-        / "rbspa"
-        / f"rbspa_emfisis_{start_time:%Y%m%d}.nc"
-    )
+    out_path = processed_data_path / "RBSP" / "rbspa" / f"rbspa_emfisis_{start_time:%Y%m%d}.nc"
     assert out_path.exists()
 
     if renew_solution:

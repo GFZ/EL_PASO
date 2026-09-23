@@ -19,11 +19,9 @@ from el_paso.recipes.poes import process_poes_meped_electron, process_poes_ted_e
 @pytest.mark.basic
 def test_poes_ted_electron(
     tmpdir: Path,
-    skip_if_unreachable: Callable[..., None],
     *,
     renew_solution: bool,
 ) -> None:
-    skip_if_unreachable("https://spdf.gsfc.nasa.gov")
 
     start_time = datetime(2013, 9, 8, tzinfo=timezone.utc)
     end_time = start_time + timedelta(hours=4)
@@ -40,12 +38,7 @@ def test_poes_ted_electron(
         calculate_Lm_Lstar=True,
     )
 
-    out_path = (
-        processed_data_path
-        / "POES"
-        / "metop1"
-        / f"metop1_ted_{start_time:%Y%m%d}_T89.nc"
-    )
+    out_path = processed_data_path / "POES" / "metop1" / f"metop1_ted_{start_time:%Y%m%d}_T89.nc"
     assert out_path.exists()
 
     if renew_solution:
@@ -81,14 +74,13 @@ def test_poes_ted_electron(
 
     poes_proc.assert_equal(poes_true)
 
+
 @pytest.mark.basic
 def test_poes_meped_electron(
     tmpdir: Path,
-    skip_if_unreachable: Callable[..., None],
     *,
     renew_solution: bool,
 ) -> None:
-    skip_if_unreachable("https://spdf.gsfc.nasa.gov")
 
     start_time = datetime(2013, 9, 8, tzinfo=timezone.utc)
     end_time = start_time + timedelta(hours=4)
@@ -104,12 +96,7 @@ def test_poes_meped_electron(
         num_cores=32,
     )
 
-    out_path = (
-        processed_data_path
-        / "POES"
-        / "noaa18"
-        / f"noaa18_meped_{start_time:%Y%m%d}_T89.nc"
-    )
+    out_path = processed_data_path / "POES" / "noaa18" / f"noaa18_meped_{start_time:%Y%m%d}_T89.nc"
     assert out_path.exists()
 
     if renew_solution:

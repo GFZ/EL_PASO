@@ -19,11 +19,9 @@ from el_paso.saving_strategies import MonthlyRBStrategy
 @pytest.mark.basic
 def test_goes_realtime_snapshot(
     tmpdir: Path,
-    skip_if_unreachable: Callable[..., None],
     *,
     renew_solution: bool,
 ) -> None:
-    skip_if_unreachable("https://spdf.gsfc.nasa.gov")
 
     start_time = datetime(2025, 12, 17, tzinfo=timezone.utc)
     end_time = start_time + timedelta(days=0.1)

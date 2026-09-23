@@ -20,12 +20,9 @@ from el_paso.recipes.esa import process_ngrm_electron_fluxes
 @pytest.mark.basic
 def test_esa_ngrm(
     tmpdir: Path,
-    skip_if_unreachable: Callable[..., None],
     *,
     renew_solution: bool,  # noqa: ARG001
 ) -> None:
-
-    skip_if_unreachable("https://sso.s2p.esa.int", "https://swe.ssa.esa.int", "https://spdf.gsfc.nasa.gov")
 
     client_id = os.environ.get("ESA_CLIENT_ID")
     client_secret = os.environ.get("ESA_CLIENT_SECRET")
@@ -50,10 +47,5 @@ def test_esa_ngrm(
     start_date = start_time.replace(day=1)
     end_date = end_time.replace(day=30)
 
-    out_path = (
-        processed_data_path
-        / "ESA"
-        / "edrs-c"
-        / f"edrs-c_ngrm_{start_date:%Y%m%d}to{end_date:%Y%m%d}_T89.nc"
-    )
+    out_path = processed_data_path / "ESA" / "edrs-c" / f"edrs-c_ngrm_{start_date:%Y%m%d}to{end_date:%Y%m%d}_T89.nc"
     assert out_path.exists()

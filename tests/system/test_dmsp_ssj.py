@@ -19,11 +19,9 @@ from el_paso.recipes.dmsp import process_dmsp_ssj_electrons
 @pytest.mark.basic
 def test_dmsp_ssj(
     tmpdir: Path,
-    skip_if_unreachable: Callable[..., None],
     *,
     renew_solution: bool,
 ) -> None:
-    skip_if_unreachable("https://spdf.gsfc.nasa.gov")
 
     start_time = datetime(2013, 9, 8, tzinfo=timezone.utc)
     end_time = start_time + timedelta(hours=4)
@@ -39,12 +37,7 @@ def test_dmsp_ssj(
         num_cores=32,
     )
 
-    out_path = (
-        processed_data_path
-        / "DMSP"
-        / "f17"
-        / f"f17_ssj_{start_time:%Y%m%d}_T89.nc"
-    )
+    out_path = processed_data_path / "DMSP" / "f17" / f"f17_ssj_{start_time:%Y%m%d}_T89.nc"
     assert out_path.exists()
 
     if renew_solution:
