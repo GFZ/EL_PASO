@@ -13,11 +13,13 @@ import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
+from unittest.mock import patch
 
 import click
 import pytest
 import typer
-from typer.testing import CliRunner
+import typer.testing
+from typer.testing import CliRunner, Result
 
 import el_paso as ep
 from el_paso.cli.app import RECIPES, RecipeEntry, app, load_recipe
@@ -31,9 +33,16 @@ from el_paso.cli.recipe_cli import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Iterator, Sequence
 
 runner = CliRunner()
+
+
+def invoke_app(args: Sequence[str], **kwargs: Any) -> Result:  # noqa: ANN401
+    """Invoke the real ``app`` (see `el_paso.cli.app`)."""
+    with patch.object(typer.testing, "_get_command", side_effect=lambda instance: instance):
+        return runner.invoke(app, args, **kwargs)
+
 
 DEFAULT_NUM_CORES = 16
 """The core count every recipe defaults to; see test_num_cores_default_is_shared_by_every_recipe."""
@@ -551,7 +560,7 @@ def test_registry_matches_the_recipe_modules_on_disk() -> None:
 
 @pytest.mark.basic
 def test_cli_list() -> None:
-    result = runner.invoke(app, ["list"], env={"COLUMNS": "200"})
+    result = invoke_app(["list"], env={"COLUMNS": "200"})
 
     assert result.exit_code == 0, result.output
     assert "el-paso poes meped" in result.output
@@ -559,8 +568,7 @@ def test_cli_list() -> None:
 
 @pytest.mark.basic
 def test_cli_dispatches_to_a_recipe(caplog: pytest.LogCaptureFixture) -> None:
-    result = runner.invoke(
-        app,
+    result = invoke_app(
         [
             "poes",
             "meped",
