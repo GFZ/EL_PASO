@@ -119,8 +119,8 @@ markdown_extensions:
   - pymdownx.highlight
   - pymdownx.superfences:
       custom_fences:
-        - name: mermaid-pz
-          class: mermaid-pz
+        - name: mermaid
+          class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.arithmatex:
       generic: true # Enable support for block and inline math
@@ -158,13 +158,3 @@ plugins:
 
 extra_css:
   - css/custom.css
-
-extra_javascript:
-  # Use MathJax for rendering latex equations
-  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
-  # Renders .mermaid-pz fences and makes them zoomable/pannable (svg-pan-zoom
-  # must load first as a plain global; mermaid-panzoom.js is an ES module so
-  # it can `import` mermaid itself).
-  - https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.2/dist/svg-pan-zoom.min.js
-  - path: js/mermaid-panzoom.js
-    type: module

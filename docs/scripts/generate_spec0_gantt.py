@@ -209,7 +209,7 @@ def render_mermaid(all_segments: dict[str, list[Segment]], today: date) -> str:
     # is rendered by our own script directly into the light DOM instead.
     history_horizon = today - relativedelta(months=15)
     lines = [
-        "```mermaid-pz",
+        "```mermaid",
         "gantt",
         "    dateFormat YYYY-MM-DD",
         "    axisFormat %m/%Y",
