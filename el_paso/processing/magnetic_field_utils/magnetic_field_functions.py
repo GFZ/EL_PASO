@@ -8,6 +8,7 @@ import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from functools import partial
 from pathlib import Path
 from typing import Literal, NamedTuple, TypeVar
 
@@ -18,7 +19,13 @@ from richpool import MultiPool
 
 import el_paso as ep
 from el_paso.processing.magnetic_field_utils.construct_maginput import MagInputKeys
-from el_paso.processing.magnetic_field_utils.irbem import Coords, IrbemOptions, LstarQuantity, MagFields
+from el_paso.processing.magnetic_field_utils.irbem import (
+    Coords,
+    DriftLossConeStatus,
+    IrbemOptions,
+    LstarQuantity,
+    MagFields,
+)
 from el_paso.processing.magnetic_field_utils.mag_field_enum import MagneticField
 from el_paso.typing import MagFieldVarTypes
 from el_paso.utils import timed_function
@@ -386,6 +393,119 @@ def get_footpoint_atmosphere(
     )
 
     return {create_var_name("B_fofl", irbem_input.magnetic_field): var}
+
+
+def _get_drift_loss_cone_parallel(it: int, stop_alt: float, dlc_tol: float) -> tuple[float, float, int]:
+    context = _get_worker_context()
+
+    dlc_output = context.model.drift_loss_cone(
+        context.datetimes[it],
+        context.position_at(it),
+        context.maginput_at(it),
+        stop_alt=stop_alt,
+        dlc_tol=dlc_tol,
+    )
+
+    return float(dlc_output.alpha_dlc_loc[0]), float(dlc_output.alpha_dlc_eq[0]), int(dlc_output.status[0])
+
+
+@timed_function()
+def get_drift_loss_cone(
+    xgeo_var: ep.Variable,
+    time_var: ep.Variable,
+    irbem_input: IrbemInput,
+    *,
+    stop_alt: float = 100.0,
+    dlc_tol: float = 0.1,
+) -> dict[str, ep.Variable]:
+    """Calculates the drift loss cone, both as a local and as an equatorial pitch angle.
+
+    A particle below the drift loss cone mirrors below `stop_alt` somewhere on its drift orbit - on
+    Earth essentially always over the South Atlantic Anomaly - and is lost within a drift period, even
+    if it survives the local bounce. Above it, the particle is stably trapped. The result does not
+    depend on species or energy, and it is symmetric about 90 degrees.
+
+    The search is bounded from below by the bounce loss cone of the WEAKER of the two foot points,
+    whereas `B_fofl`, and with it `Alpha_LC`, uses the foot point in the spacecraft's own hemisphere.
+    `Alpha_DLC` is therefore never smaller than `Alpha_LC`, but the band between the two also holds
+    particles that are lost at the conjugate foot point within a bounce.
+
+    This costs about a dozen drift shell traces per time step, roughly a second each, which is spread
+    over `irbem_input.num_cores` processes. `irbem_input.irbem_options.drift_shell_resolution` sets how
+    finely the drift orbit samples longitude, and so how well the South Atlantic Anomaly is resolved:
+    0 gives 14.4 degree steps, which can step over its bottom, so 1 to 3 is recommended.
+
+    Args:
+        xgeo_var (ep.Variable): The variable containing satellite position data in GEO coordinates.
+        time_var (ep.Variable): The variable containing the timestamps.
+        irbem_input (IrbemInput): A data class with all required IRBEM input parameters.
+        stop_alt (float, optional): Geodetic altitude in km below which a particle counts as lost.
+            Defaults to 100, the altitude `B_fofl` is taken at.
+        dlc_tol (float, optional): Bisection tolerance on the equatorial drift loss cone, in degrees.
+            The result is within half of it of the true boundary, and neighbouring time steps can differ
+            by up to it even where the true boundary is smooth. Defaults to 0.1.
+
+    Returns:
+        dict[str, ep.Variable]: A dictionary containing the calculated `Alpha_DLC` and `Alpha_DLC_Eq`
+        variables, in radians. Time steps where no drift loss cone could be computed are NaN; the
+        reasons are logged as `DriftLossConeStatus` counts. 90 degrees is a genuine result: even
+        particles mirroring at the magnetic equator are lost somewhere on their drift.
+
+    Raises:
+        ValueError: If `dlc_tol` is outside (0, 90) degrees, or if the input sizes do not match.
+    """
+    logger.info("\tCalculating drift loss cone ...")
+
+    if not 0 < dlc_tol < 90:
+        msg = f"dlc_tol must lie in (0, 90) degrees, got {dlc_tol}"
+        raise ValueError(msg)
+
+    timestamps = time_var.get_data(ep.units.posixtime)
+    x_geo = xgeo_var.get_data(ep.units.RE)
+
+    datetimes = [datetime.fromtimestamp(t, tz=timezone.utc) for t in timestamps]
+    sysaxes = ep.IRBEM_SYSAXIS_GEO
+
+    x_geo = x_geo.astype(np.float64)
+
+    if len(datetimes) != len(x_geo):
+        msg = f"Encountered size mismatch for x_geo: len of x_geo data: {len(x_geo)}, requested len: {len(datetimes)}"
+        raise ValueError(msg)
+
+    results = _run_irbem_parallel(
+        partial(_get_drift_loss_cone_parallel, stop_alt=stop_alt, dlc_tol=dlc_tol),
+        irbem_input,
+        x_geo,
+        datetimes,
+        sysaxes=sysaxes,
+        desc="Calculating drift loss cone",
+    )
+
+    # columns: local angle, equatorial angle, status; the wrapper has already turned baddata into NaN
+    output = np.array(results, dtype=np.float64).reshape(-1, 3)
+    status = output[:, 2].astype(np.int32)
+
+    counts = ", ".join(
+        f"{DriftLossConeStatus(int(code)).name} {int(count)}"
+        for code, count in zip(*np.unique(status, return_counts=True), strict=True)
+    )
+    logger.info(f"\tDrift loss cone status: {counts}")
+
+    processing_note = (
+        f"Calculated drift loss cone (lost below {stop_alt:g} km, bisection tolerance {dlc_tol:g} deg) "
+        f"using IRBEM model {irbem_input.magnetic_field} with options {irbem_input.irbem_options}."
+    )
+
+    alpha_dlc_var = ep.Variable(data=np.radians(output[:, 0]), original_unit=u.radian)
+    alpha_dlc_var.metadata.add_processing_note(processing_note)
+
+    alpha_dlc_eq_var = ep.Variable(data=np.radians(output[:, 1]), original_unit=u.radian)
+    alpha_dlc_eq_var.metadata.add_processing_note(processing_note)
+
+    return {
+        create_var_name("Alpha_DLC", irbem_input.magnetic_field): alpha_dlc_var,
+        create_var_name("Alpha_DLC_Eq", irbem_input.magnetic_field): alpha_dlc_eq_var,
+    }
 
 
 @timed_function()

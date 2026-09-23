@@ -75,6 +75,11 @@ DEFAULT_LIBIRBEM_PATH = Path(ep.__file__).parent / "libirbem.so"
 
 logger = logging.getLogger(__name__)
 
+BADDATA = -1e31
+
+def _baddata_to_nan(x: NDArray[np.float64]) -> NDArray[np.float64]:
+    """Replaces IRBEM's baddata sentinel (-1e31) with NaN."""
+    return np.where(x <= BADDATA / 10, np.nan, x)
 
 class MakeLstarOutput(NamedTuple):
     """Container for outputs of L* calculations for a single shell.
@@ -129,6 +134,86 @@ class MakeLstarShellSplittingOutput(NamedTuple):
     bmin: NDArray[np.float64]
     lstar: NDArray[np.float64]
     xj: NDArray[np.float64]
+
+class DriftLossConeStatus(IntEnum):
+    """Status code returned by `drift_loss_cone`, i.e. the Fortran `iflag`.
+
+    Attributes:
+        OK: Both boundaries resolved normally.
+        ALL_LOST: The whole local drift shell is inside the loss cone, so
+            `alpha_dlc` is 90 degrees. The drift orbit dips below `stop_alt`
+            even for equatorially mirroring particles. Common in low-altitude
+            equatorial orbits.
+        NO_DRIFT_CONE: The drift loss cone is not resolvably wider than the
+            bounce loss cone. Typical when the spacecraft is itself over the
+            South Atlantic Anomaly, where the local field line already sets
+            the minimum mirror altitude of the whole drift orbit.
+        NO_BMIN: `alpha_dlc` was found but Bmin on the local field line was
+            not, so only the local pitch angles are valid; the equatorial
+            ones are NaN.
+        PARTIAL_TRACE_FAILURE: The boundary is bracketed to within
+            `dlc_tol`, but one or more trial pitch angles inside the loss
+            cone could not be traced and were treated as lost. Discard these
+            points if you want the strict policy.
+        SETUP_FAILED: Field model or coordinate setup failed.
+        NO_FOOT_POINT: No foot point at `stop_alt` was found in either
+            hemisphere; nothing was computed.
+        SHELL_NOT_CLOSED: The drift-bounce orbit does not close even for
+            equatorially mirroring particles (open field line, or
+            magnetopause shadowing at high L); nothing was computed.
+        BAD_STOP_ALT: `stop_alt` out of range.
+        BAD_DLC_TOL: `dlc_tol` outside (0, 90) degrees.
+    """
+
+    OK = 0
+    ALL_LOST = 1
+    NO_DRIFT_CONE = 2
+    NO_BMIN = 3
+    PARTIAL_TRACE_FAILURE = 4
+    SETUP_FAILED = -1
+    NO_FOOT_POINT = -2
+    SHELL_NOT_CLOSED = -3
+    BAD_STOP_ALT = -4
+    BAD_DLC_TOL = -5
+
+
+class DriftLossConeOutput(NamedTuple):
+    """Container for drift loss cones at a series of spacecraft locations.
+
+    Every entry is an array with one element per input time step.
+
+    The two boundaries partition pitch angle space into three classes: below `alpha_blc` a particle is
+    lost within a quarter bounce; between `alpha_blc` and `alpha_dlc` it survives locally but mirrors
+    below `stop_alt` somewhere else on its drift orbit (quasi-trapped); above `alpha_dlc` it is stably
+    trapped. Because the drift shell depends only on the mirror field, the result is independent of
+    species and energy, and it is symmetric about 90 degrees: the loss cone around the
+    anti-field-aligned direction runs from 180 minus these values.
+
+    Attributes:
+        alpha_blc_eq (NDArray[np.float64]): Bounce loss cone, equatorial pitch angle, in degrees.
+        alpha_dlc_eq (NDArray[np.float64]): Drift loss cone, equatorial pitch angle, in degrees.
+        alpha_blc_loc (NDArray[np.float64]): Bounce loss cone, local pitch angle, in degrees.
+        alpha_dlc_loc (NDArray[np.float64]): Drift loss cone, local pitch angle, in degrees.
+        blocal (NDArray[np.float64]): The magnetic field magnitude at the spacecraft in nT.
+        bmin (NDArray[np.float64]): The minimum magnetic field magnitude along the local field line in nT.
+        lm (NDArray[np.float64]): The Mcllwain L parameter of the marginally trapped drift shell.
+        lstar (NDArray[np.float64]): The L* value of the marginally trapped drift shell.
+        hmin (NDArray[np.float64]): The lowest geodetic altitude in km on the marginally trapped drift orbit.
+        hmin_lon (NDArray[np.float64]): The geodetic longitude in degrees at which `hmin` occurs.
+        status (NDArray[np.int32]): `DriftLossConeStatus` codes, one per time step.
+    """
+
+    alpha_blc_eq: NDArray[np.float64]
+    alpha_dlc_eq: NDArray[np.float64]
+    alpha_blc_loc: NDArray[np.float64]
+    alpha_dlc_loc: NDArray[np.float64]
+    blocal: NDArray[np.float64]
+    bmin: NDArray[np.float64]
+    lm: NDArray[np.float64]
+    lstar: NDArray[np.float64]
+    hmin: NDArray[np.float64]
+    hmin_lon: NDArray[np.float64]
+    status: NDArray[np.int32]
 
 
 class DriftShellOutput(NamedTuple):
@@ -539,6 +624,99 @@ class MagFields:
             xj=c_xj.value,
             posit=posit,
             nposit=nposit,
+        )
+
+    _DLC_N_OUT = len(DriftLossConeOutput._fields) - 1
+
+    def drift_loss_cone(
+        self,
+        time: Sequence[datetime | str] | datetime | str,
+        position: Mapping[Literal["x1", "x2", "x3"], Sequence[np.floating] | NDArray[np.floating] | np.floating],
+        maginput: Mapping[MagInputKeys, NDArray[np.number] | list[np.number] | np.number],
+        stop_alt: float = 100,
+        dlc_tol: float = 0.1,
+    ) -> DriftLossConeOutput:
+        """Calculates the bounce and drift loss cones for a series of time steps and positions.
+
+        Unlike most of the other calls, this one takes no pitch angle: it returns the two pitch angles
+        that bound the loss cones, so a measured pitch angle can be classified against them.
+
+        The bounce loss cone comes from the local field line, tracing to `stop_alt` in both hemispheres
+        and taking the weaker of the two foot point fields. The drift loss cone is found by bisecting
+        on pitch angle, tracing the full drift-bounce orbit at each trial angle and comparing its
+        minimum altitude against `stop_alt`, until the bracket is narrower than `dlc_tol`.
+
+        The bisection returns the midpoint of its final bracket, so `alpha_dlc_eq` is within
+        `dlc_tol / 2` of the true boundary and lies on a grid of that spacing: where the true boundary
+        varies smoothly between neighbouring locations, the returned one can still jump by up to
+        `dlc_tol`. Lower it when comparing the boundary across locations; each halving costs one more
+        drift shell trace per location.
+
+        This costs roughly a dozen drift shell traces per location, so pass whole orbits in one call
+        rather than looping. `stop_alt` is common to all time steps. If `maginput` is given as scalars
+        rather than sequences, the same values are used at every time step. Note that `options[3]`
+        controls how finely the drift orbit samples longitude and therefore how well the South Atlantic
+        Anomaly is resolved; 0 gives 14.4 degree steps, which can step over the bottom of the anomaly.
+
+        Args:
+            time (Sequence[datetime | str] | datetime | str): A single datetime object or a sequence of
+                datetime objects or ISO-formatted strings.
+            position (Mapping): A dictionary containing 'x1', 'x2' and 'x3' keys with single values or
+                sequences of coordinates corresponding to each time step.
+            maginput (Mapping): Magnetic field model inputs, either scalars or one value per time step.
+            stop_alt (float, optional): The geodetic altitude in km below which a particle counts as
+                lost to the atmosphere. Defaults to 100.
+            dlc_tol (float, optional): The bisection tolerance on `alpha_dlc_eq`, in degrees. Must lie
+                in (0, 90); otherwise every time step comes back with status `BAD_DLC_TOL`. Defaults
+                to 0.1.
+
+        Returns:
+            DriftLossConeOutput: Arrays of the two loss cone boundaries and the properties of the
+            marginally trapped drift shell, one element per time step. Quantities that could not be
+            computed come back as NaN; check `status` before using them.
+        """
+        c_ntime, c_iyear, c_idoy, c_ut, c_x1, c_x2, c_x3 = self._prep_time_pos_array(time, position)
+        ntime = c_ntime.value
+
+        c_maginput = self._prep_maginput(maginput)
+        if not isinstance(c_maginput[0], ctypes.Array):
+            # Scalar model inputs: broadcast the single 25-element row to every time step,
+            # since the Fortran routine indexes maginput as (25, ntime).
+            c_maginput_scalar = c_maginput
+            c_maginput = ((ctypes.c_double * 25) * ntime)()
+            for it, i in itertools.product(range(ntime), range(25)):
+                c_maginput[it][i] = c_maginput_scalar[i]
+
+        c_stop_alt = ctypes.c_double(stop_alt)
+        c_dlc_tol = ctypes.c_double(dlc_tol)
+
+        logger.debug("Running IRBEM-LIB drift_loss_cone for multiple time steps")
+
+        double_arr_type = ctypes.c_double * ntime
+        c_out = [double_arr_type() for _ in range(self._DLC_N_OUT)]
+        c_iflag = (ctypes.c_int * ntime)()
+
+        self._irbem_obj.drift_loss_cone_multi_(
+            ctypes.byref(c_ntime),
+            ctypes.byref(self.kext),
+            ctypes.byref(self.options),
+            ctypes.byref(self.sysaxes),
+            ctypes.byref(c_iyear),
+            ctypes.byref(c_idoy),
+            ctypes.byref(c_ut),
+            ctypes.byref(c_x1),
+            ctypes.byref(c_x2),
+            ctypes.byref(c_x3),
+            ctypes.byref(c_maginput),
+            ctypes.byref(c_stop_alt),
+            ctypes.byref(c_dlc_tol),
+            *[ctypes.byref(o) for o in c_out],
+            ctypes.byref(c_iflag),
+        )
+
+        return DriftLossConeOutput(
+            *[_baddata_to_nan(np.array(o)) for o in c_out],
+            status=np.array(c_iflag, dtype=np.int32),
         )
 
     def find_mirror_point(

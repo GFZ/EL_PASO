@@ -44,7 +44,7 @@ repos:
         entry: python hooks/generate_metadata_stubs.py
         language: system
         pass_filenames: false
-        files: ^(el_paso/data_standards/(gfz_standard|prbem_standard)\.py|scripts/generate_metadata_stubs\.py)$
+        files: ^(el_paso/data_standards/(gfz_standard|prbem_standard)\.py|hooks/generate_metadata_stubs\.py)$
       - id: check-recipe-strategies
         name: check-recipe-strategies
         entry: python hooks/check_recipe_strategies.py

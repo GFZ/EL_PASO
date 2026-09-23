@@ -357,6 +357,9 @@ def _get_result(
                 irbem_input,
             )
 
+        case "Alpha_DLC" | "Alpha_DLC_Eq":
+            result_dict = mag_utils.get_drift_loss_cone(xgeo_var, time_var, irbem_input)
+
         case _:
             msg = f"Variable '{var_type}' is not implemented in compute_magnetic_field_variables."
             raise NotImplementedError(msg)
@@ -582,7 +585,7 @@ def _get_local_loss_cone_angle(
     if B_fofl_name not in computed_vars:
         computed_vars |= mag_utils.get_footpoint_atmosphere(xgeo_var, time_var, irbem_input)
     if B_local_name not in computed_vars:
-        computed_vars |= mag_utils.get_magequator(xgeo_var, time_var, irbem_input)
+        computed_vars |= mag_utils.get_local_B_field(xgeo_var, time_var, irbem_input)
 
     # load needed data and convert to correct units
     B_fofl = computed_vars[B_fofl_name].get_data(u.nT).astype(np.float64)
