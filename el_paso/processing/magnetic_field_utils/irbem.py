@@ -77,9 +77,17 @@ logger = logging.getLogger(__name__)
 
 BADDATA = -1e31
 
-def _baddata_to_nan(x: NDArray[np.float64]) -> NDArray[np.float64]:
-    """Replaces IRBEM's baddata sentinel (-1e31) with NaN."""
-    return np.where(x <= BADDATA / 10, np.nan, x)
+
+def _baddata_to_nan(x: object) -> NDArray[np.float64]:
+    """Replaces IRBEM's baddata sentinel (-1e31) with NaN in an array or ctypes array."""
+    arr = np.array(x, dtype=np.float64)
+    return np.where(arr <= BADDATA / 10, np.nan, arr)
+
+
+def _scalar_baddata_to_nan(x: float) -> float:
+    """Replaces IRBEM's baddata sentinel (-1e31) with NaN in a single value."""
+    return float(_baddata_to_nan(x))
+
 
 class MakeLstarOutput(NamedTuple):
     """Container for outputs of L* calculations for a single shell.
@@ -134,6 +142,7 @@ class MakeLstarShellSplittingOutput(NamedTuple):
     bmin: NDArray[np.float64]
     lstar: NDArray[np.float64]
     xj: NDArray[np.float64]
+
 
 class DriftLossConeStatus(IntEnum):
     """Status code returned by `drift_loss_cone`, i.e. the Fortran `iflag`.
@@ -289,12 +298,13 @@ class FindMirrorPointOutput(NamedTuple):
 
     Attributes:
         blocal (float): The magnetic field magnitude at the local position in nT.
-        bmin (float): The minimum magnetic field magnitude along the field line in nT.
-        posit (NDArray[np.float64]): The location of the mirror point.
+        bmirr (float): The magnetic field magnitude at the mirror point in nT. NaN if the particle has no
+            mirror point on this field line, i.e. is in the loss cone.
+        posit (NDArray[np.float64]): The location of the mirror point in GEO coordinates.
     """
 
     blocal: float
-    bmin: float
+    bmirr: float
     posit: NDArray[np.float64]
 
 
@@ -364,6 +374,11 @@ class MagFields:
     This class provides a Pythonic wrapper around the Fortran-based IRBEM library,
     allowing users to perform a variety of magnetospheric calculations, such as
     tracing magnetic field lines, finding L*, and calculating Magnetic Local Time (MLT).
+
+    Every floating point output has IRBEM's baddata sentinel (-1e31) replaced with NaN, so
+    callers never see it. Other IRBEM conventions are passed through unchanged; in particular a
+    negative Lm or L* is IRBEM's flag for a particle whose mirror point is in the loss cone,
+    and its magnitude is still the L value.
 
     Attributes:
         irbem_obj_path (Path): The path to the IRBEM shared library object.
@@ -487,7 +502,12 @@ class MagFields:
         )
 
         return MakeLstarOutput(
-            lm=c_lm.value, lstar=c_lstar.value, blocal=c_blocal.value, bmin=c_bmin.value, mlt=c_mlt.value, xj=c_xj.value
+            lm=_baddata_to_nan(c_lm),
+            lstar=_baddata_to_nan(c_lstar),
+            blocal=_baddata_to_nan(c_blocal),
+            bmin=_baddata_to_nan(c_bmin),
+            mlt=_baddata_to_nan(c_mlt),
+            xj=_baddata_to_nan(c_xj),
         )
 
     def make_lstar_shell_splitting(
@@ -518,52 +538,52 @@ class MagFields:
         if not isinstance(alpha, Sequence | np.ndarray):
             alpha = [alpha]
 
-        # Cast additional inputs
-        c_n_alpha = ctypes.c_int(len(alpha))
-        c_alpha = (ctypes.c_double * c_n_alpha.value)()
-
-        for da in range(c_n_alpha.value):
-            c_alpha[da] = alpha[da]
-
         # Convert the model parameters into c objects.
         c_maginput = self._prep_maginput(maginput)
 
-        # Model outputs
-        double_arr_type = ctypes.c_double * (c_ntime.value * c_n_alpha.value)
-        c_lm, c_lstar, c_blocal, c_bmin, c_xj, c_mlt = [double_arr_type() for _ in range(6)]
-
         logger.debug("Running IRBEM-LIB make_lstar_shell_splitting")
 
-        self._irbem_obj.make_lstar_shell_splitting1_(
-            ctypes.byref(c_ntime),
-            ctypes.byref(c_n_alpha),
-            ctypes.byref(self.kext),
-            ctypes.byref(self.options),
-            ctypes.byref(self.sysaxes),
-            ctypes.byref(c_iyear),
-            ctypes.byref(c_idoy),
-            ctypes.byref(c_ut),
-            ctypes.byref(c_x1),
-            ctypes.byref(c_x2),
-            ctypes.byref(c_x3),
-            ctypes.byref(c_alpha),
-            ctypes.byref(c_maginput),
-            ctypes.byref(c_lm),
-            ctypes.byref(c_lstar),
-            ctypes.byref(c_blocal),
-            ctypes.byref(c_bmin),
-            ctypes.byref(c_xj),
-            ctypes.byref(c_mlt),
-        )
+        # The Fortran routine declares its outputs as (NTIME_MAX, 25), so pitch angle k starts NTIME_MAX
+        # elements after pitch angle k-1. Buffers of that size would take hundreds of MB, and buffers of
+        # ntime * n_alpha are overrun (and the process crashes) as soon as there is a second pitch angle.
+        # One call per pitch angle only ever writes the first column, which fits in ntime elements.
+        c_n_alpha = ctypes.c_int(1)
+        double_arr_type = ctypes.c_double * c_ntime.value
+        outputs: dict[str, list[NDArray[np.float64]]] = {
+            key: [] for key in ("lm", "lstar", "blocal", "bmin", "xj", "mlt")
+        }
 
-        return MakeLstarShellSplittingOutput(
-            lm=np.array(c_lm).reshape(c_n_alpha.value, c_ntime.value),
-            mlt=np.array(c_mlt).reshape(c_n_alpha.value, c_ntime.value),
-            blocal=np.array(c_blocal).reshape(c_n_alpha.value, c_ntime.value),
-            bmin=np.array(c_bmin).reshape(c_n_alpha.value, c_ntime.value),
-            lstar=np.array(c_lstar).reshape(c_n_alpha.value, c_ntime.value),
-            xj=np.array(c_xj).reshape(c_n_alpha.value, c_ntime.value),
-        )
+        for pitch_angle in alpha:
+            c_alpha = (ctypes.c_double * 1)(float(pitch_angle))
+            c_lm, c_lstar, c_blocal, c_bmin, c_xj, c_mlt = [double_arr_type() for _ in range(6)]
+
+            self._irbem_obj.make_lstar_shell_splitting1_(
+                ctypes.byref(c_ntime),
+                ctypes.byref(c_n_alpha),
+                ctypes.byref(self.kext),
+                ctypes.byref(self.options),
+                ctypes.byref(self.sysaxes),
+                ctypes.byref(c_iyear),
+                ctypes.byref(c_idoy),
+                ctypes.byref(c_ut),
+                ctypes.byref(c_x1),
+                ctypes.byref(c_x2),
+                ctypes.byref(c_x3),
+                ctypes.byref(c_alpha),
+                ctypes.byref(c_maginput),
+                ctypes.byref(c_lm),
+                ctypes.byref(c_lstar),
+                ctypes.byref(c_blocal),
+                ctypes.byref(c_bmin),
+                ctypes.byref(c_xj),
+                ctypes.byref(c_mlt),
+            )
+
+            for key, c_arr in zip(outputs, (c_lm, c_lstar, c_blocal, c_bmin, c_xj, c_mlt), strict=True):
+                outputs[key].append(_baddata_to_nan(c_arr))
+
+        # Bmin and MLT do not depend on the pitch angle; they are repeated per row to keep one shape.
+        return MakeLstarShellSplittingOutput(**{key: np.stack(rows) for key, rows in outputs.items()})
 
     def drift_shell(
         self,
@@ -611,17 +631,17 @@ class MagFields:
             ctypes.byref(c_nposit),
         )
 
-        posit = np.array(c_posit)
+        posit = _baddata_to_nan(c_posit)
         nposit = np.array(c_nposit)
         for i, n in enumerate(nposit):
             posit[i, n:, :] = np.nan
 
         return DriftShellOutput(
-            lm=c_lm.value,
-            lstar=c_lstar.value,
-            blocal=np.array(c_blocal),
-            bmin=c_bmin.value,
-            xj=c_xj.value,
+            lm=_scalar_baddata_to_nan(c_lm.value),
+            lstar=_scalar_baddata_to_nan(c_lstar.value),
+            blocal=_baddata_to_nan(c_blocal),
+            bmin=_scalar_baddata_to_nan(c_bmin.value),
+            xj=_scalar_baddata_to_nan(c_xj.value),
             posit=posit,
             nposit=nposit,
         )
@@ -715,7 +735,7 @@ class MagFields:
         )
 
         return DriftLossConeOutput(
-            *[_baddata_to_nan(np.array(o)) for o in c_out],
+            *[_baddata_to_nan(o) for o in c_out],
             status=np.array(c_iflag, dtype=np.int32),
         )
 
@@ -748,9 +768,9 @@ class MagFields:
 
         logger.debug("Running IRBEM-LIB find_mirror_point for multiple time steps and pitch angles")
 
-        c_blocal = ctypes.c_double(-9999)
-        c_bmin = ctypes.c_double(-9999)
-        c_posit = (3 * ctypes.c_double)()
+        c_blocal = ctypes.c_double(BADDATA)
+        c_bmirr = ctypes.c_double(BADDATA)
+        c_posit = (3 * ctypes.c_double)(BADDATA, BADDATA, BADDATA)
 
         self._irbem_obj.find_mirror_point1_(
             ctypes.byref(self.kext),
@@ -765,14 +785,14 @@ class MagFields:
             ctypes.byref(c_alpha),
             ctypes.byref(c_maginput),
             ctypes.byref(c_blocal),
-            ctypes.byref(c_bmin),
+            ctypes.byref(c_bmirr),
             ctypes.byref(c_posit),
         )
 
         return FindMirrorPointOutput(
-            blocal=c_blocal.value,
-            bmin=c_bmin.value,
-            posit=np.array(c_posit),
+            blocal=_scalar_baddata_to_nan(c_blocal.value),
+            bmirr=_scalar_baddata_to_nan(c_bmirr.value),
+            posit=_baddata_to_nan(c_posit),
         )
 
     def find_foot_point(
@@ -829,9 +849,9 @@ class MagFields:
 
         # Stack the results into a single NumPy array, adding a new dimension for time
         return FindFootPointOutput(
-            x_foot=np.array(c_xfoot),
-            b_foot=np.array(c_bfoot),
-            b_foot_mag=c_bfootmag.value,
+            x_foot=_baddata_to_nan(c_xfoot),
+            b_foot=_baddata_to_nan(c_bfoot),
+            b_foot_mag=_scalar_baddata_to_nan(c_bfootmag.value),
         )
 
     def trace_field_line(
@@ -860,8 +880,9 @@ class MagFields:
         logger.debug("Running IRBEM-LIB trace_field_line for multiple time steps")
 
         c_posit = ((ctypes.c_double * 3) * 3000)()
-        c_n_posit = ctypes.c_int(-9999)
-        c_lm, c_blocal, c_bmin, c_xj = [ctypes.c_double(-9999) for _ in range(4)]
+        # IRBEM leaves Nposit unset when the trace fails, so start from no points at all
+        c_n_posit = ctypes.c_int(0)
+        c_lm, c_bmin, c_xj = [ctypes.c_double(BADDATA) for _ in range(3)]
         c_blocal = (ctypes.c_double * 3000)()
 
         self._irbem_obj.trace_field_line2_1_(
@@ -884,13 +905,15 @@ class MagFields:
             ctypes.byref(c_n_posit),
         )
 
+        n_posit = max(c_n_posit.value, 0)
+
         return TraceFieldLineOutput(
-            posit=np.array(c_posit[: c_n_posit.value]),
-            n_posit=c_n_posit.value,
-            lm=c_lm.value,
-            blocal=np.array(c_blocal[: c_n_posit.value]),
-            bmin=c_bmin.value,
-            xj=c_xj.value,
+            posit=_baddata_to_nan(c_posit[:n_posit]).reshape(n_posit, 3),
+            n_posit=n_posit,
+            lm=_scalar_baddata_to_nan(c_lm.value),
+            blocal=_baddata_to_nan(c_blocal[:n_posit]),
+            bmin=_scalar_baddata_to_nan(c_bmin.value),
+            xj=_scalar_baddata_to_nan(c_xj.value),
         )
 
     def find_magequator(
@@ -915,8 +938,8 @@ class MagFields:
 
         logger.debug("Running IRBEM-LIB find_magequator for multiple time steps")
 
-        c_xgeo = (ctypes.c_double * 3)(-9999, -9999, -9999)
-        c_bmin = ctypes.c_double(-9999)
+        c_xgeo = (ctypes.c_double * 3)(BADDATA, BADDATA, BADDATA)
+        c_bmin = ctypes.c_double(BADDATA)
 
         self._irbem_obj.find_magequator1_(
             ctypes.byref(self.kext),
@@ -933,7 +956,7 @@ class MagFields:
             ctypes.byref(c_xgeo),
         )
 
-        return FindMagEquatorOutput(xgeo=np.array(c_xgeo), bmin=c_bmin.value)
+        return FindMagEquatorOutput(xgeo=_baddata_to_nan(c_xgeo), bmin=_scalar_baddata_to_nan(c_bmin.value))
 
     def get_field_multi(
         self,
@@ -981,7 +1004,7 @@ class MagFields:
             ctypes.byref(c_bmag),
         )
 
-        return GetFieldMultiOutput(np.array(c_bgeo), np.array(c_bmag))
+        return GetFieldMultiOutput(_baddata_to_nan(c_bgeo), _baddata_to_nan(c_bmag))
 
     def get_mlt(
         self,
@@ -1001,7 +1024,7 @@ class MagFields:
 
         logger.debug("Running IRBEM-LIB get_mlt in a time loop")
 
-        c_mlt = ctypes.c_double(-9999)
+        c_mlt = ctypes.c_double(BADDATA)
         c_position = (ctypes.c_double * 3)(c_x1, c_x2, c_x3)
 
         self._irbem_obj.get_mlt1_(
@@ -1012,7 +1035,7 @@ class MagFields:
             ctypes.byref(c_mlt),
         )
 
-        return c_mlt.value
+        return _scalar_baddata_to_nan(c_mlt.value)
 
     def _prep_time_pos(
         self,
@@ -1240,7 +1263,7 @@ class Coords:
             ctypes.byref(c_pos_in),
             ctypes.byref(c_pos_out),
         )
-        return np.array(c_pos_out)
+        return _baddata_to_nan(c_pos_out)
 
     def _convert_to_c_times(
         self, time: list[datetime] | list[str] | datetime | str
