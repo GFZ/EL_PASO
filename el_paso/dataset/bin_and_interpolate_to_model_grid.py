@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 from icecream import ic
-from matplotlib import pyplot as plt
 from richpool import p_map
 from tqdm import tqdm
 
@@ -515,6 +514,8 @@ def plot_debug_figures_plasmasphere(  # noqa: D103
     grid_R: NDArray[np.float64],
     debug_plot_settings: DebugPlotSettings,
 ) -> None:
+    from matplotlib import pyplot as plt  # noqa: PLC0415
+
     dt = sim_time[1] - sim_time[0]
 
     fig = plt.figure(figsize=(19.20, 8))
@@ -585,6 +586,8 @@ def plot_debug_figures(  # noqa: D103
     mu_or_V: Literal["Mu", "V"],
     debug_plot_settings: DebugPlotSettings,
 ) -> None:
+    from matplotlib import pyplot as plt  # noqa: PLC0415
+
     dt = sim_time[1] - sim_time[0]
 
     fig = plt.figure(figsize=(19.20, 5))

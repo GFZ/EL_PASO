@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from astropy import units as u
-from matplotlib import pyplot as plt
 
 from el_paso.utils import timed_function
 
@@ -40,6 +39,8 @@ def _fold_pitch_angles_and_flux(
     folded_flux = np.full((n_time, n_energy, len(unique_angles)), np.nan)
 
     if produce_statistic_plot:
+        from matplotlib import pyplot as plt  # noqa: PLC0415
+
         fig, axes = plt.subplots(len(unique_angles), n_energy, figsize=(5 * n_energy, 5 * len(unique_angles)))
 
     for i, angle in enumerate(unique_angles):

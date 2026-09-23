@@ -16,7 +16,6 @@ from typing import TYPE_CHECKING, Any, cast
 import distance
 import numpy as np
 import xarray as xr
-from swvo.io.utils import enforce_utc_timezone
 
 import el_paso as ep
 from el_paso.dataset.metadata import DatasetMetadata
@@ -109,6 +108,8 @@ class DataSet:
             "metadata",
         ]  # add computed properties and datetime
         assert end_time > start_time, "end_time must be after start_time"
+
+        from swvo.io.utils import enforce_utc_timezone  # noqa: PLC0415
 
         start_time = enforce_utc_timezone(start_time)
         end_time = enforce_utc_timezone(end_time)

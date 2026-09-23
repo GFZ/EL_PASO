@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 import xarray as xr
-from swvo.io.utils import enforce_utc_timezone
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -90,6 +89,8 @@ def matlab2python(datenum: float | Iterable[float]) -> Iterable[datetime] | date
         Iterable[datetime] | datetime: The converted, UTC-aware, second-rounded
         datetime(s), matching the scalar-vs-iterable shape of the input.
     """
+    from swvo.io.utils import enforce_utc_timezone  # noqa: PLC0415
+
     warnings.filterwarnings("ignore", message="Discarding nonzero nanoseconds in conversion")
 
     datenum = np.asarray(datenum, dtype=float)
