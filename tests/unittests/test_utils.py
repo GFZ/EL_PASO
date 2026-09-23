@@ -3,10 +3,15 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+import functools
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import numpy as np
 import pytest
+from astropy import units as u
+
+import el_paso as ep
 from el_paso.utils import (
     datetime_to_datenum,
     enforce_utc_timezone,
@@ -215,3 +220,22 @@ def test_datetime_to_datenum_converts_other_timezones_to_utc() -> None:
     utc = datetime(2024, 4, 16, 23, 30, tzinfo=timezone.utc)
     plus_two = utc.astimezone(timezone(timedelta(hours=2)))  # already on the next calendar day
     assert datetime_to_datenum(plus_two) == datetime_to_datenum(utc)
+
+
+@pytest.mark.basic
+def test_make_dict_hashable_with_variables_works_as_cache_key() -> None:
+    # This is how compute_magnetic_field_variables hands indices_solar_wind to the functools.cache
+    # on construct_maginput.
+    calls: list[int] = []
+
+    @functools.cache
+    def cached_len(indices: dict[str, ep.Variable]) -> int:
+        calls.append(1)
+        return len(indices)
+
+    kp = ep.Variable(data=np.array([1.0, 2.0]), original_unit=u.dimensionless_unscaled)
+    indices = make_dict_hashable({"Kp": kp})
+
+    assert cached_len(indices) == 1
+    assert cached_len(indices) == 1
+    assert len(calls) == 1
