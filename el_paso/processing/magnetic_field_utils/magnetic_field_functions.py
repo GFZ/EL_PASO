@@ -17,10 +17,9 @@ from numpy.typing import NDArray
 from richpool import MultiPool
 
 import el_paso as ep
-from el_paso.processing.magnetic_field_utils.construct_maginput import MagInputKeys
 from el_paso.processing.magnetic_field_utils.irbem import Coords, IrbemOptions, LstarQuantity, MagFields
 from el_paso.processing.magnetic_field_utils.mag_field_enum import MagneticField
-from el_paso.typing import MagFieldVarTypes
+from el_paso.typing import MagFieldVarTypes, MagInputKeys
 from el_paso.utils import timed_function
 
 logger = logging.getLogger(__name__)

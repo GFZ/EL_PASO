@@ -3,18 +3,24 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+from __future__ import annotations
+
 import logging
 from datetime import datetime, timezone
 from functools import cache
+from typing import TYPE_CHECKING
 
 import numpy as np
-from numpy.typing import NDArray
 
 import el_paso as ep
-from el_paso.load_indices_solar_wind_parameters import SW_Index
-from el_paso.typing import MagInputKeys
 
 from .mag_field_enum import MagneticField, kext
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+
+    from el_paso.load_indices_solar_wind_parameters import SW_Index
+    from el_paso.typing import MagInputKeys
 
 logger = logging.getLogger(__name__)
 

@@ -24,7 +24,7 @@ import pandas as pd
 from numpy.typing import NDArray
 
 import el_paso as ep
-from el_paso.processing.magnetic_field_utils.construct_maginput import MagInputKeys
+from el_paso.typing import MagInputKeys
 
 __author__ = "Mykhaylo Shumko"
 __last_modified__ = "2022-06-16"
