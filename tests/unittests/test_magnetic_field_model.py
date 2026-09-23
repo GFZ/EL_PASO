@@ -9,6 +9,7 @@ from typing import Literal
 
 import numpy as np
 import pytest
+from astropy import units as u
 
 import el_paso as ep
 
@@ -154,9 +155,10 @@ def test_drift_loss_cone_in_igrf():
     assert np.isfinite(dlc).all()
     assert np.isfinite(dlc_eq).all()
 
-    # The drift loss cone can never be narrower than the bounce loss cone, in either frame.
-    assert (dlc >= lc).all()
-    assert (dlc_eq >= lc_eq).all()
+    # The drift loss cone can never be narrower than the bounce loss cone, in either frame. Where the two are
+    # equal by definition they come from different code paths, so allow for round-off.
+    assert (dlc >= lc - 1e-6).all()
+    assert (dlc_eq >= lc_eq - 1e-6).all()
     assert (dlc <= 90).all()
 
     # Under the anomaly the local field line is already the weakest on the drift shell, so part of the locally
@@ -164,3 +166,38 @@ def test_drift_loss_cone_in_igrf():
     assert (dlc[:2] < 80).all()
     np.testing.assert_allclose(dlc[2:], 90)
     assert (dlc_eq[2:] - lc_eq[2:] > 0.5).all()
+
+
+@pytest.mark.basic
+def test_lm_keeps_magnitude_of_flagged_values():
+    # IRBEM negates Lm when the mirror point is in the loss cone, but the magnitude still names the drift shell,
+    # so L_m keeps it instead of turning it into NaN.
+    time_var, xgeo_var = _leo_request([(lat, -91.25) for lat in (41, 45, 57, 69, 75)])
+    irbem_options = ep.processing.magnetic_field_utils.IrbemOptions(
+        lstar_quantity=ep.processing.magnetic_field_utils.LstarQuantity.NONE
+    )
+
+    x_geo = xgeo_var.get_data(ep.units.RE)
+    raw_lm = (
+        ep.processing.magnetic_field_utils.irbem.MagFields(kext=0, sysaxes=ep.IRBEM_SYSAXIS_GEO, options=irbem_options)
+        .make_lstar_shell_splitting(
+            [datetime.fromtimestamp(t, tz=timezone.utc) for t in time_var.get_data(ep.units.posixtime)],
+            {"x1": x_geo[:, 0], "x2": x_geo[:, 1], "x3": x_geo[:, 2]},
+            {"Kp": np.zeros(len(x_geo))},
+            alpha=[90.0],
+        )
+        .lm[0]
+    )
+    assert (raw_lm < 0).any(), "the test positions no longer exercise IRBEM's negative Lm flag"
+
+    out = ep.processing.compute_magnetic_field_variables(
+        time_var,
+        xgeo_var,
+        [("L_m", "Dip")],
+        irbem_options,
+        num_cores=4,
+        pa_local_var=ep.Variable(data=np.full((len(x_geo), 1), 90.0), original_unit=u.deg),
+        cache_dir=None,
+    )
+
+    np.testing.assert_allclose(out["L_m_Dip"].get_data()[:, 0], np.abs(raw_lm))

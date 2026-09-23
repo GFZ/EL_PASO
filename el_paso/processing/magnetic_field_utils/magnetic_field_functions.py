@@ -758,6 +758,10 @@ def get_Lstar(
 
     Returns:
         dict[str, ep.Variable]: A dictionary containing the calculated `Lm`, `Lstar`, and `XJ` variables.
+        `Lm` is always returned as a magnitude: IRBEM negates it for particles whose mirror point is in
+        the loss cone, but its absolute value is still the L of their drift shell, so it is kept rather
+        than discarded. It is NaN only where IRBEM returns no value at all. `Lstar` and `XJ` are NaN
+        for any negative value.
     """
     logger.info("\tCalculating Lstar and J ...")
 
@@ -808,9 +812,17 @@ def get_Lstar(
         Lstar[i, :] = results[i][1]
         xj[i, :] = results[i][2]
 
+    # IRBEM negates Lm (and L*) when the mirror point is in the loss cone, i.e. the particle cannot
+    # bounce, but the absolute value still names the drift shell concerned. For Lm that magnitude is
+    # kept, and only the baddata sentinel (open drift shell) means there is no value.
+    Lm[Lm == FORTRAN_BAD_VALUE] = np.nan
+    np.abs(Lm, out=Lm)
+
     # replace bad values with nan
-    for arr in [Lm, Lstar, xj]:
+    for arr in [Lstar, xj]:
         arr[arr < 0] = np.nan
+
+    for arr in [Lm, Lstar, xj]:
         if not np.any(np.isfinite(arr)) and irbem_input.irbem_options.lstar_quantity != LstarQuantity.NONE:
             msg = (
                 "Lstar calculation failed! All points are NaNs! Hints for debugging:\n"
