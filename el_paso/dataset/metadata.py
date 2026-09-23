@@ -139,7 +139,7 @@ class GFZMetaData(DatasetMetadata):
     """Metadata container for GFZStandard.
 
     Attribute names and descriptions are generated from `GFZStandard().variable_infos` by
-    `scripts/generate_metadata_stubs.py`; `datetime` is a computed extra added by `DataSet`.
+    `hooks/generate_metadata_stubs.py`; `datetime` is a computed extra added by `DataSet`.
 
     Attributes:
         datetime (VariableMetadata): Metadata for the computed `datetime` variable.
@@ -161,6 +161,8 @@ class GFZMetaData(DatasetMetadata):
         MLat (VariableMetadata): Frequency of the power spectral density.
         PSD (VariableMetadata): Calculated phase space density of particles.
         R0 (VariableMetadata): Radial distance of the satellite location mapped to the equator.
+        alpha_dlc (VariableMetadata): Drift loss cone size at the satellite location.
+        alpha_dlc_eq (VariableMetadata): Drift loss cone size at the satellite location mapped to the equator.
         alpha_eq_model (VariableMetadata): Calculated equatorial pitch angles of the particles.
         alpha_eq_range (VariableMetadata): Equatorial pitch angle ranges of the particles.
         alpha_lc (VariableMetadata): Local loss cone size at the satellite location.
@@ -203,6 +205,8 @@ class GFZMetaData(DatasetMetadata):
     MLat: VariableMetadata
     PSD: VariableMetadata
     R0: VariableMetadata
+    alpha_dlc: VariableMetadata
+    alpha_dlc_eq: VariableMetadata
     alpha_eq_model: VariableMetadata
     alpha_eq_range: VariableMetadata
     alpha_lc: VariableMetadata
@@ -230,7 +234,7 @@ class PRBEMMetaData(DatasetMetadata):
     """Metadata container for PRBEMStandard.
 
     Attribute names and descriptions are generated from `PRBEMStandard().variable_infos` by
-    `scripts/generate_metadata_stubs.py`; `datetime` is a computed extra added by `DataSet`.
+    `hooks/generate_metadata_stubs.py`; `datetime` is a computed extra added by `DataSet`.
 
     Attributes:
         datetime (VariableMetadata): Metadata for the computed `datetime` variable.

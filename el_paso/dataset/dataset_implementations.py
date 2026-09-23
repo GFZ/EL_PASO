@@ -35,7 +35,7 @@ class GFZDataSet(DataSet):
 
     Attribute names and descriptions (other than `datetime`, `P`, `InvV`, which are computed by
     `DataSet`) are generated from `GFZStandard().variable_infos` by
-    `scripts/generate_metadata_stubs.py`.
+    `hooks/generate_metadata_stubs.py`.
 
     Attributes:
         datetime (list[dt.datetime]): List of datetime objects corresponding to each time step.
@@ -59,6 +59,8 @@ class GFZDataSet(DataSet):
         MLat (NDArray[np.float64]): Frequency of the power spectral density.
         PSD (NDArray[np.float64]): Calculated phase space density of particles.
         R0 (NDArray[np.float64]): Radial distance of the satellite location mapped to the equator.
+        alpha_dlc (NDArray[np.float64]): Drift loss cone size at the satellite location.
+        alpha_dlc_eq (NDArray[np.float64]): Drift loss cone size at the satellite location mapped to the equator.
         alpha_eq_model (NDArray[np.float64]): Calculated equatorial pitch angles of the particles.
         alpha_eq_range (NDArray[np.float64]): Equatorial pitch angle ranges of the particles.
         alpha_lc (NDArray[np.float64]): Local loss cone size at the satellite location.
@@ -103,6 +105,8 @@ class GFZDataSet(DataSet):
     MLat: NDArray[np.float64]
     PSD: NDArray[np.float64]
     R0: NDArray[np.float64]
+    alpha_dlc: NDArray[np.float64]
+    alpha_dlc_eq: NDArray[np.float64]
     alpha_eq_model: NDArray[np.float64]
     alpha_eq_range: NDArray[np.float64]
     alpha_lc: NDArray[np.float64]
@@ -185,7 +189,7 @@ class PRBEMDataSet(DataSet):
     adiabatic invariants.
 
     Attribute names and descriptions (other than `datetime`) are generated from
-    `PRBEMStandard().variable_infos` by `scripts/generate_metadata_stubs.py`.
+    `PRBEMStandard().variable_infos` by `hooks/generate_metadata_stubs.py`.
 
     Attributes:
         datetime (list[dt.datetime]): List of datetime objects corresponding to each time step.
