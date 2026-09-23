@@ -4,7 +4,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-# ruff: noqa: E402, I001
+import lazy_loader as lazy
 
 # useful custom IRBEM aliases
 IRBEM_SYSAXIS_GDZ = 0
@@ -22,32 +22,7 @@ _release_msg: str = ""
 exit_after_download: bool = False
 skip_download: bool = False
 
-from el_paso.release_mode import activate_release_mode, get_release_msg, is_in_release_mode
-from el_paso.variable import Variable
-from el_paso.saving_strategy import SavingStrategy
-from el_paso import physics, processing, saving_strategies, units, data_standards, utils, typing
-from el_paso.save import save
-from el_paso.processing import TimeBinMethod
-from el_paso.download import download
-from el_paso.download_omm import download_omm
-from el_paso.extract_variables_from_files import extract_variables_from_files, ExtractionInfo
-from el_paso.load_indices_solar_wind_parameters import load_indices_solar_wind_parameters
-from el_paso.logger import setup_logging
-from el_paso.cli.recipe_cli import build_recipe_command, run_recipe_cli
-from el_paso import cli
-from el_paso import dataset
-from el_paso.dataset import (
-    DataSet,
-    DatasetMetadata,
-    GFZDataSet,
-    GFZMetaData,
-    PRBEMDataSet,
-    PRBEMMetaData,
-)
-from el_paso import recipes
-
-__all__ = [
-    # Public constants
+_CONSTANTS = [
     "IRBEM_SYSAXIS_GDZ",
     "IRBEM_SYSAXIS_GEI",
     "IRBEM_SYSAXIS_GEO",
@@ -55,40 +30,58 @@ __all__ = [
     "IRBEM_SYSAXIS_GSM",
     "IRBEM_SYSAXIS_MAG",
     "IRBEM_SYSAXIS_SM",
-    "DataSet",
-    "DatasetMetadata",
-    "ExtractionInfo",
-    "GFZDataSet",
-    "GFZMetaData",
-    "PRBEMDataSet",
-    "PRBEMMetaData",
-    "SavingStrategy",
-    "TimeBinMethod",
-    "Variable",
-    "activate_release_mode",
-    "build_recipe_command",
-    "cli",
-    "data_standards",
-    "dataset",
-    "download",
-    "download_omm",
-    "extract_variables_from_files",
-    "get_release_msg",
-    "is_in_release_mode",
-    "load_indices_solar_wind_parameters",
-    "physics",
-    "processing",
-    "recipes",
-    "run_recipe_cli",
-    "save",
-    "saving_strategies",
-    "setup_logging",
-    "typing",
-    "units",
-    "utils",
+    "IRBEM_SYSAXIS_SPH",
 ]
 
-from el_paso.cache import cleanup_stale_cache as _cleanup_stale_cache
+# Submodules and their attributes are resolved on first access (SPEC 1), so that
+# `import el_paso` does not pay for astropy, scipy, swvo and friends up front.
+# Set EAGER_IMPORT=1 to turn this off and surface broken imports immediately.
+__getattr__, _lazy_dir, _lazy_all = lazy.attach(
+    __name__,
+    submodules=[
+        "cli",
+        "data_standards",
+        "dataset",
+        "physics",
+        "processing",
+        "recipes",
+        "saving_strategies",
+        "typing",
+        "units",
+        "utils",
+    ],
+    submod_attrs={
+        "cli.recipe_cli": ["build_recipe_command", "run_recipe_cli"],
+        "dataset": [
+            "DataSet",
+            "DatasetMetadata",
+            "GFZDataSet",
+            "GFZMetaData",
+            "PRBEMDataSet",
+            "PRBEMMetaData",
+        ],
+        "download": ["download"],
+        "download_omm": ["download_omm"],
+        "extract_variables_from_files": ["ExtractionInfo", "extract_variables_from_files"],
+        "load_indices_solar_wind_parameters": ["load_indices_solar_wind_parameters"],
+        "logger": ["setup_logging"],
+        "processing": ["TimeBinMethod"],
+        "release_mode": ["activate_release_mode", "get_release_msg", "is_in_release_mode"],
+        "save": ["save"],
+        "saving_strategy": ["SavingStrategy"],
+        "variable": ["Variable"],
+    },
+)
+
+__all__ = [*_CONSTANTS, *_lazy_all]  # noqa: PLE0604  (lazy_loader supplies the names)
+
+
+def __dir__() -> list[str]:
+    return sorted(__all__)
+
+
+# Kept eager: this runs on import by design, and pulls in nothing heavy.
+from el_paso.cache import cleanup_stale_cache as _cleanup_stale_cache  # noqa: E402
 
 _cleanup_stale_cache()
 

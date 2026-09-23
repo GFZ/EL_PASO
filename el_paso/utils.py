@@ -25,7 +25,6 @@ import pandas as pd
 import xarray as xr
 from mat73 import loadmat as mat73_loadmat
 from packaging import version as version_pkg
-from scipy.io.matlab import loadmat, savemat
 
 import el_paso as ep
 
@@ -512,6 +511,8 @@ def load_mat_data(file_path: Path) -> dict[StandardName, Any]:
         array values converted to plain Python scalars/lists (or ``""`` for
         empty arrays) for JSON/MATLAB-struct compatibility.
     """
+    from scipy.io.matlab import loadmat  # noqa: PLC0415
+
     try:
         loaded = mat73_loadmat(str(file_path))  # v7.3 / HDF5 files
     except TypeError:
@@ -577,6 +578,8 @@ def write_mat_file(file_path: Path, data_dict: DataDict, data_standard: DataStan
         data_standard (DataStandard): Used to resolve each internal name to its
             standard (canonical) name for the on-disk variable name.
     """
+    from scipy.io.matlab import savemat  # noqa: PLC0415
+
     mat_dict: dict[str, Any] = {}
     mat_metadata: dict[str, Any] = {}
 

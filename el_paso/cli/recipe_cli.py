@@ -51,7 +51,6 @@ from rich.table import Table
 # call time. This module is imported from `el_paso/__init__.py`, so binding the module
 # object here (rather than any of its attributes) keeps that import cycle safe.
 import el_paso as ep
-from el_paso.utils import enforce_utc_timezone
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -160,6 +159,10 @@ def parse_datetime(value: str | datetime) -> datetime:
     Returns:
         datetime: The parsed, timezone-aware datetime.
     """
+    # Local import: `el_paso.utils` pulls in pandas, xarray, h5py and
+    # netCDF4, which the CLI should not pay for just to parse a date.
+    from el_paso.utils import enforce_utc_timezone  # noqa: PLC0415
+
     if isinstance(value, datetime):
         return enforce_utc_timezone(value)
 
