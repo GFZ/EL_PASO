@@ -302,15 +302,15 @@ class Hashabledict(dict[Any, Any]):
     def __hash__(self) -> int:
         """Computes a hash value for the dictionary.
 
-        The hash is computed based on the frozensets of the dictionary's keys
-        and values. This ensures that two `Hashabledict` instances with the same
-        key-value pairs will have the same hash, regardless of the order of
-        insertion.
+        The hash is computed from the frozenset of the dictionary's key-value
+        pairs, so two `Hashabledict` instances with the same pairs have the
+        same hash regardless of the order of insertion. The values must
+        themselves be hashable.
 
         Returns:
             int: The hash value of the dictionary.
         """
-        return hash((frozenset(self), frozenset(self.itervalues())))  # ty:ignore[unresolved-attribute]
+        return hash(frozenset(self.items()))
 
 
 def make_dict_hashable(dict_input: dict[Any, Any] | None) -> Hashabledict | None:

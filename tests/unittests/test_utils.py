@@ -3,16 +3,21 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+import functools
 from datetime import datetime, timezone
 from pathlib import Path
 
+import numpy as np
 import pytest
+from astropy import units as u
 
+import el_paso as ep
 from el_paso.utils import (
     enforce_utc_timezone,
     extract_version,
     fill_str_template_with_time,
     get_file_by_version,
+    make_dict_hashable,
     timed_function,
 )
 
@@ -154,3 +159,30 @@ def test_timed_function_without_name() -> None:
         return a * b
 
     assert multiply(6, 7) == 42
+
+
+# ── make_dict_hashable ────────────────────────────────────────────────────────
+
+
+@pytest.mark.basic
+def test_make_dict_hashable_can_be_hashed() -> None:
+    assert hash(make_dict_hashable({"a": 1, "b": 2})) == hash(make_dict_hashable({"b": 2, "a": 1}))
+
+
+@pytest.mark.basic
+def test_make_dict_hashable_with_variables_works_as_cache_key() -> None:
+    # This is how compute_magnetic_field_variables hands indices_solar_wind to the functools.cache
+    # on construct_maginput.
+    calls: list[int] = []
+
+    @functools.cache
+    def cached_len(indices: dict[str, ep.Variable]) -> int:
+        calls.append(1)
+        return len(indices)
+
+    kp = ep.Variable(data=np.array([1.0, 2.0]), original_unit=u.dimensionless_unscaled)
+    indices = make_dict_hashable({"Kp": kp})
+
+    assert cached_len(indices) == 1
+    assert cached_len(indices) == 1
+    assert len(calls) == 1
