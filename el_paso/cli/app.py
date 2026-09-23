@@ -24,12 +24,13 @@ import ast
 import functools
 import importlib
 import pathlib
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
-import click
 import typer
 from rich.console import Console
 from rich.table import Table
+from typer.core import TyperGroup
+from typer.models import DeveloperExceptionConfig
 
 import el_paso
 from el_paso.cli.recipe_cli import build_recipe_command
@@ -160,19 +161,24 @@ def _summary(entry: RecipeEntry) -> str:
     return _summary_from_source(entry.module, entry.function)
 
 
-def _as_click_command(name: str, recipe: Recipe, defaults: dict[str, object]) -> click.Command:
-    """Build the Typer command for one recipe and return it as a click command."""
-    built = typer.Typer()
-    built.command(name=name, no_args_is_help=True)(build_recipe_command(recipe, defaults=defaults))
+def _single_command_from_typer_app(name: str, built: typer.Typer) -> typer._click.Command:
+    """Convert a single-command Typer app into its underlying click-compatible command."""
     command = typer.main.get_command(built)
     # Typer collapses a single-command app into a plain Command rather than a Group.
-    if isinstance(command, click.Group):
+    if isinstance(command, TyperGroup):
         command = command.commands[name]
     command.name = name
     return command
 
 
-class LazyRecipeGroup(click.Group):
+def _as_click_command(name: str, recipe: Recipe, defaults: dict[str, object]) -> typer._click.Command:
+    """Build the Typer command for one recipe."""
+    built = typer.Typer(add_completion=False)
+    built.command(name=name, no_args_is_help=True)(build_recipe_command(recipe, defaults=defaults))
+    return _single_command_from_typer_app(name, built)
+
+
+class LazyRecipeGroup(TyperGroup):
     """A mission group that imports a recipe only once it is actually used.
 
     Building a recipe's command requires its signature, and therefore its import.
@@ -180,16 +186,16 @@ class LazyRecipeGroup(click.Group):
     demand instead.
     """
 
-    def __init__(self, entries: tuple[RecipeEntry, ...], **kwargs: object) -> None:
+    def __init__(self, entries: tuple[RecipeEntry, ...], **kwargs: Any) -> None:  # noqa: ANN401
         """Store the registry entries this group exposes."""
         super().__init__(**kwargs)
         self._entries = {entry.command: entry for entry in entries}
 
-    def list_commands(self, ctx: click.Context) -> list[str]:  # noqa: ARG002
+    def list_commands(self, ctx: typer._click.Context) -> list[str]:  # noqa: ARG002
         """Return the command names, without importing any recipe."""
         return sorted(self._entries)
 
-    def get_command(self, ctx: click.Context, cmd_name: str) -> click.Command | None:  # noqa: ARG002
+    def get_command(self, ctx: typer._click.Context, cmd_name: str) -> typer._click.Command | None:  # noqa: ARG002
         """Build one recipe's command, importing exactly that recipe."""
         entry = self._entries.get(cmd_name)
         if entry is None:
@@ -197,7 +203,7 @@ class LazyRecipeGroup(click.Group):
         recipe, defaults = load_recipe(entry)
         return _as_click_command(cmd_name, recipe, defaults)
 
-    def format_commands(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
+    def format_commands(self, ctx: typer._click.Context, formatter: typer._click.HelpFormatter) -> None:
         """Render the command list from source summaries.
 
         click's own implementation calls `get_command` for every sub-command just
@@ -209,20 +215,20 @@ class LazyRecipeGroup(click.Group):
                 formatter.write_dl(rows)
 
 
-class _RootGroup(click.Group):
+class _RootGroup(TyperGroup):
     """The top-level group, which also defers building the ``omm`` command."""
 
-    def get_command(self, ctx: click.Context, cmd_name: str) -> click.Command | None:
+    def get_command(self, ctx: typer._click.Context, cmd_name: str) -> typer._click.Command | None:
         """Return a sub-command, building ``omm`` on demand."""
         if cmd_name == "omm":
-            return _as_click_command("omm", el_paso.download_omm, {})
+            return _as_click_command("omm", el_paso.download_omm, {})  # ty: ignore[invalid-argument-type]
         return super().get_command(ctx, cmd_name)
 
-    def list_commands(self, ctx: click.Context) -> list[str]:
+    def list_commands(self, ctx: typer._click.Context) -> list[str]:
         """Return all sub-command names, including the deferred ``omm``."""
         return sorted({*super().list_commands(ctx), "omm"})
 
-    def format_commands(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
+    def format_commands(self, ctx: typer._click.Context, formatter: typer._click.HelpFormatter) -> None:
         """Render the command list without building the ``omm`` command.
 
         As in `LazyRecipeGroup`, click's own implementation would call
@@ -241,14 +247,14 @@ class _RootGroup(click.Group):
                 formatter.write_dl(rows)
 
 
-@click.group(
-    cls=_RootGroup,
+app = _RootGroup(
     name="el-paso",
+    help="Download, process and save satellite particle observation data.",
     no_args_is_help=True,
     context_settings={"help_option_names": ["-h", "--help"]},
 )
-def app() -> None:
-    """Download, process and save satellite particle observation data."""
+
+app.params.extend(typer.main.get_install_completion_arguments())
 
 
 for _mission in sorted({entry.mission for entry in RECIPES}):
@@ -262,7 +268,6 @@ for _mission in sorted({entry.mission for entry in RECIPES}):
     )
 
 
-@app.command("list")
 def list_recipes() -> None:
     """List every available recipe."""
     table = Table(title="EL-PASO recipes")
@@ -276,18 +281,27 @@ def list_recipes() -> None:
     Console().print(table)
 
 
+_list_app = typer.Typer(add_completion=False)
+_list_app.command(name="list")(list_recipes)
+app.add_command(_single_command_from_typer_app("list", _list_app))
+
+
 def main() -> None:
     """Run the ``el-paso`` command line application."""
     try:
         app()
-    except typer.Abort:
-        # Typer's control-flow exceptions are plain RuntimeErrors rather than
-        # click exceptions, so click's standalone handler lets them escape. The
-        # recipe commands are Typer-built, so they raise these, not click's.
-        click.echo("Aborted.", err=True)
+    except Exception as exc:  # noqa: BLE001
+        setattr(
+            exc,
+            typer.main._typer_developer_exception_attr_name,
+            DeveloperExceptionConfig(
+                pretty_exceptions_enable=True,
+                pretty_exceptions_show_locals=False,
+                pretty_exceptions_short=True,
+            ),
+        )
+        typer.main.except_hook(type(exc), exc, exc.__traceback__)
         raise SystemExit(1) from None
-    except typer.Exit as exit_signal:
-        raise SystemExit(exit_signal.exit_code) from None
 
 
 if __name__ == "__main__":
