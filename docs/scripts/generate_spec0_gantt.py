@@ -44,7 +44,7 @@ CACHE_FILE = REPO_ROOT / ".cache" / "spec0_releases.json"
 
 PYTHON_SUPPORT_MONTHS = 36
 CORE_PACKAGE_SUPPORT_MONTHS = 24
-RELEASE_LOOKBACK_YEARS = 3
+RELEASE_LOOKBACK_YEARS = 5
 
 
 CORE_PACKAGES = ["numpy", "scipy", "matplotlib", "pandas", "xarray"]
