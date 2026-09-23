@@ -322,25 +322,32 @@ def get_magequator(xgeo_var: ep.Variable, time_var: ep.Variable, irbem_input: Ir
     }
 
 
-def _get_footpoint_atmosphere_parallel(it: int) -> NDArray[np.float64]:
+def _get_footpoint_atmosphere_parallel(it: int) -> float:
     context = _get_worker_context()
 
-    footpoint_output = context.model.find_foot_point(
-        context.datetimes[it], context.position_at(it), context.maginput_at(it), stop_alt=100, hemi_flag=0
+    # A particle is lost if it mirrors below 100 km in EITHER hemisphere, so the loss cone is set by the weaker of
+    # the two foot point fields. fmin skips a hemisphere whose foot point could not be found (NaN).
+    b_north, b_south = (
+        context.model.find_foot_point(
+            context.datetimes[it], context.position_at(it), context.maginput_at(it), stop_alt=100, hemi_flag=hemi
+        ).b_foot_mag
+        for hemi in (1, -1)
     )
 
-    return np.asarray(footpoint_output.b_foot_mag)
+    return float(np.fmin(b_north, b_south))
 
 
 @timed_function()
 def get_footpoint_atmosphere(
     xgeo_var: ep.Variable, time_var: ep.Variable, irbem_input: IrbemInput
 ) -> dict[str, ep.Variable]:
-    """Calculates the magnetic field strength at the atmospheric foot point.
+    """Calculates the magnetic field strength at the weaker of the two atmospheric foot points.
 
-    This function uses parallel processing to calculate the magnetic field strength
-    at the atmospheric foot point (100 km altitude) for each satellite position.
-    It returns the result as a dictionary of `el_paso.Variable`.
+    The field line through each satellite position is traced to 100 km altitude in both hemispheres,
+    and the smaller of the two foot point field strengths is returned. That is the one that sets the
+    bounce loss cone: a particle is lost if it mirrors below 100 km in either hemisphere, and it
+    reaches lower in the hemisphere with the weaker field. The calculation runs in parallel and
+    returns the result as a dictionary of `el_paso.Variable`.
 
     Args:
         xgeo_var (ep.Variable): The variable containing satellite position data in GEO coordinates.
@@ -381,8 +388,8 @@ def get_footpoint_atmosphere(
 
     var = ep.Variable(data=B_foot.astype(np.float64), original_unit=u.nT)
     var.metadata.add_processing_note(
-        f"Calculated foot point at the atmosphere using IRBEM model {irbem_input.magnetic_field} "
-        f"with options {irbem_input.irbem_options}."
+        "Calculated the weaker of the two foot point fields at 100 km altitude using IRBEM model "
+        f"{irbem_input.magnetic_field} with options {irbem_input.irbem_options}."
     )
 
     return {create_var_name("B_fofl", irbem_input.magnetic_field): var}
@@ -418,10 +425,9 @@ def get_drift_loss_cone(
     if it survives the local bounce. Above it, the particle is stably trapped. The result does not
     depend on species or energy, and it is symmetric about 90 degrees.
 
-    The search is bounded from below by the bounce loss cone of the WEAKER of the two foot points,
-    whereas `B_fofl`, and with it `Alpha_LC`, uses the foot point in the spacecraft's own hemisphere.
-    `Alpha_DLC` is therefore never smaller than `Alpha_LC`, but the band between the two also holds
-    particles that are lost at the conjugate foot point within a bounce.
+    The search is bounded from below by the bounce loss cone, set by the weaker of the two foot points
+    - the same one `B_fofl`, and with it `Alpha_LC`, uses. `Alpha_DLC` is therefore never smaller than
+    `Alpha_LC`, and equals it where the local field line is already the weakest on its drift shell.
 
     This costs about a dozen drift shell traces per time step, roughly a second each, which is spread
     over `irbem_input.num_cores` processes. `irbem_input.irbem_options.drift_shell_resolution` sets how

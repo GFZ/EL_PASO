@@ -562,7 +562,8 @@ def _get_eq_loss_cone_angle(
     B_fofl = computed_vars[B_fofl_name].get_data(u.nT).astype(np.float64)
     B_eq = computed_vars[B_eq_name].get_data(u.nT).astype(np.float64)
 
-    pa_lc_eq = np.asin(np.sqrt(B_eq / B_fofl))
+    # B_eq is the minimum along the field line, so the ratio cannot exceed 1 beyond round-off
+    pa_lc_eq = np.asin(np.sqrt(np.clip(B_eq / B_fofl, 0, 1)))
 
     pa_lc_eq_name = mag_utils.create_var_name("Alpha_LC_Eq", irbem_input.magnetic_field)
     computed_vars[pa_lc_eq_name] = ep.Variable(data=pa_lc_eq, original_unit=u.rad)
@@ -591,7 +592,10 @@ def _get_local_loss_cone_angle(
     B_fofl = computed_vars[B_fofl_name].get_data(u.nT).astype(np.float64)
     B_local = computed_vars[B_local_name].get_data(u.nT).astype(np.float64)
 
-    pa_lc_local = np.asin(np.sqrt(B_local / B_fofl))
+    # Where the weaker foot point field is below the local field, as on field lines whose other end lies
+    # in the South Atlantic Anomaly, every particle seen here reaches below 100 km at that end: the whole
+    # distribution is inside the loss cone, i.e. 90 degrees.
+    pa_lc_local = np.asin(np.sqrt(np.clip(B_local / B_fofl, 0, 1)))
 
     pa_lc_local_name = mag_utils.create_var_name("Alpha_LC", irbem_input.magnetic_field)
     computed_vars[pa_lc_local_name] = ep.Variable(data=pa_lc_local, original_unit=u.rad)

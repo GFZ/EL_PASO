@@ -165,7 +165,9 @@ def test_drift_loss_cone_in_igrf():
     # observable distribution is stably trapped. Away from it, all of it drifts into the anomaly and is lost.
     assert (dlc[:2] < 80).all()
     np.testing.assert_allclose(dlc[2:], 90)
-    assert (dlc_eq[2:] - lc_eq[2:] > 0.5).all()
+    # There, a quasi-trapped band separates the two cones: at least 0.2 deg wide at these points, which is well
+    # clear of the +-0.05 deg the bisection resolves the drift loss cone to.
+    assert (dlc_eq[2:] - lc_eq[2:] > 0.2).all()
 
 
 @pytest.mark.basic
@@ -201,3 +203,35 @@ def test_lm_keeps_magnitude_of_flagged_values():
     )
 
     np.testing.assert_allclose(out["L_m_Dip"].get_data()[:, 0], np.abs(raw_lm))
+
+
+@pytest.mark.basic
+def test_loss_cone_uses_weaker_foot_point():
+    # A particle is lost if it mirrors below 100 km in either hemisphere, so Alpha_LC is set by the weaker of the two
+    # foot point fields. IRBEM's drift_loss_cone computes the same bounce loss cone independently, in Fortran.
+    # The first two points lie on field lines whose southern end is in the South Atlantic Anomaly, where the weaker
+    # foot point field is below the local one and the whole locally observed distribution is inside the loss cone.
+    time_var, xgeo_var = _leo_request([(20, -60), (40, -60), (55, 100), (-40, -20), (-55, 150)])
+    irbem_options = ep.processing.magnetic_field_utils.IrbemOptions(drift_shell_resolution=1)
+
+    out = ep.processing.compute_magnetic_field_variables(
+        time_var,
+        xgeo_var,
+        [("Alpha_LC", "Dip"), ("Alpha_LC_Eq", "Dip")],
+        irbem_options,
+        num_cores=4,
+        cache_dir=None,
+    )
+
+    x_geo = xgeo_var.get_data(ep.units.RE)
+    reference = ep.processing.magnetic_field_utils.irbem.MagFields(
+        kext=0, sysaxes=ep.IRBEM_SYSAXIS_GEO, options=irbem_options
+    ).drift_loss_cone(
+        [datetime.fromtimestamp(t, tz=timezone.utc) for t in time_var.get_data(ep.units.posixtime)],
+        {"x1": x_geo[:, 0], "x2": x_geo[:, 1], "x3": x_geo[:, 2]},
+        {"Kp": np.zeros(len(x_geo))},
+    )
+
+    np.testing.assert_allclose(out["Alpha_LC_Dip"].get_data(u.deg), reference.alpha_blc_loc, rtol=0, atol=1e-4)
+    np.testing.assert_allclose(out["Alpha_LC_Eq_Dip"].get_data(u.deg), reference.alpha_blc_eq, rtol=0, atol=1e-4)
+    np.testing.assert_allclose(out["Alpha_LC_Dip"].get_data(u.deg)[:2], 90)
