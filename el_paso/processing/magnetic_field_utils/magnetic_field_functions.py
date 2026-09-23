@@ -300,9 +300,6 @@ def get_magequator(xgeo_var: ep.Variable, time_var: ep.Variable, irbem_input: Ir
         B_eq[i] = results[i][0]
         x_geo_min[i] = results[i][1]
 
-    B_eq[B_eq == FORTRAN_BAD_VALUE] = np.nan
-    x_geo_min[x_geo_min == FORTRAN_BAD_VALUE] = np.nan
-
     B_eq_var = ep.Variable(data=B_eq.astype(np.float64), original_unit=u.nT)
     B_eq_var.metadata.add_processing_note(
         f"Calculated magnetic field at the equator using IRBEM model {irbem_input.magnetic_field} "
@@ -408,8 +405,6 @@ def get_footpoint_atmosphere(
 
     for i in range(len(datetimes)):
         B_foot[i] = results[i]
-
-    B_foot[B_foot == FORTRAN_BAD_VALUE] = np.nan
 
     var = ep.Variable(data=B_foot.astype(np.float64), original_unit=u.nT)
     var.metadata.add_processing_note(
@@ -609,8 +604,6 @@ def get_local_B_field(xgeo_var: ep.Variable, time_var: ep.Variable, irbem_input:
     datetimes = [datetime.fromtimestamp(t, tz=timezone.utc) for t in timestamps]
     sysaxes = ep.IRBEM_SYSAXIS_GEO
 
-    # Define Fortran bad value as a float
-    fortran_bad_value = np.float64(-1.0e31)
     # Ensure x_geo and maginput are floating-point arrays
     x_geo = x_geo.astype(np.float64)
     for key in irbem_input.maginput:
@@ -642,10 +635,6 @@ def get_local_B_field(xgeo_var: ep.Variable, time_var: ep.Variable, irbem_input:
 
     field_multi_output = model.get_field_multi(datetimes, x_dict, irbem_input.maginput)
 
-    # replace bad values with nan
-    field_multi_output.bgeo[field_multi_output.bgeo == fortran_bad_value] = np.nan
-    field_multi_output.blocal[field_multi_output.blocal == fortran_bad_value] = np.nan
-
     b_local_var = ep.Variable(data=field_multi_output.blocal, original_unit=u.nT)
     return {create_var_name("B_Calc", irbem_input.magnetic_field): b_local_var}
 
@@ -657,14 +646,14 @@ def _get_mirror_point_parallel(it: int) -> NDArray[np.float64]:
     maginput = context.maginput_at(it)
     pitch_angles = context.pitch_angles_at(it)
 
-    bmin_output = np.empty_like(pitch_angles)
+    bmirr_output = np.empty_like(pitch_angles)
 
     for i, pa in enumerate(pitch_angles):
-        bmin_output[i] = context.model.find_mirror_point(
+        bmirr_output[i] = context.model.find_mirror_point(
             context.datetimes[it], x_dict_single, maginput, float(pa)
         ).bmirr
 
-    return bmin_output.astype(np.float64)
+    return bmirr_output.astype(np.float64)
 
 
 @timed_function()
@@ -729,9 +718,6 @@ def get_mirror_point(
 
     for i in range(len(datetimes)):
         mirror_point_output[i, :] = results[i]
-
-    # replace bad values with nan
-    mirror_point_output[mirror_point_output < 0] = np.nan
 
     var = ep.Variable(data=mirror_point_output.astype(np.float64), original_unit=u.nT)
     var.metadata.add_processing_note(
@@ -841,11 +827,10 @@ def get_Lstar(
 
     # IRBEM negates Lm (and L*) when the mirror point is in the loss cone, i.e. the particle cannot
     # bounce, but the absolute value still names the drift shell concerned. For Lm that magnitude is
-    # kept, and only the baddata sentinel (open drift shell) means there is no value.
-    Lm[Lm == FORTRAN_BAD_VALUE] = np.nan
+    # kept; the wrapper has already turned the baddata sentinel (open drift shell) into NaN.
     np.abs(Lm, out=Lm)
 
-    # replace bad values with nan
+    # for L* and I, a negative value is not kept
     for arr in [Lstar, xj]:
         arr[arr < 0] = np.nan
 
