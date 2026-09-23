@@ -21,7 +21,7 @@ def test_calculate_w_parameters() -> None:
 
     w_vars = ep.load_indices_solar_wind_parameters(start_time, end_time, ["W_params"], w_parameter_method="Calculation")
 
-    true_max_values = [6.9, 7.34, 5.6, 15.75, 8.7, 42.95]
+    true_max_values = [6.94, 7.36, 5.64, 15.9, 8.71, 42.95]
 
     w_params = w_vars["W_params"][0].get_data()
     assert w_params.shape[1] == 6

@@ -69,6 +69,7 @@ RECIPES: tuple[RecipeEntry, ...] = (
     RecipeEntry("goes", "mps-high", "el_paso.recipes.goes.process_goes_r_mps_high", "process_goes_r_mps_high"),
     RecipeEntry("goes", "realtime", "el_paso.recipes.goes.process_goes_realtime", "process_goes_real_time"),
     RecipeEntry("gps", "cxd", "el_paso.recipes.gps.process_gps", "process_gps_data"),
+    RecipeEntry("model", "lcds", "el_paso.recipes.model.process_lcds", "compute_lcds"),
     RecipeEntry("poes", "meped", "el_paso.recipes.poes.process_poes_meped", "process_poes_meped_electron"),
     RecipeEntry("poes", "ted", "el_paso.recipes.poes.process_poes_ted", "process_poes_ted_electron"),
     RecipeEntry(

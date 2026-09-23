@@ -185,4 +185,7 @@ class GFZStandard(DataStandard[GFZVarNames]):
             "Magnetic_Power_Spectral_Density": VariableInfo[GFZVarNames](
                 "BB", "Frequency of the power spectral density.", u.dimensionless_unscaled, ["Epoch", "Wave_frequency"]
             ),
+            "LCDS": VariableInfo[GFZVarNames](
+                "LCDS", "Last Closed Drift Shell.", u.dimensionless_unscaled, ["Epoch", "Alpha"]
+            ),
         }

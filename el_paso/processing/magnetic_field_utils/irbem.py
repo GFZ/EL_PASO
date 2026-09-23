@@ -13,6 +13,7 @@ import shutil
 import sys
 import typing
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from datetime import datetime
 from enum import IntEnum
 from pathlib import Path
@@ -72,6 +73,7 @@ EXT_MODELS = [
 ]
 
 DEFAULT_LIBIRBEM_PATH = Path(ep.__file__).parent / "libirbem.so"
+FORTRAN_BAD_VALUE = np.float64(-1.0e31)
 
 logger = logging.getLogger(__name__)
 
@@ -209,8 +211,25 @@ class FindMirrorPointOutput(NamedTuple):
     """
 
     blocal: float
-    bmin: float
+    bmirr: float
     posit: NDArray[np.float64]
+
+
+class LCDSResult(NamedTuple):
+    """Per-pitch-angle LCDS for one time step.
+
+    Attributes:
+        lcds: (n_pa,) L* of the last closed drift shell per pitch angle; NaN if not found.
+        found: (n_pa,) whether a closed shell was located for that pitch angle.
+        at_ceiling: (n_pa,) True where the shell was still closed at max_r (lower bound).
+        x_sm: shared single-min boundary radius (RE), for warm-starting the next step.
+    """
+
+    lcds: NDArray[np.float64]
+    inv_k: NDArray[np.float64]
+    found: NDArray[np.bool_]
+    at_ceiling: NDArray[np.bool_]
+    x_sm: float
 
 
 class LstarQuantity(IntEnum):
@@ -271,6 +290,29 @@ class IrbemOptions(NamedTuple):
     field_line_resolution: int = 4
     drift_shell_resolution: int = 4
     internal_field_model: InternalFieldModel = InternalFieldModel.IGRF
+
+
+@dataclass
+class LCDSSearchParams:
+    """Tunable parameters controlling the LCDS radial search.
+
+    Attributes:
+        max_r: Outer ceiling for the search, in RE. A shell still closed at this radius is
+            reported as a censored lower bound (see ``LCDSResult.at_ceiling``).
+        coarse_step: Radial step size (RE) for pass 1, the coarse inward march.
+        medium_step: Radial step size (RE) for pass 2, the medium outward march.
+        fine_step: Radial step size (RE) for pass 3, the fine outward refinement; this sets
+            the resolution to which the boundary is located.
+        trace_r0: Field-line trace stop radius in RE.
+        start_r: Starting distance of the search.
+    """
+
+    max_r: float = 10
+    coarse_step: float = 1
+    medium_step: float = 0.5
+    fine_step: float = 0.1
+    trace_r0: float = 0.8
+    start_r: float = 10
 
 
 class MagFields:
@@ -408,7 +450,9 @@ class MagFields:
     def make_lstar_shell_splitting(
         self,
         time: Sequence[datetime | str] | datetime | str,
-        position: Mapping[Literal["x1", "x2", "x3"], Sequence[np.floating] | NDArray[np.floating] | np.floating],
+        position: Mapping[
+            Literal["x1", "x2", "x3"], Sequence[np.floating] | NDArray[np.floating] | np.floating | float
+        ],
         maginput: Mapping[MagInputKeys, NDArray[np.number] | list[np.number] | np.number],
         alpha: Sequence[np.floating] | NDArray[np.floating] | np.floating,
     ) -> MakeLstarShellSplittingOutput:
@@ -571,7 +615,7 @@ class MagFields:
         logger.debug("Running IRBEM-LIB find_mirror_point for multiple time steps and pitch angles")
 
         c_blocal = ctypes.c_double(-9999)
-        c_bmin = ctypes.c_double(-9999)
+        c_bmirr = ctypes.c_double(-9999)
         c_posit = (3 * ctypes.c_double)()
 
         self._irbem_obj.find_mirror_point1_(
@@ -587,13 +631,13 @@ class MagFields:
             ctypes.byref(c_alpha),
             ctypes.byref(c_maginput),
             ctypes.byref(c_blocal),
-            ctypes.byref(c_bmin),
+            ctypes.byref(c_bmirr),
             ctypes.byref(c_posit),
         )
 
         return FindMirrorPointOutput(
             blocal=c_blocal.value,
-            bmin=c_bmin.value,
+            bmirr=c_bmirr.value,
             posit=np.array(c_posit),
         )
 
@@ -659,7 +703,7 @@ class MagFields:
     def trace_field_line(
         self,
         time: datetime | str | pd.Timestamp,
-        position: Mapping[Literal["x1", "x2", "x3"], np.floating],
+        position: Mapping[Literal["x1", "x2", "x3"], np.floating | float],
         maginput: Mapping[MagInputKeys, NDArray[np.number] | list[np.number] | np.number],
         r0: float = 1,
     ) -> TraceFieldLineOutput:
@@ -718,7 +762,7 @@ class MagFields:
     def find_magequator(
         self,
         time: datetime | str | pd.Timestamp,
-        position: Mapping[Literal["x1", "x2", "x3"], np.floating],
+        position: Mapping[Literal["x1", "x2", "x3"], np.floating | float],
         maginput: Mapping[MagInputKeys, NDArray[np.number] | list[np.number] | np.number],
     ) -> FindMagEquatorOutput:
         """Finds the magnetic equator for a given magnetic field line.
@@ -836,10 +880,42 @@ class MagFields:
 
         return c_mlt.value
 
+    def get_lcds(
+        self,
+        time: datetime | str | pd.Timestamp,
+        alpha_eq_deg: NDArray[np.floating],
+        maginput: Mapping[MagInputKeys, NDArray[np.number] | list[np.number] | np.number],
+        search_params: LCDSSearchParams | None = None,
+    ) -> LCDSResult:
+        """Computes the LCDS (max closed L*) for one time and a vector of equatorial pitch angles.
+
+        Args:
+            time: Epoch (datetime, ISO string, or pandas Timestamp).
+            alpha_eq_deg: Equatorial pitch angles in degrees (the LCDS is pitch-angle specific).
+            maginput: Scalar magnetic-field-model inputs keyed by IRBEM name (e.g. ``{"Kp": 3.0}``).
+            search_params: Settings of the radial search: its ceiling, its step sizes, the trace
+                stop radius, and the radius the coarse march starts at. Passing the previous time
+                step's ``x_sm`` as ``start_r`` warm-starts the search. Defaults to None, which
+                uses the settings of Kellerman's LCDS2 routine.
+
+        Returns:
+            LCDSResult with the L* of the last closed drift shell (check ``at_ceiling``).
+        """
+        if search_params is None:
+            search_params = LCDSSearchParams(
+                max_r=10,
+                coarse_step=1,
+                medium_step=0.5,
+                fine_step=0.1,
+                trace_r0=0.8,
+                start_r=10,
+            )
+        return _lcds_search(self, time, alpha_eq_deg, maginput, search_params)
+
     def _prep_time_pos(
         self,
         time: datetime | str | pd.Timestamp,
-        position: Mapping[Literal["x1", "x2", "x3"], np.floating],
+        position: Mapping[Literal["x1", "x2", "x3"], np.floating | float],
     ) -> tuple[ctypes.c_int, ctypes.c_int, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double]:
         logger.debug("Prepping time and space input variables")
 
@@ -869,7 +945,9 @@ class MagFields:
     def _prep_time_pos_array(
         self,
         time: Sequence[datetime | str | pd.Timestamp] | NDArray[np.generic] | datetime | str | pd.Timestamp,
-        position: Mapping[Literal["x1", "x2", "x3"], Sequence[np.floating] | NDArray[np.floating] | np.floating],
+        position: Mapping[
+            Literal["x1", "x2", "x3"], Sequence[np.floating] | NDArray[np.floating] | np.floating | float
+        ],
     ) -> tuple[
         ctypes.c_int,
         ctypes.Array[ctypes.c_int],
@@ -1139,3 +1217,162 @@ def _load_shared_object(path: Path | None = None) -> tuple[Path, ctypes.CDLL]:
         raise
 
     return path, irbem_obj
+
+
+def _count_field_minima(blocal: NDArray[np.floating]) -> int:
+    """Count strict local minima of |B| sampled along a traced field line.
+
+    A clean, dipole-like field line has exactly one minimum (the magnetic equator);
+    ``== 1`` doubles as a "shell is still closed / well behaved" test.
+    """
+    b = np.asarray(blocal, dtype=np.float64)
+    if b.size < 3:
+        return 0
+    interior = b[1:-1]
+    is_min = (interior < b[:-2]) & (interior < b[2:])
+    return int(np.count_nonzero(is_min))
+
+
+def _lcds_search(
+    mag: MagFields,
+    time: datetime | str | pd.Timestamp,
+    alpha_eq_deg: NDArray[np.floating],
+    maginput: Mapping[MagInputKeys, NDArray[np.number] | list[np.number] | np.number],
+    search: LCDSSearchParams,
+) -> LCDSResult:
+    """Run the LCDS search for a whole vector of equatorial pitch angles at once.
+
+    The cheap single-|B|-minimum passes (1-2.5) are pitch-angle independent, so they run
+    ONCE and locate a shared boundary. The expensive drift-shell L* test (pass 3) is then
+    evaluated for all pitch angles together via a single array call per probed radius.
+
+    Args:
+        mag: Pre-built IRBEM handle (SM sysaxes).
+        time: Epoch of the calculation.
+        alpha_eq_deg: 1-D array of equatorial pitch angles in degrees.
+        maginput: Magnetic-field-model inputs for this time step.
+        search: Radial-search settings.
+
+    Returns:
+        LCDSResult with per-pitch-angle L* / found / at_ceiling and the shared boundary.
+    """
+    alpha = np.asarray(alpha_eq_deg, dtype=np.float64).reshape(-1)
+    n_pa = alpha.size
+
+    coords = Coords(lib_path=mag.irbem_obj_path)  # build once; reused by the L* test
+
+    def _sm_pos(x_sm: float) -> dict[Literal["x1", "x2", "x3"], np.float64]:
+        return {"x1": np.float64(x_sm), "x2": np.float64(0.0), "x3": np.float64(0.0)}
+
+    def single_min(x_sm: float) -> bool:
+        """Cheap, pitch-angle-independent closure proxy: one |B| minimum (one trace)."""
+        trace = mag.trace_field_line(time, _sm_pos(x_sm), maginput, r0=search.trace_r0)
+        return _count_field_minima(trace.blocal) == 1
+
+    def calc_lstar_and_inv_k(x_sm: float, alpha: float) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+        """Real L* for ALL pitch angles at x_sm via one drift-shell array call.
+
+        Returns an (n_pa,) array; entries <= 0 are open/invalid for that pitch angle.
+        """
+        trace = mag.trace_field_line(time, _sm_pos(x_sm), maginput, r0=search.trace_r0)
+        if _count_field_minima(trace.blocal) != 1:
+            return np.full(n_pa, -1.0), np.full(n_pa, -1.0)
+
+        equator = mag.find_magequator(time, _sm_pos(x_sm), maginput)  # GEO; shared by all alpha
+        if not np.all(np.isfinite(equator.xgeo)) or np.any(equator.xgeo <= FORTRAN_BAD_VALUE):
+            return np.full(n_pa, -1.0), np.full(n_pa, -1.0)
+
+        equator_sm = coords.transform(time, equator.xgeo, ep.IRBEM_SYSAXIS_GEO, ep.IRBEM_SYSAXIS_SM)
+        equator_sm_pos: dict[Literal["x1", "x2", "x3"], np.float64] = {
+            "x1": equator_sm[0, 0],
+            "x2": equator_sm[0, 1],
+            "x3": equator_sm[0, 2],
+        }
+
+        lstar_res = mag.make_lstar_shell_splitting(time, equator_sm_pos, maginput, np.array([alpha]))
+        b_mirr_nT = mag.find_mirror_point(time, equator_sm_pos, maginput, alpha)
+        b_mirr_G = b_mirr_nT.bmirr / 1e5
+
+        inv_k = np.sqrt(b_mirr_G) * lstar_res.xj
+
+        return lstar_res.lstar.reshape(-1), inv_k.reshape(-1)
+
+    max_r = search.max_r
+    coarse_step = search.coarse_step
+    medium_step = search.medium_step
+    fine_step = search.fine_step
+    start = min(search.start_r, max_r)
+    max_itx = max(1, int(max_r / coarse_step - 1))
+    inner_floor = 1.0
+
+    not_found = LCDSResult(
+        lcds=np.full(n_pa, np.nan),
+        inv_k=np.full(n_pa, np.nan),
+        found=np.zeros(n_pa, dtype=bool),
+        at_ceiling=np.zeros(n_pa, dtype=bool),
+        x_sm=np.nan,
+    )
+
+    # --- Pass 1: coarse single-min march (shared); direction set by the start point. ---
+    closed = single_min(start)
+
+    if not closed:
+        # OPEN start: march INWARD to the first (outermost) single-min shell.
+        x_anchor = -1.0
+        itx = 0
+        while itx <= max_itx:
+            x_sm = start - coarse_step * itx
+            if x_sm <= 0:
+                break
+            if single_min(x_sm):
+                x_anchor = x_sm
+                break
+            itx += 1
+        if x_anchor < 0:
+            return not_found
+    else:
+        # CLOSED start: march OUTWARD, keeping the last single-min shell before it opens.
+        # If single-min holds to the ceiling, x_anchor == max_r and pass 3 censors below.
+        x_anchor = start
+        x_sm = start
+        while closed and x_sm < max_r:
+            x_sm = min(x_sm + coarse_step, max_r)
+            closed = single_min(x_sm)
+            if closed:
+                x_anchor = x_sm
+
+    # --- Pass 2: medium single-min refinement (shared). ---
+    itx = 1
+    while itx <= max_itx and x_anchor + medium_step < max_r and single_min(x_anchor + medium_step):
+        x_anchor += medium_step
+        itx += 1
+
+    # --- Pass 2.5: fine single-min refinement (shared, traces only). ---
+    while x_anchor + fine_step < max_r and single_min(x_anchor + fine_step):
+        x_anchor += fine_step
+    # x_anchor is the shared outermost single-min point at fine resolution.
+
+    # --- Pass 3: real L* test for all pitch angles, sharing each probe's array call. ---
+    # Every pitch angle's L* boundary is at or inside x_anchor. March inward; the first
+    # probe (largest x) where a given angle's shell is closed is its outermost boundary.
+    # Closure is monotone going in, so `found` only grows -> stop once all angles resolve.
+    lcds = np.full(n_pa, np.nan)
+    x_at = np.full(n_pa, np.nan)
+    inv_k = np.full(n_pa, np.nan)
+    found = np.zeros(n_pa, dtype=bool)
+
+    for ipa, alpha_single in enumerate(alpha):
+        x_sm = x_anchor
+        while x_sm > inner_floor:
+            lstar, inv_k_single = calc_lstar_and_inv_k(x_sm, alpha_single)
+            if lstar[0] > 0.0:
+                lcds[ipa] = lstar[0]
+                x_at[ipa] = x_sm
+                found[ipa] = True
+                inv_k[ipa] = inv_k_single[0]
+                x_anchor = x_sm
+                break
+            x_sm -= fine_step
+
+    at_ceiling = found & (x_at >= max_r - fine_step)
+    return LCDSResult(lcds=lcds, inv_k=inv_k, found=found, at_ceiling=at_ceiling, x_sm=float(x_anchor))
