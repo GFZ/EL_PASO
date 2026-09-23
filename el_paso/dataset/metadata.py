@@ -162,6 +162,8 @@ class GFZMetaData(DatasetMetadata):
         MLat (VariableMetadata): Magnetic latitude of the satellite location.
         PSD (VariableMetadata): Calculated phase space density of particles.
         R0 (VariableMetadata): Radial distance of the satellite location mapped to the equator.
+        alpha_dlc (VariableMetadata): Drift loss cone size at the satellite location.
+        alpha_dlc_eq (VariableMetadata): Drift loss cone size at the satellite location mapped to the equator.
         alpha_eq_model (VariableMetadata): Calculated equatorial pitch angles of the particles.
         alpha_eq_range (VariableMetadata): Equatorial pitch angle ranges of the particles.
         alpha_lc (VariableMetadata): Local loss cone size at the satellite location.
@@ -209,6 +211,8 @@ class GFZMetaData(DatasetMetadata):
     MLat: VariableMetadata
     PSD: VariableMetadata
     R0: VariableMetadata
+    alpha_dlc: VariableMetadata
+    alpha_dlc_eq: VariableMetadata
     alpha_eq_model: VariableMetadata
     alpha_eq_range: VariableMetadata
     alpha_lc: VariableMetadata

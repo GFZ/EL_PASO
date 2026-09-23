@@ -123,6 +123,15 @@ class GFZStandard(DataStandard[GFZVarNames]):
                 u.radian,
                 ["Epoch"],
             ),
+            "Alpha_DLC": VariableInfo[GFZVarNames](
+                "alpha_dlc", "Drift loss cone size at the satellite location.", u.radian, ["Epoch"]
+            ),
+            "Alpha_DLC_Eq": VariableInfo[GFZVarNames](
+                "alpha_dlc_eq",
+                "Drift loss cone size at the satellite location mapped to the equator.",
+                u.radian,
+                ["Epoch"],
+            ),
             "PSD": VariableInfo[GFZVarNames](
                 "PSD",
                 "Calculated phase space density of particles.",
