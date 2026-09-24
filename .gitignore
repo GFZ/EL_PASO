@@ -16,6 +16,9 @@ tests/system/data
 tutorials/RBSP/
 tutorials/rbsp_hope_example.mat
 
+# Regenerated on every `mkdocs build` by docs/scripts/generate_spec0_gantt.py
+docs/getting_started/supported_versions.md
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

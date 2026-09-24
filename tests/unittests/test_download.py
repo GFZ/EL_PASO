@@ -16,9 +16,7 @@ import el_paso as ep
 
 
 @pytest.mark.basic
-def test_esa_api(tmp_path: Path, skip_if_unreachable: Callable[..., None]):
-
-    skip_if_unreachable("https://swe.ssa.esa.int", "https://sso.s2p.esa.int")
+def test_esa_api(tmp_path: Path):
 
     client_id = os.environ.get("ESA_CLIENT_ID")
     client_secret = os.environ.get("ESA_CLIENT_SECRET")
@@ -49,9 +47,7 @@ def test_esa_api(tmp_path: Path, skip_if_unreachable: Callable[..., None]):
 
 
 @pytest.mark.basic
-def test_request(tmp_path: Path, skip_if_unreachable: Callable[..., None], monkeypatch: pytest.MonkeyPatch):
-
-    skip_if_unreachable("https://spdf.gsfc.nasa.gov")
+def test_request(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 
     download_mod = importlib.import_module("el_paso.download")
 
@@ -168,8 +164,7 @@ def test_download_with_callable_cadence(tmp_path: Path, monkeypatch: pytest.Monk
 
 
 @pytest.mark.basic
-def test_ftp(tmp_path: Path, skip_if_unreachable: Callable[..., None]):
-    skip_if_unreachable("ftp://ftp.gfz.de/pub/home/obs/Kp_ap_Ap_SN_F107/")
+def test_ftp(tmp_path: Path):
 
     start_time = datetime(2024, 1, 3, tzinfo=timezone.utc)
     end_time = datetime(2024, 1, 4, tzinfo=timezone.utc)

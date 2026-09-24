@@ -35,7 +35,7 @@ ignore = [
     "UP040",   # allow plain type aliases instead of forcing the PEP 695 `type` statement
     "UP047",   # allow TypeVar-based generic functions instead of forcing PEP 695 `def foo[T]():` syntax
 ]
-exclude = ["*.ipynb"]
+exclude = ["*.ipynb", "docs/scripts/generate_spec0_gantt.py"]
 
 [lint.pydocstyle]
 convention = "google"

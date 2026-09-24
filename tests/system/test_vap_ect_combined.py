@@ -27,11 +27,9 @@ def test_rbsp_ect_combined_snapshot(
     mag_field: Literal["T89", "TS04", "OP77", "T96"],
     save_strategy: Literal["gfz", "netcdf"],
     tmpdir: Path,
-    skip_if_unreachable: Callable[..., None],
     *,
     renew_solution: bool,
 ) -> None:
-    skip_if_unreachable("https://spdf.gsfc.nasa.gov")
 
     start_time = datetime(2017, 9, 8, tzinfo=timezone.utc)
     end_time = start_time + timedelta(days=0.4, seconds=-1)

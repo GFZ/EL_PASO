@@ -15,14 +15,9 @@ from el_paso.recipes.gps import process_gps_data
 @pytest.mark.basic
 def test_lanl_gps(
     tmpdir: Path,
-    skip_if_unreachable: Callable[..., None],
     *,
     renew_solution: bool,  # noqa: ARG001
 ) -> None:
-
-    skip_if_unreachable(
-        "https://www.ngdc.noaa.gov/stp/space-weather/satellite-data/satellite-systems/lanl_gps/version_v1.10r2"
-    )
 
     processed_data_path = tmpdir
 
