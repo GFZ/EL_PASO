@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep *)",
+      "Bash(git status)",
+      "Bash(git status *)",
+      "Bash(.venv/bin/ruff *)",
+      "Bash(.venv/bin/ty *)",
+      "Bash(.venv/bin/pytest *)",
+      "Bash(.venv/bin/python -m pytest *)",
+      "Bash(.venv/bin/pre-commit *)",
+      "Bash(.venv/bin/reuse lint)",
+      "Bash(.venv/bin/python hooks/generate_metadata_stubs.py)",
+      "Bash(.venv/bin/python hooks/check_recipe_strategies.py)",
+      "Bash(.venv/bin/python examples/minimal_example.py)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Monitor",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard_bash.py\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard_generated_markers.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
