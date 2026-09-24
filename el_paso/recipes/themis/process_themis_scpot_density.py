@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Literal
@@ -77,14 +76,12 @@ def process_themis_scpot_density(
         save_strategy (Literal["netcdf"]): Unused by this recipe; accepted only for interface
             consistency with other EL-PASO recipes, since the THEMIS density saving strategy
             factory only supports a single output format. Defaults to "netcdf".
-        skip_existing (bool): If True, let pyspedas reuse raw files that already exist locally
-            instead of re-downloading them. Defaults to True.
+        skip_existing (bool): Unused by this recipe; accepted only for interface consistency
+            with other EL-PASO recipes, since pyspedas decides on its own whether a locally
+            cached THEMIS file is still current. Defaults to True.
     """
     del skip_existing
     del save_strategy
-
-    logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
-    logging.getLogger().setLevel(logging.INFO)
 
     set_pyspedas_data_dir("themis", raw_data_path)
 

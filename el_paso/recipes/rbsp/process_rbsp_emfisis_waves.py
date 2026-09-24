@@ -120,7 +120,7 @@ def process_rbsp_emfisis_waves(
 
     saving_strat = rbsp_emfisis_waves_strategy(processed_data_path, satellite)
 
-    ep.save(vars_to_save, saving_strat, start_time, end_time)
+    ep.save(vars_to_save, saving_strat, start_time, end_time, target_time_var)
 
 
 def _calculate_orbital_vars(mag_vars: dict[str, ep.Variable]) -> dict[str, ep.Variable]:

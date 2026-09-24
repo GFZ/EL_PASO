@@ -47,6 +47,7 @@ class RBSPDensityStrategy(MonthlyRBStrategy):
         self,
         base_data_path: str | Path,
         mission: str,
+        satellite: str,
         instrument: str,
         mag_field: MagneticFieldLiteral,
         data_standard: Optional[DataStandard[StandardName]] = None,
@@ -56,6 +57,7 @@ class RBSPDensityStrategy(MonthlyRBStrategy):
         Args:
             base_data_path (str | Path): The base directory where the output NetCDF files will be saved.
             mission (str): The mission name, used in file path and name generation.
+            satellite (str): The satellite name, used in file path and name generation.
             instrument (str): The instrument name, used in file path and name generation.
             mag_field (MagneticFieldLiteral):
                 A string specifying the magnetic field model used.
@@ -69,7 +71,7 @@ class RBSPDensityStrategy(MonthlyRBStrategy):
 
         super().__init__(
             base_data_path=base_data_path,
-            satellite="RBSP",
+            satellite=satellite,
             mission=mission,
             instrument=instrument,
             mag_field=mag_field,

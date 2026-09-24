@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
@@ -99,9 +98,6 @@ def process_themis_fft_waves(
     del bin_cadence
     del save_strategy
     del skip_existing
-
-    logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
-    logging.getLogger().setLevel(logging.INFO)
 
     set_pyspedas_data_dir("themis", raw_data_path)
 

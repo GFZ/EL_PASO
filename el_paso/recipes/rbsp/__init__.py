@@ -13,7 +13,10 @@ from el_paso.recipes.rbsp.process_rbsp_ect_combined import (
     rbsp_ect_combined_gfz_strategy,
     rbsp_ect_combined_netcdf_strategy,
 )
-from el_paso.recipes.rbsp.process_rbsp_efw_emfisis_density_combined import process_rbsp_efw_emfisis_density_combined
+from el_paso.recipes.rbsp.process_rbsp_efw_emfisis_density_combined import (
+    process_rbsp_efw_emfisis_density_combined,
+    rbsp_efw_emfisis_density_combined_strategy,
+)
 from el_paso.recipes.rbsp.process_rbsp_emfisis_waves import process_rbsp_emfisis_waves, rbsp_emfisis_waves_strategy
 from el_paso.recipes.rbsp.process_rbsp_hope_electrons import (
     process_rbsp_hope_electrons,
@@ -52,6 +55,7 @@ __all__ = [
     "process_rbsp_rbspice_protons",
     "rbsp_ect_combined_gfz_strategy",
     "rbsp_ect_combined_netcdf_strategy",
+    "rbsp_efw_emfisis_density_combined_strategy",
     "rbsp_emfisis_waves_strategy",
     "rbsp_hope_electron_gfz_strategy",
     "rbsp_hope_electron_netcdf_strategy",

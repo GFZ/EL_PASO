@@ -13,14 +13,32 @@ import numpy as np
 from astropy import units as u
 
 import el_paso as ep
+from el_paso.recipes.rbsp import RBSPSatellite
 
 logger = logging.getLogger(__name__)
+
+
+def rbsp_efw_emfisis_density_combined_strategy(
+    base_data_path: str | Path,
+    satellite: RBSPSatellite,
+    mag_field: ep.typing.MagneticFieldLiteral,
+    data_standard: ep.typing.DataStandard[ep.typing.StandardName] | None = None,
+) -> ep.SavingStrategy:
+    """Daily NetCDF wave saving strategy for THEMIS FFT."""
+    return ep.saving_strategies.RBSPDensityStrategy(
+        base_data_path=base_data_path,
+        mission="RBSP",
+        satellite=satellite,
+        instrument="densities_combined",
+        mag_field=mag_field,
+        data_standard=data_standard,
+    )
 
 
 def process_rbsp_efw_emfisis_density_combined(
     start_time: datetime,
     end_time: datetime,
-    satellite: Literal["a", "b"] = "a",
+    satellite: RBSPSatellite = "a",
     mag_field: Literal["T89", "T96", "TS04"] = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
@@ -190,13 +208,10 @@ def process_rbsp_efw_emfisis_density_combined(
             "Number_density_hiss_derived_Eq": hiss_derived_densities_vars["Density_mapped"],
         }
 
-    raise NotImplementedError
-
-    saving_strategy = ep.saving_strategies.RBSPDensityStrategy(
-        base_data_path=processed_data_path,
-        mission="RBSP",
-        instrument="densities_combined",
-        mag_field=mag_field,
+    saving_strategy = rbsp_efw_emfisis_density_combined_strategy(
+        processed_data_path,
+        satellite,
+        mag_field,
     )
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
