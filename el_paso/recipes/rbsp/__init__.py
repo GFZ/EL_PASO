@@ -4,6 +4,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
 from typing import TYPE_CHECKING, Literal
 
 import lazy_loader as lazy
@@ -18,7 +19,10 @@ __getattr__, _lazy_dir, _lazy_all = lazy.attach(
             "rbsp_ect_combined_gfz_strategy",
             "rbsp_ect_combined_netcdf_strategy",
         ],
-        "process_rbsp_efw_emfisis_density_combined": ["process_rbsp_efw_emfisis_density_combined"],
+        "process_rbsp_efw_emfisis_density_combined": [
+            "process_rbsp_efw_emfisis_density_combined",
+            "rbsp_efw_emfisis_density_combined_strategy",
+        ],
         "process_rbsp_emfisis_waves": ["process_rbsp_emfisis_waves", "rbsp_emfisis_waves_strategy"],
         "process_rbsp_hope_electrons": [
             "process_rbsp_hope_electrons",
@@ -59,6 +63,7 @@ if TYPE_CHECKING:
     )
     from el_paso.recipes.rbsp.process_rbsp_efw_emfisis_density_combined import (
         process_rbsp_efw_emfisis_density_combined,
+        rbsp_efw_emfisis_density_combined_strategy,
     )
     from el_paso.recipes.rbsp.process_rbsp_emfisis_waves import process_rbsp_emfisis_waves, rbsp_emfisis_waves_strategy
     from el_paso.recipes.rbsp.process_rbsp_hope_electrons import (
@@ -98,6 +103,7 @@ if TYPE_CHECKING:
         "process_rbsp_rbspice_protons",
         "rbsp_ect_combined_gfz_strategy",
         "rbsp_ect_combined_netcdf_strategy",
+        "rbsp_efw_emfisis_density_combined_strategy",
         "rbsp_emfisis_waves_strategy",
         "rbsp_hope_electron_gfz_strategy",
         "rbsp_hope_electron_netcdf_strategy",

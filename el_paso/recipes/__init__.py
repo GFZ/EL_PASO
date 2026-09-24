@@ -8,14 +8,14 @@ from typing import TYPE_CHECKING
 import lazy_loader as lazy
 
 # Each satellite's recipes are resolved on first access (SPEC 1), so that e.g.
-# `el_paso.recipes.rbsp` does not also pay for arase/esa/goes/gps/poes/probav/dmsp.
+# `el_paso.recipes.rbsp` does not also pay for arase/esa/goes/gps/poes/probav/dmsp/themis.
 __getattr__, __dir__, __all__ = lazy.attach(
     __name__,
-    submodules=["arase", "dmsp", "esa", "goes", "gps", "poes", "probav", "rbsp"],
+    submodules=["arase", "dmsp", "esa", "goes", "gps", "poes", "probav", "rbsp", "themis"],
 )
 
 if TYPE_CHECKING:
-    from el_paso.recipes import arase, dmsp, esa, goes, gps, poes, probav, rbsp
+    from el_paso.recipes import arase, dmsp, esa, goes, gps, poes, probav, rbsp, themis
 
     __all__ = [
         "arase",
@@ -26,4 +26,5 @@ if TYPE_CHECKING:
         "poes",
         "probav",
         "rbsp",
+        "themis",
     ]

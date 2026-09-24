@@ -41,12 +41,13 @@ from typing import NamedTuple
 REPO_ROOT = Path(__file__).resolve().parent.parent
 RECIPES_DIR = REPO_ROOT / "el_paso" / "recipes"
 
-ALLOWED_INLINE_STRATEGY: dict[Path, set[int]] = {
-    RECIPES_DIR / "rbsp" / "process_rbsp_efw_emfisis_density_combined.py": {
-        195
-    },  # https://github.com/GFZ/EL_PASO/issues/139
-}
+# ALLOWED_INLINE_STRATEGY: dict[Path, set[int]] = {
+#     RECIPES_DIR / "rbsp" / "process_rbsp_efw_emfisis_density_combined.py": {
+#         195
+#     },  # https://github.com/GFZ/EL_PASO/issues/139
+# }  # noqa: ERA001
 
+ALLOWED_INLINE_STRATEGY: dict[Path, set[int]] = {}
 ALLOWED_STR_SATELLITE: dict[Path, frozenset[str]] = {}
 
 
