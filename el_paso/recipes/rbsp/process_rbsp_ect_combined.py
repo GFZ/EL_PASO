@@ -3,8 +3,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import logging
-import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Literal
@@ -80,9 +78,6 @@ def process_rbsp_ect_combined(
             Defaults to 4.
         skip_existing (bool): If True, skip downloading files that already exist on disk.
     """
-    logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
-    logging.getLogger().setLevel(logging.INFO)
-
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
 

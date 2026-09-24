@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
@@ -84,9 +83,6 @@ def process_rbsp_efw_emfisis_density_combined(
             `RBSPDensityStrategy` is not yet implemented.
     """
     del save_strategy
-
-    logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
-    logging.getLogger().setLevel(logging.INFO)
 
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)

@@ -5,8 +5,6 @@
 
 from __future__ import annotations
 
-import logging
-import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
@@ -122,9 +120,6 @@ def process_arase_mepe(
                                             Defaults to True.
     """
     del satellite
-
-    logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
-    logging.getLogger().setLevel(logging.INFO)
 
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
