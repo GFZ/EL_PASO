@@ -1,10 +1,12 @@
 # SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Parvathy Santhini
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
-# ruff: noqa: E402
 
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
+
+import lazy_loader as lazy
 
 LANLSatellite = Literal[
     "ns41",
@@ -40,6 +42,21 @@ LANLSatellite = Literal[
     "ns81",
 ]
 
-from el_paso.recipes.gps.process_gps import gps_cxd_strategy, process_gps_data
+__getattr__, _lazy_dir, _lazy_all = lazy.attach(
+    __name__,
+    submod_attrs={
+        "process_gps": ["gps_cxd_strategy", "process_gps_data"],
+    },
+)
 
-__all__ = ["LANLSatellite", "gps_cxd_strategy", "process_gps_data"]
+__all__ = ["LANLSatellite", *_lazy_all]  # noqa: PLE0604  (lazy_loader supplies the names)
+
+
+def __dir__() -> list[str]:
+    return sorted(__all__)
+
+
+if TYPE_CHECKING:
+    from el_paso.recipes.gps.process_gps import gps_cxd_strategy, process_gps_data
+
+    __all__ = ["LANLSatellite", "gps_cxd_strategy", "process_gps_data"]

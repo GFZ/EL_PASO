@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -25,12 +26,14 @@ if TYPE_CHECKING:
 import el_paso as ep
 
 
-def arase_xep_gfz_strategy(base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral) -> ep.SavingStrategy:
+def arase_xep_realtime_gfz_strategy(
+    base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral
+) -> ep.SavingStrategy:
     """Legacy GFZ .mat saving strategy for Arase XEP."""
     return ep.saving_strategies.GFZStrategy(Path(base_data_path), "Arase", "Arase", "XEP", mag_field)
 
 
-def arase_xep_strategy(
+def arase_xep_realtime_strategy(
     base_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     *,
@@ -228,7 +231,7 @@ def process_arase_xep_real_time(
     }
 
     if save_strategy in ("gfz", "both"):
-        saving_strategy = arase_xep_gfz_strategy(processed_data_path, mag_field)
+        saving_strategy = arase_xep_realtime_gfz_strategy(processed_data_path, mag_field)
 
         ep.save(
             variables_to_save,
@@ -240,7 +243,7 @@ def process_arase_xep_real_time(
         )
 
     if save_strategy in ("netcdf", "both"):
-        saving_strategy = arase_xep_strategy(processed_data_path, mag_field)
+        saving_strategy = arase_xep_realtime_strategy(processed_data_path, mag_field)
 
         ep.save(
             variables_to_save,

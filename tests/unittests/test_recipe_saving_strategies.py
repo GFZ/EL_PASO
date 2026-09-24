@@ -32,10 +32,10 @@ from el_paso.recipes.arase.process_arase_mepe import (
 from el_paso.recipes.arase.process_arase_pwe_densities import arase_pwe_densities_strategy
 from el_paso.recipes.arase.process_arase_xep import arase_xep_strategy
 from el_paso.recipes.arase.process_arase_xep_realtime import (
-    arase_xep_gfz_strategy as arase_xep_realtime_gfz_strategy,
+    arase_xep_realtime_gfz_strategy,
 )
 from el_paso.recipes.arase.process_arase_xep_realtime import (
-    arase_xep_strategy as arase_xep_realtime_netcdf_strategy,
+    arase_xep_realtime_strategy as arase_xep_realtime_netcdf_strategy,
 )
 from el_paso.recipes.dmsp.process_dmsp_ssj_electrons import dmsp_ssj_electron_strategy
 from el_paso.recipes.esa.process_ngrm_satellite import esa_ngrm_strategy

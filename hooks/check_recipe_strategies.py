@@ -156,8 +156,14 @@ def _import_aliases_from_submodule(init_tree: ast.Module, target_module: str) ->
 
 
 def _all_list_names(init_tree: ast.Module) -> set[str]:
+    """Collect every string literal assigned into an `__all__` list anywhere in the module.
+
+    Walks the whole tree, not just the top-level body, so this also picks up the literal
+    `__all__` a `lazy_loader.attach`-based `__init__.py` re-declares under `if TYPE_CHECKING:`
+    for type checkers, alongside its real, dynamically-built top-level `__all__`.
+    """
     names: set[str] = set()
-    for node in init_tree.body:
+    for node in ast.walk(init_tree):
         if (
             isinstance(node, ast.Assign)
             and len(node.targets) == 1
