@@ -16,12 +16,10 @@ from typing import TYPE_CHECKING, Any, Literal
 from unittest.mock import patch
 
 import click
+import el_paso as ep
 import pytest
 import typer
 import typer.testing
-from typer.testing import CliRunner, Result
-
-import el_paso as ep
 from el_paso.cli.app import RECIPES, RecipeEntry, app, load_recipe
 from el_paso.cli.recipe_cli import (
     _format_value,
@@ -31,6 +29,7 @@ from el_paso.cli.recipe_cli import (
     parse_datetime,
     parse_docstring,
 )
+from typer.testing import CliRunner, Result
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence

@@ -11,11 +11,10 @@ from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 from unittest import mock
 
+import el_paso as ep
 import numpy as np
 import pytest
 from astropy import units as u
-
-import el_paso as ep
 from el_paso.dataset import DataSet, GFZDataSet
 from el_paso.dataset.utils import python2matlab
 
@@ -131,7 +130,11 @@ def gfz_dataset(tmp_path: Path) -> DataSet:
     start_time = datetime(2013, 1, 1, tzinfo=timezone.utc)
     end_time = datetime(2013, 1, 2, tzinfo=timezone.utc)
     strategy = ep.saving_strategies.MonthlyRBStrategy(
-        tmp_path, "TEST", "sat", "inst", "T89",
+        tmp_path,
+        "TEST",
+        "sat",
+        "inst",
+        "T89",
         data_standard=ep.data_standards.GFZStandard(),
         file_format="nc",
     )
@@ -145,7 +148,11 @@ def prbem_dataset(tmp_path: Path) -> DataSet:
     start_time = datetime(2013, 1, 1, tzinfo=timezone.utc)
     end_time = datetime(2013, 1, 2, tzinfo=timezone.utc)
     strategy = ep.saving_strategies.MonthlyRBStrategy(
-        tmp_path, "TEST", "sat", "inst", "T89",
+        tmp_path,
+        "TEST",
+        "sat",
+        "inst",
+        "T89",
         data_standard=ep.data_standards.PRBEMStandard(),
         file_format="nc",
     )
@@ -336,6 +343,7 @@ class TestDataSet:  # noqa: D101
                 caplog.text.count("/GOES/primary/primary_maged_20130101to20130131_T89") == log_count_after_first_load
             ), "File should not have been loaded again"
 
+
 @pytest.mark.basic
 @pytest.mark.parametrize("file_format", ["nc", "h5", "cdf", "mat"])
 def test_dataset_equality_rejects_data_saved_with_different_standards(tmp_path: Path, file_format: MFSFormats) -> None:
@@ -366,12 +374,18 @@ def test_dataset_equality_rejects_data_saved_with_different_standards(tmp_path: 
         ep.save(variables, strategy, start_time=start_time, end_time=end_time, time_var=variables["Epoch"])
 
     gfz_dataset = DataSet(
-        saving_strategy=gfz_strategy, start_time=start_time, end_time=end_time,
-        preferred_extension=file_format, verbose=False,
+        saving_strategy=gfz_strategy,
+        start_time=start_time,
+        end_time=end_time,
+        preferred_extension=file_format,
+        verbose=False,
     )
     prbem_dataset = DataSet(
-        saving_strategy=prbem_strategy, start_time=start_time, end_time=end_time,
-        preferred_extension=file_format, verbose=False,
+        saving_strategy=prbem_strategy,
+        start_time=start_time,
+        end_time=end_time,
+        preferred_extension=file_format,
+        verbose=False,
     )
 
     gfz_dataset.load(gfz_strategy.data_standard.get_standard_name("FEDU"))
@@ -403,10 +417,20 @@ def test_comparison_loads_all_strategy_variables(tmp_path: Path, file_format: MF
     )
     ep.save(variables, strategy, start_time=start_time, end_time=end_time, time_var=variables["Epoch"])
 
-    ds1 = DataSet(saving_strategy=strategy, start_time=start_time, end_time=end_time,
-                  preferred_extension=file_format, verbose=False)
-    ds2 = DataSet(saving_strategy=strategy, start_time=start_time, end_time=end_time,
-                  preferred_extension=file_format, verbose=False)
+    ds1 = DataSet(
+        saving_strategy=strategy,
+        start_time=start_time,
+        end_time=end_time,
+        preferred_extension=file_format,
+        verbose=False,
+    )
+    ds2 = DataSet(
+        saving_strategy=strategy,
+        start_time=start_time,
+        end_time=end_time,
+        preferred_extension=file_format,
+        verbose=False,
+    )
 
     assert [v for v in ds1.get_loaded_variables() if v != "metadata"] == [], (
         "No data variables should be loaded before comparison"
@@ -451,12 +475,18 @@ def test_dataset_equality_accepts_data_saved_with_different_strategies_but_same_
         ep.save(variables, strategy, start_time=start_time, end_time=end_time, time_var=variables["Epoch"])
 
     gfz_strategy_dataset = DataSet(
-        saving_strategy=gfz_strategy, start_time=start_time, end_time=end_time,
-        preferred_extension=file_format, verbose=False,
+        saving_strategy=gfz_strategy,
+        start_time=start_time,
+        end_time=end_time,
+        preferred_extension=file_format,
+        verbose=False,
     )
     mfs_strategy_dataset = DataSet(
-        saving_strategy=mfs_strategy, start_time=start_time, end_time=end_time,
-        preferred_extension=file_format, verbose=False,
+        saving_strategy=mfs_strategy,
+        start_time=start_time,
+        end_time=end_time,
+        preferred_extension=file_format,
+        verbose=False,
     )
 
     assert gfz_strategy_dataset.datetime == mfs_strategy_dataset.datetime
@@ -491,6 +521,7 @@ def test_dataset_equals_gfz_dataset_on_ect_combined() -> None:
     gfz_ds = GFZDataSet(saving_strategy=strategy, start_time=_ECT_START, end_time=_ECT_END, verbose=False)
 
     assert base_ds == gfz_ds
+
 
 @pytest.mark.basic
 def test_gfz_epoch_resolves_to_time(gfz_dataset: DataSet) -> None:

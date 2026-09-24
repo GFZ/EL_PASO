@@ -15,10 +15,9 @@ from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import el_paso as ep
 import numpy as np
 import pytest
-
-import el_paso as ep
 from el_paso.dataset import DataSet
 from el_paso.recipes.themis import (
     process_themis_fft_waves,

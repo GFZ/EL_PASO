@@ -5,7 +5,6 @@
 
 import numpy as np
 import pytest
-
 from el_paso.dataset.interp_functions import _interp_flux_parallel, _linear_interp
 
 # ── _linear_interp ────────────────────────────────────────────────────────────
@@ -15,9 +14,9 @@ from el_paso.dataset.interp_functions import _interp_flux_parallel, _linear_inte
 @pytest.mark.parametrize(
     ("flux_left", "flux_right", "target", "left", "right", "expected"),
     [
-        (0.0, 10.0, 5.0, 0.0, 10.0, 5.0),   # midpoint → 0.5 weight
-        (0.0, 10.0, 0.0, 0.0, 10.0, 0.0),   # at left boundary → flux_left
-        (0.0, 10.0, 10.0, 0.0, 10.0, 10.0), # at right boundary → flux_right
+        (0.0, 10.0, 5.0, 0.0, 10.0, 5.0),  # midpoint → 0.5 weight
+        (0.0, 10.0, 0.0, 0.0, 10.0, 0.0),  # at left boundary → flux_left
+        (0.0, 10.0, 10.0, 0.0, 10.0, 10.0),  # at right boundary → flux_right
         (100.0, 200.0, 7.0, 0.0, 10.0, 170.0),  # 70 % weight on right
     ],
 )
@@ -51,16 +50,18 @@ def test_linear_interp(
 
 def _make_arrays() -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Return (flux, energy, alpha_eq_model) for a (nt=1, ne=4, na=3) grid."""
-    energy = np.array([[1.0, 2.0, 3.0, 4.0]])                 # (1, 4)
-    alpha = np.array([[10.0, 30.0, 60.0]])                     # (1, 3)
-    flux = np.array([
+    energy = np.array([[1.0, 2.0, 3.0, 4.0]])  # (1, 4)
+    alpha = np.array([[10.0, 30.0, 60.0]])  # (1, 3)
+    flux = np.array(
         [
-            [100.0, 150.0, 200.0],
-            [200.0, 250.0, 300.0],
-            [300.0, 350.0, 400.0],
-            [400.0, 450.0, 500.0],
+            [
+                [100.0, 150.0, 200.0],
+                [200.0, 250.0, 300.0],
+                [300.0, 350.0, 400.0],
+                [400.0, 450.0, 500.0],
+            ]
         ]
-    ])                                                         # (1, 4, 3)
+    )  # (1, 4, 3)
     return flux, energy, alpha
 
 

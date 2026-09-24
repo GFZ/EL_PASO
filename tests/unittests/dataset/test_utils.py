@@ -6,7 +6,6 @@ from datetime import datetime, timezone
 
 import numpy as np
 import pytest
-
 from el_paso.dataset import utils
 
 

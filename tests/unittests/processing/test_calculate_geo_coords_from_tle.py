@@ -10,7 +10,6 @@ from tempfile import NamedTemporaryFile
 
 import numpy as np
 import pytest
-
 from el_paso.processing import calculate_geo_coords_from_tle
 
 

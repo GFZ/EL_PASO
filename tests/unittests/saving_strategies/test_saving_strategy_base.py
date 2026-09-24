@@ -8,10 +8,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import el_paso as ep
 import numpy as np
 import pytest
-
-import el_paso as ep
 from el_paso.saving_strategy import OutputFile, SavingStrategy
 
 if TYPE_CHECKING:

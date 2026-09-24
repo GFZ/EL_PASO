@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2025 GFZ Helmholtz Centre for Geosciences
+# SPDX-FileContributor: Sahil Jhawar
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# Inherit shared settings (line-length, exclude, ...) from the root config, then
+# replace the rule selection below with a minimal set for tests.
+extend = "../ruff.toml"
+
+[lint]
+# Tests only need to satisfy minimal requirements: pyflakes (F), pycodestyle (E/W),
+# and import sorting (I). Nothing else is selected.
+select = ["F", "E", "W", "I"]
+ignore = []

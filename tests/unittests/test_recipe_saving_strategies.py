@@ -21,9 +21,8 @@ import inspect
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-import pytest
-
 import el_paso as ep
+import pytest
 from el_paso.recipes.arase.process_arase_mepe import (
     arase_mepe_gfz_strategy,
     arase_mepe_h5_strategy,

@@ -8,11 +8,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import el_paso as ep
 import numpy as np
 import pytest
 from astropy import units as u
-
-import el_paso as ep
 
 rng = np.random.default_rng(1337)
 

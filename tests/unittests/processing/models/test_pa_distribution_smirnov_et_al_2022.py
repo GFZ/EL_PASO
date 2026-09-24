@@ -10,12 +10,11 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-from matplotlib import pyplot as plt
-
 from el_paso.processing.models.pa_distribution_smirnov_et_al_2022 import (
     _apply_coefs,
     _get_coefs,
 )
+from matplotlib import pyplot as plt
 
 ENERGY = 871
 L_SHELL = 5.4
@@ -50,6 +49,7 @@ def _normalized_pad_shape(mlt: float, pdyn: float, pa_rad: np.ndarray) -> np.nda
     shape = _apply_coefs(pa_rad, a1, a3, a5)
     return shape[0, :] / np.max(shape)
 
+
 @pytest.mark.basic
 class TestPADShapeNoonMLT:
     """Panel (a): 871 keV, 5.3<L<5.5, 11<MLT<13 -> single-peaked distribution,
@@ -83,6 +83,7 @@ class TestPADShapeNoonMLT:
             f"Expected FWHM to shrink monotonically with Pdyn, got {fwhm_deg}"
         )
 
+
 @pytest.mark.basic
 class TestPADShapeMidnightMLT:
     """Panel (b): 871 keV, 5.3<L<5.5, 23<MLT<01 -> butterfly
@@ -114,6 +115,7 @@ class TestPADShapeMidnightMLT:
         assert dip_depths == sorted(dip_depths), (
             f"Expected dip depth at PA=90 to grow monotonically with Pdyn, got {dip_depths}"
         )
+
 
 @pytest.mark.visual
 def test_replot_smirnov2022_figure() -> None:

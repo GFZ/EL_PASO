@@ -7,7 +7,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
-
 from el_paso.utils import (
     enforce_utc_timezone,
     extract_version,

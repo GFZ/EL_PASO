@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
 
+import el_paso as ep
 import matplotlib.dates as mdates
 import numpy as np
 import pytest
@@ -16,8 +17,6 @@ from matplotlib import pyplot as plt
 from swvo.io.dst import DSTOMNI
 from swvo.io.kp import KpOMNI
 from swvo.io.RBMDataSet import MfmEnum
-
-import el_paso as ep
 
 satellite_list = ["a", "b"]
 mag_field_list = ["TS04", "T89"]

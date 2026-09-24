@@ -5,14 +5,12 @@
 
 import importlib
 import os
-from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import MagicMock
 
-import pytest
-
 import el_paso as ep
+import pytest
 
 
 @pytest.mark.basic

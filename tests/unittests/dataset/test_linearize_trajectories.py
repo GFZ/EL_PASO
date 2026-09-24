@@ -8,7 +8,6 @@ from datetime import datetime, timedelta, timezone
 
 import numpy as np
 import pytest
-
 from el_paso.dataset.identify_orbits import Trajectory, _identify_orbits
 from el_paso.dataset.linearize_trajectories import _linearize_trajectories
 

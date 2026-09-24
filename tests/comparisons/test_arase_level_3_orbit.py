@@ -8,16 +8,15 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
 
+import el_paso as ep
 import numpy as np
 import pytest
-from matplotlib import pyplot as plt
-
-import el_paso as ep
 from el_paso.dataset import DataSet
 from el_paso.recipes.arase import (
     get_arase_orbit_level_3_variables,
     process_arase_mepe,
 )
+from matplotlib import pyplot as plt
 
 
 @functools.cache

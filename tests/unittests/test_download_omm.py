@@ -11,9 +11,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import MagicMock
 
-import pytest
-
 import el_paso as ep
+import pytest
 
 _ISS_OMM_XML = """<?xml version="1.0" encoding="UTF-8"?>
 <ndm xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">

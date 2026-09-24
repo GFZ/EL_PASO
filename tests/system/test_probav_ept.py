@@ -4,12 +4,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
-
 from el_paso.recipes.probav import process_ept_electron_fluxes
 
 

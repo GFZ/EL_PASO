@@ -39,11 +39,3 @@ exclude = ["*.ipynb", "docs/scripts/generate_spec0_gantt.py"]
 
 [lint.pydocstyle]
 convention = "google"
-
-[lint.per-file-ignores]
-"tests/*" = [
-    "D103",   # allow undocumented test functions
-    "INP001", # allow test files without an __init__.py (implicit namespace packages)
-    "ANN201", # allow test functions without a return type annotation
-    "N806",   # allow non-lowercase local variable names in tests
-]

@@ -11,7 +11,6 @@ from importlib import import_module
 from pathlib import Path
 
 import pytest
-
 from el_paso import typing as ep_types
 
 

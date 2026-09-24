@@ -7,11 +7,10 @@
 from datetime import datetime, timezone
 
 import cdflib
+import el_paso as ep
 import numpy as np
 import pytest
 from astropy import units as u
-
-import el_paso as ep
 
 # Define a common reference time point
 REF_DATETIME = datetime(2023, 10, 27, 10, 0, 0, 99999, tzinfo=timezone.utc)

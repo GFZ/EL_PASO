@@ -13,10 +13,9 @@ work correctly on real data. No network access is needed.
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import el_paso as ep
 import numpy as np
 import pytest
-
-import el_paso as ep
 from el_paso.dataset import GFZDataSet
 from el_paso.dataset.identify_orbits import Trajectory
 

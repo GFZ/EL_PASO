@@ -3,10 +3,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+import el_paso as ep
 import pytest
 from astropy import units as u
-
-import el_paso as ep
 
 
 @pytest.mark.basic

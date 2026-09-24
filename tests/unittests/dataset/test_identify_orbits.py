@@ -6,7 +6,6 @@
 from datetime import datetime, timedelta
 
 import numpy as np
-
 from el_paso.dataset.identify_orbits import _identify_orbits
 
 

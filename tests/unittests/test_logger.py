@@ -6,11 +6,11 @@
 import logging
 from pathlib import Path
 
+import el_paso as ep
 import pytest
 
-import el_paso as ep
-
 logger = logging.getLogger(__name__)
+
 
 @pytest.mark.basic
 def test_setup_logging_write_to_file(tmp_path: Path):
@@ -26,6 +26,7 @@ def test_setup_logging_write_to_file(tmp_path: Path):
 
     assert "tests.unittests.test_logger:" in log_content
     assert "This is a test!" in log_content
+
 
 @pytest.mark.basic
 def test_setup_logging_append_to_file(tmp_path: Path):

@@ -5,7 +5,6 @@
 
 import numpy as np
 import pytest
-
 from el_paso import TimeBinMethod
 
 

@@ -4,14 +4,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import shutil
-from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import el_paso as ep
 import matplotlib.pyplot as plt
 import pytest
-
-import el_paso as ep
 from el_paso.dataset import DataSet
 from el_paso.recipes.rbsp.process_rbsp_emfisis_waves import process_rbsp_emfisis_waves
 

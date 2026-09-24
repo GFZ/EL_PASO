@@ -7,14 +7,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import el_paso as ep
 import netCDF4 as nC
 import numpy as np
 import pytest
 from astropy import units as u
 
-import el_paso as ep
-
 rng = np.random.default_rng(1337)
+
 
 @pytest.mark.basic
 def test_save_raises_warning_when_var_is_empty(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
@@ -40,7 +40,6 @@ def test_save_raises_warning_when_var_is_empty(tmp_path: Path, caplog: pytest.Lo
         r.levelno == logging.WARNING and "Variable B_Calc only holds NaN values!" in r.getMessage()
         for r in caplog.records
     )
-
 
 
 @pytest.mark.basic
@@ -125,9 +124,7 @@ def test_interval_without_records_is_skipped(tmp_path: Path) -> None:
     variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
         "Epoch": ep.Variable(ep.units.posixtime, data=times),
         "Wave_frequency": ep.Variable(u.Hz, data=np.logspace(1, 3, n_freq)),
-        "Magnetic_Power_Spectral_Density": ep.Variable(
-            (u.nT) ** 2 / u.Hz, data=np.full((n_time, n_freq), 1e-5)
-        ),
+        "Magnetic_Power_Spectral_Density": ep.Variable((u.nT) ** 2 / u.Hz, data=np.full((n_time, n_freq), 1e-5)),
     }
 
     saving_strategy = ep.saving_strategies.DailyWaveStrategy(

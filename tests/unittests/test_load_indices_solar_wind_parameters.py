@@ -7,11 +7,10 @@ from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import el_paso as ep
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-
-import el_paso as ep
 
 
 @pytest.mark.basic

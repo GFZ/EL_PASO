@@ -3,14 +3,12 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from typing import Literal
 
+import el_paso as ep
 import numpy as np
 import pytest
-
-import el_paso as ep
 
 mag_field_list = ["Dip", "OP77", "T89", "T01s", "TS04"]
 

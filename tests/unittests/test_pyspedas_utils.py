@@ -14,13 +14,11 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
+import el_paso as ep
 import numpy as np
 import pyspedas
 import pytest
 from astropy import units as u
-from pyspedas.projects.themis import config as themis_config
-
-import el_paso as ep
 from el_paso.pyspedas_utils import (
     build_trange,
     set_pyspedas_data_dir,
@@ -29,6 +27,7 @@ from el_paso.pyspedas_utils import (
     tplot_to_variable,
     unpack_tplot,
 )
+from pyspedas.projects.themis import config as themis_config
 
 if TYPE_CHECKING:
     from pathlib import Path

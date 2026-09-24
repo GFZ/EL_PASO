@@ -8,7 +8,6 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-
 from el_paso.processing import calculate_geo_coords_from_omm
 
 _ISS_OMM_LINE = {
