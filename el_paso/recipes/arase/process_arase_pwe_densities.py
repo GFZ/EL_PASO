@@ -42,6 +42,7 @@ def process_arase_pwe_density(
     save_strategy: Literal["netcdf"] = "netcdf",
     *,
     skip_existing: bool = True,
+    save_sw: bool = False,
 ) -> None:
     """Process Arase PWE/HFA electron density data and save the mapped equatorial density.
 
@@ -72,6 +73,8 @@ def process_arase_pwe_density(
                                                     saving strategy, so this has only one value.
         skip_existing (bool): If True, skip downloading files that already exist locally.
                                             Defaults to True.
+        save_sw (bool): If True, also save the solar wind/geomagnetic indices used to compute
+            the magnetic field variables alongside the rest of the output. Defaults to False.
     """
     del satellite
     del save_strategy
@@ -189,7 +192,7 @@ def process_arase_pwe_density(
         "xGEO_Eq": magnetic_field_variables["xGEO_Eq_" + mag_field],
     }
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable, save_sw=save_sw)
 
 
 CLI_DEFAULTS = {

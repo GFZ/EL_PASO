@@ -40,9 +40,6 @@ def test_goes_realtime_snapshot(
     out_path = processed_data_path / "GOES" / "goes_primary" / "goes_primary_mps-high_20251201to20251231_T89.nc"
     assert out_path.exists(), "Output path does not exist!"
 
-    if renew_solution:
-        shutil.copy(out_path, Path(__file__).parent / "data" / "processed" / "GOES" / "goes_primary")
-
     goes_proc = GFZDataSet(
         start_time=start_time,
         end_time=end_time,
@@ -50,6 +47,18 @@ def test_goes_realtime_snapshot(
             processed_data_path, "GOES", "goes_primary", "mps-high", "T89", GFZStandard(), "nc"
         ),
     )
+
+    if renew_solution:
+        # Copy every output file this strategy produces (e.g. "full" and "solar_wind_indices"),
+        # not just the primary one, so a strategy that later gains more output groups stays covered.
+        # get_file_path() needs the strategy's own rounded interval (e.g. full-month bounds for
+        # MonthlyRBStrategy), not the raw start_time/end_time, to compute the correct file name.
+        dest_dir = Path(__file__).parent / "data" / "processed" / "GOES" / "goes_primary"
+        interval_start, interval_end = goes_proc.saving_strategy.get_time_intervals_to_save(start_time, end_time)[0]
+        for output_file in goes_proc.saving_strategy.output_files:
+            src_path = goes_proc.saving_strategy.get_file_path(interval_start, interval_end, output_file)
+            if src_path.exists():
+                shutil.copy(src_path, dest_dir)
 
     goes_true = GFZDataSet(
         start_time=start_time,

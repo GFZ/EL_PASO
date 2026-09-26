@@ -50,6 +50,8 @@ def process_rbsp_mageis_electrons(
     num_cores: int = 16,
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
     save_strategy: Literal["netcdf"] = "netcdf",
+    *,
+    save_sw: bool = False,
 ) -> None:
     """Process RBSP ECT/MagEIS electron flux data into the EL-PASO data standard.
 
@@ -80,6 +82,8 @@ def process_rbsp_mageis_electrons(
             raw_data_path. Defaults to True.
         save_strategy (Literal["netcdf"]): Saving strategy used for the output files.
             Only "netcdf" is currently supported for this recipe. Defaults to "netcdf".
+        save_sw (bool): If True, also save the solar wind/geomagnetic indices used to compute
+            the magnetic field variables alongside the rest of the output. Defaults to False.
     """
     del save_strategy
     raw_data_path = Path(raw_data_path)
@@ -196,7 +200,7 @@ def process_rbsp_mageis_electrons(
 
     psd_var = ep.processing.compute_phase_space_density(variables["FEDU"], variables["Energy"], "electron")
 
-    variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+    variables_to_save: ep.typing.VariablesDict = {
         "Epoch": binned_time_variable,
         "FEDU": variables["FEDU"],
         "Position": variables["xGEO"],
@@ -215,7 +219,9 @@ def process_rbsp_mageis_electrons(
     }
 
     strategy = rbsp_mageis_electron_strategy(processed_data_path, mag_field, satellite)
-    ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=False)
+    ep.save(
+        variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=False, save_sw=save_sw
+    )
 
 
 def _xgeo_data_modifier(

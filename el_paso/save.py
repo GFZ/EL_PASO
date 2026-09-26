@@ -12,6 +12,8 @@ from typing import TYPE_CHECKING, Any, get_args
 import numpy as np
 
 import el_paso as ep
+from el_paso.processing.magnetic_field_utils.construct_maginput import construct_maginput, get_saveable_sw_indices
+from el_paso.processing.magnetic_field_utils.mag_field_enum import MagneticField
 from el_paso.typing import FixedDimensionName, InternalName, Variable
 from el_paso.utils import enforce_utc_timezone, timed_function
 
@@ -20,14 +22,14 @@ if TYPE_CHECKING:
 
     from el_paso.data_standard import DataStandard
     from el_paso.saving_strategy import SavingStrategy
-    from el_paso.typing import SavedDataDict
+    from el_paso.typing import SavedDataDict, VariablesDict
 
 logger = logging.getLogger(__name__)
 
 
 @timed_function()
 def save(
-    variables_dict: dict[InternalName, Variable],
+    variables_dict: VariablesDict,
     saving_strategy: SavingStrategy,
     start_time: datetime,
     end_time: datetime,
@@ -35,6 +37,7 @@ def save(
     *,
     append: bool = False,
     ignore_validation: bool = False,
+    save_sw: bool = False,
 ) -> None:
     """Saves variables to files based on the specified saving strategy and time intervals.
 
@@ -43,7 +46,7 @@ def save(
     and includes a check for missing data.
 
     Args:
-        variables_dict (dict[str, Variable]): A dictionary mapping variable names to their
+        variables_dict (VariablesDict): A dictionary mapping variable names to their
             `Variable` objects to be saved.
         saving_strategy (SavingStrategy): The strategy object that defines how to
             organize, standardize, and save the data (e.g., file paths, formats).
@@ -56,10 +59,14 @@ def save(
             rather than overwriting them. Defaults to `False`.
         ignore_validation (bool, optional): If `True`, validation of the input against the `ep.typing.InternalName`
             variables will be skipped. Defaults to `False`.
+        save_sw (bool, optional): If `True`, also load and save the solar wind/geomagnetic
+            indices (e.g. Kp, Dst) that `saving_strategy`'s magnetic field model requires,
+            alongside the rest of `variables_dict`. Requires `time_var`. Defaults to `False`.
 
     Raises:
         TypeError: If `variables_dict` is not a dictionary of `Variable` objects.
         KeyError: If `variables_dict` contains invalid internal variable names.
+        ValueError: If `save_sw` is `True` but `time_var` was not provided.
 
     Note:
         If an output file is missing one or more of its required variables, a
@@ -71,6 +78,22 @@ def save(
 
     start_time = enforce_utc_timezone(start_time)
     end_time = enforce_utc_timezone(end_time)
+
+    if save_sw:
+        if time_var is None:
+            msg = "save_sw=True requires time_var, to interpolate the solar wind indices onto."
+            raise ValueError(msg)
+
+        mag_field = MagneticField(saving_strategy.mag_field)
+        sw_names = get_saveable_sw_indices(mag_field, saving_strategy.data_standard)
+        if sw_names:
+            # construct_maginput is cached: if this run already called compute_magnetic_field_variables
+            # with this same time_var/mag_field, this is a free cache hit instead of a fresh reload.
+            indices_solar_wind = construct_maginput(time_var, mag_field).indices_solar_wind
+            variables_dict = {
+                **{name: indices_solar_wind[name] for name in sw_names},
+                **variables_dict,
+            }
 
     time_intervals_to_save = saving_strategy.get_time_intervals_to_save(start_time, end_time)
 
@@ -125,7 +148,7 @@ def _has_records_in_interval(time_var: Variable, interval_start: datetime, inter
     return bool(np.any(in_interval))
 
 
-def _validate_variables_dict(variables_dict: dict[InternalName, Variable], data_standard: DataStandard | None) -> None:
+def _validate_variables_dict(variables_dict: VariablesDict, data_standard: DataStandard | None) -> None:
     """Validates runtime types for data passed to ``save``.
 
     This guard complements static type checking by rejecting invalid keys and
@@ -175,7 +198,7 @@ def _validate_variables_dict(variables_dict: dict[InternalName, Variable], data_
 
 
 def _get_data_dict_to_save(
-    target_variables: dict[InternalName, Variable],
+    target_variables: VariablesDict,
 ) -> SavedDataDict:
     """Generates a dictionary of data and metadata for saving.
 
@@ -184,7 +207,7 @@ def _get_data_dict_to_save(
     persistence. It also sanitizes the metadata to handle `None` values.
 
     Args:
-        target_variables (dict[str, Variable]): A dictionary of variables to be prepared
+        target_variables (VariablesDict): A dictionary of variables to be prepared
             for saving.
 
     Returns:

@@ -52,6 +52,7 @@ def process_dmsp_ssj_electrons(
     save_strategy: Literal["netcdf"] = "netcdf",
     *,
     skip_existing: bool = True,
+    save_sw: bool = False,
 ) -> None:
     """Process DMSP SSJ precipitating electron data into omnidirectional fluxes with magnetic field coordinates.
 
@@ -77,6 +78,9 @@ def process_dmsp_ssj_electrons(
         save_strategy (Literal["netcdf"]): The saving strategy used to write the processed
                                                     data. DMSP SSJ electron data only supports a single
                                                     netCDF-based strategy.
+        save_sw (bool): If True, also save the solar wind/geomagnetic indices used to compute
+                                     the magnetic field variables alongside the rest of the output.
+                                     Defaults to False.
     """
     del save_strategy
 
@@ -188,7 +192,7 @@ def process_dmsp_ssj_electrons(
         num_cores=num_cores,
     )
 
-    variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+    variables_to_save: ep.typing.VariablesDict = {
         "Epoch": binned_time_var,
         "FEDO": ssj_vars["diff_omni_flux"],
         "Energy_FEDO": ssj_vars["diff_energy"],
@@ -208,7 +212,7 @@ def process_dmsp_ssj_electrons(
 
     saving_strategy = dmsp_ssj_electron_strategy(processed_data_path, mag_field, satellite)
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var)
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, save_sw=save_sw)
 
 
 def _get_ssm_variables(

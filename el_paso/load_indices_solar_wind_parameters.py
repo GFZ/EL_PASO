@@ -22,7 +22,7 @@ from numpy.typing import NDArray
 import el_paso as ep
 from el_paso.utils import enforce_utc_timezone
 
-SW_Index = Literal["Kp", "SW_speed", "SW_density", "Dst", "Pdyn", "IMF_Bz", "IMF_By", "G1", "G2", "G3", "W_params"]
+SW_Index = Literal["Kp", "Vsw", "Nsw", "Dst", "Pdyn", "BzIMF", "ByIMF", "G1", "G2", "G3", "W_params"]
 
 
 @overload
@@ -124,7 +124,7 @@ def load_indices_solar_wind_parameters(
                 assert isinstance(output_df, pd.DataFrame)
 
                 result = _create_variables_from_data_frame(
-                    output_df, "kp", u.dimensionless_unscaled, target_time_variable, "previous"
+                    output_df, "kp", u.dimensionless_unscaled, target_time_variable, "previous", "Kp"
                 )
 
             case "Dst":
@@ -132,7 +132,9 @@ def load_indices_solar_wind_parameters(
                     start_time, end_time, download=True
                 )
 
-                result = _create_variables_from_data_frame(output_df, "dst", u.nT, target_time_variable, "linear")
+                result = _create_variables_from_data_frame(
+                    output_df, "dst", u.nT, target_time_variable, "linear", "Dst"
+                )
 
             case "Pdyn":
                 output_df = _cache_omni_high_res(base_data_path, start_time, end_time)
@@ -140,27 +142,33 @@ def load_indices_solar_wind_parameters(
 
                 output_df["pdyn"] = output_df["pdyn"].interpolate(method="spline", order=3).ffill().bfill()
 
-                result = _create_variables_from_data_frame(output_df, "pdyn", u.nPa, target_time_variable, "linear")
+                result = _create_variables_from_data_frame(
+                    output_df, "pdyn", u.nPa, target_time_variable, "linear", "Pdyn"
+                )
 
-            case "IMF_Bz":
+            case "BzIMF":
                 # we request two additional hours for interpolation
                 output_df = _cache_omni_high_res(base_data_path, start_time, end_time)
                 assert isinstance(output_df, pd.DataFrame)
 
                 output_df["bz_gsm"] = output_df["bz_gsm"].interpolate(method="spline", order=3).ffill().bfill()
 
-                result = _create_variables_from_data_frame(output_df, "bz_gsm", u.nT, target_time_variable, "linear")
+                result = _create_variables_from_data_frame(
+                    output_df, "bz_gsm", u.nT, target_time_variable, "linear", "BzIMF"
+                )
 
-            case "IMF_By":
+            case "ByIMF":
                 # we request two additional hours for interpolation
                 output_df = _cache_omni_high_res(base_data_path, start_time, end_time)
                 assert isinstance(output_df, pd.DataFrame)
 
                 output_df["by_gsm"] = output_df["by_gsm"].interpolate(method="spline", order=3).ffill().bfill()
 
-                result = _create_variables_from_data_frame(output_df, "by_gsm", u.nT, target_time_variable, "linear")
+                result = _create_variables_from_data_frame(
+                    output_df, "by_gsm", u.nT, target_time_variable, "linear", "ByIMF"
+                )
 
-            case "SW_speed":
+            case "Vsw":
                 # we request two additional hours for interpolation
                 output_df = _cache_omni_high_res(base_data_path, start_time, end_time)
                 assert isinstance(output_df, pd.DataFrame)
@@ -173,9 +181,10 @@ def load_indices_solar_wind_parameters(
                     u.km * u.s**-1,
                     target_time_variable,
                     "linear",
+                    "Vsw",
                 )
 
-            case "SW_density":
+            case "Nsw":
                 # we request two additional hours for interpolation
                 output_df = _cache_omni_high_res(base_data_path, start_time, end_time)
                 assert isinstance(output_df, pd.DataFrame)
@@ -186,7 +195,7 @@ def load_indices_solar_wind_parameters(
                 output_df["proton_density"] = output_df["proton_density"].clip(lower=0)
 
                 result = _create_variables_from_data_frame(
-                    output_df, "proton_density", u.cm**-3, target_time_variable, "linear"
+                    output_df, "proton_density", u.cm**-3, target_time_variable, "linear", "Nsw"
                 )
 
             case "G1":
@@ -221,8 +230,20 @@ def _create_variables_from_data_frame(
     unit: u.UnitBase,
     target_time_variable: ep.Variable | None,
     time_interp_method: str,
+    index_name: str,
 ) -> ep.Variable | tuple[ep.Variable, ep.Variable]:
     data_var = ep.Variable(data=df_in[data_key].to_numpy(), original_unit=unit)
+
+    if "file_name" in df_in.columns:
+        unique_file_names = df_in["file_name"].dropna().unique()
+        data_var.metadata.source_files = sorted({Path(f).name for f in unique_file_names})
+
+    if "model" in df_in.columns:
+        contributing_models = sorted(df_in["model"].dropna().unique())
+        data_var.metadata.add_processing_note(
+            f"{index_name} values sourced from model(s): {', '.join(contributing_models)}."
+        )
+
     timestamps = np.asarray([t.timestamp() for t in df_in.index.to_pydatetime()])  # ty:ignore[unresolved-attribute]
     time_var = ep.Variable(data=timestamps, original_unit=ep.units.posixtime)
 
@@ -247,24 +268,31 @@ def _cache_omni_high_res(base_data_path: Path, start_time: datetime, end_time: d
     return output_df
 
 
+def _merge_source_files(*variables: ep.Variable) -> list[str]:
+    merged: list[str] = []
+    for variable in variables:
+        merged += variable.metadata.source_files
+    return list(dict.fromkeys(merged))
+
+
 def _calculate_g1(
     start_time: datetime, end_time: datetime, target_time_variable: ep.Variable | None
 ) -> tuple[ep.Variable, ep.Variable]:
-    additional_required_inputs = typing.cast("list[SW_Index]", ["SW_speed", "IMF_Bz", "IMF_By"])
+    additional_required_inputs = typing.cast("list[SW_Index]", ["Vsw", "BzIMF", "ByIMF"])
 
     inputs = load_indices_solar_wind_parameters(start_time, end_time, additional_required_inputs, None)
 
-    sw_speed = inputs["SW_speed"][0].get_data().astype(np.float64)
-    sw_speed_time = inputs["SW_speed"][1].get_data(ep.units.posixtime).astype(np.float64)
+    sw_speed = inputs["Vsw"][0].get_data().astype(np.float64)
+    sw_speed_time = inputs["Vsw"][1].get_data(ep.units.posixtime).astype(np.float64)
 
-    imf_bz = inputs["IMF_Bz"][0].get_data().astype(np.float64)
-    imf_bz_time = inputs["IMF_Bz"][1].get_data(ep.units.posixtime).astype(np.float64)
+    imf_bz = inputs["BzIMF"][0].get_data().astype(np.float64)
+    imf_bz_time = inputs["BzIMF"][1].get_data(ep.units.posixtime).astype(np.float64)
 
-    imf_by = inputs["IMF_By"][0].get_data().astype(np.float64)
-    imf_by_time = inputs["IMF_By"][1].get_data(ep.units.posixtime).astype(np.float64)
+    imf_by = inputs["ByIMF"][0].get_data().astype(np.float64)
+    imf_by_time = inputs["ByIMF"][1].get_data(ep.units.posixtime).astype(np.float64)
 
     if not np.array_equal(sw_speed_time, imf_bz_time) or not np.array_equal(sw_speed_time, imf_by_time):
-        msg = "Time variables of SW_speed, IMF_Bz, and IMF_By must be equal!"
+        msg = "Time variables of Vsw, BzIMF, and ByIMF must be equal!"
         raise ValueError(msg)
 
     b_perp = np.sqrt(imf_bz**2 + imf_by**2)
@@ -285,6 +313,7 @@ def _calculate_g1(
         )
 
     data_var = ep.Variable(data=np.asarray(g1), original_unit=u.dimensionless_unscaled)
+    data_var.metadata.source_files = _merge_source_files(inputs["Vsw"][0], inputs["BzIMF"][0], inputs["ByIMF"][0])
     time_var = ep.Variable(data=timestamps, original_unit=ep.units.posixtime)
 
     if target_time_variable is not None:
@@ -297,18 +326,18 @@ def _calculate_g1(
 def _calculate_g2(
     start_time: datetime, end_time: datetime, target_time_variable: ep.Variable | None
 ) -> tuple[ep.Variable, ep.Variable]:
-    additional_required_inputs = typing.cast("list[SW_Index]", ["SW_speed", "IMF_Bz"])
+    additional_required_inputs = typing.cast("list[SW_Index]", ["Vsw", "BzIMF"])
 
     inputs = load_indices_solar_wind_parameters(start_time, end_time, additional_required_inputs, None)
 
-    sw_speed = inputs["SW_speed"][0].get_data().astype(np.float64)
-    sw_speed_time = inputs["SW_speed"][1].get_data(ep.units.posixtime).astype(np.float64)
+    sw_speed = inputs["Vsw"][0].get_data().astype(np.float64)
+    sw_speed_time = inputs["Vsw"][1].get_data(ep.units.posixtime).astype(np.float64)
 
-    imf_bz = inputs["IMF_Bz"][0].get_data().astype(np.float64)
-    imf_bz_time = inputs["IMF_Bz"][1].get_data(ep.units.posixtime).astype(np.float64)
+    imf_bz = inputs["BzIMF"][0].get_data().astype(np.float64)
+    imf_bz_time = inputs["BzIMF"][1].get_data(ep.units.posixtime).astype(np.float64)
 
     if not np.array_equal(sw_speed_time, imf_bz_time):
-        msg = "Time variables of SW_speed, and IMF_Bz must be equal!"
+        msg = "Time variables of Vsw, and BzIMF must be equal!"
         raise ValueError(msg)
 
     b_south = np.where(imf_bz < 0, -imf_bz, 0)
@@ -322,6 +351,7 @@ def _calculate_g2(
         g2.append(float(np.nanmean(sw_speed[idx] * b_south[idx] / 200)))
 
     data_var = ep.Variable(data=np.asarray(g2), original_unit=u.dimensionless_unscaled)
+    data_var.metadata.source_files = _merge_source_files(inputs["Vsw"][0], inputs["BzIMF"][0])
     time_var = ep.Variable(data=timestamps, original_unit=ep.units.posixtime)
 
     if target_time_variable is not None:
@@ -334,21 +364,21 @@ def _calculate_g2(
 def _calculate_g3(
     start_time: datetime, end_time: datetime, target_time_variable: ep.Variable | None
 ) -> tuple[ep.Variable, ep.Variable]:
-    additional_required_inputs = typing.cast("list[SW_Index]", ["SW_speed", "SW_density", "IMF_Bz"])
+    additional_required_inputs = typing.cast("list[SW_Index]", ["Vsw", "Nsw", "BzIMF"])
 
     inputs = load_indices_solar_wind_parameters(start_time, end_time, additional_required_inputs, None)
 
-    sw_speed = inputs["SW_speed"][0].get_data().astype(np.float64)
-    sw_speed_time = inputs["SW_speed"][1].get_data(ep.units.posixtime).astype(np.float64)
+    sw_speed = inputs["Vsw"][0].get_data().astype(np.float64)
+    sw_speed_time = inputs["Vsw"][1].get_data(ep.units.posixtime).astype(np.float64)
 
-    sw_density = inputs["SW_density"][0].get_data().astype(np.float64)
-    sw_density_time = inputs["SW_density"][1].get_data(ep.units.posixtime).astype(np.float64)
+    sw_density = inputs["Nsw"][0].get_data().astype(np.float64)
+    sw_density_time = inputs["Nsw"][1].get_data(ep.units.posixtime).astype(np.float64)
 
-    imf_bz = inputs["IMF_Bz"][0].get_data().astype(np.float64)
-    imf_bz_time = inputs["IMF_Bz"][1].get_data(ep.units.posixtime).astype(np.float64)
+    imf_bz = inputs["BzIMF"][0].get_data().astype(np.float64)
+    imf_bz_time = inputs["BzIMF"][1].get_data(ep.units.posixtime).astype(np.float64)
 
     if not np.array_equal(sw_speed_time, imf_bz_time) or not np.array_equal(sw_speed_time, sw_density_time):
-        msg = "Time variables of SW_speed, SW_density, and IMF_Bz must be equal!"
+        msg = "Time variables of Vsw, Nsw, and BzIMF must be equal!"
         raise ValueError(msg)
 
     b_south = np.where(imf_bz < 0, -imf_bz, 0)
@@ -362,6 +392,7 @@ def _calculate_g3(
         g3.append(float(np.nanmean(sw_density[idx] * sw_speed[idx] * b_south[idx] / 2000)))
 
     data_var = ep.Variable(data=np.asarray(g3), original_unit=u.dimensionless_unscaled)
+    data_var.metadata.source_files = _merge_source_files(inputs["Vsw"][0], inputs["Nsw"][0], inputs["BzIMF"][0])
     time_var = ep.Variable(data=timestamps, original_unit=ep.units.posixtime)
 
     if target_time_variable is not None:
@@ -415,7 +446,7 @@ R = [0.383403, 0.648176, 0.318752e-01, 0.581168, 1.15070, 0.843004]
 def _calculate_w_parameters(
     start_time: datetime, end_time: datetime, target_time_variable: ep.Variable | None
 ) -> tuple[ep.Variable, ep.Variable]:
-    additional_required_inputs = typing.cast("list[SW_Index]", ["IMF_Bz", "SW_speed", "SW_density"])
+    additional_required_inputs = typing.cast("list[SW_Index]", ["BzIMF", "Vsw", "Nsw"])
 
     # shift by two weeks because the values are influenced by past conditions
     start_time_sifted = start_time - timedelta(days=14)
@@ -433,9 +464,9 @@ def _calculate_w_parameters(
         start_time_sifted, end_time, additional_required_inputs, time_var_calculation
     )
 
-    sw_speed = inputs["SW_speed"].get_data().astype(np.float64)
-    sw_density = inputs["SW_density"].get_data().astype(np.float64)
-    imf_bz = inputs["IMF_Bz"].get_data().astype(np.float64)
+    sw_speed = inputs["Vsw"].get_data().astype(np.float64)
+    sw_density = inputs["Nsw"].get_data().astype(np.float64)
+    imf_bz = inputs["BzIMF"].get_data().astype(np.float64)
 
     b_south = np.where(imf_bz < 0, -imf_bz, 0)
 
@@ -478,6 +509,7 @@ def _calculate_w_parameters(
         time_var_to_return = time_var_calculation
 
     w_var = ep.Variable(data=w_data_to_return, original_unit=u.dimensionless_unscaled)
+    w_var.metadata.source_files = _merge_source_files(inputs["BzIMF"], inputs["Vsw"], inputs["Nsw"])
     w_var.truncate(time_var_to_return, start_time, end_time)
     time_var_to_return.truncate(time_var_to_return, start_time, end_time)
 

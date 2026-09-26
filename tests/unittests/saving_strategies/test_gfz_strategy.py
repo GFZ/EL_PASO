@@ -77,6 +77,7 @@ def _mock_monthly_variables() -> dict[InternalName, ep.Variable]:
             original_unit=u.dimensionless_unscaled,
             data=np.full((time_size, alpha_size), 5.5),
         ),
+        "Kp": ep.Variable(original_unit=u.dimensionless_unscaled, data=np.full(time_size, 2.0)),
     }
 
     for variable in variables.values():
@@ -136,6 +137,11 @@ def test_monthly_rb_strategy_saves_mocked_variables_to_netcdf_with_data_standard
         assert expected_variables is not None
 
         for internal_name, expected_variable in expected_variables.items():
+            if expected_variable.get_data().size == 0:
+                # save_incomplete=True fills genuinely missing variables (e.g. Kp, which
+                # _mock_monthly_variables() does not provide) with an empty placeholder that
+                # save() skips writing entirely, so there is nothing to compare against.
+                continue
             standard_name = strategy.data_standard.get_standard_name(internal_name)
             np.testing.assert_allclose(
                 np.asarray(loaded_data[standard_name][time_mask, ...], dtype=float),

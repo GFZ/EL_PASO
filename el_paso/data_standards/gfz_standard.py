@@ -184,6 +184,28 @@ class GFZStandard(DataStandard[GFZVarNames]):
             "MLat": VariableInfo[GFZVarNames](
                 "MLat", "Magnetic latitude of the satellite location.", u.degree, ["Epoch"]
             ),
+            "Kp": VariableInfo[GFZVarNames](
+                "Kp", "Planetary Kp geomagnetic index.", u.dimensionless_unscaled, ["Epoch"]
+            ),
+            "Dst": VariableInfo[GFZVarNames]("Dst", "Disturbance storm time index.", u.nT, ["Epoch"]),
+            "Pdyn": VariableInfo[GFZVarNames]("Pdyn", "Solar wind dynamic pressure.", u.nPa, ["Epoch"]),
+            "ByIMF": VariableInfo[GFZVarNames](
+                "ByIMF", "GSM y-component of the interplanetary magnetic field.", u.nT, ["Epoch"]
+            ),
+            "BzIMF": VariableInfo[GFZVarNames](
+                "BzIMF", "GSM z-component of the interplanetary magnetic field.", u.nT, ["Epoch"]
+            ),
+            "Vsw": VariableInfo[GFZVarNames]("Vsw", "Solar wind bulk speed.", u.km / u.s, ["Epoch"]),
+            "Nsw": VariableInfo[GFZVarNames]("Nsw", "Solar wind proton density.", u.cm**-3, ["Epoch"]),
+            "G1": VariableInfo[GFZVarNames]("G1", "Tsyganenko G1 parameter.", u.dimensionless_unscaled, ["Epoch"]),
+            "G2": VariableInfo[GFZVarNames]("G2", "Tsyganenko G2 parameter.", u.dimensionless_unscaled, ["Epoch"]),
+            "G3": VariableInfo[GFZVarNames]("G3", "Tsyganenko G3 parameter.", u.dimensionless_unscaled, ["Epoch"]),
+            "W_params": VariableInfo[GFZVarNames](
+                "W_params",
+                "Tsyganenko-Sitnov W1-W6 parameters.",
+                u.dimensionless_unscaled,
+                ["Epoch", "W_components"],
+            ),
             "Magnetic_Power_Spectral_Density": VariableInfo[GFZVarNames](
                 "BB",
                 "Magnetic power spectral density of the observed waves.",

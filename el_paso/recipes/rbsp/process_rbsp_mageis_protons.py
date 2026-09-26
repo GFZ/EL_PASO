@@ -53,6 +53,8 @@ def process_rbsp_mageis_protons(
     num_cores: int = 16,
     save_strategy: Literal["gfz", "netcdf", "both"] = "both",
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
+    *,
+    save_sw: bool = False,
 ) -> None:
     """Process RBSP ECT/MagEIS proton flux data into the EL-PASO data standard.
 
@@ -82,6 +84,8 @@ def process_rbsp_mageis_protons(
         save_strategy (Literal["gfz", "netcdf", "both"]): Which saving strategy/strategies
             to use for writing the processed output. Defaults to "both".
         skip_existing (bool): If True, skip downloading files that already exist on disk.
+        save_sw (bool): If True, also save the solar wind/geomagnetic indices used to compute
+            the magnetic field variables alongside the rest of the output. Defaults to False.
     """
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
@@ -228,7 +232,7 @@ def process_rbsp_mageis_protons(
 
     psd_var = ep.processing.compute_phase_space_density(variables["FPDU"], variables["Energy"], "proton")
 
-    variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+    variables_to_save: ep.typing.VariablesDict = {
         "Epoch": binned_time_variable,
         "FPDU": variables["FPDU"],
         "Position": variables["xGEO"],
@@ -248,11 +252,27 @@ def process_rbsp_mageis_protons(
 
     if save_strategy in ("gfz", "both"):
         strategy = rbsp_mageis_proton_gfz_strategy(processed_data_path, mag_field, satellite)
-        ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=True)
+        ep.save(
+            variables_to_save,
+            strategy,
+            start_time,
+            end_time,
+            time_var=binned_time_variable,
+            append=True,
+            save_sw=save_sw,
+        )
 
     if save_strategy in ("netcdf", "both"):
         strategy = rbsp_mageis_proton_netcdf_strategy(processed_data_path, mag_field, satellite)
-        ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=True)
+        ep.save(
+            variables_to_save,
+            strategy,
+            start_time,
+            end_time,
+            time_var=binned_time_variable,
+            append=True,
+            save_sw=save_sw,
+        )
 
 
 CLI_DEFAULTS = {

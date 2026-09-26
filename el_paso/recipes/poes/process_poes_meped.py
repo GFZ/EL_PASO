@@ -45,6 +45,7 @@ def process_poes_meped_electron(
     save_strategy: Literal["netcdf"] = "netcdf",
     *,
     skip_existing: bool = True,
+    save_sw: bool = False,
 ) -> None:
     """Process POES/MetOp MEPED electron flux data into magnetic-field-resolved data products.
 
@@ -69,6 +70,9 @@ def process_poes_meped_electron(
                                                     netCDF-based strategy.
         skip_existing (bool): If True, skip downloading files that already exist locally.
                                             Defaults to True.
+        save_sw (bool): If True, also save the solar wind/geomagnetic indices used to
+                                            compute the magnetic field variables alongside the rest of the
+                                            output. Defaults to False.
     """
     del save_strategy
 
@@ -205,7 +209,7 @@ def process_poes_meped_electron(
 
     variables |= magnetic_field_variables
 
-    variables_to_save = {
+    variables_to_save: ep.typing.VariablesDict = {
         "Epoch": binned_time_var,
         "FEIU": variables["FEIU"],
         "Energy_FEIU": variables["Energy"],
@@ -220,7 +224,7 @@ def process_poes_meped_electron(
 
     saving_strategy = poes_meped_strategy(processed_data_path, mag_field, satellite)
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var)  # ty:ignore[invalid-argument-type]
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, save_sw=save_sw)
 
 
 CLI_DEFAULTS = {

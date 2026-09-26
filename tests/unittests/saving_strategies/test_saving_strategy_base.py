@@ -11,12 +11,14 @@ from typing import TYPE_CHECKING
 import el_paso as ep
 import numpy as np
 import pytest
+from astropy import units as u
 from el_paso.saving_strategy import OutputFile, SavingStrategy
 
 if TYPE_CHECKING:
     from datetime import datetime
 
     from el_paso.data_standard import DataStandard
+    from el_paso.typing import InternalName
 
 # Concrete stub so the ABC can be instantiated in tests.
 _GFZ = ep.data_standards.GFZStandard()
@@ -59,6 +61,41 @@ def test_output_file_defaults() -> None:
 def test_output_file_save_incomplete_true() -> None:
     of = OutputFile(name="wave", names_to_save=["FEDU"], save_incomplete=True)
     assert of.save_incomplete is True
+
+
+@pytest.mark.basic
+def test_get_target_variables_skips_optional_output_with_no_content() -> None:
+    """An optional output file whose only resolved name is the shared time axis must be skipped.
+
+    This is what lets a saving strategy always register e.g. a "solar_wind_indices" output file
+    without every caller having to opt in/out depending on whether it actually computed and saved
+    any solar wind index variables alongside the rest of its data.
+    """
+    strategy = _StubStrategy()
+    output_file = OutputFile(name="solar_wind_indices", names_to_save=["Epoch", "Kp", "Dst"], save_incomplete=True)
+    variables_dict: dict[InternalName, ep.Variable] = {
+        "Epoch": ep.Variable(original_unit=ep.units.posixtime, data=np.array([1.0, 2.0]))
+    }
+
+    result = strategy.get_target_variables(output_file, variables_dict, None, None, None)
+
+    assert result is None
+
+
+@pytest.mark.basic
+def test_get_target_variables_keeps_optional_output_with_partial_content() -> None:
+    strategy = _StubStrategy()
+    output_file = OutputFile(name="solar_wind_indices", names_to_save=["Epoch", "Kp", "Dst"], save_incomplete=True)
+    variables_dict: dict[InternalName, ep.Variable] = {
+        "Epoch": ep.Variable(original_unit=ep.units.posixtime, data=np.array([1.0, 2.0])),
+        "Kp": ep.Variable(original_unit=u.dimensionless_unscaled, data=np.array([2.0, 3.0])),
+    }
+
+    result = strategy.get_target_variables(output_file, variables_dict, None, None, None)
+
+    assert result is not None
+    assert set(result.keys()) == {"Epoch", "Kp", "Dst"}
+    assert result["Dst"].get_data().size == 0
 
 
 @pytest.mark.basic

@@ -52,6 +52,7 @@ def process_rbsp_hope_electrons(
     *,
     calculate_Lstar: bool = True,
     skip_existing: bool = True,
+    save_sw: bool = False,
 ) -> None:
     """Process RBSP ECT/HOPE electron flux data into the EL-PASO data standard.
 
@@ -80,6 +81,8 @@ def process_rbsp_hope_electrons(
             to use for writing the processed output. Defaults to "netcdf".
         calculate_Lstar (bool): Whether Lstar should be calculated or not. Defaults to True.
         skip_existing (bool): If True, skip downloading files that already exist on disk.
+        save_sw (bool): If True, also save the solar wind/geomagnetic indices used to compute
+            the magnetic field variables alongside the rest of the output. Defaults to False.
     """
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
@@ -190,7 +193,7 @@ def process_rbsp_hope_electrons(
 
     psd_var = ep.processing.compute_phase_space_density(variables["FEDU"], variables["Energy"], "electron")
 
-    variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+    variables_to_save: ep.typing.VariablesDict = {
         "Epoch": binned_time_variable,
         "FEDU": variables["FEDU"],
         "Position": variables["xGEO"],
@@ -214,7 +217,9 @@ def process_rbsp_hope_electrons(
     if save_strategy in ("netcdf", "both"):
         strategy = rbsp_hope_electron_netcdf_strategy(processed_data_path, mag_field, satellite)
 
-    ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=True)
+    ep.save(
+        variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=True, save_sw=save_sw
+    )
 
 
 if __name__ == "__main__":

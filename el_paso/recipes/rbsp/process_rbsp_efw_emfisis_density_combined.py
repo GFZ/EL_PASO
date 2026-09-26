@@ -48,6 +48,7 @@ def process_rbsp_efw_emfisis_density_combined(
     skip_existing: bool = True,
     add_hiss_derived_densitites: bool = True,
     hiss_derived_densities_data_path: str | Path = ".",
+    save_sw: bool = False,
 ) -> None:
     """Process and combine RBSP EFW and EMFISIS electron density data.
 
@@ -77,6 +78,8 @@ def process_rbsp_efw_emfisis_density_combined(
             equator the hiss-derived density data.
         hiss_derived_densities_data_path (str | Path): Directory containing the
             hiss-derived density text files.
+        save_sw (bool): If True, also save the solar wind/geomagnetic indices used to compute
+            the magnetic field variables alongside the rest of the output. Defaults to False.
 
     Raises:
         NotImplementedError: Always raised before the processed variables are saved; saving via
@@ -210,7 +213,7 @@ def process_rbsp_efw_emfisis_density_combined(
         mag_field,
     )
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable, save_sw=save_sw)
 
 
 def _get_efw_variables(
