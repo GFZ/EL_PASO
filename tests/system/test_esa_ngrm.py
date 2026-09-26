@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -12,6 +13,7 @@ from el_paso.recipes.esa import process_ngrm_electron_fluxes
 
 
 @pytest.mark.basic
+@pytest.mark.skip(reason="update data on zenodo")
 def test_esa_ngrm(
     tmpdir: Path,
     *,

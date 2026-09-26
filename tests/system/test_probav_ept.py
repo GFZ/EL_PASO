@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -13,6 +14,7 @@ from el_paso.recipes.probav import process_ept_electron_fluxes
 
 @pytest.mark.parametrize("apply_correction_factors", [True, False])
 @pytest.mark.basic
+@pytest.mark.skip(reason="update data on zenodo")
 def test_probav_ept(
     tmpdir: Path,
     *,
