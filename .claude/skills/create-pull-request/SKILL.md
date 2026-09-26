@@ -25,7 +25,7 @@ Files that can't hold a comment header, or whose header would get in the way (JS
 - `README.md` / `CONTRIBUTING.md` updated if this changes install steps, usage, or the "Available processing scripts" list.
 
 ## PR template
-`.github/pull_request_template.md` has one collapsible `<details>` section per PR type: **New processing recipe / satellite mission**, **Bug fix**, **Feature / enhancement**, **Documentation**, **Dependency bump / chore**, **Miscellaneous**. Fill in the top-level summary, expand and fill the one section matching this PR, and delete the rest. Don't leave every section in the description.
+`.github/pull_request_template.md` has one collapsible `<details>` section per PR type: **New processing recipe / satellite mission**, **Bug fix**, **Feature / enhancement**, **Documentation**, **Dependency bump / chore**, **Miscellaneous**. Fill in the top-level summary, then fill the one section matching this PR, and delete the rest. Don't leave every section in the description. When opening the PR, strip the `<details>`/`<summary>` wrapper tags from the section you keep, leaving its heading as a plain `###`/bold line and its content visible by default rather than collapsed.
 
 Notable per-type items:
 - **New recipe**: recipe follows an existing mission's structure, mission `__init__.py` updated, README recipe list updated, a test covers it, and any credentials/secrets needed for download are called out. See the `add-new-recipe` skill for the full pattern.

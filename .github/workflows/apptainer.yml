@@ -36,6 +36,11 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v7
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+
       - name: Get EL-PASO package version
         id: elpaso_version
         run: |
@@ -69,9 +74,12 @@ jobs:
         run: |
           sudo apptainer exec --no-mount cwd ${{ env.IMAGE_NAME }}.sif python -c "import el_paso; print('Import successful',  el_paso.__file__)"
 
-      - name: Get zenodo record ID
+      - name: Resolve zenodo checksum for cache key
         id: zenodo-record
-        run: echo "id=$(grep -oP 'RECORD_ID="\K[^"]+' download_data_for_tests.sh)" >> "$GITHUB_OUTPUT"
+        run: |
+          DOI=$(grep -oP 'DOI="\K[^"]+' download_data_for_tests.sh)
+          uv run zenodo_get --doi "${DOI}" --md5 --output-dir /tmp/zenodo-md5
+          echo "id=$(md5sum /tmp/zenodo-md5/md5sums.txt | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
       - name: Cache test data
         id: cache-test-data

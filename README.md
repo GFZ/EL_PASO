@@ -147,7 +147,7 @@ the full list.
 
 ### Step 1: Download the Test Data
 
-Most tests rely on reference/system test data hosted on [Zenodo](https://zenodo.org). Download it by running the following script from the repository root:
+Most tests rely on reference/system test data hosted on [Zenodo](https://zenodo.org). It is fetched via [`zenodo_get`](https://github.com/dvolgyes/zenodo_get), which is part of the `dev` dependency group (`uv sync --group dev`). Download it by running the following script from the repository root:
 
 ```bash
 bash download_data_for_tests.sh
