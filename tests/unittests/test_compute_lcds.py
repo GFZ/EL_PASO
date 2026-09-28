@@ -3,12 +3,12 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 from datetime import datetime, timezone
+
+import el_paso as ep
 import numpy as np
 import pandas as pd
 import pytest
 from astropy import units as u
-
-import el_paso as ep
 from el_paso.processing import compute_LCDS
 from el_paso.processing.magnetic_field_utils import IrbemOptions
 
@@ -18,7 +18,7 @@ from el_paso.processing.magnetic_field_utils import IrbemOptions
 # Rows = timestamps (LCDS_TIMES_UTC); columns = pitch angles (ALPHA_EQ_DEG).
 # ---------------------------------------------------------------------------
 
-ALPHA_EQ_DEG = (10.0, 50.0, 90.0)            # first / middle / last channel
+ALPHA_EQ_DEG = (10.0, 50.0, 90.0)  # first / middle / last channel
 ALPHA_EQ_RAD = (0.17453293, 0.87266463, 1.57079633)
 
 LCDS_TIMES_UTC = (
@@ -36,20 +36,23 @@ LCDS_TIMES_UTC = (
     "2013-03-17T22:00:00",
 )
 
-LCDS_LSTAR_REF_T89 = np.array([
-    [7.880390, 7.708010, 6.614410],
-    [8.062970, 7.866900, 6.788370],
-    [8.064740, 7.949160, 6.871560],
-    [5.358870, 5.405360, 4.835760],
-    [5.351260, 5.405980, 4.819060],
-    [5.345900, 5.413110, 4.817160],
-    [5.344380, 5.417560, 4.817890],
-    [5.315130, 5.375610, 4.808890],
-    [5.346030, 5.409220, 4.837040],
-    [5.377300, 5.449220, 4.840690],
-    [5.324520, 5.384800, 4.809580],
-    [5.316690, 5.373820, 4.796410],
-])
+LCDS_LSTAR_REF_T89 = np.array(
+    [
+        [7.880390, 7.708010, 6.614410],
+        [8.062970, 7.866900, 6.788370],
+        [8.064740, 7.949160, 6.871560],
+        [5.358870, 5.405360, 4.835760],
+        [5.351260, 5.405980, 4.819060],
+        [5.345900, 5.413110, 4.817160],
+        [5.344380, 5.417560, 4.817890],
+        [5.315130, 5.375610, 4.808890],
+        [5.346030, 5.409220, 4.837040],
+        [5.377300, 5.449220, 4.840690],
+        [5.324520, 5.384800, 4.809580],
+        [5.316690, 5.373820, 4.796410],
+    ]
+)
+
 
 @pytest.mark.basic
 def test_lcds_runs():
