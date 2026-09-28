@@ -31,7 +31,7 @@ from rich.console import Console
 from rich.table import Table
 from typer._click.shell_completion import CompletionItem
 from typer._click.utils import make_default_short_help
-from typer.core import TyperGroup
+from typer.core import TyperCommand, TyperGroup
 from typer.models import DeveloperExceptionConfig
 
 import el_paso
@@ -207,7 +207,38 @@ def _as_click_command(name: str, recipe: Recipe, defaults: dict[str, object]) ->
     return _single_command_from_typer_app(name, built)
 
 
-class LazyRecipeGroup(TyperGroup):
+def _stub_command(name: str, short_help: str) -> typer._click.Command:
+    """A placeholder command carrying only a name and short help, never invoked.
+
+    Typer's rich help renderer (``rich_utils.rich_format_help``) calls
+    ``get_command`` on every listed sub-command to read its name/short-help for
+    the panel, bypassing a group's ``format_commands`` override entirely. This
+    stub lets ``get_command`` answer that call without importing the real
+    command's recipe merely to render ``--help``.
+    """
+    return TyperCommand(name=name, short_help=short_help)
+
+
+class _LazyHelpGroup(TyperGroup):
+    """A `TyperGroup` that flags `get_command` calls made only to render `--help`.
+
+    Typer's rich help renderer calls `get_command` for every listed sub-command
+    regardless of any `format_commands` override, so without this a lazily-built
+    group would import every one of its sub-commands just to answer `--help`.
+    """
+
+    _rendering_help: bool = False
+
+    def format_help(self, ctx: typer._click.Context, formatter: typer._click.HelpFormatter) -> None:
+        """Render `--help`, flagging `get_command` calls made purely for that."""
+        self._rendering_help = True
+        try:
+            super().format_help(ctx, formatter)
+        finally:
+            self._rendering_help = False
+
+
+class LazyRecipeGroup(_LazyHelpGroup):
     """A mission group that imports a recipe only once it is actually used.
 
     Building a recipe's command requires its signature, and therefore its import.
@@ -225,10 +256,15 @@ class LazyRecipeGroup(TyperGroup):
         return sorted(self._entries)
 
     def get_command(self, ctx: typer._click.Context, cmd_name: str) -> typer._click.Command | None:  # noqa: ARG002
-        """Build one recipe's command, importing exactly that recipe."""
+        """Build one recipe's command, importing exactly that recipe.
+
+        While rendering `--help`, returns a cheap stub instead: see `_LazyHelpGroup`.
+        """
         entry = self._entries.get(cmd_name)
         if entry is None:
             return None
+        if self._rendering_help:
+            return _stub_command(cmd_name, _summary(entry))
         recipe, defaults = load_recipe(entry)
         return _as_click_command(cmd_name, recipe, defaults)
 
@@ -249,12 +285,18 @@ class LazyRecipeGroup(TyperGroup):
         return _complete_lazily(self, ctx, incomplete, summaries)
 
 
-class _RootGroup(TyperGroup):
+class _RootGroup(_LazyHelpGroup):
     """The top-level group, which also defers building the ``omm`` command."""
 
     def get_command(self, ctx: typer._click.Context, cmd_name: str) -> typer._click.Command | None:
-        """Return a sub-command, building ``omm`` on demand."""
+        """Return a sub-command, building ``omm`` on demand.
+
+        While rendering `--help`, returns a cheap stub for ``omm`` instead: see
+        `_LazyHelpGroup`.
+        """
         if cmd_name == "omm":
+            if self._rendering_help:
+                return _stub_command("omm", _summary_from_source("el_paso.download_omm", "download_omm"))
             return _as_click_command("omm", el_paso.download_omm, {})  # ty: ignore[invalid-argument-type]
         return super().get_command(ctx, cmd_name)
 
