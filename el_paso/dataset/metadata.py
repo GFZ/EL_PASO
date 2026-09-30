@@ -154,6 +154,7 @@ class GFZMetaData(DatasetMetadata):
         Flux (VariableMetadata): Electron differential unidirectional flux.
         InvK (VariableMetadata): Calculated modified second adiabatic invariant.
         InvMu (VariableMetadata): Calculated first adiabatic invariant.
+        LCDS (VariableMetadata): Last Closed Drift Shell.
         Lm (VariableMetadata): Calculated Lm of the particles.
         Lstar (VariableMetadata): Calculated Lstar of the particles.
         MLT (VariableMetadata): Magnetic local time at the satellite location.
@@ -200,6 +201,7 @@ class GFZMetaData(DatasetMetadata):
     Flux: VariableMetadata
     InvK: VariableMetadata
     InvMu: VariableMetadata
+    LCDS: VariableMetadata
     Lm: VariableMetadata
     Lstar: VariableMetadata
     MLT: VariableMetadata

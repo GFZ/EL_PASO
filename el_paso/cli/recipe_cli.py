@@ -280,6 +280,7 @@ class _ParameterSpec(typing.NamedTuple):
     default: Any
     choice_enum: type[enum.Enum] | None
     is_loop: bool
+    is_list: bool = False
 
 
 def _option_names(name: str, *, is_flag: bool) -> list[str]:
@@ -338,6 +339,17 @@ def _build_parameter_spec(  # noqa: PLR0911
     if inner_hint is bool:
         option = typer.Option(*_option_names(name, is_flag=True), help=help_text)
         return _ParameterSpec(name, Annotated[bool, option], default, None, is_loop=False)
+
+    if get_origin(inner_hint) is list:
+        item_hints = get_args(inner_hint)
+        if len(item_hints) == 1 and item_hints[0] in (int, float, str):
+            option = typer.Option(*_option_names(name, is_flag=False), help=help_text)
+            # A list parameter already takes several values, so it is repeated rather than looped:
+            # `--alpha-eq 10 --alpha-eq 90` is one call with two pitch angles, not two calls.
+            annotation = Annotated[list[item_hints[0]], option]  # ty: ignore[invalid-type-form]
+            return _ParameterSpec(name, annotation, default, None, is_loop=False, is_list=True)
+
+        return None
 
     if inner_hint in (int, float, str):
         option = typer.Option(*_option_names(name, is_flag=False), help=help_text)
@@ -443,6 +455,7 @@ def _make_command(
     """Assemble the wrapper callable and attach the synthesised signature."""
     choice_enums = {spec.name: spec.choice_enum for spec in specs if spec.choice_enum is not None}
     loop_names = [spec.name for spec in specs if spec.is_loop]
+    list_names = [spec.name for spec in specs if spec.is_list]
 
     def command(**kwargs: Any) -> None:  # noqa: ANN401
         # The universal options belong to the command, not to the recipe, so they are
@@ -463,6 +476,13 @@ def _make_command(
                 kwargs[name] = value.value
             elif isinstance(value, list):
                 kwargs[name] = [item.value if isinstance(item, choice_enum) else item for item in value]
+
+        # Typer hands back a tuple for options that take several values; recipes annotate them
+        # as lists.
+        for name in list_names:
+            value = kwargs.get(name)
+            if isinstance(value, tuple):
+                kwargs[name] = list(value)
 
         kwargs.update(skipped)
 
