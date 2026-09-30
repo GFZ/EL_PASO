@@ -102,7 +102,7 @@ def process_rbsp_emfisis_waves(
     orbit_vars = _calculate_orbital_vars(mag_vars)
     psd_var = _compute_total_psd(wfr_vars)
 
-    vars_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+    vars_to_save: ep.typing.VariablesDict = {
         "Epoch": target_time_var,
         "Wave_frequency": wfr_vars["freq"],
         "Wave_frequency_bandwidth": wfr_vars["bandwidth"],

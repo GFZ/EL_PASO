@@ -53,10 +53,20 @@ class DailyLEORBStrategy(ep.typing.MonthlyRBStrategy):
         self,
         interval_start: datetime,
         interval_end: datetime,  # noqa: ARG002
-        output_file: ep.typing.OutputFile,  # noqa: ARG002
+        output_file: ep.typing.OutputFile,
     ) -> Path:
-        """Generate the daily file path for the configured format."""
-        file_name = f"{self.get_file_name_stem()}_{interval_start.strftime('%Y%m%d')}_{self.mag_field}.nc"
+        """Generate the daily file path for the configured format.
+
+        The default "full" output file keeps its historical, unsuffixed name for backwards
+        compatibility. Any additional output file (e.g. a "solar_wind_indices" group) gets
+        `output_file.name` appended to disambiguate it from "full".
+        """
+        file_name = f"{self.get_file_name_stem()}_{interval_start.strftime('%Y%m%d')}_{self.mag_field}"
+
+        if output_file.name != "full":
+            file_name += f"_{output_file.name}"
+
+        file_name += ".nc"
 
         return self.get_file_path_stem() / file_name
 
