@@ -226,10 +226,11 @@ def process_goes_r_mps_high(
 
     if save_strategy in ("gfz", "both"):
         saving_strategy = goes_r_mps_high_gfz_strategy(processed_data_path, mag_field, satellite)
+        ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=True)
+
     if save_strategy in ("netcdf", "both"):
         saving_strategy = goes_r_mps_high_netcdf_strategy(processed_data_path, mag_field, satellite)
-
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=True)
+        ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=True)
 
 
 def _get_magn_variables(
