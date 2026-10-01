@@ -356,8 +356,11 @@ class DataSet:
 
         # 1. Handle Computed Values
         if requested_name == "InvV":
-            inv_K_repeated = np.repeat(self.InvK[:, np.newaxis, :], self.InvMu.shape[1], axis=1)
-            self.InvV = self.InvMu * (inv_K_repeated + 0.5) ** 2
+            if len(self.InvK) == 0 or len(self.InvMu) == 0:  # invariants not found
+                self.InvV = np.asarray([])
+            else:
+                inv_K_repeated = np.repeat(self.InvK[:, np.newaxis, :], self.InvMu.shape[1], axis=1)
+                self.InvV = self.InvMu * (inv_K_repeated + 0.5) ** 2
             return
         if requested_name == "P":
             self.P = ((self.MLT + 12) / 12 * np.pi) % (2 * np.pi)

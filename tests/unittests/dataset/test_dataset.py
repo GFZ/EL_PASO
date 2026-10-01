@@ -220,6 +220,15 @@ class TestDataSet:  # noqa: D101
         )
         np.testing.assert_array_equal(mock_dataset.InvV, expected)
 
+    def test_computed_invv_variable_with_missing_invariants(self, mock_dataset: DataSet):
+        """InvV should be empty, not raise, when InvK/InvMu are not available."""
+        mock_dataset.InvK = np.asarray([])
+        mock_dataset.InvMu = np.asarray([])
+
+        mock_dataset._load_variable("InvV")
+
+        assert len(mock_dataset.InvV) == 0
+
     def test_computed_p_variable(self, mock_dataset: DataSet):
         """Test computed P variable."""
         mock_dataset.MLT = np.array([0.0, 6.0, 12.0, 18.0])
