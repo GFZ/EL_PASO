@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 from el_paso.utils import (
+    datetime_to_datenum,
     enforce_utc_timezone,
     env_flag_enabled,
     extract_version,
@@ -194,3 +195,10 @@ def test_make_dict_hashable_is_hashable_and_order_independent() -> None:
 @pytest.mark.basic
 def test_make_dict_hashable_none() -> None:
     assert make_dict_hashable(None) is None
+
+
+@pytest.mark.basic
+def test_datetime_to_datenum_keeps_subsecond_precision() -> None:
+    whole = datetime(2024, 4, 16, 15, 30, 0, tzinfo=timezone.utc)
+    half = datetime(2024, 4, 16, 15, 30, 0, 500_000, tzinfo=timezone.utc)
+    assert datetime_to_datenum(half) - datetime_to_datenum(whole) == pytest.approx(0.5 / 86400, abs=1e-6)

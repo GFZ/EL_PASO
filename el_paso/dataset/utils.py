@@ -83,9 +83,9 @@ def python2matlab(datenum: datetime) -> float:
         a fractional component for the time of day.
     """
     mdn = datenum + timedelta(days=366)
-    frac = (datenum - datetime(datenum.year, datenum.month, datenum.day, 0, 0, 0, tzinfo=timezone.utc)).seconds / (
-        24.0 * 60.0 * 60.0
-    )
+    frac = (
+        datenum - datetime(datenum.year, datenum.month, datenum.day, 0, 0, 0, tzinfo=timezone.utc)
+    ).total_seconds() / (24.0 * 60.0 * 60.0)
     return mdn.toordinal() + round(frac, 6)
 
 

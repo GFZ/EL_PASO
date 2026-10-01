@@ -282,7 +282,7 @@ def datetime_to_datenum(datetime_val: datetime) -> float:
     """
     mdn = datetime_val + timedelta(days=366)
     dt = datetime(datetime_val.year, datetime_val.month, datetime_val.day, 0, 0, 0, tzinfo=timezone.utc)
-    frac = (datetime_val - dt).seconds / (24.0 * 60.0 * 60.0)
+    frac = (datetime_val - dt).total_seconds() / (24.0 * 60.0 * 60.0)
 
     return mdn.toordinal() + round(frac, 6)
 
