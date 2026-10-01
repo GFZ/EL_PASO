@@ -326,7 +326,7 @@ class Hashabledict(dict[Any, Any]):
         Returns:
             int: The hash value of the dictionary.
         """
-        return hash((frozenset(self), frozenset(self.itervalues())))  # ty:ignore[unresolved-attribute]
+        return hash((frozenset(self), frozenset(self.values())))
 
 
 def make_dict_hashable(dict_input: dict[Any, Any] | None) -> Hashabledict | None:

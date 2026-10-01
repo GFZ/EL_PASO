@@ -13,6 +13,7 @@ from el_paso.utils import (
     extract_version,
     fill_str_template_with_time,
     get_file_by_version,
+    make_dict_hashable,
     timed_function,
 )
 
@@ -177,3 +178,19 @@ def test_env_flag_enabled_falsy(monkeypatch: pytest.MonkeyPatch, value: str) -> 
 def test_env_flag_enabled_unset(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("EL_PASO_TEST_FLAG", raising=False)
     assert not env_flag_enabled("EL_PASO_TEST_FLAG")
+
+
+@pytest.mark.basic
+def test_make_dict_hashable_is_hashable_and_order_independent() -> None:
+    first = make_dict_hashable({"a": 1, "b": 2})
+    second = make_dict_hashable({"b": 2, "a": 1})
+
+    assert first is not None
+    assert second is not None
+    assert hash(first) == hash(second)
+    assert first == second
+
+
+@pytest.mark.basic
+def test_make_dict_hashable_none() -> None:
+    assert make_dict_hashable(None) is None
