@@ -179,7 +179,11 @@ def download(
 
     while curr_time <= end_time:
         next_time = _get_next_time(curr_time, file_cadence)
-        next_time = end_time if next_time is None else next_time
+
+        if next_time is None:
+            # single file covering the whole range
+            tasks.append((curr_time, end_time))
+            break
 
         tasks.append((curr_time, next_time))
         curr_time = next_time

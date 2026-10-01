@@ -163,6 +163,33 @@ def test_download_with_callable_cadence(tmp_path: Path, monkeypatch: pytest.Monk
 
 
 @pytest.mark.basic
+def test_download_single_file_cadence_runs_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """file_cadence="single_file" must create exactly one task instead of looping forever."""
+    download_mod = importlib.import_module("el_paso.download")
+
+    steps: list[tuple[datetime, datetime]] = []
+
+    def mock_step(curr_time: datetime, next_time: datetime, **_kwargs: object) -> None:
+        steps.append((curr_time, next_time))
+
+    monkeypatch.setattr(download_mod, "_download_single_step", mock_step)
+
+    start_time = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    end_time = datetime(2024, 1, 2, tzinfo=timezone.utc)
+
+    ep.download(
+        start_time=start_time,
+        end_time=end_time,
+        save_path=tmp_path,
+        file_cadence="single_file",
+        download_url="https://fake.server/data/",
+        file_name_stem="file.txt",
+    )
+
+    assert steps == [(start_time, end_time)]
+
+
+@pytest.mark.basic
 def test_ftp(tmp_path: Path):
 
     start_time = datetime(2024, 1, 3, tzinfo=timezone.utc)
