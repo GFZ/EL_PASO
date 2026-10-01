@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 def calculate_geo_coords_from_tle(
     tle_filename: str | Path,
 ) -> tuple[str, list[datetime], ep.Variable]:
-    """Calculate GEO coordinates (x, y, z) in kilometers from a TLE file.
+    """Calculate GEO (Earth-fixed, ITRF) coordinates (x, y, z) in kilometers from a TLE file.
 
     Args:
         tle_filename (str | Path): The file path containing the TLE data.
@@ -53,7 +53,7 @@ def calculate_geo_coords_from_tle(
         geocentric = satellite.at(timescale.from_datetime(tle_time))
 
         tle_times.append(tle_time)
-        geo_coordinates.append(geocentric.xyz.km)
+        geo_coordinates.append(geocentric.itrf_xyz().km)
 
     result = np.asarray(geo_coordinates, dtype=np.float64)
 
