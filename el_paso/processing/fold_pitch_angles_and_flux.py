@@ -104,7 +104,9 @@ def fold_pitch_angles_and_flux(
     flux = flux_var.get_data().astype(np.float64)
     pa_local = pa_local_var.get_data(u.deg).astype(np.float64)
 
-    if np.all(np.repeat(pa_local[0, :][np.newaxis, :], pa_local.shape[0], axis=0) != pa_local):
+    if not np.array_equal(
+        np.repeat(pa_local[0, :][np.newaxis, :], pa_local.shape[0], axis=0), pa_local, equal_nan=True
+    ):
         msg = "We assume that local pitch angles do not change in time!"
         raise ValueError(msg)
 
