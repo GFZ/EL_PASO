@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -202,3 +202,16 @@ def test_datetime_to_datenum_keeps_subsecond_precision() -> None:
     whole = datetime(2024, 4, 16, 15, 30, 0, tzinfo=timezone.utc)
     half = datetime(2024, 4, 16, 15, 30, 0, 500_000, tzinfo=timezone.utc)
     assert datetime_to_datenum(half) - datetime_to_datenum(whole) == pytest.approx(0.5 / 86400, abs=1e-6)
+
+
+@pytest.mark.basic
+def test_datetime_to_datenum_naive_is_treated_as_utc() -> None:
+    aware = datetime(2024, 4, 16, 15, 30, tzinfo=timezone.utc)
+    assert datetime_to_datenum(aware.replace(tzinfo=None)) == datetime_to_datenum(aware)
+
+
+@pytest.mark.basic
+def test_datetime_to_datenum_converts_other_timezones_to_utc() -> None:
+    utc = datetime(2024, 4, 16, 23, 30, tzinfo=timezone.utc)
+    plus_two = utc.astimezone(timezone(timedelta(hours=2)))  # already on the next calendar day
+    assert datetime_to_datenum(plus_two) == datetime_to_datenum(utc)
