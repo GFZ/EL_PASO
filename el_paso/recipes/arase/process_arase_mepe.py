@@ -314,10 +314,10 @@ def process_arase_mepe(
             saving_strategy = arase_mepe_gfz_strategy(processed_data_path, mag_field_save, data_standard_instance)
 
         case "h5":
-            saving_strategy = arase_mepe_h5_strategy(processed_data_path, mag_field, data_standard_instance)
+            saving_strategy = arase_mepe_h5_strategy(processed_data_path, mag_field_save, data_standard_instance)
 
         case "netcdf":
-            saving_strategy = arase_mepe_netcdf_strategy(processed_data_path, mag_field, data_standard_instance)
+            saving_strategy = arase_mepe_netcdf_strategy(processed_data_path, mag_field_save, data_standard_instance)
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
 
