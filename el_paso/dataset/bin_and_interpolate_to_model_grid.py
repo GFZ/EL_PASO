@@ -110,7 +110,7 @@ def bin_and_interpolate_to_model_grid(
             psd_interp = target_var_init
 
         # sanity check
-        if np.min(target_var_init) > np.min(psd_interp) or np.max(target_var_init) < np.max(psd_interp):
+        if np.nanmin(target_var_init) > np.nanmin(psd_interp) or np.nanmax(target_var_init) < np.nanmax(psd_interp):
             msg = "Found inconsitency in V-K interpolation. Aborting..."
             raise (ValueError(msg))
     else:
@@ -127,14 +127,18 @@ def bin_and_interpolate_to_model_grid(
 
     psd_binned_in_space = _bin_in_space(psd_interp, self.P, R_or_Lstar_arr, grid_R, grid_P)
     # sanity check
-    if np.min(target_var_init) > np.min(psd_binned_in_space) or np.max(target_var_init) < np.max(psd_binned_in_space):
+    if np.nanmin(target_var_init) > np.nanmin(psd_binned_in_space) or np.nanmax(target_var_init) < np.nanmax(
+        psd_binned_in_space
+    ):
         msg = "Found inconsitency in space binning. Aborting..."
         raise (ValueError(msg))
 
     # 3. Bin in time
     psd_binned_in_time = _bin_in_time(self.datetime, sim_time, psd_binned_in_space)  # ty:ignore[invalid-argument-type]
     # sanity check
-    if np.min(target_var_init) > np.min(psd_binned_in_time) or np.max(target_var_init) < np.max(psd_binned_in_time):
+    if np.nanmin(target_var_init) > np.nanmin(psd_binned_in_time) or np.nanmax(target_var_init) < np.nanmax(
+        psd_binned_in_time
+    ):
         msg = "Found inconsitency in time binning. Aborting..."
         raise (ValueError(msg))
 

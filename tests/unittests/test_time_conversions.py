@@ -56,3 +56,16 @@ def test_circular_conversion_astropy(start_q: u.Quantity, target_unit_1: u.UnitB
 
     # Assert that the final value is close to the starting value
     assert np.allclose(final_q.value, start_q.value)
+
+
+@pytest.mark.basic
+def test_j2k_posixtime_roundtrip() -> None:
+    j2k_q = u.Quantity(
+        REF_DATETIME.timestamp() - datetime(2000, 1, 1, 12, tzinfo=timezone.utc).timestamp(), ep.units.j2k
+    )
+
+    posix_q = j2k_q.to(ep.units.posixtime)
+    assert np.allclose(posix_q.value, REF_DATETIME.timestamp())
+
+    back_q = posix_q.to(ep.units.j2k)
+    assert np.allclose(back_q.value, j2k_q.value)

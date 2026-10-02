@@ -183,7 +183,6 @@ def process_poes_meped_electron(
 
     variables_to_compute: ep.processing.VariableRequest = [
         ("B_Calc", mag_field),
-        ("B_Eq", mag_field),
         ("MLT_Eq", mag_field),
         ("B_Eq", mag_field),
         ("R_Eq", mag_field),

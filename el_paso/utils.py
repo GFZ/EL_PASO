@@ -275,14 +275,16 @@ def datetime_to_datenum(datetime_val: datetime) -> float:
     since year 0, including a fractional component for the time of day.
 
     Args:
-        datetime_val (datetime): The datetime object to convert.
+        datetime_val (datetime): The datetime object to convert. Naive datetimes are
+            assumed to be UTC.
 
     Returns:
         float: The corresponding MATLAB datenum value.
     """
+    datetime_val = enforce_utc_timezone(datetime_val)
     mdn = datetime_val + timedelta(days=366)
     dt = datetime(datetime_val.year, datetime_val.month, datetime_val.day, 0, 0, 0, tzinfo=timezone.utc)
-    frac = (datetime_val - dt).seconds / (24.0 * 60.0 * 60.0)
+    frac = (datetime_val - dt).total_seconds() / (24.0 * 60.0 * 60.0)
 
     return mdn.toordinal() + round(frac, 6)
 
@@ -326,7 +328,7 @@ class Hashabledict(dict[Any, Any]):
         Returns:
             int: The hash value of the dictionary.
         """
-        return hash((frozenset(self), frozenset(self.itervalues())))  # ty:ignore[unresolved-attribute]
+        return hash((frozenset(self), frozenset(self.values())))
 
 
 def make_dict_hashable(dict_input: dict[Any, Any] | None) -> Hashabledict | None:

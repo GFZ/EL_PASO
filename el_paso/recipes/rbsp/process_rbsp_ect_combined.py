@@ -219,11 +219,11 @@ def process_rbsp_ect_combined(
 
     if save_strategy in ("gfz", "both"):
         strategy = rbsp_ect_combined_gfz_strategy(processed_data_path, mag_field, satellite)
+        ep.save(variables_to_save, strategy, start_time, end_time, binned_time_variable, append=True)
 
     if save_strategy in ("netcdf", "both"):
         strategy = rbsp_ect_combined_netcdf_strategy(processed_data_path, mag_field, satellite)
-
-    ep.save(variables_to_save, strategy, start_time, end_time, binned_time_variable, append=True)
+        ep.save(variables_to_save, strategy, start_time, end_time, binned_time_variable, append=True)
 
 
 if __name__ == "__main__":
