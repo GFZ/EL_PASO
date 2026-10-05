@@ -50,6 +50,8 @@ def process_rbsp_ect_combined(
     num_cores: int = 16,
     save_strategy: Literal["gfz", "netcdf", "both"] = "netcdf",
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
+    *,
+    save_sw: bool = False,
 ) -> None:
     """Process combined RBSP ECT (REPT/MagEIS) electron flux data into the EL-PASO data standard.
 
@@ -77,6 +79,8 @@ def process_rbsp_ect_combined(
         num_cores (int): Number of CPU cores used for the magnetic field computations.
             Defaults to 16.
         skip_existing (bool): If True, skip downloading files that already exist on disk.
+        save_sw (bool): If True, also save the solar wind/geomagnetic indices used to compute
+            the magnetic field variables alongside the rest of the output. Defaults to False.
     """
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
@@ -199,7 +203,7 @@ def process_rbsp_ect_combined(
         variables["FEDU"], variables["Energy"], particle_species="electron"
     )
 
-    variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+    variables_to_save: ep.typing.VariablesDict = {
         "Epoch": binned_time_variable,
         "FEDU": variables["FEDU"],
         "Energy_FEDU": variables["Energy"],
@@ -223,7 +227,7 @@ def process_rbsp_ect_combined(
     if save_strategy in ("netcdf", "both"):
         strategy = rbsp_ect_combined_netcdf_strategy(processed_data_path, mag_field, satellite)
 
-    ep.save(variables_to_save, strategy, start_time, end_time, binned_time_variable, append=True)
+    ep.save(variables_to_save, strategy, start_time, end_time, binned_time_variable, append=True, save_sw=save_sw)
 
 
 if __name__ == "__main__":

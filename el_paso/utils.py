@@ -326,7 +326,7 @@ class Hashabledict(dict[Any, Any]):
         Returns:
             int: The hash value of the dictionary.
         """
-        return hash((frozenset(self), frozenset(self.itervalues())))  # ty:ignore[unresolved-attribute]
+        return hash((frozenset(self), frozenset(self.values())))
 
 
 def make_dict_hashable(dict_input: dict[Any, Any] | None) -> Hashabledict | None:
@@ -815,8 +815,8 @@ def _calculate_dimensions(data_dict: DataDict, data_standard: DataStandard) -> d
 
     Returns:
         dict[str, int]: Mapping from dimension name to its size, with
-        "min_max" and "Position_components" special-cased to 2 and 3
-        respectively.
+        "min_max", "Position_components", and "W_components" special-cased
+        to 2, 3, and 6 respectively.
     """
     unique_dims = {}
 
@@ -834,6 +834,8 @@ def _calculate_dimensions(data_dict: DataDict, data_standard: DataStandard) -> d
                     unique_dims[dim_name] = 2
                 elif dim_name == "Position_components":
                     unique_dims[dim_name] = 3
+                elif dim_name == "W_components":
+                    unique_dims[dim_name] = 6
                 elif dim_name in data_dict:
                     dims_of_dim = data_standard.resolve_dependencies(
                         data_standard.get_dependencies(dim_name), available_keys

@@ -137,6 +137,7 @@ def process_gps_data(
     save_strategy: Literal["netcdf"] = "netcdf",
     *,
     skip_existing: bool = True,
+    save_sw: bool = False,
 ) -> None:
     """Process LANL GPS electron flux data into magnetic-field-resolved data products.
 
@@ -171,6 +172,9 @@ def process_gps_data(
                                                     netCDF-based strategy.
         skip_existing (bool): If True, skip downloading files that already exist locally.
                                             Defaults to True.
+        save_sw (bool): If True, also save the solar wind/geomagnetic indices used to
+                                            compute the magnetic field variables alongside the rest of the
+                                            output. Defaults to False.
     """
     del save_strategy
 
@@ -310,7 +314,7 @@ def process_gps_data(
 
     psd_var = ep.processing.compute_phase_space_density(FEDU_var, variables["Energy_FEDO"], particle_species="electron")
 
-    variables_to_save = {
+    variables_to_save: ep.typing.VariablesDict = {
         "Epoch": binned_time_var,
         "FEDU": FEDU_var,
         "Energy_FEDU": variables["Energy_FEDO"],
@@ -330,7 +334,7 @@ def process_gps_data(
 
     saving_strategy = gps_cxd_strategy(processed_data_path, mag_field, satellite)
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var)  # ty:ignore[invalid-argument-type]
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, save_sw=save_sw)
 
 
 if __name__ == "__main__":

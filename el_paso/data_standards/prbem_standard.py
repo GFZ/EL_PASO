@@ -129,4 +129,24 @@ class PRBEMStandard(DataStandard[PRBEMName]):
                 u.cm ** (-3),
                 ["Epoch"],
             ),
+            "Kp": VariableInfo[PRBEMName]("Kp", "Planetary Kp geomagnetic index.", u.dimensionless_unscaled, ["Epoch"]),
+            "Dst": VariableInfo[PRBEMName]("Dst", "Disturbance storm time index.", u.nT, ["Epoch"]),
+            "Pdyn": VariableInfo[PRBEMName]("Pdyn", "Solar wind dynamic pressure.", u.nPa, ["Epoch"]),
+            "ByIMF": VariableInfo[PRBEMName](
+                "ByIMF", "GSM y-component of the interplanetary magnetic field.", u.nT, ["Epoch"]
+            ),
+            "BzIMF": VariableInfo[PRBEMName](
+                "BzIMF", "GSM z-component of the interplanetary magnetic field.", u.nT, ["Epoch"]
+            ),
+            "Vsw": VariableInfo[PRBEMName]("Vsw", "Solar wind bulk speed.", u.km / u.s, ["Epoch"]),
+            "Nsw": VariableInfo[PRBEMName]("Nsw", "Solar wind proton density.", u.cm**-3, ["Epoch"]),
+            "G1": VariableInfo[PRBEMName]("G1", "Tsyganenko G1 parameter.", u.dimensionless_unscaled, ["Epoch"]),
+            "G2": VariableInfo[PRBEMName]("G2", "Tsyganenko G2 parameter.", u.dimensionless_unscaled, ["Epoch"]),
+            "G3": VariableInfo[PRBEMName]("G3", "Tsyganenko G3 parameter.", u.dimensionless_unscaled, ["Epoch"]),
+            "W_params": VariableInfo[PRBEMName](
+                "W_params",
+                "Tsyganenko-Sitnov W1-W6 parameters.",
+                u.dimensionless_unscaled,
+                ["Epoch", "W_components"],
+            ),
         }

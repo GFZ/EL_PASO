@@ -460,12 +460,14 @@ class DataSet:
             val = list(loaded_var_arrs[var_name]) if var_name == "datetime" else loaded_var_arrs[var_name]
             setattr(self, var_name, val)
 
-        # assign all vars, which are not present in the saved file, as empty
+        # assign all vars, which are not present in the saved file, as empty. A name shared with
+        # another output file (e.g. "Epoch") may already hold real data loaded from that other,
+        # existing file, so it must be left untouched rather than clobbered with an empty array.
         for internal_name in output_file.names_to_save:
             alt_names = internal_name if isinstance(internal_name, tuple) else (internal_name,)
             for alt in alt_names:
                 standard_name = self.saving_strategy.data_standard.get_standard_name(alt)
-                if standard_name not in var_names_stored:
+                if standard_name not in var_names_stored and standard_name not in self.__dict__:
                     setattr(self, standard_name, np.asarray([]))
 
     def get_loaded_variables(self) -> list[str]:

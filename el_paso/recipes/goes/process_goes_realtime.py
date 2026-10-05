@@ -75,6 +75,8 @@ def process_goes_real_time(
     num_cores: int = 16,
     save_strategy: Literal["gfz", "netcdf", "both"] = "netcdf",
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
+    *,
+    save_sw: bool = False,
 ) -> None:
     """Process GOES real-time differential electron flux data into pitch-angle resolved phase space densities.
 
@@ -101,6 +103,8 @@ def process_goes_real_time(
             processed data. "gfz" saves using the GFZ format, "netcdf" saves monthly NetCDF files,
             and "both" saves using both strategies.
         skip_existing (bool): If True, skip downloading files that already exist on disk.
+        save_sw (bool): If True, also save the solar wind/geomagnetic indices used to compute
+            the magnetic field variables alongside the rest of the output. Defaults to False.
     """
     # Part 1: specify source files to extract variables
     data_path_stem = f"{raw_data_path}/GOES/YYYY/MM/{satellite}/"
@@ -227,7 +231,7 @@ def process_goes_real_time(
 
     psd_var = ep.processing.compute_phase_space_density(FEDU_var, variables["Energy"], particle_species="electron")
 
-    vars_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+    vars_to_save: ep.typing.VariablesDict = {
         "Epoch": binned_time_var,
         "FEDU": FEDU_var,
         "Position": variables["xGEO"],
@@ -250,7 +254,7 @@ def process_goes_real_time(
     if save_strategy in ("netcdf", "both"):
         strategy = goes_realtime_netcdf_strategy(processed_data_path, mag_field, satellite)
 
-    ep.save(vars_to_save, strategy, start_time, end_time, time_var=binned_time_var, append=True)
+    ep.save(vars_to_save, strategy, start_time, end_time, time_var=binned_time_var, append=True, save_sw=save_sw)
 
 
 CLI_DEFAULTS = {

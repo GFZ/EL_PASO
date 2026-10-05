@@ -19,6 +19,8 @@ from importlib import import_module
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias
 
+from el_paso.variable import Variable
+
 if TYPE_CHECKING:
     from el_paso import ExtractionInfo
     from el_paso.data_standard import ConsistencyCheck, DataStandard, VariableInfo
@@ -33,7 +35,7 @@ if TYPE_CHECKING:
     from el_paso.saving_strategies.rbsp_density_strategy import RBSPDensityStrategy
     from el_paso.saving_strategies.single_file_strategy import SingleFileStrategy
     from el_paso.saving_strategy import OutputFile, SavingStrategy
-    from el_paso.variable import Variable, VariableMetadata
+    from el_paso.variable import VariableMetadata
 
 MagFieldVarTypes: TypeAlias = Literal[
     "Alpha_LC_Eq",
@@ -56,7 +58,7 @@ MagFieldVarTypes: TypeAlias = Literal[
     "f_ce_Eq",
 ]
 
-FixedDimensionName = Literal["Position_components", "min_max"]
+FixedDimensionName = Literal["Position_components", "min_max", "W_components"]
 
 InternalName: TypeAlias = (
     Literal[
@@ -93,6 +95,17 @@ InternalName: TypeAlias = (
         "Magnetic_Power_Spectral_Density",
         "Wave_frequency_bandwidth",
         "B_total_obs",
+        "Kp",
+        "Dst",
+        "Pdyn",
+        "ByIMF",
+        "BzIMF",
+        "Vsw",
+        "Nsw",
+        "G1",
+        "G2",
+        "G3",
+        "W_params",
     ]
     | MagFieldVarTypes
 )
@@ -106,19 +119,30 @@ GFZVarNames: TypeAlias = Literal[
     "B_eq",
     "B_sat",
     "B_total",
+    "ByIMF",
+    "BzIMF",
+    "Dst",
     "FEDO",
     "FEIU",
     "FPDU",
     "Flux",
+    "G1",
+    "G2",
+    "G3",
     "InvK",
     "InvMu",
+    "Kp",
     "Lm",
     "Lstar",
     "MLT",
     "MLT0",
     "MLat",
+    "Nsw",
     "PSD",
+    "Pdyn",
     "R0",
+    "Vsw",
+    "W_params",
     "alpha_eq_model",
     "alpha_eq_range",
     "alpha_lc",
@@ -169,7 +193,7 @@ MagneticFieldLiteral: TypeAlias = Literal[
 """Supported magnetic-field model identifiers."""
 
 MagInputKeys: TypeAlias = Literal[
-    "Kp", "Dst", "dens", "velo", "Pdyn", "ByIMF", "BzIMF", "G1", "G2", "G3", "W1", "W2", "W3", "W4", "W5", "W6", "AL"
+    "Kp", "Dst", "Nsw", "Vsw", "Pdyn", "ByIMF", "BzIMF", "G1", "G2", "G3", "W1", "W2", "W3", "W4", "W5", "W6", "AL"
 ]
 MFSFormats: TypeAlias = Literal["nc", "cdf", "h5", "mat", ".nc", ".cdf", ".h5", ".mat"]
 """File formats supported by MonthlyRBStrategy."""
@@ -184,6 +208,10 @@ Either one of the built-in literals, or a custom callable (e.g. a generator func
 that takes the current time and returns the next file boundary time. Use a callable
 for cadences that don't fit a fixed interval, such as irregular weekly files.
 """
+
+VariablesDict: TypeAlias = dict[InternalName, Variable]
+"""Dictionary of `Variable` objects to save, keyed by internal variable name. The type of
+`save()`'s `variables_dict` parameter."""
 
 SavedDataDict: TypeAlias = dict[InternalName | Literal["metadata"], Any]
 """Dictionary passed to saving backends, keyed by internal variable name or metadata."""
@@ -315,4 +343,5 @@ __all__ = [
     "VariableInfo",
     "VariableMetadata",
     "VariableRequest",
+    "VariablesDict",
 ]

@@ -68,6 +68,7 @@ def process_arase_xep_real_time(
     download: bool = True,
     skip_existing: bool = True,
     do_xep_extraction: bool = True,
+    save_sw: bool = False,
 ) -> None:
     """Process Arase XEP real-time electron flux data and save derived products.
 
@@ -100,6 +101,8 @@ def process_arase_xep_real_time(
         skip_existing (bool): Whether to skip downloading files that already exist locally.
         do_xep_extraction (bool): Whether to extract the XEP flux product. If False, only the
             orbit data is processed.
+        save_sw (bool): If True, also save the solar wind/geomagnetic indices used to compute
+            the magnetic field variables alongside the rest of the output. Defaults to False.
 
     Raises:
         ValueError: If `erg_user` is not provided and the ``ERG_USER`` environment variable is
@@ -213,7 +216,7 @@ def process_arase_xep_real_time(
         FEDU_var, variables_combined["Energy_FEDO"], particle_species="electron"
     )
 
-    variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+    variables_to_save: ep.typing.VariablesDict = {
         "Epoch": binned_time_var,
         "FEDU": FEDU_var,
         "Energy_FEDU": variables_combined["Energy_FEDO"],
@@ -240,6 +243,7 @@ def process_arase_xep_real_time(
             end_time,
             time_var=binned_time_var,
             append=True,
+            save_sw=save_sw,
         )
 
     if save_strategy in ("netcdf", "both"):
@@ -252,6 +256,7 @@ def process_arase_xep_real_time(
             end_time,
             time_var=binned_time_var,
             append=True,
+            save_sw=save_sw,
         )
 
 
