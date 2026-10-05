@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -369,6 +370,32 @@ def test_run_report_numbers_each_looped_call(stub_app: typer.Typer, caplog: pyte
     assert result.exit_code == 0, result.output
     assert "(1/2)" in caplog.text
     assert "(2/2)" in caplog.text
+
+
+def failing_recipe(start_time: datetime, end_time: datetime) -> None:
+    """Stub recipe that fails, e.g. while saving.
+
+    Args:
+        start_time (datetime): Start of the range.
+        end_time (datetime): End of the range.
+    """
+    msg = "save failed"
+    raise RuntimeError(msg)
+
+
+@pytest.mark.basic
+def test_failed_recipe_keeps_the_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A failing recipe exits via typer.Exit, which bypasses sys.excepthook; the cache must still be kept."""
+    import el_paso.cache  # noqa: PLC0415
+
+    monkeypatch.setattr(el_paso.cache, "_exit_with_exception", False)
+    failing_app = typer.Typer(add_completion=False)
+    failing_app.command()(build_recipe_command(failing_recipe))
+
+    result = runner.invoke(failing_app, ["--start-time", "2020-01-02", "--end-time", "2020-01-03"])
+
+    assert result.exit_code == 1
+    assert el_paso.cache._exit_with_exception is True
 
 
 @pytest.mark.basic

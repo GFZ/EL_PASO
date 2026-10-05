@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -21,9 +22,14 @@ _exit_with_exception = False
 _original_excepthook = sys.excepthook
 
 
-def _excepthook_tracker(exc_type, exc_value, exc_tb) -> None:  # noqa: ANN001
+def mark_run_failed() -> None:
+    """Keep the cache at exit because the run might fail due to other reasons, this should not yank the cache."""
     global _exit_with_exception
     _exit_with_exception = True
+
+
+def _excepthook_tracker(exc_type, exc_value, exc_tb) -> None:  # noqa: ANN001
+    mark_run_failed()
     _original_excepthook(exc_type, exc_value, exc_tb)
 
 

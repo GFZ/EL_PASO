@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -35,6 +36,7 @@ from typer.core import TyperCommand, TyperGroup
 from typer.models import DeveloperExceptionConfig
 
 import el_paso
+from el_paso.cache import mark_run_failed
 from el_paso.cli.recipe_cli import build_recipe_command
 
 if TYPE_CHECKING:
@@ -376,6 +378,7 @@ def main() -> None:
     try:
         app()
     except Exception as exc:  # noqa: BLE001
+        mark_run_failed()
         setattr(
             exc,
             typer.main._typer_developer_exception_attr_name,
