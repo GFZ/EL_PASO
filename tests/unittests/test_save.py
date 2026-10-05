@@ -142,3 +142,28 @@ def test_interval_without_records_is_skipped(tmp_path: Path) -> None:
     out_dir = tmp_path / "THEMIS" / "tha"
     assert (out_dir / "tha_fft_20240510.nc").exists()
     assert not (out_dir / "tha_fft_20240511.nc").exists()
+
+
+@pytest.mark.basic
+def test_variable_not_saved_by_strategy_is_warned_about(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """A variable missing from every output file of the strategy is dropped, so `save` warns about it."""
+    start_time = datetime(2024, 5, 10, tzinfo=timezone.utc)
+    end_time = datetime(2024, 5, 10, 23, 59, tzinfo=timezone.utc)
+    times = np.array([start_time.timestamp() + 3600 * i for i in range(6)])
+
+    variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+        "Epoch": ep.Variable(ep.units.posixtime, data=times),
+        "MLT": ep.Variable(u.hour, data=np.linspace(0, 5, times.size)),
+        "Energy_FEDO": ep.Variable(u.keV, data=np.tile(np.array([100.0, 200.0]), (times.size, 1))),
+    }
+
+    saving_strategy = ep.saving_strategies.MonthlyRBStrategy(
+        tmp_path, "Arase", "arase", "xep", "T89", data_standard=ep.data_standards.GFZStandard()
+    )
+
+    with caplog.at_level(logging.WARNING, logger="ep"):
+        ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=variables_to_save["Epoch"])
+
+    warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+    assert any("Energy_FEDO are not saved by MonthlyRBStrategy" in message for message in warnings)
+    assert not any("MLT" in message and "not saved by" in message for message in warnings)
