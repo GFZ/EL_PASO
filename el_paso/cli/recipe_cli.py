@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -51,6 +52,7 @@ from rich.table import Table
 # call time. This module is imported from `el_paso/__init__.py`, so binding the module
 # object here (rather than any of its attributes) keeps that import cycle safe.
 import el_paso as ep
+from el_paso.cache import mark_run_failed
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -490,6 +492,7 @@ def _make_command(
                     func(**call_kwargs)
                 except Exception:
                     logger.exception(f"{_func_name(func)} failed.")
+                    mark_run_failed()
                     raise typer.Exit(code=1) from None
 
     parameters = [
