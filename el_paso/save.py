@@ -69,6 +69,8 @@ def save(
         data_standard = saving_strategy.data_standard if hasattr(saving_strategy, "data_standard") else None
         _validate_variables_dict(variables_dict, data_standard)
 
+    _warn_about_unsaved_variables(variables_dict, saving_strategy)
+
     start_time = enforce_utc_timezone(start_time)
     end_time = enforce_utc_timezone(end_time)
 
@@ -100,6 +102,32 @@ def save(
 
                 saving_strategy.save_single_file(file_path, data_dict, append=append)
                 file_path.chmod(stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP)
+
+
+def _warn_about_unsaved_variables(
+    variables_dict: dict[InternalName, Variable], saving_strategy: SavingStrategy
+) -> None:
+    """Logs a warning for passed variables that no output file of the saving strategy writes.
+
+    Args:
+        variables_dict (dict[str, Variable]): The variables passed to ``save``.
+        saving_strategy (SavingStrategy): The strategy whose output files define what is written.
+    """
+    names_to_save: set[str] = set()
+    for output_file in saving_strategy.output_files:
+        # an output file without names saves every variable
+        if len(output_file.names_to_save) == 0:
+            return
+
+        for name in output_file.names_to_save:
+            names_to_save.update(name if isinstance(name, tuple) else (name,))
+
+    unsaved_names = [name for name in variables_dict if name not in names_to_save]
+    if unsaved_names:
+        logger.warning(
+            f"Variable(s) {', '.join(unsaved_names)} are not saved by {type(saving_strategy).__name__} "
+            "and will be dropped!"
+        )
 
 
 def _has_records_in_interval(time_var: Variable, interval_start: datetime, interval_end: datetime) -> bool:

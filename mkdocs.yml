@@ -89,6 +89,7 @@ nav:
           - GFZ Strategy: API_reference/saving_strategies/gfz.md
           - Monthly Density Strategy: API_reference/saving_strategies/monthly_density.md
           - Monthly File Strategy: API_reference/saving_strategies/monthly.md
+          - Monthly Omni Flux RB Strategy: API_reference/saving_strategies/monthly_omni_flux_rb.md
           - RBSP Density Strategy: API_reference/saving_strategies/rbsp_density.md
           - Single File Strategy: API_reference/saving_strategies/single_file.md
       - Data Standards:
