@@ -3,6 +3,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+import calendar
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -12,7 +13,7 @@ import pytest
 from el_paso.dataset import DataSet
 from el_paso.recipes.arase import arase_xep_strategy, process_arase_xep
 
-_START_TIME = datetime(2024, 5, 10, 20, 0, tzinfo=timezone.utc)
+_START_TIME = datetime(2017, 9, 8, tzinfo=timezone.utc)
 _END_TIME = _START_TIME + timedelta(hours=3)
 _MAG_FIELD = "T89"
 
@@ -58,14 +59,14 @@ def test_arase_xep(tmpdir: Path) -> None:
         start_time=_START_TIME,
         end_time=_END_TIME,
         mag_field=_MAG_FIELD,
-        raw_data_path=Path(__file__).parent / "data" / "raw" / "arase",
+        raw_data_path=Path(__file__).parent / "data" / "raw",
         processed_data_path=processed_data_path,
         num_cores=4,
         use_level_3_orbit_data=False,
     )
 
     month_start = _START_TIME.replace(day=1)
-    month_end = month_start + timedelta(days=30)
+    month_end = month_start.replace(day=calendar.monthrange(month_start.year, month_start.month)[1])
     out_path = (
         processed_data_path / "ARASE" / "arase" / f"arase_xep_{month_start:%Y%m%d}to{month_end:%Y%m%d}_{_MAG_FIELD}.nc"
     )
