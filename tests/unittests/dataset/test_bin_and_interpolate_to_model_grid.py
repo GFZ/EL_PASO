@@ -716,6 +716,13 @@ class TestSanityChecks:
     def test_valid_pipeline_does_not_raise(self) -> None:
         assert np.any(np.isfinite(self._call(self._dataset())))
 
+    def test_exceeds_range_tolerates_round_off_but_not_real_excess(self) -> None:
+        reference = np.array([10.0, 20.0, np.nan])
+
+        assert not bai._exceeds_range(reference, np.array([10.0, 20.000000000000004, np.nan]))
+        assert bai._exceeds_range(reference, np.array([10.0, 20.1]))
+        assert bai._exceeds_range(reference, np.array([9.9, 20.0]))
+
 
 @pytest.mark.basic
 def test_full_pipeline_against_hard_coded_values() -> None:
