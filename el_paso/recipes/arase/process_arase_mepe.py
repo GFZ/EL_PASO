@@ -290,7 +290,7 @@ def process_arase_mepe(
         case "T89":
             mag_field_save = "T89"
         case "TS04":
-            mag_field_save = "T04s"
+            mag_field_save = "T04s" if save_strategy == "gfz" else mag_field
         case "OP77Q":
             mag_field_save = "OP77"
 
