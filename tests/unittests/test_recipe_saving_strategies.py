@@ -98,7 +98,7 @@ CASES: list[
         arase_xep_strategy,
         ("T89",),
         {},
-        ep.saving_strategies.MonthlyRBStrategy,
+        ep.saving_strategies.MonthlyOmniFluxRBStrategy,
         {"mission": "Arase", "satellite": "arase", "instrument": "xep", "mag_field": "T89", "file_format": ".nc"},
     ),
     (
