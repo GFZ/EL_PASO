@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
 # SPDX-FileCo-Contributor: Parvathy Santhini
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -108,7 +109,7 @@ def interp_flux(
     self: DataSet,
     target_en: float | list[float] | NDArray[np.float64],
     target_al: float | list[float],
-    target_type: TargetType | Literal["TargetPairs", "TargetMesh"],
+    target_type: TargetType | Literal["TargetPairs", "TargetMeshGrid"],
     n_threads: int = 10,
 ) -> NDArray[np.float64]:
     """Interpolate flux to requested (energy, pitch angle) targets for every time.
@@ -123,7 +124,7 @@ def interp_flux(
             to interpolate to.
         target_al (float | list[float]): Target equatorial pitch angle value(s) to
             interpolate to.
-        target_type (TargetType | Literal["TargetPairs", "TargetMesh"]): How to combine
+        target_type (TargetType | Literal["TargetPairs", "TargetMeshGrid"]): How to combine
             `target_en` and `target_al`. `TargetPairs` interpolates each
             `(energy, pitch angle)` pair (the two vectors must have the same length),
             producing a result of shape `(time, N)`. `TargetMeshGrid` interpolates
@@ -309,9 +310,9 @@ def _interp_psd_parallel(
 def interp_psd(
     self: DataSet,
     target_K: float | list[float] | NDArray[np.float64],
-    target_type: TargetType | Literal["TargetPairs", "TargetMesh"],
     target_mu: float | list[float] | NDArray[np.float64] | None = None,
     target_v: float | list[float] | NDArray[np.float64] | None = None,
+    target_type: TargetType | Literal["TargetPairs", "TargetMeshGrid"] | None = None,
     n_threads: int = 10,
 ) -> NDArray[np.float64]:
     """Interpolate phase space density (PSD) to requested (mu, K) or (V, K) targets for every time.
@@ -328,17 +329,17 @@ def interp_psd(
         self (DataSet): The DataSet instance this method operates on.
         target_K (float | list[float] | NDArray[np.float64]): Target second adiabatic
             invariant (K) value(s) to interpolate to.
-        target_type (TargetType | Literal["TargetPairs", "TargetMesh"]): How to combine
-            the (mu or V) targets and `target_K`. `TargetPairs` interpolates each pair
-            (the two vectors must have the same length), producing a result of shape
-            `(time, N)`. `TargetMeshGrid` interpolates every combination of the two
-            vectors, producing a result of shape `(time, n_first, n_K)`.
         target_mu (float | list[float] | NDArray[np.float64] | None, optional): Target
             first adiabatic invariant (mu) value(s) to interpolate to. Mutually
             exclusive with `target_v`. Defaults to `None`.
         target_v (float | list[float] | NDArray[np.float64] | None, optional): Target
             value(s) of `self.InvV` to interpolate to, used instead of mu. Mutually
             exclusive with `target_mu`. Defaults to `None`.
+        target_type (TargetType | Literal["TargetPairs", "TargetMeshGrid"] | None): How to
+            combine the (mu or V) targets and `target_K`. Required. `TargetPairs` interpolates
+            each pair (the two vectors must have the same length), producing a result of shape
+            `(time, N)`. `TargetMeshGrid` interpolates every combination of the two
+            vectors, producing a result of shape `(time, n_first, n_K)`.
         n_threads (int, optional): Number of worker processes used to parallelize the
             interpolation over time. Defaults to `10`.
 
@@ -347,10 +348,14 @@ def interp_psd(
         `TargetType.TargetPairs` or `(time, n_first, n_K)` for `TargetType.TargetMeshGrid`.
 
     Raises:
-        ValueError: If neither or both of `target_mu` and `target_v` are given.
+        ValueError: If `target_type` is not given, or if neither or both of `target_mu`
+            and `target_v` are given.
         AssertionError: If `target_type` is `TargetType.TargetPairs` and the selected
             (mu or V) vector and `target_K` do not have the same length.
     """
+    if target_type is None:
+        msg = "`target_type` is required."
+        raise ValueError(msg)
     if (target_mu is None) == (target_v is None):
         msg = "Provide exactly one of `target_mu` or `target_v`, not both or neither."
         raise ValueError(msg)

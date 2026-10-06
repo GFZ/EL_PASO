@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: 2025 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -173,7 +174,7 @@ def test_gfz_old(satellite: Literal["a", "b"], mag_field: Literal["T89", "TS04"]
     target_k = 0.3
 
     psd_data_server = rbsp_data_server.interp_psd(target_mu, target_k, "TargetPairs")
-    psd_new = rbsp_data_server.interp_psd(target_mu, target_k, "TargetPairs")
+    psd_new = rbsp_data.interp_psd(target_k, target_mu=target_mu, target_type="TargetPairs")
 
     ax3.plot(rbsp_data_server.datetime, np.log10(psd_data_server), "k")
     ax3.plot(rbsp_data.datetime, np.log10(psd_new), "r--")
