@@ -139,6 +139,31 @@ class SingleFileStrategy(SavingStrategy):
         """
         return self.file_path
 
+    def get_target_variables(
+        self,
+        output_file: OutputFile,  # noqa: ARG002
+        variables_dict: dict[InternalName, Variable],
+        time_var: Variable | None,  # noqa: ARG002
+        start_time: datetime | None,  # noqa: ARG002
+        end_time: datetime | None,  # noqa: ARG002
+    ) -> dict[InternalName, Variable]:
+        """Returns all variables unchanged.
+
+        This strategy dumps every variable as it is: no data standard is applied and no
+        variable is truncated to the time range.
+
+        Args:
+            output_file (OutputFile): The output file configuration (ignored).
+            variables_dict (dict[InternalName, Variable]): The variables to save.
+            time_var (Variable | None): The time variable (ignored).
+            start_time (datetime | None): The start of the time range (ignored).
+            end_time (datetime | None): The end of the time range (ignored).
+
+        Returns:
+            dict[InternalName, Variable]: All variables, keyed by their names.
+        """
+        return dict(variables_dict)
+
     def standardize_variable(
         self,
         variable: Variable,
