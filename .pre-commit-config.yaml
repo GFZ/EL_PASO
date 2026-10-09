@@ -7,7 +7,7 @@
 # See https://pre-commit.com/hooks.html for more hooks
 repos:
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.12.23
+    rev: 0.12.24
     hooks:
       - id: uv-lock
 
@@ -33,7 +33,7 @@ repos:
         files: ^(el_paso|tests)/
 
   - repo: https://github.com/astral-sh/ty-pre-commit
-    rev: v0.0.84
+    rev: v0.0.85
     hooks:
       - id: ty
         files: ^el_paso/
