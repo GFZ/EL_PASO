@@ -36,6 +36,8 @@ Environment variables read by the library:
 | `EL_PASO_MODEL_DATA_PATH` | Where model coefficient data is stored. Default `~/.elpaso`. |
 | `EL_PASO_INDICES_SW_PARAM_DATA_PATH` | Where solar-wind indices/parameters are stored. Default `~/.elpaso`. The test suite's `conftest.py` points it at a temporary directory unless `--indices_sw_param_data_path` is given. |
 | `EL_PASO_USE_MAG_FIELD_CACHE` | Set to `0`/`false`/`no`/`off` to disable the magnetic-field joblib cache. |
+| `EL_PASO_REBUILD_IRBEM` | Force recompilation of `libirbem.so` even if one already exists. |
+| `EL_PASO_IRBEM_MARCH_NATIVE` | Compile IRBEM with `-march=native` (default on). Set to `0`/`false`/`no`/`off` for portable builds (e.g. Apptainer). |
 
 The two download flags are read with `el_paso.utils.env_flag_enabled`: unset, empty, and `0`/`false`/`no`/`off` (any case) mean off, and any other value means on. Use that helper for any new boolean environment variable.
 

@@ -317,7 +317,7 @@ class Hashabledict(dict[Any, Any]):
     by providing a custom hash implementation based on its contents.
     """
 
-    def __hash__(self) -> int:
+    def __hash__(self) -> int:  # ty: ignore[invalid-attribute-override]
         """Computes a hash value for the dictionary.
 
         The hash is computed based on the frozensets of the dictionary's keys

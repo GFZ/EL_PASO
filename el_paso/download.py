@@ -355,7 +355,7 @@ def _wget_download(
 
     # Execute the download command
     try:
-        os.system(download_command)  # noqa: S605  # ty:ignore[deprecated]
+        os.system(download_command)  # noqa: S605
     except Exception as e:  # noqa: BLE001
         logger.info(f"Error downloading file using command {download_command}: {e}")
 
