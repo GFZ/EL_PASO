@@ -5,9 +5,9 @@
 
 """Recipes for products derived from a magnetic field model alone, without spacecraft data."""
 
-from el_paso.recipes.model.process_lcds import compute_lcds, lcds_strategy
+from el_paso.recipes.model.process_lcds import lcds_strategy, process_lcds
 
 __all__ = [
-    "compute_lcds",
     "lcds_strategy",
+    "process_lcds",
 ]

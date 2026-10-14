@@ -13,17 +13,16 @@ __getattr__, __dir__, __all__ = lazy.attach(
     __name__,
     submodules=["arase", "dmsp", "esa", "goes", "gps", "model", "poes", "probav", "rbsp", "themis"],
     submod_attrs={
-        "model": ["compute_lcds"],
+        "model": ["process_lcds"],
     },
 )
 
 if TYPE_CHECKING:
     from el_paso.recipes import arase, dmsp, esa, goes, gps, model, poes, probav, rbsp, themis
-    from el_paso.recipes.model import compute_lcds
+    from el_paso.recipes.model import process_lcds
 
     __all__ = [
         "arase",
-        "compute_lcds",
         "dmsp",
         "esa",
         "goes",
@@ -31,6 +30,7 @@ if TYPE_CHECKING:
         "model",
         "poes",
         "probav",
+        "process_lcds",
         "rbsp",
         "themis",
     ]

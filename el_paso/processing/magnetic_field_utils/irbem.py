@@ -1305,6 +1305,10 @@ def _lcds_search(
         b_mirr_G = b_mirr_nT.bmirr / 1e5
 
         inv_k = np.sqrt(b_mirr_G) * lstar_res.xj
+        # An equatorially mirroring particle has K = 0 exactly; IRBEM returns numerical
+        # noise there (up to ~1e-7) that differs between compilers and CPUs.
+        if np.isclose(alpha, 90.0):
+            inv_k = np.zeros_like(inv_k)
 
         return lstar_res.lstar.reshape(-1), inv_k.reshape(-1)
 

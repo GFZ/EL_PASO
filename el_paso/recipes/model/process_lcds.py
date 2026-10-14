@@ -31,7 +31,7 @@ def lcds_strategy(
     )
 
 
-def compute_lcds(
+def process_lcds(
     start_time: datetime,
     end_time: datetime,
     satellite: Literal["none"] = "none",
@@ -113,4 +113,4 @@ def compute_lcds(
 
 
 if __name__ == "__main__":
-    ep.run_recipe_cli(compute_lcds)
+    ep.run_recipe_cli(process_lcds)

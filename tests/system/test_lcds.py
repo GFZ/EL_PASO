@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 from el_paso.dataset import DataSet
-from el_paso.recipes.model import compute_lcds, lcds_strategy
+from el_paso.recipes.model import lcds_strategy, process_lcds
 from el_paso.typing import MagneticFieldLiteral
 
 # Aliases share an IRBEM kext with a tested model: TS05 and T04s with TS04, OP77Q with OP77
@@ -34,7 +34,7 @@ def test_lcds(
 
     processed_data_path = Path(tmpdir)
 
-    compute_lcds(
+    process_lcds(
         start_time=start_time,
         end_time=end_time,
         mag_field=mag_field,

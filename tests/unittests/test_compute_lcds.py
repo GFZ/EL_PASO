@@ -69,7 +69,7 @@ def test_lcds_runs():
     time_var = ep.Variable(data=np.asarray(posixtimes), original_unit=ep.units.posixtime)
     pa_eq_var = ep.Variable(data=pa_eq, original_unit=u.deg)
 
-    lcds_var, _ = compute_LCDS(
+    lcds_var, inv_k_var = compute_LCDS(
         time_var,
         pa_eq_var,
         "T89",
@@ -82,3 +82,8 @@ def test_lcds_runs():
     matlab_solution = np.asarray(LCDS_LSTAR_REF_T89)
 
     assert lcds_data == pytest.approx(matlab_solution, abs=0.1)
+
+    # Equatorially mirroring particles (90 deg) have K = 0 exactly, the others K > 0
+    inv_k_data = inv_k_var.get_data()
+    assert np.all(inv_k_data[:, 2] == 0.0)
+    assert np.all(inv_k_data[:, :2] > 0.0)
