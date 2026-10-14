@@ -342,14 +342,14 @@ class DataSet:
         return self.saving_strategy.satellite + " " + self.saving_strategy.instrument
 
     def _compute_P(self) -> None:
-        # Strategies without MLT (e.g. LCDSStrategy) get an empty array
+        # Strategies without MLT get an empty array
         if "MLT" not in self.possible_variables or len(self.MLT) == 0:  # MLT not found
             self.P = np.asarray([])
         else:
             self.P = ((self.MLT + 12) / 12 * np.pi) % (2 * np.pi)
 
     def _compute_InvV(self) -> None:
-        # Strategies without InvK or InvMu (e.g. LCDSStrategy) get an empty array
+        # Strategies without InvK or InvMu get an empty array
         if (
             "InvK" not in self.possible_variables
             or "InvMu" not in self.possible_variables
