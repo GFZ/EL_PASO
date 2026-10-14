@@ -99,7 +99,7 @@ class LCDSStrategy(SavingStrategy):
         return self.base_data_path
 
     def get_file_name_stem(self) -> str:
-        return "LCDS_"
+        return "LCDS"
 
     def get_file_path(self, interval_start: datetime, interval_end: datetime, output_file: OutputFile) -> Path:  # noqa: ARG002
         """Generate the monthly file path for the configured format."""
