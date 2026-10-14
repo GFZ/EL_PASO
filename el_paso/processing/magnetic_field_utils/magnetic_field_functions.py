@@ -501,10 +501,10 @@ def get_drift_loss_cone(
     results = _run_irbem_parallel(
         partial(_get_drift_loss_cone_parallel, stop_alt=stop_alt, dlc_tol=dlc_tol),
         irbem_input,
-        x_geo,
         datetimes,
         sysaxes=sysaxes,
         desc="Calculating drift loss cone",
+        x_geo=x_geo,
     )
 
     # columns: local angle, equatorial angle, status; the wrapper has already turned baddata into NaN
