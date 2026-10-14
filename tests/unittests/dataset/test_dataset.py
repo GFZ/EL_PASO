@@ -453,6 +453,33 @@ def test_comparison_loads_all_strategy_variables(tmp_path: Path, file_format: MF
 
 
 @pytest.mark.basic
+def test_comparison_without_computed_property_inputs(tmp_path: Path) -> None:
+    """Comparison must not fail for strategies lacking MLT/InvMu, the inputs of P and InvV."""
+    start_time = datetime(2013, 1, 1, tzinfo=timezone.utc)
+    end_time = datetime(2013, 1, 2, tzinfo=timezone.utc)
+
+    time_var = ep.Variable(
+        data=np.asarray([start_time.timestamp(), start_time.timestamp() + 3600]), original_unit=ep.units.posixtime
+    )
+    variables: dict[InternalName, ep.Variable] = {
+        "Epoch": time_var,
+        "Alpha": ep.Variable(data=np.tile([30.0, 60.0], (2, 1)), original_unit=u.deg),
+        "LCDS": ep.Variable(data=np.asarray([[6.0, 6.5], [6.2, np.inf]]), original_unit=u.dimensionless_unscaled),
+        "InvK": ep.Variable(data=np.asarray([[0.1, 0.02], [0.1, np.nan]]), original_unit=u.R_earth * u.nT**0.5),
+    }
+
+    strategy = ep.saving_strategies.LCDSStrategy(tmp_path, "T89", ep.data_standards.GFZStandard(), "nc")
+    ep.save(variables, strategy, start_time=start_time, end_time=end_time, time_var=time_var)
+
+    ds1 = DataSet(saving_strategy=strategy, start_time=start_time, end_time=end_time, verbose=False)
+    ds2 = DataSet(saving_strategy=strategy, start_time=start_time, end_time=end_time, verbose=False)
+
+    ds1.assert_equal(ds2)
+    assert len(ds1.P) == 0
+    assert len(ds1.InvV) == 0
+
+
+@pytest.mark.basic
 @pytest.mark.parametrize("file_format", ["nc", "h5", "cdf", "mat"])
 @pytest.mark.parametrize("data_standard", [ep.data_standards.PRBEMStandard, ep.data_standards.GFZStandard])
 def test_dataset_equality_accepts_data_saved_with_different_strategies_but_same_standards(

@@ -229,18 +229,11 @@ class DataSet:
 
         # Handle computed properties for both modes
         if name == "P":
-            if len(self.MLT) == 0:  # MLT not found
-                self.P = np.asarray([])
-            else:
-                self.P = ((self.MLT + 12) / 12 * np.pi) % (2 * np.pi)
+            self._compute_P()
             return self.P
 
         if name == "InvV":
-            if len(self.InvK) == 0 or len(self.InvMu) == 0:  # invariants not found
-                self.InvV = np.asarray([])
-            else:
-                inv_K_repeated = np.repeat(self.InvK[:, np.newaxis, :], self.InvMu.shape[1], axis=1)
-                self.InvV = self.InvMu * (inv_K_repeated + 0.5) ** 2
+            self._compute_InvV()
             return self.InvV
 
         # check if a sat variable is requested
@@ -348,6 +341,26 @@ class DataSet:
         """
         return self.saving_strategy.satellite + " " + self.saving_strategy.instrument
 
+    def _compute_P(self) -> None:
+        # Strategies without MLT (e.g. LCDSStrategy) get an empty array
+        if "MLT" not in self.possible_variables or len(self.MLT) == 0:  # MLT not found
+            self.P = np.asarray([])
+        else:
+            self.P = ((self.MLT + 12) / 12 * np.pi) % (2 * np.pi)
+
+    def _compute_InvV(self) -> None:
+        # Strategies without InvK or InvMu (e.g. LCDSStrategy) get an empty array
+        if (
+            "InvK" not in self.possible_variables
+            or "InvMu" not in self.possible_variables
+            or len(self.InvK) == 0
+            or len(self.InvMu) == 0
+        ):  # invariants not found
+            self.InvV = np.asarray([])
+        else:
+            inv_K_repeated = np.repeat(self.InvK[:, np.newaxis, :], self.InvMu.shape[1], axis=1)
+            self.InvV = self.InvMu * (inv_K_repeated + 0.5) ** 2
+
     def _load_variable(self, requested_name: str) -> None:
 
         loaded_var_arrs: dict[str, NDArray[np.number]] = {}
@@ -356,14 +369,10 @@ class DataSet:
 
         # 1. Handle Computed Values
         if requested_name == "InvV":
-            if len(self.InvK) == 0 or len(self.InvMu) == 0:  # invariants not found
-                self.InvV = np.asarray([])
-            else:
-                inv_K_repeated = np.repeat(self.InvK[:, np.newaxis, :], self.InvMu.shape[1], axis=1)
-                self.InvV = self.InvMu * (inv_K_repeated + 0.5) ** 2
+            self._compute_InvV()
             return
         if requested_name == "P":
-            self.P = ((self.MLT + 12) / 12 * np.pi) % (2 * np.pi)
+            self._compute_P()
             return
 
         if original_requested_name == "datetime":
