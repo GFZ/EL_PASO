@@ -6,7 +6,7 @@
 #!/bin/bash
 set -e
 
-DOI="10.5281/zenodo.20486611"
+DOI="10.5281/zenodo.23361344"
 OUTPUT_DIR="./tests/system/"
 
 echo "Downloading latest version of Zenodo DOI ${DOI} into ${OUTPUT_DIR}..."
