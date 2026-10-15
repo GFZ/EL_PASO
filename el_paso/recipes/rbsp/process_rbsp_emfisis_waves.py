@@ -1,18 +1,18 @@
 # SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Alwin Roy
+# SPDX-FileContributor: Bernhard Haas
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
-import matplotlib.dates as mdates
-import matplotlib.pyplot as plt
 import numpy as np
 from astropy import units as u
-from astropy.constants import e, m_e  # ty:ignore[unresolved-import]
 
 import el_paso as ep
+from el_paso.recipes.rbsp import RBSPSatellite
 from el_paso.variable import Variable
 
 if TYPE_CHECKING:
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 def rbsp_emfisis_waves_strategy(
     base_data_path: str | Path,
-    satellite: str,
+    satellite: RBSPSatellite,
     data_standard: ep.typing.DataStandard[ep.typing.StandardName] | None = None,
 ) -> ep.SavingStrategy:
     """Daily NetCDF wave saving strategy for RBSP EMFISIS."""
@@ -37,7 +37,7 @@ def rbsp_emfisis_waves_strategy(
 def process_rbsp_emfisis_waves(
     start_time: datetime,
     end_time: datetime,
-    satellite: Literal["a", "b"] = "a",
+    satellite: RBSPSatellite = "a",
     mag_field: Literal["T89", "T96", "TS04"] = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
@@ -56,9 +56,8 @@ def process_rbsp_emfisis_waves(
     (L-shell, MLAT, MLT, electron cyclotron frequency) are derived from the cleaned magnetometer
     data, and the total magnetic wave power spectral density is computed from the WFR
     spectral-matrix components. The wave frequency, frequency bandwidth, wave normal angle,
-    planarity, and ellipticity are saved using `DailyWaveStrategy`. Finally, diagnostic plots of
-    the density, orbit, magnetometer, WFR spectrogram, and WNA properties are generated and shown
-    or saved to disk.
+    planarity, ellipticity, power spectral density, density, magnetic field, magnetic latitude,
+    magnetic local time and electron gyrofrequency are saved using `DailyWaveStrategy`.
 
     Args:
         start_time (datetime): Start of the time range to process.
@@ -89,16 +88,90 @@ def process_rbsp_emfisis_waves(
     del num_cores
     del save_strategy
 
-    wfr_vars = _get_wfr_data(start_time, end_time, Path(raw_data_path), satellite, skip_existing=skip_existing)
+    wfr_url = (
+        f"https://cdaweb.gsfc.nasa.gov/pub/data/rbsp/rbsp{satellite}/l2/emfisis/wfr/spectral-matrix-diagonal/YYYY/"
+    )
+
+    wfr_file_name_stem = "rbsp-" + satellite + r"_wfr-spectral-matrix-diagonal_emfisis-l2_YYYYMMDD_.{6}.cdf"
+
+    wfr_path = Path(raw_data_path) / "YYYY" / "MM" / "wfr"
+
+    ep.download(
+        start_time,
+        end_time,
+        save_path=wfr_path,
+        download_url=wfr_url,
+        file_name_stem=wfr_file_name_stem,
+        file_cadence="daily",
+        method="request",
+        skip_existing=skip_existing,
+    )
+
+    wna_url = (
+        f"https://cdaweb.gsfc.nasa.gov/pub/data/rbsp/rbsp{satellite}/l4/emfisis/wna-survey-sheath-corrected-e/YYYY/"
+    )
+
+    wna_file_name_stem = "rbsp-" + satellite + r"_wna-survey-sheath-corrected-e_emfisis-l4_YYYYMMDD_.{6}.cdf"
+
+    wna_path = Path(raw_data_path) / "YYYY" / "MM" / "sna"
+
+    ep.download(
+        start_time,
+        end_time,
+        save_path=wna_path,
+        download_url=wna_url,
+        file_name_stem=wna_file_name_stem,
+        file_cadence="daily",
+        method="request",
+        skip_existing=skip_existing,
+    )
+
+    density_url = f"https://cdaweb.gsfc.nasa.gov/pub/data/rbsp/rbsp{satellite}/l4/emfisis/density/YYYY/"
+
+    density_file_name_stem = "rbsp-" + satellite + r"_density_emfisis-l4_YYYYMMDD_.{7}.cdf"
+
+    density_path = Path(raw_data_path) / "YYYY" / "MM" / "density"
+
+    ep.download(
+        start_time,
+        end_time,
+        save_path=density_path,
+        download_url=density_url,
+        file_name_stem=density_file_name_stem,
+        file_cadence="daily",
+        method="request",
+        skip_existing=skip_existing,
+    )
+
+    magnetometer_url = (
+        f"https://cdaweb.gsfc.nasa.gov/pub/data/rbsp/rbsp{satellite}/l3/emfisis/magnetometer/4sec/sm/YYYY/"
+    )
+
+    magnetometer_file_name_stem = "rbsp-" + satellite + r"_magnetometer_4sec-sm_emfisis-l3_YYYYMMDD_.{6}.cdf"
+
+    magnetometer_path = Path(raw_data_path) / "YYYY" / "MM" / "magnetometer"
+
+    ep.download(
+        start_time,
+        end_time,
+        save_path=magnetometer_path,
+        download_url=magnetometer_url,
+        file_name_stem=magnetometer_file_name_stem,
+        file_cadence="daily",
+        method="request",
+        skip_existing=skip_existing,
+    )
+
+    ep.exit_if_download_only()
+
+    wfr_vars = _get_wfr_data(start_time, end_time, wfr_path, wfr_file_name_stem)
 
     target_time_var = wfr_vars["Epoch"]
-    density_vars = _get_density_data(
-        start_time, end_time, Path(raw_data_path), satellite, target_time_var, skip_existing=skip_existing
-    )
+    density_vars = _get_density_data(start_time, end_time, density_path, density_file_name_stem, target_time_var)
     mag_vars = _get_magnetometer_data(
-        start_time, end_time, Path(raw_data_path), satellite, target_time_var, skip_existing=skip_existing
+        start_time, end_time, magnetometer_path, magnetometer_file_name_stem, target_time_var
     )
-    wna_vars = _get_wna_data(start_time, end_time, Path(raw_data_path), satellite, skip_existing=skip_existing)
+    wna_vars = _get_wna_data(start_time, end_time, wna_path, wna_file_name_stem)
 
     mag_vars = _clean_magnetometer_data(mag_vars)
 
@@ -112,24 +185,21 @@ def process_rbsp_emfisis_waves(
         "Wave_normal_angle": wna_vars["WNA"],
         "Wave_planarity": wna_vars["planarity"],
         "Wave_ellipticity": wna_vars["ellipticity"],
+        "Magnetic_Power_Spectral_Density": psd_var,
+        "Number_density": density_vars["Density"],
+        "B_total_obs": mag_vars["Bt"],
+        "MLat": orbit_vars["MLat"],
+        "MLT": orbit_vars["MLT"],
+        "f_ce": orbit_vars["f_ce"],
+        "f_ce_Eq": orbit_vars["f_ce_Eq"],
     }
 
     saving_strat = rbsp_emfisis_waves_strategy(processed_data_path, satellite)
 
-    ep.save(vars_to_save, saving_strat, start_time, end_time)
-
-    wfr_vars["BB"] = psd_var
-
-    _plot_density(density_vars)
-    orbit_vars["Epoch"] = mag_vars["Epoch"]
-    _plot_orbit(orbit_vars)
-    _plot_magnetometer(mag_vars)
-    _plot_wfr(wfr_vars)
-    _plot_wna(wna_vars)
+    ep.save(vars_to_save, saving_strat, start_time, end_time, target_time_var)
 
 
 def _calculate_orbital_vars(mag_vars: dict[str, ep.Variable]) -> dict[str, ep.Variable]:
-    bt = np.asarray(mag_vars["Bt"].get_data(u.T))
     coords = np.asarray(mag_vars["Coordinates"].get_data(u.km))
 
     x = coords[:, 0]
@@ -145,44 +215,29 @@ def _calculate_orbital_vars(mag_vars: dict[str, ep.Variable]) -> dict[str, ep.Va
     mlt = np.degrees(np.arctan2(y, x)) / 15.0 + 12.0
     mlt = np.mod(mlt, 24.0)
 
-    fce = (e.si * bt) / (2 * np.pi * m_e.si)
-    fce_eq = fce * (np.cos(mlat_rad) ** 6) / np.sqrt(1 + 3 * np.sin(mlat_rad) ** 2)
+    # The EMFISIS magnetometer product is already in SM coordinates, whose z-axis is the
+    # geomagnetic dipole axis, so the latitude in this frame is the magnetic latitude.
+    mlat_var = Variable(u.deg, data=mlat)
 
-    orbit_vars = {
+    # Computed from the measured field rather than a model, so this must not be paired with
+    # the "f_ce_Eq" that compute_magnetic_field_variables derives from a modelled B.
+    f_ce_var = ep.processing.compute_electron_gyrofrequency(mag_vars["Bt"])
+
+    return {
         "L": Variable(u.dimensionless_unscaled, data=l_shell),
-        "mlat": Variable(u.deg, data=mlat),
-        "mlt": Variable(u.hour, data=mlt),
-        "fce": Variable(u.Hz, data=fce),
-        "fce_eq": Variable(u.Hz, data=fce_eq),
+        "MLat": mlat_var,
+        "MLT": Variable(u.hour, data=mlt),
+        "f_ce": f_ce_var,
+        "f_ce_Eq": ep.processing.map_to_dipole_equator(f_ce_var, mlat_var),
     }
-
-    return orbit_vars
 
 
 def _get_wfr_data(
     start_time: datetime,
     end_time: datetime,
     raw_data_path: Path,
-    satellite: Literal["a", "b"],
-    *,
-    skip_existing: bool = True,
+    file_name_stem: str,
 ) -> dict[str, ep.Variable]:
-    url = f"https://cdaweb.gsfc.nasa.gov/pub/data/rbsp/rbsp{satellite}/l2/emfisis/wfr/spectral-matrix-diagonal/YYYY/"
-    file_name_stem = "rbsp-" + satellite + r"_wfr-spectral-matrix-diagonal_emfisis-l2_YYYYMMDD_.{6}.cdf"
-
-    raw_data_path = raw_data_path / "YYYY" / "MM" / "wfr"
-
-    ep.download(
-        start_time,
-        end_time,
-        save_path=raw_data_path,
-        download_url=url,
-        file_name_stem=file_name_stem,
-        file_cadence="daily",
-        method="request",
-        skip_existing=skip_existing,
-    )
-
     extraction_infos = [
         ep.ExtractionInfo(result_key="Epoch", name_or_column="Epoch", unit=ep.units.tt2000),
         ep.ExtractionInfo(result_key="freq", name_or_column="WFR_frequencies", unit=u.Hz),
@@ -212,26 +267,8 @@ def _get_wna_data(
     start_time: datetime,
     end_time: datetime,
     raw_data_path: Path,
-    satellite: Literal["a", "b"],
-    *,
-    skip_existing: bool = True,
+    file_name_stem: str,
 ) -> dict[str, ep.Variable]:
-    url = f"https://cdaweb.gsfc.nasa.gov/pub/data/rbsp/rbsp{satellite}/l4/emfisis/wna-survey-sheath-corrected-e/YYYY/"
-    file_name_stem = "rbsp-" + satellite + r"_wna-survey-sheath-corrected-e_emfisis-l4_YYYYMMDD_.{6}.cdf"
-
-    raw_data_path = raw_data_path / "YYYY" / "MM" / "sna"
-
-    ep.download(
-        start_time,
-        end_time,
-        save_path=raw_data_path,
-        download_url=url,
-        file_name_stem=file_name_stem,
-        file_cadence="daily",
-        method="request",
-        skip_existing=skip_existing,
-    )
-
     extraction_infos = [
         ep.ExtractionInfo(result_key="Epoch", name_or_column="Epoch", unit=ep.units.tt2000),
         ep.ExtractionInfo(result_key="freq", name_or_column="WFR_frequencies", unit=u.Hz, is_time_dependent=False),
@@ -253,27 +290,9 @@ def _get_density_data(
     start_time: datetime,
     end_time: datetime,
     raw_data_path: Path,
-    satellite: Literal["a", "b"],
+    file_name_stem: str,
     target_time_var: ep.Variable,
-    *,
-    skip_existing: bool = True,
 ) -> dict[str, ep.Variable]:
-    url = f"https://cdaweb.gsfc.nasa.gov/pub/data/rbsp/rbsp{satellite}/l4/emfisis/density/YYYY/"
-    file_name_stem = "rbsp-" + satellite + r"_density_emfisis-l4_YYYYMMDD_.{7}.cdf"
-
-    raw_data_path = raw_data_path / "YYYY" / "MM" / "density"
-
-    ep.download(
-        start_time,
-        end_time,
-        save_path=raw_data_path,
-        download_url=url,
-        file_name_stem=file_name_stem,
-        file_cadence="daily",
-        method="request",
-        skip_existing=skip_existing,
-    )
-
     extraction_infos = [
         ep.ExtractionInfo(result_key="Epoch", name_or_column="Epoch", unit=ep.units.tt2000),
         ep.ExtractionInfo(result_key="Density", name_or_column="density", unit=u.cm ** (-3)),
@@ -303,27 +322,9 @@ def _get_magnetometer_data(
     start_time: datetime,
     end_time: datetime,
     raw_data_path: Path,
-    satellite: Literal["a", "b"],
+    file_name_stem: str,
     target_time_var: ep.Variable,
-    *,
-    skip_existing: bool = True,
 ) -> dict[str, ep.Variable]:
-    url = f"https://cdaweb.gsfc.nasa.gov/pub/data/rbsp/rbsp{satellite}/l3/emfisis/magnetometer/4sec/sm/YYYY/"
-    file_name_stem = "rbsp-" + satellite + r"_magnetometer_4sec-sm_emfisis-l3_YYYYMMDD_.{6}.cdf"
-
-    raw_data_path = raw_data_path / "YYYY" / "MM" / "magnetometer"
-
-    ep.download(
-        start_time,
-        end_time,
-        save_path=raw_data_path,
-        download_url=url,
-        file_name_stem=file_name_stem,
-        file_cadence="daily",
-        method="request",
-        skip_existing=skip_existing,
-    )
-
     extraction_infos = [
         ep.ExtractionInfo(result_key="Epoch", name_or_column="Epoch", unit=ep.units.tt2000),
         ep.ExtractionInfo(result_key="Bt", name_or_column="Magnitude", unit=u.nT),
@@ -374,6 +375,9 @@ def _compute_total_psd(wfr_vars: dict[str, ep.Variable]) -> ep.Variable:
 
 
 def _plot_density(density_vars: dict[str, ep.Variable]) -> None:
+    import matplotlib.dates as mdates  # noqa: PLC0415  (matplotlib is heavy; only needed for debug plotting)
+    import matplotlib.pyplot as plt  # noqa: PLC0415
+
     density_vars["Epoch"].convert_to_unit(ep.units.posixtime)
     times = np.array([datetime.fromtimestamp(ts, timezone.utc) for ts in density_vars["Epoch"].get_data()])
     density_data = density_vars["Density"].get_data()
@@ -392,6 +396,9 @@ def _plot_density(density_vars: dict[str, ep.Variable]) -> None:
 
 
 def _plot_orbit(mag_vars: dict[str, ep.Variable]) -> None:
+    import matplotlib.dates as mdates  # noqa: PLC0415  (matplotlib is heavy; only needed for debug plotting)
+    import matplotlib.pyplot as plt  # noqa: PLC0415
+
     mag_vars["Epoch"].convert_to_unit(ep.units.posixtime)
     times = np.array([datetime.fromtimestamp(ts, timezone.utc) for ts in mag_vars["Epoch"].get_data()])
 
@@ -423,6 +430,9 @@ def _plot_orbit(mag_vars: dict[str, ep.Variable]) -> None:
 
 
 def _plot_magnetometer(mag_vars: dict[str, ep.Variable]) -> None:
+    import matplotlib.dates as mdates  # noqa: PLC0415  (matplotlib is heavy; only needed for debug plotting)
+    import matplotlib.pyplot as plt  # noqa: PLC0415
+
     mag_vars["Epoch"].convert_to_unit(ep.units.posixtime)
     times = np.array([datetime.fromtimestamp(ts, timezone.utc) for ts in mag_vars["Epoch"].get_data()])
     bt = mag_vars["Bt"].get_data()
@@ -442,6 +452,8 @@ def _plot_magnetometer(mag_vars: dict[str, ep.Variable]) -> None:
 
 
 def _plot_wfr(wfr_vars: dict[str, ep.Variable]) -> None:
+    import matplotlib.pyplot as plt  # noqa: PLC0415  (matplotlib is heavy; only needed for debug plotting)
+
     wfr_vars["Epoch"].convert_to_unit(ep.units.posixtime)
     times = np.array([datetime.fromtimestamp(ts, timezone.utc) for ts in wfr_vars["Epoch"].get_data()])
     bb = wfr_vars["BB"].get_data()
@@ -472,6 +484,9 @@ def _plot_wfr(wfr_vars: dict[str, ep.Variable]) -> None:
 
 
 def _plot_wna(wna_vars: dict[str, ep.Variable]) -> None:
+    import matplotlib.dates as mdates  # noqa: PLC0415  (matplotlib is heavy; only needed for debug plotting)
+    import matplotlib.pyplot as plt  # noqa: PLC0415
+
     wna_vars["Epoch"].convert_to_unit(ep.units.posixtime)
     times = np.array([datetime.fromtimestamp(ts, timezone.utc) for ts in wna_vars["Epoch"].get_data()])
     freq = wna_vars["freq"].get_data()

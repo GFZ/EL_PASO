@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: 2025 GFZ Helmholtz Centre for Geosciences
+# SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
 # SPDX-FileContributor: Jaskirat Singh
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -13,10 +15,11 @@ from astropy import units as u
 
 import el_paso as ep
 from el_paso.processing.magnetic_field_utils import InternalFieldModel, IrbemOptions, LstarQuantity
+from el_paso.recipes.rbsp import RBSPSatellite
 
 
 def rbsp_mageis_proton_gfz_strategy(
-    base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral, satellite: str
+    base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral, satellite: RBSPSatellite
 ) -> ep.SavingStrategy:
     """Legacy GFZ .mat saving strategy for RBSP MagEIS protons."""
     return ep.saving_strategies.GFZStrategy(Path(base_data_path), "RBSP", "rbsp" + satellite, "mageis", mag_field)
@@ -25,7 +28,7 @@ def rbsp_mageis_proton_gfz_strategy(
 def rbsp_mageis_proton_netcdf_strategy(
     base_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
-    satellite: str,
+    satellite: RBSPSatellite,
     *,
     file_format: ep.typing.MFSFormats = "nc",
 ) -> ep.SavingStrategy:
@@ -44,7 +47,7 @@ def rbsp_mageis_proton_netcdf_strategy(
 def process_rbsp_mageis_protons(
     start_time: datetime,
     end_time: datetime,
-    satellite: Literal["a", "b"] = "a",
+    satellite: RBSPSatellite = "a",
     mag_field: Literal["T89", "T96", "TS04"] = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
@@ -77,7 +80,7 @@ def process_rbsp_mageis_protons(
             written to. Defaults to ".".
         bin_cadence (timedelta): Time-binning cadence applied to all variables.
         num_cores (int): Number of CPU cores used for the magnetic field computations.
-            Defaults to 32.
+            Defaults to 16.
         save_strategy (Literal["gfz", "netcdf", "both"]): Which saving strategy/strategies
             to use for writing the processed output. Defaults to "both".
         skip_existing (bool): If True, skip downloading files that already exist on disk.
@@ -97,6 +100,8 @@ def process_rbsp_mageis_protons(
         method="request",
         skip_existing=skip_existing,
     )
+
+    ep.exit_if_download_only()
 
     extraction_infos_fpdu = [
         ep.ExtractionInfo(

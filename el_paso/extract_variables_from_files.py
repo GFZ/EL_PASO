@@ -14,11 +14,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, cast  # noqa: UP035
 
-import cdflib
-import h5py
-import netCDF4
 import numpy as np
-import pandas as pd
 from numpy.typing import DTypeLike, NDArray
 
 from el_paso import Variable
@@ -340,6 +336,8 @@ def _fill_file_name_and_check_version(time: datetime, file_path: Path) -> Path |
 def _extract_data_from_ascii(
     file_path: str, extraction_infos: tuple[ExtractionInfo, ...], pd_read_csv_kwargs: dict[str, Any] | None
 ) -> dict[str | int, NDArray[np.generic]]:
+    import pandas as pd  # noqa: PLC0415
+
     pd_read_csv_kwargs = pd_read_csv_kwargs if pd_read_csv_kwargs is not None else {}
 
     file_df = pd.read_csv(file_path, **pd_read_csv_kwargs)
@@ -361,6 +359,8 @@ def _extract_data_from_ascii(
 def _extract_data_from_json(
     file_path: str, extraction_infos: tuple[ExtractionInfo, ...]
 ) -> dict[str | int, NDArray[np.generic]]:
+    import pandas as pd  # noqa: PLC0415
+
     logger.info("Enountered JSON file. Please specify your dependent variables!")
 
     with Path(file_path).open("r") as f:
@@ -404,7 +404,8 @@ def _extract_data_from_json(
 def _extract_data_from_cdf(
     file_path: str, extraction_infos: tuple[ExtractionInfo, ...]
 ) -> dict[str | int, NDArray[np.generic]]:
-    # Open the CDF file
+    import cdflib  # noqa: PLC0415
+
     cdf_file = cdflib.CDF(file_path)
     cdfinfo = cdf_file.cdf_info()
     variable_data: dict[str | int, NDArray[np.generic]] = {}
@@ -433,7 +434,8 @@ def _extract_data_from_cdf(
 def _extract_data_from_h5(
     file_path: str, extraction_infos: tuple[ExtractionInfo, ...]
 ) -> dict[str | int, NDArray[np.generic]]:
-    # Open the h5 file
+    import h5py  # noqa: PLC0415
+
     variable_data: dict[str | int, NDArray[np.generic]] = {}
 
     with h5py.File(file_path) as file:
@@ -474,6 +476,8 @@ def _extract_data_from_h5(
 def _extract_data_from_netcdf(
     file_path: str, extraction_infos: tuple[ExtractionInfo, ...]
 ) -> dict[str | int, NDArray[np.generic]]:
+    import netCDF4  # noqa: PLC0415
+
     variable_data: dict[str | int, NDArray[np.generic]] = {}
 
     with netCDF4.Dataset(file_path) as file:

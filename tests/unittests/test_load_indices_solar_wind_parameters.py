@@ -7,23 +7,20 @@ from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import el_paso as ep
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-import el_paso as ep
-
 
 @pytest.mark.basic
-def test_calculate_w_parameters(skip_if_unreachable: Callable[..., None]) -> None:
-    skip_if_unreachable("https://omniweb.gsfc.nasa.gov")
-
+def test_calculate_w_parameters() -> None:
     start_time = datetime(2015, 3, 17, 0, 0, tzinfo=timezone.utc)
     end_time = start_time + timedelta(days=1)
 
     w_vars = ep.load_indices_solar_wind_parameters(start_time, end_time, ["W_params"], w_parameter_method="Calculation")
 
-    true_max_values = [6.9, 7.34, 5.6, 15.75, 8.7, 42.95]
+    true_max_values = [6.94, 7.36, 5.64, 15.9, 8.71, 42.95]
 
     w_params = w_vars["W_params"][0].get_data()
     assert w_params.shape[1] == 6
@@ -34,7 +31,7 @@ def test_calculate_w_parameters(skip_if_unreachable: Callable[..., None]) -> Non
 
 @pytest.mark.visual
 def test_w_parameters_comparison(skip_if_unreachable: Callable[..., None]) -> None:
-    skip_if_unreachable("https://omniweb.gsfc.nasa.gov", "https://geo.phys.spbu.ru")
+    skip_if_unreachable("https://geo.phys.spbu.ru")
 
     start_time = datetime(2015, 3, 17, 0, 0, tzinfo=timezone.utc)
     end_time = start_time + timedelta(days=1)

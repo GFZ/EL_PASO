@@ -8,7 +8,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
-
 from el_paso.extract_variables_from_files import _construct_file_list
 
 

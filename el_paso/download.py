@@ -1,4 +1,5 @@
 # SPDX-FileCopyrightText: 2025 GFZ Helmholtz Centre for Geosciences
+# SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
 # SPDX-FileContributor: Sahil Jhawar
 #
@@ -27,7 +28,13 @@ from requests.auth import HTTPDigestAuth
 from richpool import JoblibPool
 
 import el_paso as ep
-from el_paso.utils import enforce_utc_timezone, fill_str_template_with_time, get_file_by_version, timed_function
+from el_paso.utils import (
+    enforce_utc_timezone,
+    env_flag_enabled,
+    fill_str_template_with_time,
+    get_file_by_version,
+    timed_function,
+)
 
 if typing.TYPE_CHECKING:
     from el_paso.typing import FileCadence
@@ -159,7 +166,7 @@ def download(
     Raises:
         NotImplementedError: If "monthly" cadence or an unsupported cadence is specified.
     """
-    if ep.skip_download or os.getenv("EL_PASO_SKIP_DOWNLOAD"):
+    if ep.skip_download or env_flag_enabled("EL_PASO_SKIP_DOWNLOAD"):
         logger.info("Skipping ep.download!")
         return
 
@@ -173,7 +180,11 @@ def download(
 
     while curr_time <= end_time:
         next_time = _get_next_time(curr_time, file_cadence)
-        next_time = end_time if next_time is None else next_time
+
+        if next_time is None:
+            # single file covering the whole range
+            tasks.append((curr_time, end_time))
+            break
 
         tasks.append((curr_time, next_time))
         curr_time = next_time
@@ -200,7 +211,22 @@ def download(
             desc="Downloading",
         )
 
-    if ep.exit_after_download or os.getenv("EL_PASO_EXIT_AFTER_DOWNLOAD"):
+
+def exit_if_download_only() -> None:
+    """Exit the program if requested to stop once all downloads are completed.
+
+    Recipes usually call `ep.download` several times (e.g. once per data product), so
+    `ep.download` itself never exits. It does nothing unless `ep.exit_after_download` or the environment
+    variable `EL_PASO_EXIT_AFTER_DOWNLOAD` is set, and never exits if downloading is skipped.
+
+    Raises:
+        SystemExit: With exit code 0, if exiting after the download has been requested.
+    """
+    if ep.skip_download or env_flag_enabled("EL_PASO_SKIP_DOWNLOAD"):
+        logger.info("Skipping download!")
+        return
+
+    if ep.exit_after_download or env_flag_enabled("EL_PASO_EXIT_AFTER_DOWNLOAD"):
         logger.info("Exiting after ep.download is completed!")
         sys.exit(0)
 
@@ -329,7 +355,7 @@ def _wget_download(
 
     # Execute the download command
     try:
-        os.system(download_command)  # noqa: S605  # ty:ignore[deprecated]
+        os.system(download_command)  # noqa: S605
     except Exception as e:  # noqa: BLE001
         logger.info(f"Error downloading file using command {download_command}: {e}")
 

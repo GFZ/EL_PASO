@@ -16,11 +16,13 @@ class with the right attributes, and that overridable keyword-only arguments
 
 from __future__ import annotations
 
+import importlib
+import inspect
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-import pytest
-
 import el_paso as ep
+import pytest
 from el_paso.recipes.arase.process_arase_mepe import (
     arase_mepe_gfz_strategy,
     arase_mepe_h5_strategy,
@@ -29,10 +31,10 @@ from el_paso.recipes.arase.process_arase_mepe import (
 from el_paso.recipes.arase.process_arase_pwe_densities import arase_pwe_densities_strategy
 from el_paso.recipes.arase.process_arase_xep import arase_xep_strategy
 from el_paso.recipes.arase.process_arase_xep_realtime import (
-    arase_xep_gfz_strategy as arase_xep_realtime_gfz_strategy,
+    arase_xep_realtime_gfz_strategy,
 )
 from el_paso.recipes.arase.process_arase_xep_realtime import (
-    arase_xep_strategy as arase_xep_realtime_netcdf_strategy,
+    arase_xep_realtime_strategy as arase_xep_realtime_netcdf_strategy,
 )
 from el_paso.recipes.dmsp.process_dmsp_ssj_electrons import dmsp_ssj_electron_strategy
 from el_paso.recipes.esa.process_ngrm_satellite import esa_ngrm_strategy
@@ -77,10 +79,11 @@ from el_paso.recipes.rbsp.process_rbsp_rbspice_protons import (
     rbsp_rbspice_proton_gfz_strategy,
     rbsp_rbspice_proton_netcdf_strategy,
 )
+from el_paso.recipes.themis.process_themis_fft_waves import themis_fft_waves_strategy
+from el_paso.recipes.themis.process_themis_scpot_density import themis_scpot_density_strategy
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from pathlib import Path
 
     from el_paso.saving_strategy import SavingStrategy
 
@@ -95,7 +98,7 @@ CASES: list[
         arase_xep_strategy,
         ("T89",),
         {},
-        ep.saving_strategies.MonthlyRBStrategy,
+        ep.saving_strategies.MonthlyOmniFluxRBStrategy,
         {"mission": "Arase", "satellite": "arase", "instrument": "xep", "mag_field": "T89", "file_format": ".nc"},
     ),
     (
@@ -137,8 +140,15 @@ CASES: list[
         arase_pwe_densities_strategy,
         ("T89",),
         {},
-        ep.saving_strategies.DensityNetCDFStrategy,
-        {"mission": "Arase", "satellite": "Other", "instrument": "PWE", "mag_field": "T89"},
+        ep.saving_strategies.MonthlyDensityStrategy,
+        {"mission": "Arase", "satellite": "arase", "instrument": "PWE", "mag_field": "T89"},
+    ),
+    (
+        themis_scpot_density_strategy,
+        ("a", "T89"),
+        {},
+        ep.saving_strategies.MonthlyDensityStrategy,
+        {"mission": "THEMIS", "satellite": "tha", "instrument": "SCPOT", "mag_field": "T89"},
     ),
     (
         dmsp_ssj_electron_strategy,
@@ -149,17 +159,17 @@ CASES: list[
     ),
     (
         esa_ngrm_strategy,
-        ("T89", "S6A"),
+        ("T89", "S6-MF"),
         {},
         ep.saving_strategies.DailyLEORBStrategy,
-        {"mission": "ESA", "satellite": "s6a", "instrument": "ngrm", "mag_field": "T89", "file_format": ".nc"},
+        {"mission": "ESA", "satellite": "s6-mf", "instrument": "ngrm", "mag_field": "T89", "file_format": ".nc"},
     ),
     (
         esa_ngrm_strategy,
-        ("T89", "Cluster1"),
+        ("T89", "EDRS-C"),
         {},
         ep.saving_strategies.MonthlyRBStrategy,
-        {"mission": "ESA", "satellite": "cluster1", "instrument": "ngrm", "mag_field": "T89", "file_format": ".nc"},
+        {"mission": "ESA", "satellite": "edrs-c", "instrument": "ngrm", "mag_field": "T89", "file_format": ".nc"},
     ),
     (
         goes_r_mps_high_gfz_strategy,
@@ -343,6 +353,13 @@ def _case_id(factory: Callable[..., SavingStrategy], extra_kwargs: dict[str, Any
 
 CASE_IDS = [_case_id(factory, kwargs) for factory, _args, kwargs, _cls, _attrs in CASES]
 
+# The density strategies default to PRBEMStandard rather than GFZStandard. Mapped to the
+# extra positional arguments their factory needs after `base_data_path`.
+_PRBEM_DEFAULTING_FACTORIES: dict[Callable[..., SavingStrategy], tuple[Any, ...]] = {
+    arase_pwe_densities_strategy: ("T89",),
+    themis_scpot_density_strategy: ("a", "T89"),
+}
+
 
 @pytest.mark.basic
 @pytest.mark.parametrize(
@@ -364,26 +381,31 @@ def test_strategy_factory_builds_expected_strategy(
     for attr_name, expected_value in expected_attrs.items():
         assert getattr(strategy, attr_name) == expected_value, attr_name
 
-    if factory is not arase_pwe_densities_strategy:
-        # arase_pwe_densities_strategy is the one documented exception, see
-        # test_arase_pwe_densities_strategy_data_standard_is_none below.
+    if factory in _PRBEM_DEFAULTING_FACTORIES:
+        # The density strategies default to PRBEMStandard, not GFZStandard; see
+        # test_density_strategies_default_to_prbem_standard below.
+        assert isinstance(strategy.data_standard, ep.data_standards.PRBEMStandard)
+    else:
         assert isinstance(strategy.data_standard, ep.data_standards.GFZStandard)
 
 
 @pytest.mark.basic
-def test_arase_pwe_densities_strategy_data_standard_is_none(tmp_path: Path) -> None:
-    """Documents a pre-existing quirk.
+@pytest.mark.parametrize(
+    ("factory", "extra_args"), _PRBEM_DEFAULTING_FACTORIES.items(), ids=lambda f: getattr(f, "__name__", "")
+)
+def test_density_strategies_default_to_prbem_standard(
+    tmp_path: Path, factory: Callable[..., SavingStrategy], extra_args: tuple[Any, ...]
+) -> None:
+    """The density strategies fall back to `PRBEMStandard()` when handed no data standard.
 
-    `DensityNetCDFStrategy(data_standard=None)` ends up with `self.data_standard is None`
-    rather than falling back to `PRBEMStandard()`, because
-    `MonthlyRBStrategy.__init__` re-assigns `self.data_standard` from the raw (unfallen-back)
-    argument it's called with. This isn't something the recipe function can fix on its own; it
-    just documents the actual observed behavior so a future strategy-class fix doesn't silently
-    change what this wrapper returns without anyone noticing.
+    This used to yield `self.data_standard is None`: the strategy assigned the fallback
+    *before* calling `MonthlyRBStrategy.__init__`, which then re-assigned the attribute from
+    the raw (unfallen-back) argument. Both density strategies now assign it after the
+    `super().__init__` call, so the documented fallback actually takes effect.
     """
-    strategy = arase_pwe_densities_strategy(tmp_path, "T89")
+    strategy = factory(tmp_path, *extra_args)
 
-    assert strategy.data_standard is None
+    assert isinstance(strategy.data_standard, ep.data_standards.PRBEMStandard)
 
 
 @pytest.mark.basic
@@ -394,6 +416,7 @@ def test_file_format_override_takes_effect(tmp_path: Path, file_format: str) -> 
     assert strategy.file_format == "." + file_format  # ty:ignore[unresolved-attribute]
 
 
+@pytest.mark.basic
 def test_file_format_is_keyword_only(tmp_path: Path) -> None:
     with pytest.raises(TypeError):
         arase_xep_strategy(tmp_path, "T89", "nc")  # ty:ignore[too-many-positional-arguments]
@@ -431,3 +454,53 @@ def test_rbsp_emfisis_waves_strategy_data_standard_override(tmp_path: Path) -> N
     strategy = rbsp_emfisis_waves_strategy(tmp_path, "b", prbem)
 
     assert strategy.data_standard is prbem
+
+
+@pytest.mark.basic
+def test_themis_fft_waves_strategy(tmp_path: Path) -> None:
+    strategy = themis_fft_waves_strategy(tmp_path, "a")
+
+    assert type(strategy) is ep.saving_strategies.DailyWaveStrategy
+    assert strategy.mission == "THEMIS"
+    assert strategy.satellite == "tha"
+    assert strategy.instrument == "FFT"
+    assert isinstance(strategy.data_standard, ep.data_standards.GFZStandard)
+
+
+@pytest.mark.basic
+def test_themis_fft_waves_strategy_data_standard_override(tmp_path: Path) -> None:
+    prbem = ep.data_standards.PRBEMStandard()
+
+    strategy = themis_fft_waves_strategy(tmp_path, "d", prbem)
+
+    assert strategy.data_standard is prbem
+
+
+@pytest.mark.basic
+def test_every_recipe_strategy_is_exported_from_its_mission_package() -> None:
+    """Every `<...>_strategy` factory must be importable as `el_paso.recipes.<mission>.<name>`.
+
+    Mirrors `test_every_recipe_is_exported_from_its_mission_package` in `test_recipe_cli.py`,
+    but for the strategy factories rather than the `process_*` entry points. Regression test
+    for https://github.com/GFZ/EL_PASO/issues/148, where none of the `<...>_strategy`
+    functions were re-exported from their mission's `__init__.py`.
+    """
+    recipes_dir = Path(ep.recipes.__file__).parent
+
+    for module_path in sorted(recipes_dir.glob("*/process_*.py")):
+        mission = module_path.parent.name
+        module_name = f"el_paso.recipes.{mission}.{module_path.stem}"
+        module = importlib.import_module(module_name)
+        mission_package = importlib.import_module(f"el_paso.recipes.{mission}")
+        exported_names = getattr(mission_package, "__all__", ())
+
+        strategy_factories = {
+            name: obj
+            for name, obj in vars(module).items()
+            if name.endswith("_strategy") and inspect.isfunction(obj) and obj.__module__ == module_name
+        }
+
+        for name, factory in strategy_factories.items():
+            assert any(getattr(mission_package, exported, None) is factory for exported in exported_names), (
+                f"{module_name}.{name} is not exported (under any name) from el_paso/recipes/{mission}/__init__.py"
+            )

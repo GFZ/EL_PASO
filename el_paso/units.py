@@ -115,6 +115,11 @@ def j2k_to_posix(j2k_seconds: NDArray[np.floating]) -> NDArray[np.floating]:
     return np.array([dt.timestamp() for dt in j2k_to_datetime(j2k_seconds)], dtype=np.float64)
 
 
+def posix_to_j2k(posix_seconds: NDArray[np.floating]) -> NDArray[np.floating]:
+    """Convert POSIX timestamp to J2000 seconds."""
+    return np.atleast_1d(np.asarray(posix_seconds, dtype=np.float64)) - J2000_EPOCH.timestamp()
+
+
 def posix_to_datetime(posix_seconds: NDArray[np.floating]) -> NDArray[dt.datetime]:  # ty:ignore[invalid-type-arguments]
     """Convert POSIX seconds to UTC dt.datetime."""
     return np.array([dt.datetime.fromtimestamp(float(sec), tz=dt.timezone.utc) for sec in np.atleast_1d(posix_seconds)])
@@ -189,7 +194,7 @@ j2k_posixtime_equiv = [
         j2k,
         posixtime,
         j2k_to_posix,
-        lambda x: (j2k_to_datetime(x) - J2000_EPOCH).total_seconds(),
+        posix_to_j2k,
     )
 ]
 

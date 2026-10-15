@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: 2025 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -8,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
 
+import el_paso as ep
 import matplotlib.dates as mdates
 import numpy as np
 import pytest
@@ -15,9 +17,6 @@ from matplotlib import pyplot as plt
 from swvo.io.dst import DSTOMNI
 from swvo.io.kp import KpOMNI
 from swvo.io.RBMDataSet import InstrumentEnum, MfmEnum, RBMDataSet
-
-import el_paso as ep
-from el_paso.recipes.rbsp import process_rbsp_hope_electrons
 
 satellite_list = ["a", "b"]
 mag_field_list = ["TS04", "T89"]
@@ -33,15 +32,15 @@ def test_gfz_old(satellite: Literal["a", "b"], mag_field: Literal["T89", "TS04"]
     Path("tests/comparisons/raw_data").mkdir(exist_ok=True)
     Path("tests/comparisons/processed_data").mkdir(exist_ok=True)
 
-    # process_rbsp_hope_electrons(
-    #     start_time,
-    #     end_time,
-    #     satellite,
-    #     mag_field,
-    #     raw_data_path="tests/comparisons/raw_data",
-    #     processed_data_path="tests/comparisons/processed_data",
-    #     num_cores=64,
-    # )
+    ep.recipes.rbsp.process_rbsp_hope_electrons(
+        start_time,
+        end_time,
+        satellite,
+        mag_field,
+        raw_data_path="tests/comparisons/raw_data",
+        processed_data_path="tests/comparisons/processed_data",
+        num_cores=64,
+    )
 
     match mag_field:
         case "T89":
@@ -53,7 +52,12 @@ def test_gfz_old(satellite: Literal["a", "b"], mag_field: Literal["T89", "TS04"]
         start_time=start_time,
         end_time=end_time,
         saving_strategy=ep.saving_strategies.MonthlyRBStrategy(
-            Path("tests/comparisons/processed_data/"), "RBSP", "rbspb", "hope", mag_field, ep.data_standards.GFZStandard(),
+            Path("tests/comparisons/processed_data/"),
+            "RBSP",
+            "rbspb",
+            "hope",
+            mag_field,
+            ep.data_standards.GFZStandard(),
         ),
         verbose=True,
     )
@@ -170,7 +174,7 @@ def test_gfz_old(satellite: Literal["a", "b"], mag_field: Literal["T89", "TS04"]
     target_k = 0.3
 
     psd_data_server = rbsp_data_server.interp_psd(target_mu, target_k, "TargetPairs")
-    psd_new = rbsp_data_server.interp_psd(target_mu, target_k, "TargetPairs")
+    psd_new = rbsp_data.interp_psd(target_k, target_mu=target_mu, target_type="TargetPairs")
 
     ax3.plot(rbsp_data_server.datetime, np.log10(psd_data_server), "k")
     ax3.plot(rbsp_data.datetime, np.log10(psd_new), "r--")

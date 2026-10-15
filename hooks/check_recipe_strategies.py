@@ -3,20 +3,37 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Guards against a `process_*` recipe entry point constructing a saving strategy inline.
+"""Guards recipe files against a few conventions drifting out of sync.
 
-Every `process_*` function under `el_paso/recipes/` should get its `SavingStrategy` from a
-named `<...>_strategy(...)` function (e.g. `arase_xep_strategy(path, mag_field)`, defined in
-the same file) rather than constructing an `ep.saving_strategies.*Strategy(...)` directly in
-the entry point's body. That keeps each entry point readable (the mission/satellite/
-instrument/data-standard literals live in one small, named, testable function) without
-requiring a central module: new recipes are free to define their strategy function(s)
-wherever makes sense in their own file.
+Four independent checks, all against `el_paso/recipes/`:
 
-Flags any call shaped like `<...>.saving_strategies.<ClassName>(...)`, and any
-`from el_paso.saving_strategies import ...`, found directly inside a top-level `process_*`
-function (not inside a helper function it calls). Run directly as a script (also wired up as
-a pre-commit hook).
+1. Inline strategy construction. Every `process_*` recipe entry point should get its
+   `SavingStrategy` from a named `<...>_strategy(...)` function (e.g.
+   `arase_xep_strategy(path, mag_field)`, defined in the same file) rather than constructing
+   an `ep.saving_strategies.*Strategy(...)` directly in the entry point's body. That keeps
+   each entry point readable (the mission/satellite/instrument/data-standard literals live in
+   one small, named, testable function) without requiring a central module: new recipes are
+   free to define their strategy function(s) wherever makes sense in their own file.
+
+2. `satellite` typed as `str`. A `satellite` parameter anywhere in a recipe file (the
+   `process_*` entry point or a helper it calls, such as its `<...>_strategy` factory) should
+   be typed as a `Literal` of the mission's valid satellite names, not a bare `str`. Typing it
+   `str` silently accepts any spelling and gives no autocomplete; see
+   https://github.com/GFZ/EL_PASO/issues/148.
+
+3. Strategy factories missing from `__init__.py`. Every `<...>_strategy(...)` factory function
+   defined in a recipe file should be importable as `el_paso.recipes.<mission>.<name>` (under
+   its own name or an alias) and listed in that package's `__all__`, the same as its
+   `process_*` entry point already must be. Otherwise the factory is unusable from outside its
+   own module; see https://github.com/GFZ/EL_PASO/issues/148.
+
+4. CLI registry out of sync. Every top-level `process_*` function in a recipe file must have a
+   `RecipeEntry` in `RECIPES` (`el_paso/cli/app.py`), and every entry there must point at such a
+   function; otherwise the recipe is silently missing from the `el-paso` command line (or an
+   entry points at a recipe that no longer exists). Read statically, so nothing is imported.
+
+Run directly as a script (also wired up as a pre-commit hook); always scans the whole
+`el_paso/recipes/` tree regardless of which files changed.
 """
 
 from __future__ import annotations
@@ -28,16 +45,20 @@ from typing import NamedTuple
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 RECIPES_DIR = REPO_ROOT / "el_paso" / "recipes"
+CLI_APP_PATH = REPO_ROOT / "el_paso" / "cli" / "app.py"
 
-ALLOWED_VIOLATIONS: dict[Path, set[int]] = {
-    RECIPES_DIR / "rbsp" / "process_rbsp_efw_emfisis_density_combined.py": {
-        196
-    },  # https://github.com/GFZ/EL_PASO/issues/139
-}
+# ALLOWED_INLINE_STRATEGY: dict[Path, set[int]] = {
+#     RECIPES_DIR / "rbsp" / "process_rbsp_efw_emfisis_density_combined.py": {
+#         195
+#     },  # https://github.com/GFZ/EL_PASO/issues/139
+# }  # noqa: ERA001
+
+ALLOWED_INLINE_STRATEGY: dict[Path, set[int]] = {}
+ALLOWED_STR_SATELLITE: dict[Path, frozenset[str]] = {}
 
 
 class Violation(NamedTuple):
-    """A disallowed direct `ep.saving_strategies.*` construction inside a `process_*` entry point."""
+    """One thing found wrong in a recipe file, plus which check found it."""
 
     path: Path
     lineno: int
@@ -46,6 +67,10 @@ class Violation(NamedTuple):
 
 def _iter_recipe_files() -> list[Path]:
     return sorted(p for p in RECIPES_DIR.rglob("*.py") if "__pycache__" not in p.parts)
+
+
+def _iter_mission_dirs() -> list[Path]:
+    return sorted(p for p in RECIPES_DIR.iterdir() if p.is_dir() and "__pycache__" not in p.parts)
 
 
 def _is_saving_strategies_construction(func: ast.expr) -> bool:
@@ -60,7 +85,9 @@ def _is_saving_strategies_construction(func: ast.expr) -> bool:
     return False
 
 
-def _find_violations_in_function(path: Path, func: ast.FunctionDef | ast.AsyncFunctionDef) -> list[Violation]:
+def _find_inline_strategy_violations_in_function(
+    path: Path, func: ast.FunctionDef | ast.AsyncFunctionDef
+) -> list[Violation]:
     violations: list[Violation] = []
 
     for node in ast.walk(func):
@@ -77,42 +104,232 @@ def _find_violations_in_function(path: Path, func: ast.FunctionDef | ast.AsyncFu
     return violations
 
 
-def _find_violations_in_file(path: Path) -> list[Violation]:
-    tree = ast.parse(path.read_text(), filename=str(path))
+def _find_inline_strategy_violations(path: Path, tree: ast.Module) -> list[Violation]:
+    allowed_lines = ALLOWED_INLINE_STRATEGY.get(path, set())
     violations: list[Violation] = []
 
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith("process_"):
-            violations.extend(_find_violations_in_function(path, node))
+            violations.extend(_find_inline_strategy_violations_in_function(path, node))
 
-    return violations
+    return [v for v in violations if v.lineno not in allowed_lines]
 
 
-def find_violations() -> list[Violation]:
-    """Return every disallowed direct saving-strategy construction inside a `process_*` entry point."""
+def _is_str_annotation(annotation: ast.expr | None) -> bool:
+    if annotation is None:
+        return False
+    if isinstance(annotation, ast.Name):
+        return annotation.id == "str"
+    return isinstance(annotation, ast.Constant) and annotation.value == "str"
+
+
+def _find_str_satellite_violations(path: Path, tree: ast.Module) -> list[Violation]:
+    allowed_functions = ALLOWED_STR_SATELLITE.get(path, frozenset())
     violations: list[Violation] = []
-    for path in _iter_recipe_files():
-        allowed_lines = ALLOWED_VIOLATIONS.get(path, set())
-        violations.extend(v for v in _find_violations_in_file(path) if v.lineno not in allowed_lines)
+
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) or node.name in allowed_functions:
+            continue
+
+        args = node.args
+        violations.extend(
+            Violation(path, arg.lineno, f"{node.name}(..., satellite: str, ...)")
+            for arg in (*args.posonlyargs, *args.args, *args.kwonlyargs)
+            if arg.arg == "satellite" and _is_str_annotation(arg.annotation)
+        )
+
     return violations
+
+
+def _top_level_strategy_function_names(tree: ast.Module) -> set[str]:
+    return {
+        node.name
+        for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.endswith("_strategy")
+    }
+
+
+def _import_aliases_from_submodule(init_tree: ast.Module, target_module: str) -> dict[str, list[str]]:
+    """Map original name -> bound (possibly aliased) name(s).
+
+    Covers names imported into `__init__.py` from `target_module`.
+    """
+    aliases: dict[str, list[str]] = {}
+    for node in ast.walk(init_tree):
+        if isinstance(node, ast.ImportFrom) and node.module == target_module:
+            for alias in node.names:
+                aliases.setdefault(alias.name, []).append(alias.asname or alias.name)
+    return aliases
+
+
+def _all_list_names(init_tree: ast.Module) -> set[str]:
+    """Collect every string literal assigned into an `__all__` list anywhere in the module.
+
+    Walks the whole tree, not just the top-level body, so this also picks up the literal
+    `__all__` a `lazy_loader.attach`-based `__init__.py` re-declares under `if TYPE_CHECKING:`
+    for type checkers, alongside its real, dynamically-built top-level `__all__`.
+    """
+    names: set[str] = set()
+    for node in ast.walk(init_tree):
+        if (
+            isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+            and node.targets[0].id == "__all__"
+            and isinstance(node.value, ast.List)
+        ):
+            names.update(
+                elt.value for elt in node.value.elts if isinstance(elt, ast.Constant) and isinstance(elt.value, str)
+            )
+    return names
+
+
+def _find_missing_strategy_exports() -> list[Violation]:
+    violations: list[Violation] = []
+
+    for mission_dir in _iter_mission_dirs():
+        init_path = mission_dir / "__init__.py"
+        if not init_path.exists():
+            continue
+
+        init_tree = ast.parse(init_path.read_text(), filename=str(init_path))
+        exported_names = _all_list_names(init_tree)
+        target_module_prefix = f"el_paso.recipes.{mission_dir.name}."
+
+        for module_path in sorted(mission_dir.glob("*.py")):
+            if module_path.name == "__init__.py":
+                continue
+
+            module_tree = ast.parse(module_path.read_text(), filename=str(module_path))
+            strategy_names = _top_level_strategy_function_names(module_tree)
+            if not strategy_names:
+                continue
+
+            aliases = _import_aliases_from_submodule(init_tree, target_module_prefix + module_path.stem)
+
+            for name in sorted(strategy_names):
+                bound_names = aliases.get(name, [])
+                rel_module = module_path.relative_to(REPO_ROOT)
+
+                if not bound_names:
+                    violations.append(Violation(init_path, 1, f"{name} (defined in {rel_module}) is not imported"))
+                elif not any(bound in exported_names for bound in bound_names):
+                    imported_as = "/".join(bound_names)
+                    violations.append(
+                        Violation(
+                            init_path,
+                            1,
+                            f"{name} (defined in {rel_module}, imported as {imported_as}) is missing from __all__",
+                        )
+                    )
+
+    return violations
+
+
+def _registered_recipes() -> dict[tuple[str, str], int]:
+    """Map (module, function) -> line number for every `RecipeEntry(...)` in `RECIPES`."""
+    tree = ast.parse(CLI_APP_PATH.read_text(), filename=str(CLI_APP_PATH))
+    registered: dict[tuple[str, str], int] = {}
+
+    for node in tree.body:
+        if isinstance(node, ast.AnnAssign):
+            targets, value = [node.target], node.value
+        elif isinstance(node, ast.Assign):
+            targets, value = node.targets, node.value
+        else:
+            continue
+        if value is None or not any(isinstance(t, ast.Name) and t.id == "RECIPES" for t in targets):
+            continue
+
+        for call in ast.walk(value):
+            if isinstance(call, ast.Call) and isinstance(call.func, ast.Name) and call.func.id == "RecipeEntry":
+                args = [arg.value for arg in call.args if isinstance(arg, ast.Constant) and isinstance(arg.value, str)]
+                if len(args) == 4:  # mission, command, module, function
+                    registered[(args[2], args[3])] = call.lineno
+
+    return registered
+
+
+def _find_cli_registry_violations() -> list[Violation]:
+    registered = _registered_recipes()
+    if not registered:
+        return [Violation(CLI_APP_PATH, 1, "no RecipeEntry(...) found in RECIPES")]
+
+    on_disk: dict[tuple[str, str], tuple[Path, int]] = {}
+    for mission_dir in _iter_mission_dirs():
+        for module_path in sorted(mission_dir.glob("*.py")):
+            tree = ast.parse(module_path.read_text(), filename=str(module_path))
+            module = f"el_paso.recipes.{mission_dir.name}.{module_path.stem}"
+            for node in tree.body:
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith("process_"):
+                    on_disk[(module, node.name)] = (module_path, node.lineno)
+
+    violations = [
+        Violation(path, lineno, f"{function} has no RecipeEntry in RECIPES ({CLI_APP_PATH.relative_to(REPO_ROOT)})")
+        for (module, function), (path, lineno) in sorted(on_disk.items())
+        if (module, function) not in registered
+    ]
+    violations.extend(
+        Violation(CLI_APP_PATH, lineno, f"RecipeEntry points at {module}.{function}, which does not exist")
+        for (module, function), lineno in sorted(registered.items())
+        if (module, function) not in on_disk
+    )
+    return violations
+
+
+def find_violations() -> tuple[list[Violation], list[Violation], list[Violation], list[Violation]]:
+    """Return (inline_strategy, str_satellite, missing_exports, cli_registry) violations."""
+    inline_strategy: list[Violation] = []
+    str_satellite: list[Violation] = []
+
+    for path in _iter_recipe_files():
+        tree = ast.parse(path.read_text(), filename=str(path))
+        inline_strategy.extend(_find_inline_strategy_violations(path, tree))
+        str_satellite.extend(_find_str_satellite_violations(path, tree))
+
+    missing_exports = _find_missing_strategy_exports()
+    cli_registry = _find_cli_registry_violations()
+
+    return inline_strategy, str_satellite, missing_exports, cli_registry
+
+
+def _print_section(header: str, violations: list[Violation]) -> None:
+    if not violations:
+        return
+
+    print(header)  # noqa: T201
+    for violation in violations:
+        rel = violation.path.relative_to(REPO_ROOT)
+        print(f"  {rel}:{violation.lineno}: {violation.detail}")  # noqa: T201
+    print()  # noqa: T201
 
 
 def main() -> int:
     """Print every violation found and return a nonzero exit code if there were any."""
-    violations = find_violations()
+    inline_strategy, str_satellite, missing_exports, cli_registry = find_violations()
 
-    if not violations:
-        return 0
-
-    print(  # noqa: T201
+    _print_section(
         "A process_* recipe entry point builds a saving strategy inline instead of through a\n"
-        "named <...>_strategy(...) function defined in the same file. Violations:\n"
+        "named <...>_strategy(...) function defined in the same file. Violations:\n",
+        inline_strategy,
     )
-    for violation in violations:
-        rel = violation.path.relative_to(REPO_ROOT)
-        print(f"  {rel}:{violation.lineno}: {violation.detail}")  # noqa: T201
+    _print_section(
+        "A `satellite` parameter is typed as a bare `str` instead of a Literal of the mission's\n"
+        "valid satellite names. Violations:\n",
+        str_satellite,
+    )
+    _print_section(
+        "A <...>_strategy(...) factory isn't importable as el_paso.recipes.<mission>.<name> (not\n"
+        "imported into __init__.py, or missing from its __all__). Violations:\n",
+        missing_exports,
+    )
+    _print_section(
+        "The el-paso CLI registry (RECIPES in el_paso/cli/app.py) is out of sync with the\n"
+        "process_* recipe functions on disk. Violations:\n",
+        cli_registry,
+    )
 
-    return 1
+    return 1 if (inline_strategy or str_satellite or missing_exports or cli_registry) else 0
 
 
 if __name__ == "__main__":

@@ -81,6 +81,8 @@ class DailyWaveStrategy(SavingStrategy):
             "Magnetic_Power_Spectral_Density",
             "Wave_frequency_bandwidth",
             "B_total_obs",
+            "f_ce",
+            "f_ce_Eq",
             "MLat",
             "R_Eq",
             "MLT",

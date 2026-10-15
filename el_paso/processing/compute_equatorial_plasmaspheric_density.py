@@ -18,9 +18,6 @@ if typing.TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-DENTON_DENSITY_UPPER_LIMIT = 1500
-MAX_ALPHA = 5
-
 
 @timed_function("Density mapping")
 def compute_equatorial_plasmaspheric_density(
@@ -78,7 +75,7 @@ def compute_equatorial_plasmaspheric_density(
             mapped_density_var.metadata.add_processing_note(
                 "Mapped to the equator using 'compute_equatorial_plasmaspheric_density' assuming the Denton average "
                 "approximation with alpha=2.5 inside the plasmasphere (according to the criterion used in "
-                "Sheeley et al. 2001) and alpha=1 outside the plasmasphere."
+                "Sheeley et al. 2001) and alpha=0.5 outside the plasmasphere."
             )
 
     mapped_density_var.set_data(density_eq_data, u.cm ** (-3))

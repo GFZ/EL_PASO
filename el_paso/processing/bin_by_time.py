@@ -79,7 +79,7 @@ class TimeBinMethod(Enum):
             match self.value:
                 case "Mean":
                     data = typing.cast("NDArray[np.floating]", data)
-                    binned_array = np.mean(data, axis=0)
+                    binned_array = np.nanmean(data, axis=0)
                 case "NanMean":
                     data = typing.cast("NDArray[np.floating]", data)
                     binned_array = np.nanmean(data, axis=0)

@@ -8,7 +8,6 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-
 from el_paso.processing import calculate_geo_coords_from_omm
 
 _ISS_OMM_LINE = {
@@ -40,6 +39,7 @@ def _write_omm_csv(path: Path, rows: list[dict[str, str]]) -> None:
     path.write_text("\n".join(lines) + "\n")
 
 
+@pytest.mark.basic
 def test_calculate_geo_coords_from_omm_dict_matches_file_single_record(tmp_path: Path) -> None:
     """The dict and single-record-file overloads should produce identical results."""
     csv_path = tmp_path / "single.csv"
@@ -55,6 +55,7 @@ def test_calculate_geo_coords_from_omm_dict_matches_file_single_record(tmp_path:
     assert from_dict.metadata.source_files == []
 
 
+@pytest.mark.basic
 def test_calculate_geo_coords_from_omm_file_accepts_str_path(tmp_path: Path) -> None:
     csv_path = tmp_path / "single.csv"
     _write_omm_csv(csv_path, [_ISS_OMM_LINE])
@@ -63,6 +64,7 @@ def test_calculate_geo_coords_from_omm_file_accepts_str_path(tmp_path: Path) -> 
     assert result.get_data().shape == (1, 3)
 
 
+@pytest.mark.basic
 def test_calculate_geo_coords_from_omm_file_uses_first_record(tmp_path: Path) -> None:
     """`download_omm` writes one record per file; if a file ever holds more, the first is used."""
     first = dict(_ISS_OMM_LINE, EPOCH="2024-01-01T00:00:00.000000")
@@ -77,6 +79,7 @@ def test_calculate_geo_coords_from_omm_file_uses_first_record(tmp_path: Path) ->
     np.testing.assert_array_equal(from_file.get_data(), from_dict.get_data())
 
 
+@pytest.mark.basic
 def test_calculate_geo_coords_from_omm_empty_file_raises(tmp_path: Path) -> None:
     csv_path = tmp_path / "empty.csv"
     csv_path.write_text(_CSV_HEADER + "\n")

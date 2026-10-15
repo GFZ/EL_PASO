@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: 2025 GFZ Helmholtz Centre for Geosciences
+# SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
 # SPDX-FileContributor: Jaskirat Singh
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -15,6 +17,7 @@ from numpy.typing import NDArray
 
 import el_paso as ep
 from el_paso.processing.magnetic_field_utils import InternalFieldModel, IrbemOptions, LstarQuantity
+from el_paso.recipes.rbsp import RBSPSatellite
 
 BAD_CHANNELS = (13, 21, 22, 23, 24)
 
@@ -22,7 +25,7 @@ BAD_CHANNELS = (13, 21, 22, 23, 24)
 def rbsp_mageis_electron_strategy(
     base_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
-    satellite: str,
+    satellite: RBSPSatellite,
     *,
     file_format: ep.typing.MFSFormats = "nc",
 ) -> ep.SavingStrategy:
@@ -41,7 +44,7 @@ def rbsp_mageis_electron_strategy(
 def process_rbsp_mageis_electrons(
     start_time: datetime,
     end_time: datetime,
-    satellite: Literal["a", "b"] = "a",
+    satellite: RBSPSatellite = "a",
     mag_field: Literal["T89", "T96", "TS04"] = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
@@ -74,7 +77,7 @@ def process_rbsp_mageis_electrons(
             written to. Defaults to ".".
         bin_cadence (timedelta): Time-binning cadence applied to all variables.
         num_cores (int): Number of CPU cores used for the magnetic field computations.
-            Defaults to 32.
+            Defaults to 16.
         skip_existing (bool): If True, skip downloading files that already exist in
             raw_data_path. Defaults to True.
         save_strategy (Literal["netcdf"]): Saving strategy used for the output files.
@@ -96,6 +99,8 @@ def process_rbsp_mageis_electrons(
         method="request",
         skip_existing=skip_existing,
     )
+
+    ep.exit_if_download_only()
 
     extraction_infos = [
         ep.ExtractionInfo(

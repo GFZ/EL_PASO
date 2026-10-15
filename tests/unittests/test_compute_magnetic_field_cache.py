@@ -11,11 +11,10 @@ import time
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
+import el_paso as ep
 import numpy as np
 import pytest
 from astropy import units as u
-
-import el_paso as ep
 from el_paso.cache import _CACHE_SUBDIR, cleanup_stale_cache, clear_cache, get_cache_dir
 from el_paso.processing.magnetic_field_utils import IrbemOptions
 
@@ -73,9 +72,7 @@ def test_cache_hit_skips_recomputation(tmp_path: Path) -> None:
         )
 
     assert call_count == 1
-    np.testing.assert_array_equal(
-        result1["B_Eq_T89"].get_data(), result2["B_Eq_T89"].get_data()
-    )
+    np.testing.assert_array_equal(result1["B_Eq_T89"].get_data(), result2["B_Eq_T89"].get_data())
 
 
 @pytest.mark.basic

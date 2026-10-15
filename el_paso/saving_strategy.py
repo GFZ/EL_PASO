@@ -14,7 +14,6 @@ from copy import deepcopy
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 
-import netCDF4 as nC
 import numpy as np
 from astropy import units as u
 
@@ -241,10 +240,10 @@ class SavingStrategy(ABC):
             tmp_path = Path(tmp_file.name)
 
         try:
-            logger.info(f"Writing merged data to temporary file {tmp_path.name}")
+            logger.debug(f"Writing merged data to temporary file {tmp_path.name}")
             writer(tmp_path, merged_data, self.data_standard)
 
-            logger.info(f"Replacing original file with merged data for {file_path.name}")
+            logger.debug(f"Replacing original file with merged data for {file_path.name}")
             shutil.move(str(tmp_path), str(file_path))
             logger.info(f"Successfully inserted data into {file_path.resolve()}")
 
@@ -336,6 +335,8 @@ class SavingStrategy(ABC):
 
     def _validate_netcdf_appendable(self, file_path: Path) -> None:
         """Validate that the existing NetCDF file has an unlimited time dimension."""
+        import netCDF4 as nC  # noqa: PLC0415
+
         with nC.Dataset(file_path, "r", format="NETCDF4") as file:
             time_dim = file.dimensions.get("Epoch")
             if time_dim is None or not time_dim.isunlimited():
@@ -401,7 +402,12 @@ class SavingStrategy(ABC):
             for key, var in variables_dict.items():
                 var_to_save = deepcopy(var)
 
-                if start_time is not None and end_time is not None and time_var is not None:
+                if (
+                    start_time is not None
+                    and end_time is not None
+                    and time_var is not None
+                    and "Epoch" in self.data_standard.get_dependencies(key)
+                ):
                     var_to_save.truncate(time_var, start_time.timestamp(), end_time.timestamp())
                 var_to_save = self.standardize_variable(
                     var_to_save, key, first_call_of_interval=first_call_of_interval, available_keys=available_keys
@@ -424,7 +430,12 @@ class SavingStrategy(ABC):
             if resolved_name is not None:
                 var_to_save = deepcopy(variables_dict[resolved_name])
 
-                if start_time is not None and end_time is not None and time_var is not None:
+                if (
+                    start_time is not None
+                    and end_time is not None
+                    and time_var is not None
+                    and "Epoch" in self.data_standard.get_dependencies(resolved_name)
+                ):
                     var_to_save.truncate(time_var, start_time.timestamp(), end_time.timestamp())
 
                 var_to_save = self.standardize_variable(

@@ -7,6 +7,9 @@ site_name: ELaborative Particle Analysis from Particle Observations (EL PASO)
 site_url: https://example.com
 site_author: Bernhard Haas, Mátyás Szabó-Roberts
 
+hooks:
+  - docs/scripts/generate_spec0_gantt.py
+
 theme:
   name: material
   repo_url: https://github.com/GFZ/EL_PASO
@@ -39,6 +42,7 @@ nav:
       - Basic Workflow: getting_started/basic_workflow.md
       - Command Line Interface: getting_started/command_line.md
       - Tutorials: getting_started/tutorials.md
+      - Supported Versions: getting_started/supported_versions.md
 
   - API Reference:
       - API_reference/overview.md
@@ -82,9 +86,11 @@ nav:
       - Saving Strategies:
           - Daily LEO RB Strategy: API_reference/saving_strategies/daily_leo_rb.md
           - Daily Wave Strategy: API_reference/saving_strategies/daily_wave.md
-          - Density NetCDF Strategy: API_reference/saving_strategies/density_netcdf.md
           - GFZ Strategy: API_reference/saving_strategies/gfz.md
+          - Monthly Density Strategy: API_reference/saving_strategies/monthly_density.md
           - Monthly File Strategy: API_reference/saving_strategies/monthly.md
+          - Monthly Omni Flux RB Strategy: API_reference/saving_strategies/monthly_omni_flux_rb.md
+          - RBSP Density Strategy: API_reference/saving_strategies/rbsp_density.md
           - Single File Strategy: API_reference/saving_strategies/single_file.md
       - Data Standards:
           - PRBEM Standard: API_reference/data_standards/prbem.md
@@ -98,9 +104,11 @@ nav:
           - ESA (NGRM): API_reference/recipes/esa.md
           - GOES: API_reference/recipes/goes.md
           - GPS: API_reference/recipes/gps.md
+          - LCDS: API_reference/recipes/lcds.md
           - POES: API_reference/recipes/poes.md
           - ProbaV: API_reference/recipes/probav.md
           - RBSP: API_reference/recipes/rbsp.md
+          - THEMIS: API_reference/recipes/themis.md
   - Tutorial Notebooks:
       - Data Downloading and Extraction: tutorials/1_download_data_and_extracting_variables.ipynb
       - Variable Processing: tutorials/2_variable_class.ipynb
@@ -113,7 +121,11 @@ nav:
 markdown_extensions:
   - admonition
   - pymdownx.highlight
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.arithmatex:
       generic: true # Enable support for block and inline math
 
@@ -147,10 +159,24 @@ plugins:
       include_source: false # optionally include source or not
       allow_errors: true # fail build if execution errors
       ignore_h1_titles: true
-
+  - asciinema-player:
+      loglevel: "INFO"
+      title: "EL-PASO"
+      mkap_theme: "night"
+      cols: 153
+      rows: 42
+      fit: "width"
+      auto_play: false
+      preload: false
+      loop: true
+      start_at: "0:00"
+      speed: 1.0
+      theme: "asciinema"
+      controls: "auto"
+      pause_on_markers: false
+      terminal_font_family: "monospace"
 extra_css:
   - css/custom.css
 
 extra_javascript:
-  # Use MathJax for rendering latex equations
   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js

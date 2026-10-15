@@ -9,7 +9,7 @@ From: astral/uv:python3.12-bookworm-slim
 %labels
     Author Sahil Jhawar
     Description EL-PASO
-    Version 2.1.3rc1
+    Version 2.1.3rc4
 
 %files
     el_paso /opt/el_paso/
@@ -39,6 +39,9 @@ From: astral/uv:python3.12-bookworm-slim
     export XDG_CONFIG_HOME
 
     cd /opt/el_paso/
+    # no -march=native; force rebuild in case a host .so was copied in /
+    export EL_PASO_IRBEM_MARCH_NATIVE=0
+    export EL_PASO_REBUILD_IRBEM=1
     uv sync --locked
 
 %runscript

@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -13,13 +14,13 @@ import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
+from unittest.mock import patch
 
 import click
+import el_paso as ep
 import pytest
 import typer
-from typer.testing import CliRunner
-
-import el_paso as ep
+import typer.testing
 from el_paso.cli.app import RECIPES, RecipeEntry, app, load_recipe
 from el_paso.cli.recipe_cli import (
     _format_value,
@@ -29,11 +30,19 @@ from el_paso.cli.recipe_cli import (
     parse_datetime,
     parse_docstring,
 )
+from typer.testing import CliRunner, Result
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Iterator, Sequence
 
 runner = CliRunner()
+
+
+def invoke_app(args: Sequence[str], **kwargs: Any) -> Result:  # noqa: ANN401
+    """Invoke the real ``app`` (see `el_paso.cli.app`)."""
+    with patch.object(typer.testing, "_get_command", side_effect=lambda instance: instance):
+        return runner.invoke(app, args, **kwargs)
+
 
 DEFAULT_NUM_CORES = 16
 """The core count every recipe defaults to; see test_num_cores_default_is_shared_by_every_recipe."""
@@ -363,6 +372,32 @@ def test_run_report_numbers_each_looped_call(stub_app: typer.Typer, caplog: pyte
     assert "(2/2)" in caplog.text
 
 
+def failing_recipe(start_time: datetime, end_time: datetime) -> None:
+    """Stub recipe that fails, e.g. while saving.
+
+    Args:
+        start_time (datetime): Start of the range.
+        end_time (datetime): End of the range.
+    """
+    msg = "save failed"
+    raise RuntimeError(msg)
+
+
+@pytest.mark.basic
+def test_failed_recipe_keeps_the_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A failing recipe exits via typer.Exit, which bypasses sys.excepthook; the cache must still be kept."""
+    import el_paso.cache  # noqa: PLC0415
+
+    monkeypatch.setattr(el_paso.cache, "_exit_with_exception", False)
+    failing_app = typer.Typer(add_completion=False)
+    failing_app.command()(build_recipe_command(failing_recipe))
+
+    result = runner.invoke(failing_app, ["--start-time", "2020-01-02", "--end-time", "2020-01-03"])
+
+    assert result.exit_code == 1
+    assert el_paso.cache._exit_with_exception is True
+
+
 @pytest.mark.basic
 def test_run_report_hides_credentials(stub_app: typer.Typer, caplog: pytest.LogCaptureFixture) -> None:
     """Credentials must never be echoed to the console or into a job log."""
@@ -551,7 +586,7 @@ def test_registry_matches_the_recipe_modules_on_disk() -> None:
 
 @pytest.mark.basic
 def test_cli_list() -> None:
-    result = runner.invoke(app, ["list"], env={"COLUMNS": "200"})
+    result = invoke_app(["list"], env={"COLUMNS": "200"})
 
     assert result.exit_code == 0, result.output
     assert "el-paso poes meped" in result.output
@@ -559,8 +594,7 @@ def test_cli_list() -> None:
 
 @pytest.mark.basic
 def test_cli_dispatches_to_a_recipe(caplog: pytest.LogCaptureFixture) -> None:
-    result = runner.invoke(
-        app,
+    result = invoke_app(
         [
             "poes",
             "meped",

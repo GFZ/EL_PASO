@@ -19,7 +19,6 @@ from typing import TYPE_CHECKING
 
 import requests
 
-from el_paso.download import _get_next_time
 from el_paso.utils import enforce_utc_timezone, fill_str_template_with_time, timed_function
 
 if TYPE_CHECKING:
@@ -349,6 +348,8 @@ def download_omm(
     if end_time <= start_time:
         msg = "'end_time' must be after 'start_time' (omit 'end_time' to query a single instant)."
         raise ValueError(msg)
+
+    from el_paso.download import _get_next_time  # noqa: PLC0415
 
     chunks: list[tuple[datetime, datetime]] = []
     curr_time = start_time

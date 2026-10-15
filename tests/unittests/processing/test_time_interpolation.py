@@ -6,11 +6,10 @@
 
 from typing import TYPE_CHECKING
 
+import el_paso as ep
 import numpy as np
 import pytest
 from astropy import units as u
-
-import el_paso as ep
 
 if TYPE_CHECKING:
     from el_paso.processing.interpolate_in_time import InterpolationMethod

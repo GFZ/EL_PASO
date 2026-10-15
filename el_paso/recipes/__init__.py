@@ -3,14 +3,34 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from el_paso.recipes import arase, dmsp, esa, goes, poes, probav, rbsp
+from typing import TYPE_CHECKING
 
-__all__ = [
-    "arase",
-    "dmsp",
-    "esa",
-    "goes",
-    "poes",
-    "probav",
-    "rbsp",
-]
+import lazy_loader as lazy
+
+# Each satellite's recipes are resolved on first access (SPEC 1), so that e.g.
+# `el_paso.recipes.rbsp` does not also pay for arase/esa/goes/gps/poes/probav/dmsp/themis.
+__getattr__, __dir__, __all__ = lazy.attach(
+    __name__,
+    submodules=["arase", "dmsp", "esa", "goes", "gps", "model", "poes", "probav", "rbsp", "themis"],
+    submod_attrs={
+        "model": ["process_lcds"],
+    },
+)
+
+if TYPE_CHECKING:
+    from el_paso.recipes import arase, dmsp, esa, goes, gps, model, poes, probav, rbsp, themis
+    from el_paso.recipes.model import process_lcds
+
+    __all__ = [
+        "arase",
+        "dmsp",
+        "esa",
+        "goes",
+        "gps",
+        "model",
+        "poes",
+        "probav",
+        "process_lcds",
+        "rbsp",
+        "themis",
+    ]

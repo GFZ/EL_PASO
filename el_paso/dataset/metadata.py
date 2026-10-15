@@ -139,12 +139,12 @@ class GFZMetaData(DatasetMetadata):
     """Metadata container for GFZStandard.
 
     Attribute names and descriptions are generated from `GFZStandard().variable_infos` by
-    `scripts/generate_metadata_stubs.py`; `datetime` is a computed extra added by `DataSet`.
+    `hooks/generate_metadata_stubs.py`; `datetime` is a computed extra added by `DataSet`.
 
     Attributes:
         datetime (VariableMetadata): Metadata for the computed `datetime` variable.
-        # BEGIN GENERATED GFZ_METADATA_ATTRS DOCS
-        BB (VariableMetadata): Frequency of the power spectral density.
+            <!-- BEGIN GENERATED GFZ_METADATA_ATTRS DOCS -->
+        BB (VariableMetadata): Magnetic power spectral density of the observed waves.
         B_eq (VariableMetadata): Calculated magnetic field at the equator.
         B_sat (VariableMetadata): Observered magnetic field at the satellite location.
         B_total (VariableMetadata): Calculated magnetic field at the satellite location.
@@ -154,24 +154,31 @@ class GFZMetaData(DatasetMetadata):
         Flux (VariableMetadata): Electron differential unidirectional flux.
         InvK (VariableMetadata): Calculated modified second adiabatic invariant.
         InvMu (VariableMetadata): Calculated first adiabatic invariant.
+        LCDS (VariableMetadata): Last Closed Drift Shell.
         Lm (VariableMetadata): Calculated Lm of the particles.
         Lstar (VariableMetadata): Calculated Lstar of the particles.
         MLT (VariableMetadata): Magnetic local time at the satellite location.
         MLT0 (VariableMetadata): Magnetic local time at the mapped magnetic equator.
-        MLat (VariableMetadata): Frequency of the power spectral density.
+        MLat (VariableMetadata): Magnetic latitude of the satellite location.
         PSD (VariableMetadata): Calculated phase space density of particles.
         R0 (VariableMetadata): Radial distance of the satellite location mapped to the equator.
+        alpha_dlc (VariableMetadata): Drift loss cone size at the satellite location.
+        alpha_dlc_eq (VariableMetadata): Drift loss cone size at the satellite location mapped to the equator.
         alpha_eq_model (VariableMetadata): Calculated equatorial pitch angles of the particles.
         alpha_eq_range (VariableMetadata): Equatorial pitch angle ranges of the particles.
         alpha_lc (VariableMetadata): Local loss cone size at the satellite location.
         alpha_lc_eq (VariableMetadata): Local loss cone size at the satellite location mapped to the equator.
         alpha_local (VariableMetadata): Local pitch angles of the particles.
         alpha_local_range (VariableMetadata): Local pitch angle ranges of the particles.
+        density (VariableMetadata): Electron number density at the satellite location.
+        density_eq (VariableMetadata): Electron number density at the magnetic equator.
         ellipticity (VariableMetadata): Frequency of the power spectral density.
         energy_FEDO (VariableMetadata): Central energy of measured omnidirecitonal flux.
         energy_FEIU (VariableMetadata): Central energy of measured integral flux.
         energy_FPDU (VariableMetadata): Central energy of measured proton differential flux.
         energy_channels (VariableMetadata): Central energy of measured differential flux.
+        fce (VariableMetadata): Electron gyrofrequency at the satellite location.
+        fce_eq (VariableMetadata): Electron gyrofrequency mapped to the magnetic equator.
         freq (VariableMetadata): Frequency of the power spectral density.
         freq_bw (VariableMetadata): Frequency of the power spectral density.
         geo_alt (VariableMetadata): Altitude in geographic cartesian coordinates.
@@ -181,7 +188,7 @@ class GFZMetaData(DatasetMetadata):
         time (VariableMetadata): Time in MATLAB datenum format.
         wave_wna (VariableMetadata): Frequency of the power spectral density.
         xGEO (VariableMetadata): Position in geographic cartesian coordinates.
-        # END GENERATED GFZ_METADATA_ATTRS DOCS
+            <!-- END GENERATED GFZ_METADATA_ATTRS DOCS -->
     """
 
     datetime: VariableMetadata
@@ -196,6 +203,7 @@ class GFZMetaData(DatasetMetadata):
     Flux: VariableMetadata
     InvK: VariableMetadata
     InvMu: VariableMetadata
+    LCDS: VariableMetadata
     Lm: VariableMetadata
     Lstar: VariableMetadata
     MLT: VariableMetadata
@@ -203,17 +211,23 @@ class GFZMetaData(DatasetMetadata):
     MLat: VariableMetadata
     PSD: VariableMetadata
     R0: VariableMetadata
+    alpha_dlc: VariableMetadata
+    alpha_dlc_eq: VariableMetadata
     alpha_eq_model: VariableMetadata
     alpha_eq_range: VariableMetadata
     alpha_lc: VariableMetadata
     alpha_lc_eq: VariableMetadata
     alpha_local: VariableMetadata
     alpha_local_range: VariableMetadata
+    density: VariableMetadata
+    density_eq: VariableMetadata
     ellipticity: VariableMetadata
     energy_FEDO: VariableMetadata  # noqa: N815
     energy_FEIU: VariableMetadata  # noqa: N815
     energy_FPDU: VariableMetadata  # noqa: N815
     energy_channels: VariableMetadata
+    fce: VariableMetadata
+    fce_eq: VariableMetadata
     freq: VariableMetadata
     freq_bw: VariableMetadata
     geo_alt: VariableMetadata
@@ -230,11 +244,11 @@ class PRBEMMetaData(DatasetMetadata):
     """Metadata container for PRBEMStandard.
 
     Attribute names and descriptions are generated from `PRBEMStandard().variable_infos` by
-    `scripts/generate_metadata_stubs.py`; `datetime` is a computed extra added by `DataSet`.
+    `hooks/generate_metadata_stubs.py`; `datetime` is a computed extra added by `DataSet`.
 
     Attributes:
         datetime (VariableMetadata): Metadata for the computed `datetime` variable.
-        # BEGIN GENERATED PRBEM_METADATA_ATTRS DOCS
+            <!-- BEGIN GENERATED PRBEM_METADATA_ATTRS DOCS -->
         Alpha (VariableMetadata): Local pitch angle the instrument is looking at
         Alpha_Eq (VariableMetadata): Computed equatorial pitch angle the instrument is looking from Alpha, B_Calc
             and B_Eq
@@ -250,10 +264,14 @@ class PRBEMMetaData(DatasetMetadata):
         L_m (VariableMetadata): Calculated L McIlwain's L parameter
         L_star (VariableMetadata): Calculated Roederer's L* parameter
         MLT (VariableMetadata): Magnetic local time at the satellite location.
+        Number_density (VariableMetadata): Electron number density at the satellite location.
+        Number_density_Eq (VariableMetadata): Electron number density mapped to the magnetic equator.
         PSD (VariableMetadata): Calculated phase space density of particles.
         Position (VariableMetadata): Spacecraft position in geographic cartesian coordinates
         R_Eq (VariableMetadata): Radial distance of the satellite location mapped to the equator.
-        # END GENERATED PRBEM_METADATA_ATTRS DOCS
+        xGEO_Eq (VariableMetadata): Satellite position mapped to the magnetic equator, in geographic cartesian
+            coordinates.
+            <!-- END GENERATED PRBEM_METADATA_ATTRS DOCS -->
     """
 
     datetime: VariableMetadata
@@ -272,7 +290,10 @@ class PRBEMMetaData(DatasetMetadata):
     L_m: VariableMetadata
     L_star: VariableMetadata
     MLT: VariableMetadata
+    Number_density: VariableMetadata
+    Number_density_Eq: VariableMetadata
     PSD: VariableMetadata
     Position: VariableMetadata
     R_Eq: VariableMetadata
+    xGEO_Eq: VariableMetadata  # noqa: N815
     # END GENERATED PRBEM_METADATA_ATTRS

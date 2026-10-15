@@ -1,10 +1,13 @@
 # SPDX-FileCopyrightText: 2025 GFZ Helmholtz Centre for Geosciences
+# SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
 
+from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
@@ -26,8 +29,8 @@ def arase_xep_strategy(
     *,
     file_format: ep.typing.MFSFormats = "nc",
 ) -> ep.SavingStrategy:
-    """Monthly saving strategy for Arase XEP."""
-    return ep.saving_strategies.MonthlyRBStrategy(
+    """Monthly saving strategy for Arase XEP, which also saves the omnidirectional flux (FEDO)."""
+    return ep.saving_strategies.MonthlyOmniFluxRBStrategy(
         Path(base_data_path),
         "Arase",
         "arase",
@@ -95,8 +98,8 @@ def process_arase_xep(
                                 computations (only used when `use_level_3_orbit_data` is
                                 False). Defaults to 4.
         bin_cadence (timedelta): Time binning cadence applied to all variables.
-        save_strategy (Literal["gfz", "netcdf"]): The saving strategy used to write the
-                                                    processed data. Defaults to "netcdf".
+        save_strategy (Literal["gfz", "netcdf"]): The saving strategy used to write the processed data.
+                                                    Only "netcdf" saves "FEDO". Defaults to "netcdf".
         use_level_3_orbit_data (bool): If True, use Arase Level 3 orbit data (which
                                                 already contains precomputed magnetic field
                                                 quantities for `mag_field`); if False, use Level 2
@@ -109,15 +112,6 @@ def process_arase_xep(
 
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
-
-    if use_level_3_orbit_data:
-        orb_variables = get_arase_orbit_level_3_variables(
-            start_time, end_time, mag_field, raw_data_path=raw_data_path, skip_existing=skip_existing
-        )
-    else:
-        orb_variables = get_arase_orbit_level_2_variables(
-            start_time, end_time, raw_data_path=raw_data_path, skip_existing=skip_existing
-        )
 
     file_name_stem = "erg_xep_l2_omniflux_YYYYMMDD_.{6}.cdf"
     url = "https://spdf.gsfc.nasa.gov/pub/data/arase/xep/l2/omniflux/YYYY/"
@@ -132,6 +126,15 @@ def process_arase_xep(
         method="request",
         skip_existing=skip_existing,
     )
+
+    if use_level_3_orbit_data:
+        orb_variables = get_arase_orbit_level_3_variables(
+            start_time, end_time, mag_field, raw_data_path=raw_data_path, skip_existing=skip_existing
+        )
+    else:
+        orb_variables = get_arase_orbit_level_2_variables(
+            start_time, end_time, raw_data_path=raw_data_path, skip_existing=skip_existing
+        )
 
     extraction_infos = [
         ep.ExtractionInfo(
@@ -292,18 +295,32 @@ def process_arase_xep(
         xep_variables["FEDU"], xep_variables["Energy"], particle_species="electron"
     )
 
+    # FEDO covers the full local pitch-angle range: add a singleton pitch-angle dimension
+    fedo_var = deepcopy(xep_variables["FEDO"])
+    fedo_var.set_data(fedo_var.get_data()[:, :, np.newaxis], unit="same")
+
+    num_times = binned_time_variable.get_data().shape[0]
+    alpha_range_var = ep.Variable(
+        data=np.tile(np.array([0.0, 90.0]), (num_times, 1, 1)),
+        original_unit=u.degree,
+    )
+
     variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
         "Epoch": binned_time_variable,
         "FEDU": xep_variables["FEDU"],
+        "FEDO": fedo_var,
+        "Energy_FEDO": xep_variables["Energy"],
         "Energy_FEDU": xep_variables["Energy"],
         "Alpha": xep_variables["AlphaLocal"],
+        "Alpha_range": alpha_range_var,
         "Alpha_Eq": xep_variables["Alpha_eq"],
         "R_Eq": orb_variables["R0"],
         "MLT": orb_variables["MLT"],
         "L_m": orb_variables["Lm"],
+        "L_star": orb_variables["Lstar"],
         "PSD": psd_var,
     }
-
+    # FIXME @DoctorRabbit55: L3 is not working in current setup  # noqa: FIX001, TD001, TD003
     if not use_level_3_orbit_data:
         variables_to_save |= {
             "L_star": orb_variables["Lstar"],

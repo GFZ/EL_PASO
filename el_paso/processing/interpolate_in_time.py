@@ -8,7 +8,6 @@ from datetime import datetime, timedelta
 from typing import Literal
 
 import numpy as np
-from scipy.interpolate import interp1d
 
 import el_paso as ep
 from el_paso.utils import datenum_to_datetime, timed_function
@@ -70,6 +69,8 @@ def interpolate_in_time(
             length of the `time_variable` data.
         TypeError: If an input data array is not a numeric type.
     """
+    from scipy.interpolate import interp1d  # noqa: PLC0415
+
     logger = logging.getLogger(__name__)
     logger.info("Interpolating by time...")
 

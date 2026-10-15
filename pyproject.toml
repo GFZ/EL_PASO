@@ -25,10 +25,8 @@ dependencies = [
     "netcdf4>=1.7.2",
     "numpy>=2.4.2",
     "pandas>=3.0.0",
-    "pytest>=9.0.2",
     "python-dateutil>=2.9.0.post0",
     "requests>=2.32.5",
-    "reuseify",
     "rich>=13.0.0",
     "richpool>=0.1.2",
     "scipy>=1.17",
@@ -41,11 +39,9 @@ dependencies = [
     "wheel==0.46.3",
     "skyfield==1.54",
     "dotenv>=0.9.9",
-    "coverage>=7.14.0",
     "xarray>=2026.4.0",
-    "ty",
-    "ruff",
-    "pre-commit",
+    "pyspedas>=2.1.5",
+    "lazy-loader>=0.6",
 ]
 license = "(Apache-2.0 OR LGPL-3.0-only)"
 license-files = ["LICENSES/*"]
@@ -63,12 +59,17 @@ classifiers = [
 
 [project.scripts]
 el-paso = "el_paso.cli.app:main"
+ep = "el_paso.cli.app:main"
+el_paso = "el_paso.cli.app:main"
 
 [tool.hatch.version]
 path = "el_paso/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["el_paso"]
+
+[tool.hatch.build.targets.sdist]
+exclude = [".claude"]
 
 [tool.hatch.build.hooks.custom]
 
@@ -78,7 +79,7 @@ Tracker = "https://github.com/GFZ/EL_PASO/issues"
 Documentation = "https://el-paso.readthedocs.io/en/latest/"
 
 [tool.bumpver]
-current_version = "2.1.3rc1"
+current_version = "2.1.3rc4"
 version_pattern = "MAJOR.MINOR.PATCH[PYTAGNUM]"
 commit_message = "bump version {old_version} -> {new_version}"
 commit = true
@@ -92,7 +93,26 @@ push = true
 
 [tool.ty.src]
 exclude = [
-    "el_paso/saving_strategies/density_netcdf_strategy.py",
     "el_paso/dataset/scripts/create_RBSP_line_data.py",
 ]
 include = ["el_paso/**/*.py"]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.3.0",
+    "ipywidgets>=8.1.9",
+    "ty",
+    "ruff",
+    "pre-commit",
+    "reuseify",
+    "coverage>=7.14.0",
+    "pytest>=9.0.2",
+]
+docs = [
+    "mkdocs",
+    "mkdocs-material",
+    "mkdocstrings-python",
+    "mkdocs-jupyter",
+    "termynal",
+    "mkdocs-asciinema-player>=1.2.0",
+]

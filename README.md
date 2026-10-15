@@ -12,6 +12,7 @@ SPDX-License-Identifier: Apache-2.0
 | Tools      | [![Pre-Commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit) [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) [![ty](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ty/main/assets/badge/v0.json)](https://github.com/astral-sh/ty) |
 | License    | [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![License: LGPL v3](https://img.shields.io/badge/License-LGPL_v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)                                                                                                                    |
 | Paper      | [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/GFZ/EL_PASO/executable_paper?urlpath=%2Fdoc%2Ftree%2Fpaper%2Fel_paso_executable_paper.ipynb) [![Paper](https://img.shields.io/badge/Open_Access-10.22541/essoar.15002644/v1-blue)](https://essopenarchive.org/doi/abs/10.22541/essoar.15002644/v1)                          |
+| SPEC       | [![SPEC 0 — Minimum Supported Dependencies](https://img.shields.io/badge/SPEC-0-green?labelColor=%23004811&color=%235CA038)](https://scientific-python.org/specs/spec-0000/) [![SPEC 1 — Lazy Loading of Submodules and Functions](https://img.shields.io/badge/SPEC-1-green?labelColor=%23004811&color=%235CA038)](https://scientific-python.org/specs/spec-0001/) |
 
 # ELaborative Particle Analysis from Satellite Observations (EL-PASO)
 
@@ -19,7 +20,7 @@ SPDX-License-Identifier: Apache-2.0
 
 Its primary purpose is to prepare and standardize particle data for use in radiation belt modeling.
 
-<img width="1200" height="682" alt="el_paso_recipe" src="https://github.com/user-attachments/assets/1903bc32-eea6-41a0-8bf2-e48c4d9dcba9" />
+<img width="1493" height="963" alt="el_paso_recipe" src="https://github.com/user-attachments/assets/876072eb-00a9-44c6-9b83-a404bc49e8e1" />
 
 ## Features
 
@@ -51,6 +52,9 @@ Full documentation can be viewed [here](https://el-paso.readthedocs.io/en/latest
     - TED (electrons)
 - **PROBA-V**
     - EPT (electrons and protons)
+- **THEMIS**
+    - FFT waves
+    - Spacecraft-potential density
 - **Van Allen Probes**
     - HOPE (electrons and protons)
     - MagEIS (electrons and protons)
@@ -58,8 +62,8 @@ Full documentation can be viewed [here](https://el-paso.readthedocs.io/en/latest
     - ECT-combined
     - EMFISIS waves
     - EMFISIS and EFW density
-- **DMSP**
-    - SSJ (electrons)
+- **Models** (no spacecraft data needed)
+    - Last closed drift shell (LCDS)
 
 Every recipe shares one command line interface; see
 [Running a recipe](#running-a-recipe) below.
@@ -146,13 +150,13 @@ the full list.
 
 ### Step 1: Download the Test Data
 
-Most tests rely on reference/system test data hosted on [Zenodo](https://zenodo.org). Download it by running the following script from the repository root:
+Most tests rely on reference/system test data hosted on [Hugging Face](https://huggingface.co/datasets/spsw/EL-PASO-Test-Data). Download it by running the following script from the repository root:
 
 ```bash
 bash download_data_for_tests.sh
 ```
 
-This fetches the dataset archive and extracts it into `tests/system/`. You only need to do this once (rerun it if the data changes upstream).
+This fetches the pinned revision of the dataset into `tests/system/data/` using the Hugging Face CLI (run through `uvx`, so [uv](https://docs.astral.sh/uv/) must be installed). You only need to do this once (rerun it if the pinned revision changes).
 
 `pytest` is installed as part of the regular dependencies (see [Installation](#installation)), so no separate test install step is needed.
 

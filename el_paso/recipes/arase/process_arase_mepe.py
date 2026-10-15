@@ -1,12 +1,12 @@
 # SPDX-FileCopyrightText: 2025 GFZ Helmholtz Centre for Geosciences
+# SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
 
-import logging
-import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
@@ -123,20 +123,8 @@ def process_arase_mepe(
     """
     del satellite
 
-    logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
-    logging.getLogger().setLevel(logging.INFO)
-
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
-
-    if use_level_3_orbit_data:
-        orb_variables = get_arase_orbit_level_3_variables(
-            start_time, end_time, mag_field, raw_data_path=raw_data_path, skip_existing=skip_existing
-        )
-    else:
-        orb_variables = get_arase_orbit_level_2_variables(
-            start_time, end_time, raw_data_path=raw_data_path, skip_existing=skip_existing
-        )
 
     file_name_stem = "erg_mepe_l3_pa_YYYYMMDD_.{6}.cdf"
     url = "https://ergsc.isee.nagoya-u.ac.jp/data/ergsc/satellite/erg/mepe/l3/pa/YYYY/MM/"
@@ -151,6 +139,15 @@ def process_arase_mepe(
         method="request",
         skip_existing=skip_existing,
     )
+
+    if use_level_3_orbit_data:
+        orb_variables = get_arase_orbit_level_3_variables(
+            start_time, end_time, mag_field, raw_data_path=raw_data_path, skip_existing=skip_existing
+        )
+    else:
+        orb_variables = get_arase_orbit_level_2_variables(
+            start_time, end_time, raw_data_path=raw_data_path, skip_existing=skip_existing
+        )
 
     extraction_infos = [
         ep.ExtractionInfo(
@@ -295,7 +292,7 @@ def process_arase_mepe(
         case "T89":
             mag_field_save = "T89"
         case "TS04":
-            mag_field_save = "T04s"
+            mag_field_save = "T04s" if save_strategy == "gfz" else mag_field
         case "OP77Q":
             mag_field_save = "OP77"
 
@@ -319,10 +316,10 @@ def process_arase_mepe(
             saving_strategy = arase_mepe_gfz_strategy(processed_data_path, mag_field_save, data_standard_instance)
 
         case "h5":
-            saving_strategy = arase_mepe_h5_strategy(processed_data_path, mag_field, data_standard_instance)
+            saving_strategy = arase_mepe_h5_strategy(processed_data_path, mag_field_save, data_standard_instance)
 
         case "netcdf":
-            saving_strategy = arase_mepe_netcdf_strategy(processed_data_path, mag_field, data_standard_instance)
+            saving_strategy = arase_mepe_netcdf_strategy(processed_data_path, mag_field_save, data_standard_instance)
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
 

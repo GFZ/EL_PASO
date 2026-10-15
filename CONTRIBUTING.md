@@ -28,15 +28,16 @@ Open a new issue and include:
 
 ## Development setup
 
-`EL-PASO` requires Python 3.12+ and uses [uv](https://docs.astral.sh/uv/) for dependency management. The `IRBEM` FORTRAN library is compiled automatically during install via the custom `setup.py` build hook.
+`EL-PASO` requires Python 3.12+ and uses [uv](https://docs.astral.sh/uv/) for dependency management. The `IRBEM` FORTRAN library is compiled automatically during install via the custom `hatchling` build hook (`hatch_build.py`, `_irbem_build.py`).
 
 ```bash
 git clone https://github.com/GFZ/EL_PASO.git
 cd EL_PASO
-uv venv --python 3.12 --seed
+uv sync
 source .venv/bin/activate
-uv pip install -e .
 ```
+
+`uv sync` creates `.venv`, installs `EL-PASO` in editable mode with the exact dependency versions from `uv.lock`, and adds the `dev` dependency group: `pytest`, `ruff`, `ty`, `pre-commit`, `reuseify`, and `coverage`. This is the same setup CI uses. (A plain `uv pip install -e .` installs the package but none of the development tools.)
 
 Verify the install:
 
@@ -46,10 +47,9 @@ python examples/minimal_example.py
 
 ### Pre-commit hooks
 
-**Always** install and enable pre-commit before making changes:
+**Always** enable pre-commit before making changes (`uv sync` already installed it):
 
 ```bash
-uv pip install pre-commit
 pre-commit install
 ```
 
@@ -57,8 +57,11 @@ This runs on every commit:
 
 - `trailing-whitespace`, `end-of-file-fixer`, `check-yaml`, `check-toml`, `check-added-large-files`
 - `reuse`: SPDX license header compliance
-- `ruff-check` and `ruff-format` : linting and formatting (scoped to `el_paso/`)
+- `ruff-check` and `ruff-format` : linting and formatting (scoped to `el_paso/` and `tests/`)
 - `ty` : static type checking (scoped to `el_paso/`)
+- `uv-lock` : keeps `uv.lock` in sync with `pyproject.toml`
+- `generate-metadata-stubs` : regenerates the generated attribute blocks when a data standard changes
+- `check-recipe-strategies` : checks that recipes, their `__init__.py` exports, and the CLI registry stay in sync
 
 You can run all hooks manually against the full codebase with:
 

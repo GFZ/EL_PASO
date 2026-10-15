@@ -288,6 +288,7 @@ class TestBinInSpace:
 
 
 class TestInterpolateOrBinInVK:
+    @pytest.mark.basic
     def test_reproduces_an_exponential_exactly(self) -> None:
         psd, V, K = exponential_psd(1)
         _, grid_V, grid_K, _ = make_grids([4.0], V_1d=GRID_V_1d, K_1d=GRID_K_1d)
@@ -297,6 +298,7 @@ class TestInterpolateOrBinInVK:
         expected = np.array([[expected_psd(V_val, K_val) for K_val in GRID_K_1d] for V_val in GRID_V_1d])
         np.testing.assert_allclose(out, expected, rtol=1e-10)
 
+    @pytest.mark.basic
     def test_midpoint_in_V_is_the_geometric_mean_of_its_neighbours(self) -> None:
         """The defining property: linear in log10(PSD), linear in V (not in log V)."""
         V = np.array([[[1.0], [2.2], [3.0]]])
@@ -309,6 +311,7 @@ class TestInterpolateOrBinInVK:
 
         assert out[0, 0] == pytest.approx(np.sqrt(1.0e-3 * 1.0e3))
 
+    @pytest.mark.basic
     def test_handles_descending_K(self) -> None:
         """K is stored descending for some missions; the result must not change."""
         psd_asc, V, K_asc = exponential_psd(1)
@@ -322,18 +325,21 @@ class TestInterpolateOrBinInVK:
 
         np.testing.assert_allclose(descending, ascending, rtol=1e-10)
 
+    @pytest.mark.basic
     def test_grid_point_outside_the_V_range_is_nan(self) -> None:
         psd, V, K = exponential_psd(1)
         _, grid_V, grid_K, _ = make_grids([4.0], V_1d=[0.5, 5.0], K_1d=[1.5])
         out = interpolate_step(grid_K[0, 0, 0, :], grid_V, K, V, psd)
         assert np.isnan(out).all()
 
+    @pytest.mark.basic
     def test_grid_point_outside_the_K_range_is_nan(self) -> None:
         psd, V, K = exponential_psd(1)
         _, grid_V, grid_K, _ = make_grids([4.0], V_1d=[1.5], K_1d=[0.5, 5.0])
         out = interpolate_step(grid_K[0, 0, 0, :], grid_V, K, V, psd)
         assert np.isnan(out).all()
 
+    @pytest.mark.basic
     def test_all_nan_K_row_yields_all_nan(self) -> None:
         psd, V, K = exponential_psd(1)
         K = np.full_like(K, np.nan)
@@ -343,6 +349,7 @@ class TestInterpolateOrBinInVK:
 
         assert np.isnan(out).all()
 
+    @pytest.mark.basic
     def test_nan_in_one_V_column_does_not_break_the_other_bracket(self) -> None:
         """Regression: the sort direction must ignore NaNs in *both* K columns.
 
@@ -370,6 +377,7 @@ class TestInterpolateOrBinInVK:
         K = K_values[None, :].copy()
         return psd, V, K
 
+    @pytest.mark.basic
     def test_single_K_observation_is_binned_to_the_nearest_grid_point(self) -> None:
         """One K value cannot be bracketed, so the observation is used as it is."""
         psd, V, K = self._single_observation([1.0, 3.0], [2.0], [[7.0], [700.0]])
@@ -380,6 +388,7 @@ class TestInterpolateOrBinInVK:
         # binned in K, still interpolated in V: geometric mean of 7 and 700 at V=2
         assert out[0, 0] == pytest.approx(np.sqrt(7.0 * 700.0))
 
+    @pytest.mark.basic
     def test_single_V_observation_is_binned_to_the_nearest_grid_point(self) -> None:
         psd, V, K = self._single_observation([2.0], [1.0, 3.0], [[7.0, 700.0]])
         _, grid_V, grid_K, _ = make_grids([4.0], V_1d=[2.2], K_1d=[2.0])
@@ -388,6 +397,7 @@ class TestInterpolateOrBinInVK:
 
         assert out[0, 0] == pytest.approx(np.sqrt(7.0 * 700.0))
 
+    @pytest.mark.basic
     def test_single_observation_in_both_dimensions_is_used_verbatim(self) -> None:
         psd, V, K = self._single_observation([2.0], [2.0], [[7.0]])
         _, grid_V, grid_K, _ = make_grids([4.0], V_1d=[2.2], K_1d=[2.2])
@@ -396,6 +406,7 @@ class TestInterpolateOrBinInVK:
 
         assert out[0, 0] == pytest.approx(7.0)
 
+    @pytest.mark.basic
     @pytest.mark.parametrize(
         ("grid_value", "is_used"),
         [(2.0, True), (2.5, True), (2.50001, False), (1.5, True), (1.49999, False), (4.0, False)],
@@ -409,6 +420,7 @@ class TestInterpolateOrBinInVK:
 
         assert np.isfinite(out[0, 0]) == is_used
 
+    @pytest.mark.basic
     @pytest.mark.parametrize(("percent", "is_used"), [(5.0, False), (60.0, True)])
     def test_distance_tolerance_is_configurable(self, percent: float, *, is_used: bool) -> None:
         psd, V, K = self._single_observation([2.0], [2.0], [[7.0]])
@@ -418,6 +430,7 @@ class TestInterpolateOrBinInVK:
 
         assert np.isfinite(out[0, 0]) == is_used
 
+    @pytest.mark.basic
     def test_a_column_reduced_to_one_finite_value_is_binned(self) -> None:
         """The fallback keys off usable observations, not just axis length.
 
@@ -432,6 +445,7 @@ class TestInterpolateOrBinInVK:
 
         assert out[0, 0] == pytest.approx(7.0)
 
+    @pytest.mark.basic
     def test_rejects_a_negative_distance_tolerance(self) -> None:
         psd, V, K = exponential_psd(2)
         _, grid_V, grid_K, _ = make_grids([4.0], V_1d=GRID_V_1d, K_1d=GRID_K_1d)
@@ -439,6 +453,7 @@ class TestInterpolateOrBinInVK:
         with pytest.raises(ValueError, match="max_relative_distance_percent must not be negative"):
             bai._interpolate_or_bin_in_V_K(psd, V, K, grid_V, grid_K, n_processes=1, max_relative_distance_percent=-1.0)
 
+    @pytest.mark.basic
     @pytest.mark.parametrize("n_processes", [0, -1])
     def test_rejects_a_non_positive_process_count(self, n_processes: int) -> None:
         psd, V, K = exponential_psd(2)
@@ -447,6 +462,7 @@ class TestInterpolateOrBinInVK:
         with pytest.raises(ValueError, match="n_processes must be at least 1"):
             bai._interpolate_or_bin_in_V_K(psd, V, K, grid_V, grid_K, n_processes=n_processes)
 
+    @pytest.mark.basic
     def test_process_count_does_not_change_the_result(self) -> None:
         psd, V, K = exponential_psd(6)
         psd = psd * np.arange(1, 7)[:, None, None]
@@ -457,6 +473,7 @@ class TestInterpolateOrBinInVK:
 
         np.testing.assert_array_equal(serial, parallel)
 
+    @pytest.mark.basic
     def test_pool_result_matches_serial_evaluation(self) -> None:
         n_time = 4
         psd, V, K = exponential_psd(n_time)
@@ -698,6 +715,13 @@ class TestSanityChecks:
 
     def test_valid_pipeline_does_not_raise(self) -> None:
         assert np.any(np.isfinite(self._call(self._dataset())))
+
+    def test_exceeds_range_tolerates_round_off_but_not_real_excess(self) -> None:
+        reference = np.array([10.0, 20.0, np.nan])
+
+        assert not bai._exceeds_range(reference, np.array([10.0, 20.000000000000004, np.nan]))
+        assert bai._exceeds_range(reference, np.array([10.0, 20.1]))
+        assert bai._exceeds_range(reference, np.array([9.9, 20.0]))
 
 
 @pytest.mark.basic

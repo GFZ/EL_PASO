@@ -4,18 +4,28 @@
 
 from __future__ import annotations
 
+import sys
 import warnings
 from collections.abc import Iterable
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 
 import numpy as np
-import pandas as pd
-import xarray as xr
-from swvo.io.utils import enforce_utc_timezone
 
 if TYPE_CHECKING:
+    import xarray as xr
     from numpy.typing import NDArray
+    from typing_extensions import TypeIs
+
+
+def is_xr_variable(value: object) -> TypeIs[xr.Variable]:
+    """Return True if `value` is an ``xr.Variable``, without importing xarray.
+
+    An ``xr.Variable`` can only exist once xarray has been imported, so if it isn't
+    loaded yet the answer is False and the import is skipped.
+    """
+    xr_module = sys.modules.get("xarray")
+    return xr_module is not None and isinstance(value, xr_module.Variable)
 
 
 def join_var(
@@ -37,7 +47,7 @@ def join_var(
     if isinstance(var1, np.ndarray) and isinstance(var2, np.ndarray):
         return np.concatenate((var1, var2), axis=0)
 
-    if isinstance(var1, xr.Variable):
+    if is_xr_variable(var1):
         var1 = [var1]
 
     var1.append(var2)  # ty: ignore[invalid-argument-type, unresolved-attribute]
@@ -73,9 +83,9 @@ def python2matlab(datenum: datetime) -> float:
         a fractional component for the time of day.
     """
     mdn = datenum + timedelta(days=366)
-    frac = (datenum - datetime(datenum.year, datenum.month, datenum.day, 0, 0, 0, tzinfo=timezone.utc)).seconds / (
-        24.0 * 60.0 * 60.0
-    )
+    frac = (
+        datenum - datetime(datenum.year, datenum.month, datenum.day, 0, 0, 0, tzinfo=timezone.utc)
+    ).total_seconds() / (24.0 * 60.0 * 60.0)
     return mdn.toordinal() + round(frac, 6)
 
 
@@ -90,6 +100,9 @@ def matlab2python(datenum: float | Iterable[float]) -> Iterable[datetime] | date
         Iterable[datetime] | datetime: The converted, UTC-aware, second-rounded
         datetime(s), matching the scalar-vs-iterable shape of the input.
     """
+    import pandas as pd  # noqa: PLC0415
+    from swvo.io.utils import enforce_utc_timezone  # noqa: PLC0415
+
     warnings.filterwarnings("ignore", message="Discarding nonzero nanoseconds in conversion")
 
     datenum = np.asarray(datenum, dtype=float)

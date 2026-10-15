@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -25,12 +26,14 @@ if TYPE_CHECKING:
 import el_paso as ep
 
 
-def arase_xep_gfz_strategy(base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral) -> ep.SavingStrategy:
+def arase_xep_realtime_gfz_strategy(
+    base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral
+) -> ep.SavingStrategy:
     """Legacy GFZ .mat saving strategy for Arase XEP."""
     return ep.saving_strategies.GFZStrategy(Path(base_data_path), "Arase", "Arase", "XEP", mag_field)
 
 
-def arase_xep_strategy(
+def arase_xep_realtime_strategy(
     base_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     *,
@@ -120,25 +123,31 @@ def process_arase_xep_real_time(
         msg = "ERG_PASSWORD not found! Either load it from environment variables or pass it as an argument."
         raise ValueError(msg)
 
+    data_path_stem = f"{raw_data_path}/ARASE/YYYY/MM/"
+    base_url = "https://ergsc.isee.nagoya-u.ac.jp/data/ergsc/satellite/erg/swx/"
+
+    if download:
+        products = [("orb/", "erg_orb_pre_l2_YYYYMMDD_v01.txt")]
+        if do_xep_extraction:
+            products.insert(0, ("xep/l2/", "erg_real_xep_YYYYMMDD_v002.txt"))
+
+        for url_suffix, file_name_stem in products:
+            ep.download(
+                start_time,
+                end_time,
+                save_path=data_path_stem,
+                file_cadence="daily",
+                download_url=base_url + url_suffix,
+                authentication_info=(erg_user, erg_password),
+                file_name_stem=file_name_stem,
+                skip_existing=skip_existing,
+            )
+
+    ep.exit_if_download_only()
+
     if do_xep_extraction:
-        xep_variables = _get_xep_variables(
-            raw_data_path,
-            start_time,
-            end_time,
-            erg_user,
-            erg_password,
-            download=download,
-            skip_existing=skip_existing,
-        )
-    orb_variables = _get_orb_variables(
-        raw_data_path,
-        start_time,
-        end_time,
-        erg_user,
-        erg_password,
-        download=download,
-        skip_existing=skip_existing,
-    )
+        xep_variables = _get_xep_variables(raw_data_path, start_time, end_time)
+    orb_variables = _get_orb_variables(raw_data_path, start_time, end_time)
 
     time_bin_methods_xep = {
         "FEDO": ep.TimeBinMethod.NanMedian,
@@ -228,7 +237,7 @@ def process_arase_xep_real_time(
     }
 
     if save_strategy in ("gfz", "both"):
-        saving_strategy = arase_xep_gfz_strategy(processed_data_path, mag_field)
+        saving_strategy = arase_xep_realtime_gfz_strategy(processed_data_path, mag_field)
 
         ep.save(
             variables_to_save,
@@ -240,7 +249,7 @@ def process_arase_xep_real_time(
         )
 
     if save_strategy in ("netcdf", "both"):
-        saving_strategy = arase_xep_strategy(processed_data_path, mag_field)
+        saving_strategy = arase_xep_realtime_strategy(processed_data_path, mag_field)
 
         ep.save(
             variables_to_save,
@@ -256,11 +265,6 @@ def _get_xep_variables(
     raw_data_path: str | Path,
     start_time: datetime,
     end_time: datetime,
-    erg_user: str,
-    erg_password: str,
-    *,
-    download: bool,
-    skip_existing: bool,
 ) -> dict[str, ep.Variable]:
     # Energies from the User's guide
     energy_min = np.asarray((400.0, 600.0, 1000.0, 1500.0, 2200.0, 3500.0, 4300.0, 5400.0))
@@ -269,19 +273,6 @@ def _get_xep_variables(
 
     data_path_stem = f"{raw_data_path}/ARASE/YYYY/MM/"
     file_name_stem = "erg_real_xep_YYYYMMDD_v002.txt"
-    url = "https://ergsc.isee.nagoya-u.ac.jp/data/ergsc/satellite/erg/swx/xep/l2/"
-
-    if download:
-        ep.download(
-            start_time,
-            end_time,
-            save_path=data_path_stem,
-            file_cadence="daily",
-            download_url=url,
-            authentication_info=(erg_user, erg_password),
-            file_name_stem=file_name_stem,
-            skip_existing=skip_existing,
-        )
 
     fedo_unit = typing.cast("u.Unit", (u.cm**2 * u.s * u.keV) ** (-1))
 
@@ -363,27 +354,9 @@ def _get_orb_variables(
     raw_data_path: str | Path,
     start_time: datetime,
     end_time: datetime,
-    erg_user: str,
-    erg_password: str,
-    *,
-    download: bool,
-    skip_existing: bool,
 ) -> dict[str, ep.Variable]:
     data_path_stem = f"{raw_data_path}/ARASE/YYYY/MM/"
     file_name_stem = "erg_orb_pre_l2_YYYYMMDD_v01.txt"
-    url = "https://ergsc.isee.nagoya-u.ac.jp/data/ergsc/satellite/erg/swx/orb/"
-
-    if download:
-        ep.download(
-            start_time,
-            end_time,
-            save_path=data_path_stem,
-            file_cadence="daily",
-            download_url=url,
-            authentication_info=(erg_user, erg_password),
-            file_name_stem=file_name_stem,
-            skip_existing=skip_existing,
-        )
 
     extraction_infos = [
         ep.ExtractionInfo(name_or_column="time", unit=u.dimensionless_unscaled, result_key="Epoch"),

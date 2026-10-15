@@ -1,4 +1,5 @@
 # SPDX-FileCopyrightText: 2025 GFZ Helmholtz Centre for Geosciences
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -189,7 +190,7 @@ def create_RBSP_line_data(
                         rbm_data[min_offset_instrument].interp_flux(
                             target_en_single,
                             target_al[e],  # ty:ignore[not-subscriptable]
-                            TargetType.TargetPairs,
+                            target_type=TargetType.TargetPairs,
                         )
                     )
 
@@ -211,7 +212,7 @@ def create_RBSP_line_data(
                             rbm_data[min_offset_instrument].interp_flux(
                                 target_en_single,
                                 target_al_single,
-                                TargetType.TargetPairs,
+                                target_type=TargetType.TargetPairs,
                             )
                         )
 

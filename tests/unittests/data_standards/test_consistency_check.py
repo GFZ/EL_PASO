@@ -5,11 +5,10 @@
 
 from typing import Literal
 
+import el_paso as ep
 import numpy as np
 import pytest
 from astropy import units as u
-
-import el_paso as ep
 from el_paso.data_standard import ConsistencyCheck, VariableInfo, _assert_sorted
 from el_paso.typing import FixedDimensionName, InternalName
 
@@ -50,7 +49,8 @@ def test_consistency_energy_wrong():
     consistency_check.check((TIME_LEN, ENERGY_LEN, PITCH_ANGLE_LEN), ["Time", "Energy", "Alpha"], "call2")
 
     with pytest.raises(ValueError, match=r"Length mismatch! Energy length of variable call1: *"):
-        consistency_check.check((TIME_LEN, ENERGY_LEN+1, PITCH_ANGLE_LEN), ["Time", "Energy", "Alpha"], "call2")
+        consistency_check.check((TIME_LEN, ENERGY_LEN + 1, PITCH_ANGLE_LEN), ["Time", "Energy", "Alpha"], "call2")
+
 
 @pytest.mark.basic
 def test_numbers():

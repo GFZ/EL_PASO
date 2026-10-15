@@ -1,5 +1,7 @@
 # SPDX-FileCopyrightText: 2025 GFZ Helmholtz Centre for Geosciences
+# SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -13,6 +15,7 @@ from astropy import units as u
 from numpy.typing import NDArray
 
 import el_paso as ep
+from el_paso.recipes.goes import GOESRealtimeSatellite
 from el_paso.utils import timed_function
 
 logging.captureWarnings(capture=True)
@@ -20,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 def goes_realtime_gfz_strategy(
-    base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral, satellite: str
+    base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral, satellite: GOESRealtimeSatellite
 ) -> ep.SavingStrategy:
     """Legacy GFZ .mat saving strategy for GOES realtime mps-high."""
     return ep.saving_strategies.GFZStrategy(Path(base_data_path), "GOES", "goes_" + satellite, "mps-high", mag_field)
@@ -29,7 +32,7 @@ def goes_realtime_gfz_strategy(
 def goes_realtime_netcdf_strategy(
     base_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
-    satellite: str,
+    satellite: GOESRealtimeSatellite,
     *,
     file_format: ep.typing.MFSFormats = ".nc",
 ) -> ep.SavingStrategy:
@@ -45,13 +48,13 @@ def goes_realtime_netcdf_strategy(
     )
 
 
-LONGITUDES_DICT: dict[Literal["primary", "secondary"], float] = {
+LONGITUDES_DICT: dict[GOESRealtimeSatellite, float] = {
     "primary": 72.5,  # goes19
     "secondary": 137.0,  # goes18
 }
 
 
-GEOCOORDS_DICT: dict[Literal["primary", "secondary"], np.ndarray] = {
+GEOCOORDS_DICT: dict[GOESRealtimeSatellite, np.ndarray] = {
     "primary": np.array([1.690, -6.391, 0]),  # goes19
     "secondary": np.array([-4.83367734, -4.50943888, 0]),  # goes18
 }
@@ -66,7 +69,7 @@ def _remove_unit_from_energy_channels(energy_channels: NDArray[np.generic]) -> N
 def process_goes_real_time(
     start_time: datetime,
     end_time: datetime,
-    satellite: Literal["primary", "secondary"] = "primary",
+    satellite: GOESRealtimeSatellite = "primary",
     mag_field: ep.typing.MagneticFieldLiteral = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
@@ -116,6 +119,8 @@ def process_goes_real_time(
         rename_file_name_stem=rename_file_name_stem,
         skip_existing=skip_existing,
     )
+
+    ep.exit_if_download_only()
 
     extraction_infos = [
         ep.ExtractionInfo(
@@ -245,11 +250,11 @@ def process_goes_real_time(
 
     if save_strategy in ("gfz", "both"):
         strategy = goes_realtime_gfz_strategy(processed_data_path, mag_field, satellite)
+        ep.save(vars_to_save, strategy, start_time, end_time, time_var=binned_time_var, append=True)
 
     if save_strategy in ("netcdf", "both"):
         strategy = goes_realtime_netcdf_strategy(processed_data_path, mag_field, satellite)
-
-    ep.save(vars_to_save, strategy, start_time, end_time, time_var=binned_time_var, append=True)
+        ep.save(vars_to_save, strategy, start_time, end_time, time_var=binned_time_var, append=True)
 
 
 CLI_DEFAULTS = {

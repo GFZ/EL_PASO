@@ -1,5 +1,7 @@
 # SPDX-FileCopyrightText: 2025 GFZ Helmholtz Centre for Geosciences
+# SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -10,10 +12,11 @@ from typing import Literal
 from astropy import units as u
 
 import el_paso as ep
+from el_paso.recipes.rbsp import RBSPSatellite
 
 
 def rbsp_hope_electron_gfz_strategy(
-    base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral, satellite: str
+    base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral, satellite: RBSPSatellite
 ) -> ep.SavingStrategy:
     """Legacy GFZ .mat saving strategy for RBSP HOPE electrons."""
     return ep.saving_strategies.GFZStrategy(Path(base_data_path), "RBSP", "rbsp" + satellite, "hope", mag_field)
@@ -22,7 +25,7 @@ def rbsp_hope_electron_gfz_strategy(
 def rbsp_hope_electron_netcdf_strategy(
     base_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
-    satellite: str,
+    satellite: RBSPSatellite,
     *,
     file_format: ep.typing.MFSFormats = "nc",
 ) -> ep.SavingStrategy:
@@ -41,7 +44,7 @@ def rbsp_hope_electron_netcdf_strategy(
 def process_rbsp_hope_electrons(
     start_time: datetime,
     end_time: datetime,
-    satellite: Literal["a", "b"] = "a",
+    satellite: RBSPSatellite = "a",
     mag_field: Literal["T89", "T96", "TS04"] = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
@@ -74,7 +77,7 @@ def process_rbsp_hope_electrons(
             written to. Defaults to ".".
         bin_cadence (timedelta): Time-binning cadence applied to all variables.
         num_cores (int): Number of CPU cores used for the magnetic field computations.
-            Defaults to 32.
+            Defaults to 16.
         save_strategy (Literal["gfz", "netcdf", "both"]): Which saving strategy/strategies
             to use for writing the processed output. Defaults to "netcdf".
         calculate_Lstar (bool): Whether Lstar should be calculated or not. Defaults to True.
@@ -95,6 +98,8 @@ def process_rbsp_hope_electrons(
         method="request",
         skip_existing=skip_existing,
     )
+
+    ep.exit_if_download_only()
 
     extraction_infos = [
         ep.ExtractionInfo(
@@ -209,11 +214,11 @@ def process_rbsp_hope_electrons(
 
     if save_strategy in ("gfz", "both"):
         strategy = rbsp_hope_electron_gfz_strategy(processed_data_path, mag_field, satellite)
+        ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=True)
 
     if save_strategy in ("netcdf", "both"):
         strategy = rbsp_hope_electron_netcdf_strategy(processed_data_path, mag_field, satellite)
-
-    ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=True)
+        ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=True)
 
 
 if __name__ == "__main__":

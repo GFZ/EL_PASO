@@ -1,5 +1,7 @@
 # SPDX-FileCopyrightText: 2025 GFZ Helmholtz Centre for Geosciences
+# SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -11,13 +13,13 @@ import numpy as np
 from astropy import units as u
 
 import el_paso as ep
-from el_paso.recipes.poes import poes_satellite_literal
+from el_paso.recipes.poes import POESSatellite
 
 
 def poes_meped_strategy(
     base_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
-    satellite: str,
+    satellite: POESSatellite,
     *,
     file_format: ep.typing.MFSFormats = "nc",
 ) -> ep.SavingStrategy:
@@ -36,7 +38,7 @@ def poes_meped_strategy(
 def process_poes_meped_electron(
     start_time: datetime,
     end_time: datetime,
-    satellite: poes_satellite_literal = "noaa15",
+    satellite: POESSatellite = "noaa15",
     mag_field: ep.typing.MagneticFieldLiteral = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
@@ -58,7 +60,7 @@ def process_poes_meped_electron(
     Args:
         start_time (datetime): Start of the time interval to process.
         end_time (datetime): End of the time interval to process.
-        satellite (poes_satellite_literal): The POES/MetOp satellite to process.
+        satellite (POESSatellite): The POES/MetOp satellite to process.
         mag_field (MagneticFieldLiteral): Magnetic field model used for the derived quantities.
         raw_data_path (str | Path): Directory where the raw downloaded data files are stored.
         processed_data_path (str | Path): Directory where the processed output files are saved.
@@ -85,6 +87,8 @@ def process_poes_meped_electron(
         file_name_stem=file_name_stem,
         skip_existing=skip_existing,
     )
+
+    ep.exit_if_download_only()
 
     extraction_infos = [
         ep.ExtractionInfo(
@@ -183,7 +187,6 @@ def process_poes_meped_electron(
 
     variables_to_compute: ep.processing.VariableRequest = [
         ("B_Calc", mag_field),
-        ("B_Eq", mag_field),
         ("MLT_Eq", mag_field),
         ("B_Eq", mag_field),
         ("R_Eq", mag_field),

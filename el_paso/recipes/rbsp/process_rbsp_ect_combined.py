@@ -1,10 +1,10 @@
 # SPDX-FileCopyrightText: 2025 GFZ Helmholtz Centre for Geosciences
+# SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import logging
-import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Literal
@@ -12,10 +12,11 @@ from typing import Literal
 from astropy import units as u
 
 import el_paso as ep
+from el_paso.recipes.rbsp import RBSPSatellite
 
 
 def rbsp_ect_combined_gfz_strategy(
-    base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral, satellite: str
+    base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral, satellite: RBSPSatellite
 ) -> ep.SavingStrategy:
     """Legacy GFZ .mat saving strategy for RBSP ECT-combined."""
     return ep.saving_strategies.GFZStrategy(Path(base_data_path), "RBSP", "rbsp" + satellite, "ect_combined", mag_field)
@@ -24,7 +25,7 @@ def rbsp_ect_combined_gfz_strategy(
 def rbsp_ect_combined_netcdf_strategy(
     base_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
-    satellite: str,
+    satellite: RBSPSatellite,
     *,
     file_format: ep.typing.MFSFormats = "nc",
 ) -> ep.SavingStrategy:
@@ -43,7 +44,7 @@ def rbsp_ect_combined_netcdf_strategy(
 def process_rbsp_ect_combined(
     start_time: datetime,
     end_time: datetime,
-    satellite: Literal["a", "b"] = "a",
+    satellite: RBSPSatellite = "a",
     mag_field: Literal["T89", "T96", "TS04", "OP77"] = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
@@ -76,12 +77,9 @@ def process_rbsp_ect_combined(
         save_strategy (Literal["gfz", "netcdf", "both"]): Which saving strategy/strategies
             to use for writing the processed output. Defaults to "netcdf".
         num_cores (int): Number of CPU cores used for the magnetic field computations.
-            Defaults to 4.
+            Defaults to 16.
         skip_existing (bool): If True, skip downloading files that already exist on disk.
     """
-    logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
-    logging.getLogger().setLevel(logging.INFO)
-
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
 
@@ -97,6 +95,8 @@ def process_rbsp_ect_combined(
         method="request",
         skip_existing=skip_existing,
     )
+
+    ep.exit_if_download_only()
 
     extraction_infos = [
         ep.ExtractionInfo(
@@ -223,11 +223,11 @@ def process_rbsp_ect_combined(
 
     if save_strategy in ("gfz", "both"):
         strategy = rbsp_ect_combined_gfz_strategy(processed_data_path, mag_field, satellite)
+        ep.save(variables_to_save, strategy, start_time, end_time, binned_time_variable, append=True)
 
     if save_strategy in ("netcdf", "both"):
         strategy = rbsp_ect_combined_netcdf_strategy(processed_data_path, mag_field, satellite)
-
-    ep.save(variables_to_save, strategy, start_time, end_time, binned_time_variable, append=True)
+        ep.save(variables_to_save, strategy, start_time, end_time, binned_time_variable, append=True)
 
 
 if __name__ == "__main__":

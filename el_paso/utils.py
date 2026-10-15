@@ -17,19 +17,16 @@ from functools import wraps
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar, cast
 
-import cdflib
-import h5py
-import netCDF4 as nC
 import numpy as np
-import pandas as pd
-import xarray as xr
 from packaging import version as version_pkg
-from scipy.io.matlab import loadmat, savemat
 
 import el_paso as ep
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
+
+    import h5py
+    import netCDF4 as nC
 
     from el_paso.typing import DataStandard, SavedDataDict, StandardName, TimeInterval
 
@@ -37,13 +34,31 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_FALSY_ENV_VALUES = frozenset({"", "0", "false", "no", "off"})
+
+
+def env_flag_enabled(name: str) -> bool:
+    """Return whether the boolean environment variable `name` is switched on.
+
+    Unset, empty, and ``0``/``false``/``no``/``off`` (case-insensitive, surrounding
+    whitespace ignored) all count as off; any other value counts as on.
+
+    Args:
+        name (str): Name of the environment variable.
+
+    Returns:
+        bool: True if the variable is set to a value that is not in the falsy set.
+    """
+    value = os.environ.get(name)
+    return value is not None and value.strip().lower() not in _FALSY_ENV_VALUES
+
 
 def get_el_paso_model_data_path() -> Path:
     """Return the directory used to store downloaded model coefficient data.
 
     Resolved from the `EL_PASO_MODEL_DATA_PATH` environment variable if set,
-    otherwise defaults to `~/.elpaso/model_data`. The directory is created if
-    it does not already exist.
+    otherwise defaults to `~/.elpaso`. The directory is created if it does not
+    already exist.
 
     Returns:
         Path: Absolute path to the model data directory.
@@ -241,6 +256,8 @@ def datenum_to_datetime(datenum_val: float) -> datetime:
     Returns:
         datetime: The converted datetime object with UTC timezone.
     """
+    import pandas as pd  # noqa: PLC0415
+
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", message="Discarding nonzero nanoseconds", category=UserWarning)
 
@@ -258,14 +275,16 @@ def datetime_to_datenum(datetime_val: datetime) -> float:
     since year 0, including a fractional component for the time of day.
 
     Args:
-        datetime_val (datetime): The datetime object to convert.
+        datetime_val (datetime): The datetime object to convert. Naive datetimes are
+            assumed to be UTC.
 
     Returns:
         float: The corresponding MATLAB datenum value.
     """
+    datetime_val = enforce_utc_timezone(datetime_val)
     mdn = datetime_val + timedelta(days=366)
     dt = datetime(datetime_val.year, datetime_val.month, datetime_val.day, 0, 0, 0, tzinfo=timezone.utc)
-    frac = (datetime_val - dt).seconds / (24.0 * 60.0 * 60.0)
+    frac = (datetime_val - dt).total_seconds() / (24.0 * 60.0 * 60.0)
 
     return mdn.toordinal() + round(frac, 6)
 
@@ -298,18 +317,18 @@ class Hashabledict(dict[Any, Any]):
     by providing a custom hash implementation based on its contents.
     """
 
-    def __hash__(self) -> int:
+    def __hash__(self) -> int:  # ty: ignore[invalid-attribute-override]
         """Computes a hash value for the dictionary.
 
-        The hash is computed based on the frozensets of the dictionary's keys
-        and values. This ensures that two `Hashabledict` instances with the same
-        key-value pairs will have the same hash, regardless of the order of
-        insertion.
+        The hash is computed from the frozenset of the dictionary's key-value
+        pairs, so two `Hashabledict` instances with the same pairs have the
+        same hash regardless of the order of insertion. The values must
+        themselves be hashable.
 
         Returns:
             int: The hash value of the dictionary.
         """
-        return hash((frozenset(self), frozenset(self.itervalues())))  # ty:ignore[unresolved-attribute]
+        return hash(frozenset(self.items()))
 
 
 def make_dict_hashable(dict_input: dict[Any, Any] | None) -> Hashabledict | None:
@@ -344,6 +363,8 @@ def load_h5_data(file_path: Path) -> dict[StandardName, Any]:
         as a NumPy array, plus a ``"metadata"`` entry mapping each path to its
         HDF5 attributes.
     """
+    import h5py  # noqa: PLC0415
+
     loaded_data: dict[StandardName, Any] = {"metadata": {}}
 
     def _recursively_load_datasets(group: h5py.Group | h5py.File, prefix: str = "") -> None:
@@ -381,6 +402,8 @@ def load_netcdf_data(file_path: Path, target_var_names: list[str] | None = None)
         original_cadence_seconds, standard_name). Returns an empty dict if
         ``file_path`` does not exist.
     """
+    import netCDF4 as nC  # noqa: PLC0415
+
     loaded_data: dict[StandardName, Any] = {"metadata": {}}
 
     def _recursively_load(group: nC.Group | nC.Dataset, prefix: str = "") -> None:
@@ -432,6 +455,8 @@ def load_netcdf_data_lazy(file_path: Path) -> dict[StandardName, Any]:
         logger.error(f"File not found: {file_path}")
         return {}
 
+    import xarray as xr  # noqa: PLC0415
+
     loaded_data: dict[StandardName, Any] = {"metadata": {}}
     grouped_datasets = xr.open_groups(file_path)
 
@@ -469,6 +494,8 @@ def load_cdf_data(file_path: Path) -> dict[StandardName, Any]:
         NumPy array, plus a ``"metadata"`` entry mapping each variable name to
         its CDF variable attributes (empty dict if attributes could not be read).
     """
+    import cdflib  # noqa: PLC0415
+
     loaded_data: dict[StandardName, Any] = {"metadata": {}}
     cdf_file = cdflib.CDF(str(file_path))
     try:
@@ -511,7 +538,14 @@ def load_mat_data(file_path: Path) -> dict[StandardName, Any]:
         array values converted to plain Python scalars/lists (or ``""`` for
         empty arrays) for JSON/MATLAB-struct compatibility.
     """
-    loaded = loadmat(str(file_path), simplify_cells=True)
+    from mat73 import loadmat as mat73_loadmat  # noqa: PLC0415
+    from scipy.io.matlab import loadmat  # noqa: PLC0415
+
+    try:
+        loaded = mat73_loadmat(str(file_path))  # v7.3 / HDF5 files
+    except TypeError:
+        loaded = loadmat(str(file_path), simplify_cells=True)  # pre-7.3 files, via scipy
+
     data: dict[StandardName, Any] = {key: value for key, value in loaded.items() if not key.startswith("__")}
 
     if "metadata" in data and isinstance(data["metadata"], dict):
@@ -572,6 +606,8 @@ def write_mat_file(file_path: Path, data_dict: DataDict, data_standard: DataStan
         data_standard (DataStandard): Used to resolve each internal name to its
             standard (canonical) name for the on-disk variable name.
     """
+    from scipy.io.matlab import savemat  # noqa: PLC0415
+
     mat_dict: dict[str, Any] = {}
     mat_metadata: dict[str, Any] = {}
 
@@ -621,6 +657,8 @@ def write_h5_file(file_path: Path, data_dict: SavedDataDict, data_standard: Data
         data_standard (DataStandard): Used to resolve each internal name to its
             standard (canonical) name, which determines the group/dataset path.
     """
+    import h5py  # noqa: PLC0415
+
     with h5py.File(file_path, "w") as file:
         for internal_name, value in data_dict.items():
             if internal_name == "metadata":
@@ -750,6 +788,8 @@ def write_netcdf_file(file_path: Path, data_dict: DataDict, data_standard: DataS
         data_standard (DataStandard): Used to resolve each internal name to its
             standard (canonical) name, dimensions, and dimension sizes.
     """
+    import netCDF4 as nC  # noqa: PLC0415
+
     with nC.Dataset(file_path, "w", format="NETCDF4") as file:
         size_time = np.asarray(data_dict["Epoch"]).shape[0]
         if size_time == 0:
@@ -854,6 +894,8 @@ def write_cdf_file(file_path: Path, data_dict: DataDict, data_standard: DataStan
     Raises:
         RuntimeError: If writing the CDF file fails for any reason.
     """
+    import cdflib  # noqa: PLC0415
+
     try:
         cdf_file = cdflib.cdfwrite.CDF(str(file_path), delete=True)
         try:

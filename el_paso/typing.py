@@ -27,9 +27,10 @@ if TYPE_CHECKING:
     from el_paso.processing.compute_magnetic_field_variables import VariableRequest
     from el_paso.saving_strategies.daily_leo_rb_strategy import DailyLEORBStrategy
     from el_paso.saving_strategies.daily_wave_strategy import DailyWaveStrategy
-    from el_paso.saving_strategies.density_netcdf_strategy import DensityNetCDFStrategy
     from el_paso.saving_strategies.gfz_strategy import GFZStrategy
+    from el_paso.saving_strategies.monthly_density_strategy import MonthlyDensityStrategy
     from el_paso.saving_strategies.monthly_rb_strategy import MonthlyRBStrategy
+    from el_paso.saving_strategies.rbsp_density_strategy import RBSPDensityStrategy
     from el_paso.saving_strategies.single_file_strategy import SingleFileStrategy
     from el_paso.saving_strategy import OutputFile, SavingStrategy
     from el_paso.variable import Variable, VariableMetadata
@@ -37,6 +38,8 @@ if TYPE_CHECKING:
 MagFieldVarTypes: TypeAlias = Literal[
     "Alpha_LC_Eq",
     "Alpha_LC",
+    "Alpha_DLC_Eq",
+    "Alpha_DLC",
     "B_Calc",
     "B_fofl",
     "B_Eq",
@@ -51,6 +54,8 @@ MagFieldVarTypes: TypeAlias = Literal[
     "InvMu",
     "InvK",
     "I",
+    "f_ce",
+    "f_ce_Eq",
 ]
 
 FixedDimensionName = Literal["Position_components", "min_max"]
@@ -76,6 +81,13 @@ InternalName: TypeAlias = (
         "Position_geo_lat",
         "Position_geo_lon",
         "Number_density",
+        "Number_density_Eq",
+        "Number_density_emfisis",
+        "Number_density_emfisis_Eq",
+        "Number_density_efw",
+        "Number_density_efw_Eq",
+        "Number_density_hiss_derived",
+        "Number_density_hiss_derived_Eq",
         "Wave_normal_angle",
         "Wave_ellipticity",
         "Wave_planarity",
@@ -83,6 +95,7 @@ InternalName: TypeAlias = (
         "Magnetic_Power_Spectral_Density",
         "Wave_frequency_bandwidth",
         "B_total_obs",
+        "LCDS",
     ]
     | MagFieldVarTypes
 )
@@ -102,6 +115,7 @@ GFZVarNames: TypeAlias = Literal[
     "Flux",
     "InvK",
     "InvMu",
+    "LCDS",
     "Lm",
     "Lstar",
     "MLT",
@@ -109,17 +123,23 @@ GFZVarNames: TypeAlias = Literal[
     "MLat",
     "PSD",
     "R0",
+    "alpha_dlc",
+    "alpha_dlc_eq",
     "alpha_eq_model",
     "alpha_eq_range",
     "alpha_lc",
     "alpha_lc_eq",
     "alpha_local",
     "alpha_local_range",
+    "density",
+    "density_eq",
     "ellipticity",
     "energy_FEDO",
     "energy_FEIU",
     "energy_FPDU",
     "energy_channels",
+    "fce",
+    "fce_eq",
     "freq",
     "freq_bw",
     "geo_alt",
@@ -133,7 +153,7 @@ GFZVarNames: TypeAlias = Literal[
 ]
 """Variable names used by the GFZ output standard.
 
-Generated from `GFZStandard().variable_infos` by `scripts/generate_metadata_stubs.py`. Do not edit the
+Generated from `GFZStandard().variable_infos` by `hooks/generate_metadata_stubs.py`. Do not edit the
 generated block by hand; edit `el_paso/data_standards/gfz_standard.py` and regenerate instead.
 """
 
@@ -231,7 +251,8 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     "GFZStandard": ("el_paso.data_standards.gfz_standard", "GFZStandard"),
     "GFZStrategy": ("el_paso.saving_strategies.gfz_strategy", "GFZStrategy"),
     "DataStandard": ("el_paso.data_standard", "DataStandard"),
-    "DensityNetCDFStrategy": ("el_paso.saving_strategies.density_netcdf_strategy", "DensityNetCDFStrategy"),
+    "MonthlyDensityStrategy": ("el_paso.saving_strategies.monthly_density_strategy", "MonthlyDensityStrategy"),
+    "RBSPDensityStrategy": ("el_paso.saving_strategies.rbsp_density_strategy", "RBSPDensityStrategy"),
     "MonthlyRBStrategy": ("el_paso.saving_strategies.monthly_rb_strategy", "MonthlyRBStrategy"),
     "DailyLEORBStrategy": ("el_paso.saving_strategies.daily_leo_rb_strategy", "DailyLEORBStrategy"),
     "OutputFile": ("el_paso.saving_strategy", "OutputFile"),
@@ -270,7 +291,6 @@ __all__ = [
     "DailyLEORBStrategy",
     "DailyWaveStrategy",
     "DataStandard",
-    "DensityNetCDFStrategy",
     "ExtractionInfo",
     "FileCadence",
     "FileLoader",
@@ -284,11 +304,13 @@ __all__ = [
     "MagFieldVarTypes",
     "MagInputKeys",
     "MagneticFieldLiteral",
+    "MonthlyDensityStrategy",
     "MonthlyRBStrategy",
     "OutputFile",
     "PRBEMMetaData",
     "PRBEMName",
     "PRBEMStandard",
+    "RBSPDensityStrategy",
     "Recipe",
     "SavedDataDict",
     "SavingStrategy",

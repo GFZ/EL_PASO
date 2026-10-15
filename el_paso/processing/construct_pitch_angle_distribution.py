@@ -9,7 +9,6 @@ from typing import Literal
 
 import numpy as np
 from astropy import units as u
-from scipy.integrate import trapezoid
 
 import el_paso as ep
 from el_paso.processing.models import get_pa_distribution_smirnov_et_al_2022
@@ -207,13 +206,13 @@ def _compute_normalization(
             half_range = np.max(pa_sorted, axis=-1) <= (np.pi / 2 + 1e-3)
             symmetry_factor = np.where(half_range, 2.0, 1.0)[:, np.newaxis, np.newaxis]
 
-            integral = trapezoid(shape_sorted * np.sin(pa_broadcast), x=pa_broadcast, axis=-1)
+            integral = np.trapezoid(shape_sorted * np.sin(pa_broadcast), x=pa_broadcast, axis=-1)
             norm = 2 * np.pi * integral[..., np.newaxis] * symmetry_factor
 
         case "spin_average":
             # Mean over the sampled local pitch angle range.
             span = (pa_sorted[:, -1] - pa_sorted[:, 0])[:, np.newaxis, np.newaxis]
-            integral = trapezoid(shape_sorted, x=pa_broadcast, axis=-1)
+            integral = np.trapezoid(shape_sorted, x=pa_broadcast, axis=-1)
             norm = integral[..., np.newaxis] / span
 
         case _:

@@ -55,7 +55,7 @@ def activate_release_mode(
             msg = "Your EL-PASO repository contains changes! Please push your changes to process data in release mode!"
             raise ValueError(msg)
 
-    date_now = datetime.now(timezone.utc).now()
+    date_now = datetime.now(timezone.utc)
     date_now_str = date_now.strftime("%d-%b-%Y")
 
     ep._release_msg = (

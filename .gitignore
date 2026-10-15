@@ -13,8 +13,13 @@ venv
 *.nc
 *.ascii
 tests/system/data
+# Download metadata written by `hf download --local-dir`
+tests/system/.cache/
 tutorials/RBSP/
 tutorials/rbsp_hope_example.mat
+
+# Regenerated on every `mkdocs build` by docs/scripts/generate_spec0_gantt.py
+docs/getting_started/supported_versions.md
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -205,7 +210,6 @@ cython_debug/
 #   Ignore directories containing user credentials, local state, and settings.
 #   Learn more at https://abstra.io/docs
 .abstra/
-.claude
 
 # Visual Studio Code
 #   Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore

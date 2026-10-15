@@ -92,7 +92,7 @@ def get_pa_distribution_smirnov_et_al_2022(
     p_dyn = sw_vars["Pdyn"].get_data().astype(np.float64)
 
     for ie, energy in enumerate(energies):
-        a1, a3, a5 = _get_coefs(energy, L, MLT, p_dyn)
+        a1, a3, a5 = _get_coefs(float(energy), L, MLT, p_dyn)
         pa_distributions[:, ie, :] = _apply_coefs(pa, a1, a3, a5)
 
     return pa_distributions

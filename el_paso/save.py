@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, get_args
 
 import numpy as np
 
+import el_paso as ep
 from el_paso.typing import FixedDimensionName, InternalName, Variable
 from el_paso.utils import enforce_utc_timezone, timed_function
 
@@ -68,12 +69,18 @@ def save(
         data_standard = saving_strategy.data_standard if hasattr(saving_strategy, "data_standard") else None
         _validate_variables_dict(variables_dict, data_standard)
 
+    _warn_about_unsaved_variables(variables_dict, saving_strategy)
+
     start_time = enforce_utc_timezone(start_time)
     end_time = enforce_utc_timezone(end_time)
 
     time_intervals_to_save = saving_strategy.get_time_intervals_to_save(start_time, end_time)
 
     for interval_start, interval_end in time_intervals_to_save:
+        if time_var is not None and not _has_records_in_interval(time_var, interval_start, interval_end):
+            logger.info(f"No data between {interval_start} and {interval_end}! Skipping ...")
+            continue
+
         for output_file in saving_strategy.output_files:
             file_path = saving_strategy.get_file_path(interval_start, interval_end, output_file)
 
@@ -95,6 +102,55 @@ def save(
 
                 saving_strategy.save_single_file(file_path, data_dict, append=append)
                 file_path.chmod(stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP)
+
+
+def _warn_about_unsaved_variables(
+    variables_dict: dict[InternalName, Variable], saving_strategy: SavingStrategy
+) -> None:
+    """Logs a warning for passed variables that no output file of the saving strategy writes.
+
+    Args:
+        variables_dict (dict[str, Variable]): The variables passed to ``save``.
+        saving_strategy (SavingStrategy): The strategy whose output files define what is written.
+    """
+    names_to_save: set[str] = set()
+    for output_file in saving_strategy.output_files:
+        # an output file without names saves every variable
+        if len(output_file.names_to_save) == 0:
+            return
+
+        for name in output_file.names_to_save:
+            names_to_save.update(name if isinstance(name, tuple) else (name,))
+
+    unsaved_names = [name for name in variables_dict if name not in names_to_save]
+    if unsaved_names:
+        logger.warning(
+            f"Variable(s) {', '.join(unsaved_names)} are not saved by {type(saving_strategy).__name__} "
+            "and will be dropped!"
+        )
+
+
+def _has_records_in_interval(time_var: Variable, interval_start: datetime, interval_end: datetime) -> bool:
+    """Returns whether any sample of `time_var` falls inside the interval.
+
+    Args:
+        time_var (Variable): The time variable the saved data is indexed by.
+        interval_start (datetime): Inclusive start of the interval.
+        interval_end (datetime): Inclusive end of the interval.
+
+    Returns:
+        bool: True if at least one timestamp lies within the interval.
+    """
+    times = np.asarray(time_var.get_data(ep.units.posixtime))
+
+    if times.size == 0:
+        return False
+
+    in_interval = (times >= enforce_utc_timezone(interval_start).timestamp()) & (
+        times <= enforce_utc_timezone(interval_end).timestamp()
+    )
+
+    return bool(np.any(in_interval))
 
 
 def _validate_variables_dict(variables_dict: dict[InternalName, Variable], data_standard: DataStandard | None) -> None:

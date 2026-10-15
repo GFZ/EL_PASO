@@ -123,6 +123,15 @@ class GFZStandard(DataStandard[GFZVarNames]):
                 u.radian,
                 ["Epoch"],
             ),
+            "Alpha_DLC": VariableInfo[GFZVarNames](
+                "alpha_dlc", "Drift loss cone size at the satellite location.", u.radian, ["Epoch"]
+            ),
+            "Alpha_DLC_Eq": VariableInfo[GFZVarNames](
+                "alpha_dlc_eq",
+                "Drift loss cone size at the satellite location mapped to the equator.",
+                u.radian,
+                ["Epoch"],
+            ),
             "PSD": VariableInfo[GFZVarNames](
                 "PSD",
                 "Calculated phase space density of particles.",
@@ -181,8 +190,28 @@ class GFZStandard(DataStandard[GFZVarNames]):
             "Wave_normal_angle": VariableInfo[GFZVarNames](
                 "wave_wna", "Frequency of the power spectral density.", u.degree, ["Epoch", "Wave_frequency"]
             ),
-            "MLat": VariableInfo[GFZVarNames]("MLat", "Frequency of the power spectral density.", u.degree, ["Epoch"]),
+            "MLat": VariableInfo[GFZVarNames](
+                "MLat", "Magnetic latitude of the satellite location.", u.degree, ["Epoch"]
+            ),
             "Magnetic_Power_Spectral_Density": VariableInfo[GFZVarNames](
-                "BB", "Frequency of the power spectral density.", u.dimensionless_unscaled, ["Epoch", "Wave_frequency"]
+                "BB",
+                "Magnetic power spectral density of the observed waves.",
+                (u.nT) ** 2 / u.Hz,
+                ["Epoch", "Wave_frequency"],
+            ),
+            "f_ce": VariableInfo[GFZVarNames](
+                "fce", "Electron gyrofrequency at the satellite location.", u.Hz, ["Epoch"]
+            ),
+            "f_ce_Eq": VariableInfo[GFZVarNames](
+                "fce_eq", "Electron gyrofrequency mapped to the magnetic equator.", u.Hz, ["Epoch"]
+            ),
+            "Number_density": VariableInfo[GFZVarNames](
+                "density", "Electron number density at the satellite location.", u.cm ** (-3), ["Epoch"]
+            ),
+            "Number_density_Eq": VariableInfo[GFZVarNames](
+                "density_eq", "Electron number density at the magnetic equator.", u.cm ** (-3), ["Epoch"]
+            ),
+            "LCDS": VariableInfo[GFZVarNames](
+                "LCDS", "Last Closed Drift Shell.", u.dimensionless_unscaled, ["Epoch", "Alpha"]
             ),
         }

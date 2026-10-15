@@ -15,7 +15,13 @@ el-paso list                      # show every available recipe
 el-paso poes meped --help         # options for one recipe
 el-paso poes meped --start-time 2013-03-16 --end-time 2013-03-16T23:59:59
 ```
-<img width="1200" height="682" alt="el_paso_recipe" src="https://github.com/user-attachments/assets/1903bc32-eea6-41a0-8bf2-e48c4d9dcba9" />
+
+```asciinema-player
+{
+    "file": "../../figures/ep.cast",
+    "auto_play": true
+}
+```
 
 A recipe can equally be run as a module, which is useful inside job scripts:
 

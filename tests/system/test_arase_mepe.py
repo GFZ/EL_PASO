@@ -4,14 +4,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import shutil
-from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
 
-import pytest
-
 import el_paso as ep
+import pytest
 from el_paso.dataset import GFZDataSet
 from el_paso.recipes.arase import process_arase_mepe
 
@@ -21,14 +19,9 @@ from el_paso.recipes.arase import process_arase_mepe
 def test_arase_mepe_snapshot(
     mag_field: Literal["T89", "TS04"],
     tmpdir: Path,
-    skip_if_unreachable: Callable[..., None],
     *,
     renew_solution: bool,
 ) -> None:
-    skip_if_unreachable("https://spdf.gsfc.nasa.gov")
-    if mag_field == "TS04":
-        skip_if_unreachable("https://omniweb.gsfc.nasa.gov")
-
     start_time = datetime(2017, 9, 8, tzinfo=timezone.utc)
     end_time = start_time + timedelta(hours=4, seconds=-1)
 

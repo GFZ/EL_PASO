@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -51,10 +52,12 @@ from rich.table import Table
 # call time. This module is imported from `el_paso/__init__.py`, so binding the module
 # object here (rather than any of its attributes) keeps that import cycle safe.
 import el_paso as ep
-from el_paso.utils import enforce_utc_timezone
+from el_paso.cache import mark_run_failed
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
+
+    from el_paso.typing import Recipe
 
 logger = logging.getLogger("el_paso.cli")
 
@@ -158,6 +161,10 @@ def parse_datetime(value: str | datetime) -> datetime:
     Returns:
         datetime: The parsed, timezone-aware datetime.
     """
+    # Local import: `el_paso.utils` pulls in pandas, xarray, h5py and
+    # netCDF4, which the CLI should not pay for just to parse a date.
+    from el_paso.utils import enforce_utc_timezone  # noqa: PLC0415
+
     if isinstance(value, datetime):
         return enforce_utc_timezone(value)
 
@@ -218,7 +225,7 @@ def parse_docstring(docstring: str | None) -> tuple[str, dict[str, str]]:
     return summary, {name: _DEFAULTS_RE.sub("", " ".join(text.split())).strip() for name, text in arg_help.items()}
 
 
-def _func_name(func: Callable[..., None]) -> str:
+def _func_name(func: Recipe) -> str:
     """Return a readable name for a recipe function."""
     return getattr(func, "__name__", repr(func))
 
@@ -275,6 +282,7 @@ class _ParameterSpec(typing.NamedTuple):
     default: Any
     choice_enum: type[enum.Enum] | None
     is_loop: bool
+    is_list: bool = False
 
 
 def _option_names(name: str, *, is_flag: bool) -> list[str]:
@@ -334,6 +342,17 @@ def _build_parameter_spec(  # noqa: PLR0911
         option = typer.Option(*_option_names(name, is_flag=True), help=help_text)
         return _ParameterSpec(name, Annotated[bool, option], default, None, is_loop=False)
 
+    if get_origin(inner_hint) is list:
+        item_hints = get_args(inner_hint)
+        if len(item_hints) == 1 and item_hints[0] in (int, float, str):
+            option = typer.Option(*_option_names(name, is_flag=False), help=help_text)
+            # A list parameter already takes several values, so it is repeated rather than looped:
+            # `--alpha-eq 10 --alpha-eq 90` is one call with two pitch angles, not two calls.
+            annotation = Annotated[list[item_hints[0]], option]  # ty: ignore[invalid-type-form]
+            return _ParameterSpec(name, annotation, default, None, is_loop=False, is_list=True)
+
+        return None
+
     if inner_hint in (int, float, str):
         option = typer.Option(*_option_names(name, is_flag=False), help=help_text)
         if is_loop:
@@ -348,7 +367,7 @@ def _build_parameter_spec(  # noqa: PLR0911
 
 
 def build_recipe_command(
-    func: Callable[..., None],
+    func: Recipe,
     *,
     defaults: dict[str, Any] | None = None,
     loop_over: Sequence[str] | None = None,
@@ -364,7 +383,7 @@ def build_recipe_command(
     prebuilt `SavingStrategy`) are omitted from the command and keep their default.
 
     Args:
-        func (Callable[..., None]): The recipe function to expose.
+        func (Recipe): The recipe function to expose.
         defaults (dict[str, Any] | None): Overrides for the defaults taken from the
             signature. Use it for values that have no sensible library default, most
             notably the processing time range.
@@ -430,7 +449,7 @@ def build_recipe_command(
 
 
 def _make_command(
-    func: Callable[..., None],
+    func: Recipe,
     specs: list[_ParameterSpec],
     skipped: dict[str, Any],
     summary: str,
@@ -438,6 +457,7 @@ def _make_command(
     """Assemble the wrapper callable and attach the synthesised signature."""
     choice_enums = {spec.name: spec.choice_enum for spec in specs if spec.choice_enum is not None}
     loop_names = [spec.name for spec in specs if spec.is_loop]
+    list_names = [spec.name for spec in specs if spec.is_list]
 
     def command(**kwargs: Any) -> None:  # noqa: ANN401
         # The universal options belong to the command, not to the recipe, so they are
@@ -458,6 +478,13 @@ def _make_command(
                 kwargs[name] = value.value
             elif isinstance(value, list):
                 kwargs[name] = [item.value if isinstance(item, choice_enum) else item for item in value]
+
+        # Typer hands back a tuple for options that take several values; recipes annotate them
+        # as lists.
+        for name in list_names:
+            value = kwargs.get(name)
+            if isinstance(value, tuple):
+                kwargs[name] = list(value)
 
         kwargs.update(skipped)
 
@@ -485,6 +512,7 @@ def _make_command(
                     func(**call_kwargs)
                 except Exception:
                     logger.exception(f"{_func_name(func)} failed.")
+                    mark_run_failed()
                     raise typer.Exit(code=1) from None
 
     parameters = [
@@ -592,7 +620,7 @@ def _version_callback(value: bool) -> None:  # noqa: FBT001
         raise typer.Exit
 
 
-def _mission_name(func: Callable[..., None]) -> str:
+def _mission_name(func: Recipe) -> str:
     """Derive a recipe's mission name from its module path (`el_paso.recipes.<mission>.*`)."""
     parts = func.__module__.split(".")
     if parts[:2] == ["el_paso", "recipes"] and len(parts) > 2:
@@ -601,7 +629,7 @@ def _mission_name(func: Callable[..., None]) -> str:
     return "misc"
 
 
-def _resolve_log_file(logs_path: Path, func: Callable[..., None], satellite: str | None) -> Path:
+def _resolve_log_file(logs_path: Path, func: Recipe, satellite: str | None) -> Path:
     """Resolve `--logs` into the concrete log file a recipe call should write to.
 
     A `logs_path` with a suffix (e.g. ``log.log``) is used as-is, as an explicit log file.
@@ -616,7 +644,7 @@ def _resolve_log_file(logs_path: Path, func: Callable[..., None], satellite: str
         log_dir = logs_path / f"{today:%Y}" / f"{today:%m}" / f"{today:%d}" / _mission_name(func)
         if satellite is not None:
             log_dir /= str(satellite)
-        log_file = log_dir / f"{_func_name(func)}.log"
+        log_file = log_dir / f"{_func_name(func)}_{today:%H00}.log"
 
     log_file.parent.mkdir(parents=True, exist_ok=True)
     return log_file
@@ -627,7 +655,7 @@ def _configure_logging(
     verbose: int,
     quiet: bool,
     logs_path: Path,
-    func: Callable[..., None],
+    func: Recipe,
     satellite: str | None,
     configure_console: bool,
 ) -> None:
@@ -693,7 +721,7 @@ def _format_value(name: str, value: Any) -> str:  # noqa: ANN401
 
 
 def _report_call(
-    func: Callable[..., None],
+    func: Recipe,
     call_kwargs: dict[str, Any],
     *,
     title_suffix: str = "",
@@ -717,7 +745,7 @@ def _report_call(
 
 
 def run_recipe_cli(
-    func: Callable[..., None],
+    func: Recipe,
     *,
     defaults: dict[str, Any] | None = None,
     loop_over: Sequence[str] | None = None,
@@ -731,7 +759,7 @@ def run_recipe_cli(
     :func:`build_recipe_command`.
 
     Args:
-        func (Callable[..., None]): The recipe function to run.
+        func (Recipe): The recipe function to run.
         defaults (dict[str, Any] | None): Overrides for the defaults taken from the
             signature, typically the processing time range.
         loop_over (Sequence[str] | None): Parameters that accept several values, causing

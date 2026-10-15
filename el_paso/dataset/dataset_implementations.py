@@ -35,14 +35,14 @@ class GFZDataSet(DataSet):
 
     Attribute names and descriptions (other than `datetime`, `P`, `InvV`, which are computed by
     `DataSet`) are generated from `GFZStandard().variable_infos` by
-    `scripts/generate_metadata_stubs.py`.
+    `hooks/generate_metadata_stubs.py`.
 
     Attributes:
         datetime (list[dt.datetime]): List of datetime objects corresponding to each time step.
         P (NDArray[np.float64]): Computed phase angle, derived from MLT.
         InvV (NDArray[np.float64]): Computed third adiabatic invariant, derived from InvK and InvMu.
-        # BEGIN GENERATED GFZ_DATASET_ATTRS DOCS
-        BB (NDArray[np.float64]): Frequency of the power spectral density.
+            <!-- BEGIN GENERATED GFZ_DATASET_ATTRS DOCS -->
+        BB (NDArray[np.float64]): Magnetic power spectral density of the observed waves.
         B_eq (NDArray[np.float64]): Calculated magnetic field at the equator.
         B_sat (NDArray[np.float64]): Observered magnetic field at the satellite location.
         B_total (NDArray[np.float64]): Calculated magnetic field at the satellite location.
@@ -52,24 +52,31 @@ class GFZDataSet(DataSet):
         Flux (NDArray[np.float64]): Electron differential unidirectional flux.
         InvK (NDArray[np.float64]): Calculated modified second adiabatic invariant.
         InvMu (NDArray[np.float64]): Calculated first adiabatic invariant.
+        LCDS (NDArray[np.float64]): Last Closed Drift Shell.
         Lm (NDArray[np.float64]): Calculated Lm of the particles.
         Lstar (NDArray[np.float64]): Calculated Lstar of the particles.
         MLT (NDArray[np.float64]): Magnetic local time at the satellite location.
         MLT0 (NDArray[np.float64]): Magnetic local time at the mapped magnetic equator.
-        MLat (NDArray[np.float64]): Frequency of the power spectral density.
+        MLat (NDArray[np.float64]): Magnetic latitude of the satellite location.
         PSD (NDArray[np.float64]): Calculated phase space density of particles.
         R0 (NDArray[np.float64]): Radial distance of the satellite location mapped to the equator.
+        alpha_dlc (NDArray[np.float64]): Drift loss cone size at the satellite location.
+        alpha_dlc_eq (NDArray[np.float64]): Drift loss cone size at the satellite location mapped to the equator.
         alpha_eq_model (NDArray[np.float64]): Calculated equatorial pitch angles of the particles.
         alpha_eq_range (NDArray[np.float64]): Equatorial pitch angle ranges of the particles.
         alpha_lc (NDArray[np.float64]): Local loss cone size at the satellite location.
         alpha_lc_eq (NDArray[np.float64]): Local loss cone size at the satellite location mapped to the equator.
         alpha_local (NDArray[np.float64]): Local pitch angles of the particles.
         alpha_local_range (NDArray[np.float64]): Local pitch angle ranges of the particles.
+        density (NDArray[np.float64]): Electron number density at the satellite location.
+        density_eq (NDArray[np.float64]): Electron number density at the magnetic equator.
         ellipticity (NDArray[np.float64]): Frequency of the power spectral density.
         energy_FEDO (NDArray[np.float64]): Central energy of measured omnidirecitonal flux.
         energy_FEIU (NDArray[np.float64]): Central energy of measured integral flux.
         energy_FPDU (NDArray[np.float64]): Central energy of measured proton differential flux.
         energy_channels (NDArray[np.float64]): Central energy of measured differential flux.
+        fce (NDArray[np.float64]): Electron gyrofrequency at the satellite location.
+        fce_eq (NDArray[np.float64]): Electron gyrofrequency mapped to the magnetic equator.
         freq (NDArray[np.float64]): Frequency of the power spectral density.
         freq_bw (NDArray[np.float64]): Frequency of the power spectral density.
         geo_alt (NDArray[np.float64]): Altitude in geographic cartesian coordinates.
@@ -79,7 +86,7 @@ class GFZDataSet(DataSet):
         time (NDArray[np.float64]): Time in MATLAB datenum format.
         wave_wna (NDArray[np.float64]): Frequency of the power spectral density.
         xGEO (NDArray[np.float64]): Position in geographic cartesian coordinates.
-        # END GENERATED GFZ_DATASET_ATTRS DOCS
+            <!-- END GENERATED GFZ_DATASET_ATTRS DOCS -->
     """
 
     datetime: list[dt.datetime]
@@ -96,6 +103,7 @@ class GFZDataSet(DataSet):
     Flux: NDArray[np.float64]
     InvK: NDArray[np.float64]
     InvMu: NDArray[np.float64]
+    LCDS: NDArray[np.float64]
     Lm: NDArray[np.float64]
     Lstar: NDArray[np.float64]
     MLT: NDArray[np.float64]
@@ -103,17 +111,23 @@ class GFZDataSet(DataSet):
     MLat: NDArray[np.float64]
     PSD: NDArray[np.float64]
     R0: NDArray[np.float64]
+    alpha_dlc: NDArray[np.float64]
+    alpha_dlc_eq: NDArray[np.float64]
     alpha_eq_model: NDArray[np.float64]
     alpha_eq_range: NDArray[np.float64]
     alpha_lc: NDArray[np.float64]
     alpha_lc_eq: NDArray[np.float64]
     alpha_local: NDArray[np.float64]
     alpha_local_range: NDArray[np.float64]
+    density: NDArray[np.float64]
+    density_eq: NDArray[np.float64]
     ellipticity: NDArray[np.float64]
     energy_FEDO: NDArray[np.float64]  # noqa: N815
     energy_FEIU: NDArray[np.float64]  # noqa: N815
     energy_FPDU: NDArray[np.float64]  # noqa: N815
     energy_channels: NDArray[np.float64]
+    fce: NDArray[np.float64]
+    fce_eq: NDArray[np.float64]
     freq: NDArray[np.float64]
     freq_bw: NDArray[np.float64]
     geo_alt: NDArray[np.float64]
@@ -185,11 +199,11 @@ class PRBEMDataSet(DataSet):
     adiabatic invariants.
 
     Attribute names and descriptions (other than `datetime`) are generated from
-    `PRBEMStandard().variable_infos` by `scripts/generate_metadata_stubs.py`.
+    `PRBEMStandard().variable_infos` by `hooks/generate_metadata_stubs.py`.
 
     Attributes:
         datetime (list[dt.datetime]): List of datetime objects corresponding to each time step.
-        # BEGIN GENERATED PRBEM_DATASET_ATTRS DOCS
+            <!-- BEGIN GENERATED PRBEM_DATASET_ATTRS DOCS -->
         Alpha (NDArray[np.float64]): Local pitch angle the instrument is looking at
         Alpha_Eq (NDArray[np.float64]): Computed equatorial pitch angle the instrument is looking from Alpha, B_Calc
             and B_Eq
@@ -205,10 +219,14 @@ class PRBEMDataSet(DataSet):
         L_m (NDArray[np.float64]): Calculated L McIlwain's L parameter
         L_star (NDArray[np.float64]): Calculated Roederer's L* parameter
         MLT (NDArray[np.float64]): Magnetic local time at the satellite location.
+        Number_density (NDArray[np.float64]): Electron number density at the satellite location.
+        Number_density_Eq (NDArray[np.float64]): Electron number density mapped to the magnetic equator.
         PSD (NDArray[np.float64]): Calculated phase space density of particles.
         Position (NDArray[np.float64]): Spacecraft position in geographic cartesian coordinates
         R_Eq (NDArray[np.float64]): Radial distance of the satellite location mapped to the equator.
-        # END GENERATED PRBEM_DATASET_ATTRS DOCS
+        xGEO_Eq (NDArray[np.float64]): Satellite position mapped to the magnetic equator, in geographic cartesian
+            coordinates.
+            <!-- END GENERATED PRBEM_DATASET_ATTRS DOCS -->
         metadata (PRBEMMetaData): Metadata container for all loaded variables.
     """
 
@@ -228,9 +246,12 @@ class PRBEMDataSet(DataSet):
     L_m: NDArray[np.float64]
     L_star: NDArray[np.float64]
     MLT: NDArray[np.float64]
+    Number_density: NDArray[np.float64]
+    Number_density_Eq: NDArray[np.float64]
     PSD: NDArray[np.float64]
     Position: NDArray[np.float64]
     R_Eq: NDArray[np.float64]
+    xGEO_Eq: NDArray[np.float64]  # noqa: N815
     # END GENERATED PRBEM_DATASET_ATTRS
     metadata: PRBEMMetaData
 

@@ -1,5 +1,7 @@
 # SPDX-FileCopyrightText: 2025 GFZ Helmholtz Centre for Geosciences
+# SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -55,6 +57,8 @@ def get_arase_orbit_level_2_variables(
         method="request",
         skip_existing=skip_existing,
     )
+
+    ep.exit_if_download_only()
 
     extraction_infos = [
         ep.ExtractionInfo(
@@ -141,6 +145,8 @@ def get_arase_orbit_level_3_variables(
         method="request",
         skip_existing=skip_existing,
     )
+
+    ep.exit_if_download_only()
 
     match mag_field:
         case "OP77Q":

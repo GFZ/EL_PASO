@@ -11,9 +11,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import MagicMock
 
-import pytest
-
 import el_paso as ep
+import pytest
 
 _ISS_OMM_XML = """<?xml version="1.0" encoding="UTF-8"?>
 <ndm xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
@@ -126,6 +125,7 @@ def _multi_satellite_xml(*segments: str) -> str:
     return '<?xml version="1.0" encoding="UTF-8"?>\n<ndm>\n' + "\n".join(segments) + "\n</ndm>\n"
 
 
+@pytest.mark.basic
 def test_parse_omm_xml_extracts_all_fields() -> None:
     download_omm_mod = importlib.import_module("el_paso.download_omm")
     records = download_omm_mod._parse_omm_xml(_ISS_OMM_XML)
@@ -150,11 +150,13 @@ def test_parse_omm_xml_extracts_all_fields() -> None:
     assert "SEMIMAJOR_AXIS" not in second
 
 
+@pytest.mark.basic
 def test_parse_omm_xml_empty_response() -> None:
     download_omm_mod = importlib.import_module("el_paso.download_omm")
     assert download_omm_mod._parse_omm_xml(_EMPTY_OMM_XML) == []
 
 
+@pytest.mark.basic
 @pytest.mark.parametrize(
     ("object_name", "expected"),
     [
@@ -169,6 +171,7 @@ def test_sanitize_object_name(object_name: str, expected: str) -> None:
     assert download_omm_mod._sanitize_object_name(object_name) == expected
 
 
+@pytest.mark.basic
 def test_parse_norad_ids() -> None:
     download_omm_mod = importlib.import_module("el_paso.download_omm")
 
@@ -180,12 +183,14 @@ def test_parse_norad_ids() -> None:
         download_omm_mod._parse_norad_ids("")
 
 
+@pytest.mark.basic
 def test_build_gp_history_url_joins_multiple_ids() -> None:
     download_omm_mod = importlib.import_module("el_paso.download_omm")
     url = download_omm_mod._build_gp_history_url([25544, 41859], "format/xml")
     assert "NORAD_CAT_ID/25544,41859/" in url
 
 
+@pytest.mark.basic
 def test_write_omm_csv_matches_canonical_field_set_and_order(tmp_path: Path) -> None:
     download_omm_mod = importlib.import_module("el_paso.download_omm")
 
@@ -211,6 +216,7 @@ def test_write_omm_csv_matches_canonical_field_set_and_order(tmp_path: Path) -> 
     assert "SEMIMAJOR_AXIS" not in reread_records[0]
 
 
+@pytest.mark.basic
 def test_download_omm_missing_credentials(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.delenv("SPACETRACK_USER", raising=False)
     monkeypatch.delenv("SPACETRACK_PASS", raising=False)
@@ -224,6 +230,7 @@ def test_download_omm_missing_credentials(monkeypatch: pytest.MonkeyPatch, tmp_p
         )
 
 
+@pytest.mark.basic
 def test_download_omm_end_time_before_start_time(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("SPACETRACK_USER", "fake_user")
     monkeypatch.setenv("SPACETRACK_PASS", "fake_pass")
@@ -382,7 +389,7 @@ def test_download_omm_live(tmp_path: Path, skip_if_unreachable: Callable[..., No
     username = os.environ.get("SPACETRACK_USER")
     password = os.environ.get("SPACETRACK_PASS")
 
-    if username is None or password is None:
+    if not username or not password:
         pytest.skip("SPACETRACK_USER/SPACETRACK_PASS not set; skipping live Space-Track test.")
 
     ep.download_omm(

@@ -1,5 +1,8 @@
 # SPDX-FileCopyrightText: 2025 GFZ Helmholtz Centre for Geosciences
+# SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
+# SPDX-FileContributor: PAGER user
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 import logging
@@ -14,6 +17,7 @@ from astropy import units as u
 from astropy.coordinates import GCRS, ITRS, CartesianRepresentation
 
 import el_paso as ep
+from el_paso.recipes.esa import ESANGRMSatellite
 from el_paso.utils import timed_function
 
 logger = logging.getLogger(__name__)
@@ -22,7 +26,7 @@ logger = logging.getLogger(__name__)
 def esa_ngrm_strategy(
     base_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
-    satellite: str,
+    satellite: ESANGRMSatellite,
     *,
     file_format: ep.typing.MFSFormats = ".nc",
 ) -> ep.SavingStrategy:
@@ -46,7 +50,7 @@ def esa_ngrm_strategy(
 CHI2_BAD_QUALITY_THRESHOLD = 2
 EPT_ENERGY_LIMITS = [0.5, 0.6, 0.7, 0.8, 1.0, 2.4, 8.0]
 
-SATELLITE_TO_ID = {
+SATELLITE_TO_ID: dict[ESANGRMSatellite, str] = {
     "EDRS-C": "https://swe.ssa.esa.int/hapi/data?id=spase://SSA/NumericalData/D3S/d3s_edrsc_ngrm_spid204030252_science_ep_l1_gc_v3",
     "S6-MF": "https://swe.ssa.esa.int/hapi/data?id=spase://SSA/NumericalData/D3S/d3s_sentinel6mf_ngrm_science_ep_l1_gc_v1",
     "S6-B": "https://swe.ssa.esa.int/hapi/data?id=spase://SSA/NumericalData/D3S/d3s_sentinel6b_ngrm_science_ep_l1_gc_v1",
@@ -60,7 +64,7 @@ NGRM_ENERGIES = [0.18, 0.27, 0.40, 0.60, 0.88, 1.30, 1.93, 2.90, 3.40, 4.00]
 def process_ngrm_electron_fluxes(
     start_time: datetime,
     end_time: datetime,
-    satellite: Literal["EDRS-C", "S6-MF", "S6-B", "MTG-S1", "MTG-I1"] = "EDRS-C",
+    satellite: ESANGRMSatellite = "EDRS-C",
     mag_field: ep.typing.MagneticFieldLiteral = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
@@ -139,6 +143,8 @@ def process_ngrm_electron_fluxes(
         method="esa_swe",
         skip_existing=skip_existing,
     )
+
+    ep.exit_if_download_only()
 
     flux_unit = typing.cast("u.Unit", (u.cm**2 * u.s * u.sr * u.MeV) ** (-1))
 
@@ -265,11 +271,11 @@ def process_ngrm_electron_fluxes(
         ("B_Eq", mag_field),
         ("R_Eq", mag_field),
         ("Alpha_Eq", mag_field),
+        ("L_m", mag_field),
     ]
 
     if calculate_Lstar:
         variables_to_compute.append(("L_star", mag_field))
-        variables_to_compute.append(("L_m", mag_field))
 
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
         time_var=binned_time_var,
@@ -311,11 +317,11 @@ def process_ngrm_electron_fluxes(
         "B_Eq": magnetic_field_variables[f"B_Eq_{mag_field}"],
         "Position": variables["xGEO"],
         "PSD": psd_var,
+        "L_m": magnetic_field_variables[f"L_m_{mag_field}"],
     }
 
     if calculate_Lstar:
         variables_to_save["L_star"] = magnetic_field_variables[f"L_star_{mag_field}"]
-        variables_to_save["L_m"] = magnetic_field_variables[f"L_m_{mag_field}"]
 
     saving_strategy = esa_ngrm_strategy(processed_data_path, mag_field, satellite)
 

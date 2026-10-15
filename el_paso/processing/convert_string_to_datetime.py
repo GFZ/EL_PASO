@@ -16,9 +16,9 @@ def convert_string_to_datetime(time_var: Variable, time_format: str | None = Non
     """Converts a Variable's string-based time data to UTC datetime objects.
 
     This function transforms an array of time strings into Python datetime objects,
-    automatically setting the timezone to UTC. If time_format is provided, it uses
-    datetime.strptime for explicit parsing; otherwise, it uses a flexible parser
-    (like dateutil.parser.parse) to infer the format.
+    automatically converting them to UTC. If time_format is provided, it first uses
+    datetime.strptime for explicit parsing and falls back to dateutil.parser.parse
+    when the timestamp does not match the provided format.
 
     Args:
         time_var (Variable): The variable containing string-based time data to be
@@ -29,11 +29,22 @@ def convert_string_to_datetime(time_var: Variable, time_format: str | None = Non
 
     Returns:
         NDArray[np.generic]: A NumPy array of Python datetime objects that are all
-            localized to the UTC timezone.
+            localized to UTC.
     """
     time_var.metadata.add_processing_note("Converting string-time to datetime")
 
-    if time_format is None:
-        return np.asarray([parser.parse(t).replace(tzinfo=timezone.utc) for t in time_var.get_data()])
+    def to_utc(dt: datetime) -> datetime:
+        if dt.tzinfo is None:
+            return dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
 
-    return np.asarray([datetime.strptime(t, time_format).replace(tzinfo=timezone.utc) for t in time_var.get_data()])
+    def parse_time(t: str) -> datetime:
+        if time_format is not None:
+            try:
+                return to_utc(datetime.strptime(t, time_format))  # noqa: DTZ007
+            except ValueError:
+                return to_utc(parser.parse(t))
+
+        return to_utc(parser.parse(t))
+
+    return np.asarray([parse_time(t) for t in time_var.get_data()])

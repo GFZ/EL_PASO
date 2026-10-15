@@ -34,7 +34,8 @@ def get_real_time_tipsod(timestamps: NDArray[np.floating], sat_name: str, coord_
 
     Returns:
         ep.Variable: A variable containing the satellite's median position
-            (X, Y, Z) for each time interval, converted to Earth Radii (RE).
+            (X, Y, Z) for each time interval, converted to Earth Radii (RE). Intervals
+            without data are filled with NaN, so the output has one row per timestamp.
 
     Raises:
         ValueError: If fewer than two timestamps are provided, as the time interval
@@ -86,25 +87,18 @@ def get_real_time_tipsod(timestamps: NDArray[np.floating], sat_name: str, coord_
     except Exception as e:
         raise ValueError(str(result)) from e
 
-    # Bin the data according to the given datetimes grid and compute the median of the points in each bin
-    all_xyz: list[list[np.floating]] = []
-    for i in range(len(datetimes) - 1):
-        bin_mask = (times >= datetimes[i]) & (times < datetimes[i + 1])
+    # Bin the data according to the given datetimes grid and compute the median of the points in each bin.
+    # Bins without data stay NaN so the output stays aligned with the input timestamps.
+    bin_edges = [*datetimes, original_datetimes[-1] + extra_interval]
+    all_xyz = np.full((len(datetimes), 3), np.nan)
+    for i in range(len(datetimes)):
+        # the last bin also includes its upper edge
+        upper_mask = times <= bin_edges[i + 1] if i == len(datetimes) - 1 else times < bin_edges[i + 1]
+        bin_mask = (times >= bin_edges[i]) & upper_mask
         if bin_mask.any():
-            x_median = np.median(x_coords[bin_mask])
-            y_median = np.median(y_coords[bin_mask])
-            z_median = np.median(z_coords[bin_mask])
-            all_xyz.append([x_median, y_median, z_median])
+            all_xyz[i] = [np.median(x_coords[bin_mask]), np.median(y_coords[bin_mask]), np.median(z_coords[bin_mask])]
 
-    # Handle the last entry with a small extra interval
-    last_bin_mask = (times >= datetimes[-1]) & (times <= original_datetimes[-1] + extra_interval)
-    if last_bin_mask.any():
-        x_median = np.median(x_coords[last_bin_mask])
-        y_median = np.median(y_coords[last_bin_mask])
-        z_median = np.median(z_coords[last_bin_mask])
-        all_xyz.append([x_median, y_median, z_median])
-
-    var = ep.Variable(data=np.asarray(all_xyz), original_unit=u.km)
+    var = ep.Variable(data=all_xyz, original_unit=u.km)
     var.convert_to_unit(ep.units.RE)
 
     return var

@@ -6,7 +6,6 @@ from datetime import datetime, timezone
 
 import numpy as np
 import pytest
-
 from el_paso.dataset import utils
 
 
@@ -34,6 +33,13 @@ def test_python2matlab_and_matlab2python_roundtrip():
     assert dt2.year == dt1.year
     assert dt2.month == dt1.month
     assert dt2.day == dt1.day
+
+
+@pytest.mark.basic
+def test_python2matlab_keeps_subsecond_precision():
+    whole = datetime(2024, 4, 16, 15, 30, 0, tzinfo=timezone.utc)
+    half = datetime(2024, 4, 16, 15, 30, 0, 500_000, tzinfo=timezone.utc)
+    assert utils.python2matlab(half) - utils.python2matlab(whole) == pytest.approx(0.5 / 86400, abs=1e-6)
 
 
 @pytest.mark.basic

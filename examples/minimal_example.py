@@ -4,8 +4,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-import logging
-import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 

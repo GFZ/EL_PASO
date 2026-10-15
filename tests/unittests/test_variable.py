@@ -3,14 +3,14 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+import el_paso as ep
 import numpy as np
 import pytest
 from astropy import units as u
-
-import el_paso as ep
 from el_paso import Variable
 
 
+@pytest.mark.basic
 def test_merge_sorts_chronologically_and_converts_units():
     # self: 3 samples in keV, at t = 0, 10, 20
     self_var = Variable(data=np.array([1.0, 2.0, 3.0]), original_unit=u.keV)
@@ -46,6 +46,7 @@ def test_merge_sorts_chronologically_and_converts_units():
     assert merged_time.metadata.source_files == []
 
 
+@pytest.mark.basic
 def test_merge_raises_on_trailing_dimension_mismatch():
     self_var = Variable(data=np.zeros((3, 2)), original_unit=u.keV)
     self_time = Variable(data=np.array([0.0, 10.0, 20.0]), original_unit=ep.units.posixtime)

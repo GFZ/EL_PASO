@@ -1,3 +1,4 @@
+# noqa: INP001
 # SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Sahil Jhawar
 #
@@ -90,6 +91,43 @@ def _replace_between_markers(text: str, marker: str, new_body: str) -> str:
     )
 
 
+def _replace_between_doc_markers(text: str, marker: str, new_body: str) -> str:
+    """Replace the docstring lines between a pair of `<!-- BEGIN/END GENERATED <marker> -->` comments.
+
+    Inside a Google-style `Attributes:` section a `# BEGIN GENERATED` line is not a valid
+    `name (type): description` entry, so griffe warns about it and `mkdocs build --strict` fails.
+    Docstring markers are therefore HTML comments indented one level deeper than the entries:
+    griffe reads each as a continuation of the previous entry's description, and the rendered
+    docs hide it. The replacement is indented to the entries' level, one level above the markers.
+
+    Args:
+        text (str): The full file contents to search and replace within.
+        marker (str): The marker name, e.g. `"GFZ_METADATA_ATTRS DOCS"`.
+        new_body (str): The replacement content, one entry per line, unindented.
+
+    Returns:
+        str: `text` with the region between the markers replaced by `new_body`.
+
+    Raises:
+        ValueError: If the `<!-- BEGIN/END GENERATED <marker> -->` marker pair is not found
+            in `text`.
+    """
+    pattern = re.compile(
+        rf"( *<!-- BEGIN GENERATED {re.escape(marker)} -->\n).*?(\n *<!-- END GENERATED {re.escape(marker)} -->)",
+        re.DOTALL,
+    )
+    match = pattern.search(text)
+    if match is None:
+        msg = f"Could not find '<!-- BEGIN GENERATED {marker} -->' / '<!-- END GENERATED {marker} -->' markers."
+        raise ValueError(msg)
+
+    marker_indent = len(match.group(1)) - len(match.group(1).lstrip(" "))
+    entry_indent = " " * (marker_indent - _CONTINUATION_INDENT)
+    body = indent(new_body, entry_indent).rstrip("\n")
+
+    return text[: match.start()] + match.group(1) + body + match.group(2) + text[match.end() :]
+
+
 def _generate_gfz_var_names_literal(infos: list[VariableInfo]) -> str:
     """Generate the quoted, comma-terminated lines for the `GFZVarNames` `Literal`.
 
@@ -178,11 +216,11 @@ def update_metadata_py(gfz_infos: list[VariableInfo], prbem_infos: list[Variable
         prbem_infos (list[VariableInfo]): The PRBEM data standard's variable infos, sorted.
     """
     text = METADATA_PY.read_text()
-    text = _replace_between_markers(
+    text = _replace_between_doc_markers(
         text, "GFZ_METADATA_ATTRS DOCS", _generate_docstring_attrs(gfz_infos, "VariableMetadata")
     )
     text = _replace_between_markers(text, "GFZ_METADATA_ATTRS", _generate_class_attrs(gfz_infos, "VariableMetadata"))
-    text = _replace_between_markers(
+    text = _replace_between_doc_markers(
         text, "PRBEM_METADATA_ATTRS DOCS", _generate_docstring_attrs(prbem_infos, "VariableMetadata")
     )
     text = _replace_between_markers(
@@ -199,11 +237,11 @@ def update_dataset_implementations_py(gfz_infos: list[VariableInfo], prbem_infos
         prbem_infos (list[VariableInfo]): The PRBEM data standard's variable infos, sorted.
     """
     text = DATASET_IMPLEMENTATIONS_PY.read_text()
-    text = _replace_between_markers(
+    text = _replace_between_doc_markers(
         text, "GFZ_DATASET_ATTRS DOCS", _generate_docstring_attrs(gfz_infos, "NDArray[np.float64]")
     )
     text = _replace_between_markers(text, "GFZ_DATASET_ATTRS", _generate_class_attrs(gfz_infos, "NDArray[np.float64]"))
-    text = _replace_between_markers(
+    text = _replace_between_doc_markers(
         text, "PRBEM_DATASET_ATTRS DOCS", _generate_docstring_attrs(prbem_infos, "NDArray[np.float64]")
     )
     text = _replace_between_markers(

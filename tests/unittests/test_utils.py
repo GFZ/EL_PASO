@@ -3,16 +3,23 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from datetime import datetime, timezone
+import functools
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import numpy as np
 import pytest
+from astropy import units as u
 
+import el_paso as ep
 from el_paso.utils import (
+    datetime_to_datenum,
     enforce_utc_timezone,
+    env_flag_enabled,
     extract_version,
     fill_str_template_with_time,
     get_file_by_version,
+    make_dict_hashable,
     timed_function,
 )
 
@@ -154,3 +161,81 @@ def test_timed_function_without_name() -> None:
         return a * b
 
     assert multiply(6, 7) == 42
+
+
+# ── env_flag_enabled ──────────────────────────────────────────────────────────
+
+
+@pytest.mark.basic
+@pytest.mark.parametrize("value", ["1", "true", "True", "yes", "on", "anything"])
+def test_env_flag_enabled_truthy(monkeypatch: pytest.MonkeyPatch, value: str) -> None:
+    monkeypatch.setenv("EL_PASO_TEST_FLAG", value)
+    assert env_flag_enabled("EL_PASO_TEST_FLAG")
+
+
+@pytest.mark.basic
+@pytest.mark.parametrize("value", ["", "0", "false", "False", "FALSE", "no", "off", " 0 "])
+def test_env_flag_enabled_falsy(monkeypatch: pytest.MonkeyPatch, value: str) -> None:
+    monkeypatch.setenv("EL_PASO_TEST_FLAG", value)
+    assert not env_flag_enabled("EL_PASO_TEST_FLAG")
+
+
+@pytest.mark.basic
+def test_env_flag_enabled_unset(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("EL_PASO_TEST_FLAG", raising=False)
+    assert not env_flag_enabled("EL_PASO_TEST_FLAG")
+
+
+@pytest.mark.basic
+def test_make_dict_hashable_is_hashable_and_order_independent() -> None:
+    first = make_dict_hashable({"a": 1, "b": 2})
+    second = make_dict_hashable({"b": 2, "a": 1})
+
+    assert first is not None
+    assert second is not None
+    assert hash(first) == hash(second)
+    assert first == second
+
+
+@pytest.mark.basic
+def test_make_dict_hashable_none() -> None:
+    assert make_dict_hashable(None) is None
+
+
+@pytest.mark.basic
+def test_datetime_to_datenum_keeps_subsecond_precision() -> None:
+    whole = datetime(2024, 4, 16, 15, 30, 0, tzinfo=timezone.utc)
+    half = datetime(2024, 4, 16, 15, 30, 0, 500_000, tzinfo=timezone.utc)
+    assert datetime_to_datenum(half) - datetime_to_datenum(whole) == pytest.approx(0.5 / 86400, abs=1e-6)
+
+
+@pytest.mark.basic
+def test_datetime_to_datenum_naive_is_treated_as_utc() -> None:
+    aware = datetime(2024, 4, 16, 15, 30, tzinfo=timezone.utc)
+    assert datetime_to_datenum(aware.replace(tzinfo=None)) == datetime_to_datenum(aware)
+
+
+@pytest.mark.basic
+def test_datetime_to_datenum_converts_other_timezones_to_utc() -> None:
+    utc = datetime(2024, 4, 16, 23, 30, tzinfo=timezone.utc)
+    plus_two = utc.astimezone(timezone(timedelta(hours=2)))  # already on the next calendar day
+    assert datetime_to_datenum(plus_two) == datetime_to_datenum(utc)
+
+
+@pytest.mark.basic
+def test_make_dict_hashable_with_variables_works_as_cache_key() -> None:
+    # This is how compute_magnetic_field_variables hands indices_solar_wind to the functools.cache
+    # on construct_maginput.
+    calls: list[int] = []
+
+    @functools.cache
+    def cached_len(indices: dict[str, ep.Variable]) -> int:
+        calls.append(1)
+        return len(indices)
+
+    kp = ep.Variable(data=np.array([1.0, 2.0]), original_unit=u.dimensionless_unscaled)
+    indices = make_dict_hashable({"Kp": kp})
+
+    assert cached_len(indices) == 1
+    assert cached_len(indices) == 1
+    assert len(calls) == 1

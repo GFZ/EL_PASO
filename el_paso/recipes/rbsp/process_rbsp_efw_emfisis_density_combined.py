@@ -1,10 +1,11 @@
 # SPDX-FileCopyrightText: 2025 GFZ Helmholtz Centre for Geosciences
+# SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
@@ -13,14 +14,32 @@ import numpy as np
 from astropy import units as u
 
 import el_paso as ep
+from el_paso.recipes.rbsp import RBSPSatellite
 
 logger = logging.getLogger(__name__)
+
+
+def rbsp_efw_emfisis_density_combined_strategy(
+    base_data_path: str | Path,
+    satellite: RBSPSatellite,
+    mag_field: ep.typing.MagneticFieldLiteral,
+    data_standard: ep.typing.DataStandard[ep.typing.StandardName] | None = None,
+) -> ep.SavingStrategy:
+    """Daily NetCDF wave saving strategy for THEMIS FFT."""
+    return ep.saving_strategies.RBSPDensityStrategy(
+        base_data_path=base_data_path,
+        mission="RBSP",
+        satellite=satellite,
+        instrument="densities_combined",
+        mag_field=mag_field,
+        data_standard=data_standard,
+    )
 
 
 def process_rbsp_efw_emfisis_density_combined(
     start_time: datetime,
     end_time: datetime,
-    satellite: Literal["a", "b"] = "a",
+    satellite: RBSPSatellite = "a",
     mag_field: Literal["T89", "T96", "TS04"] = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
@@ -63,29 +82,39 @@ def process_rbsp_efw_emfisis_density_combined(
 
     Raises:
         NotImplementedError: Always raised before the processed variables are saved; saving via
-            `DensityNetCDFStrategy` is not yet implemented.
+            `RBSPDensityStrategy` is not yet implemented.
     """
     del save_strategy
-
-    logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
-    logging.getLogger().setLevel(logging.INFO)
 
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
 
-    efw_variables = _get_efw_variables(
-        start_time - timedelta(minutes=10),
-        end_time + timedelta(minutes=10),
-        satellite,
-        raw_data_path,
-        skip_existing=skip_existing,
-    )
+    padded_start_time = start_time - timedelta(minutes=10)
+    padded_end_time = end_time + timedelta(minutes=10)
+
+    efw_file_name_stem = "rbsp" + satellite + "_efw-l3_YYYYMMDD_.{3}.cdf"
+    emfisis_file_name_stem = "rbsp-" + satellite + "_density_emfisis-l4_YYYYMMDD_.{6,7}.cdf"
+
+    for url, file_name_stem in [
+        (f"https://spdf.gsfc.nasa.gov/pub/data/rbsp/rbsp{satellite}/l3/efw/YYYY/", efw_file_name_stem),
+        (f"https://spdf.gsfc.nasa.gov/pub/data/rbsp/rbsp{satellite}/l4/emfisis/density/YYYY/", emfisis_file_name_stem),
+    ]:
+        ep.download(
+            padded_start_time,
+            padded_end_time,
+            save_path=raw_data_path,
+            download_url=url,
+            file_name_stem=file_name_stem,
+            file_cadence="daily",
+            method="request",
+            skip_existing=skip_existing,
+        )
+
+    ep.exit_if_download_only()
+
+    efw_variables = _get_efw_variables(padded_start_time, padded_end_time, efw_file_name_stem, raw_data_path)
     emfisis_variables = _get_emfisis_variables(
-        start_time - timedelta(minutes=10),
-        end_time + timedelta(minutes=10),
-        satellite,
-        raw_data_path,
-        skip_existing=skip_existing,
+        padded_start_time, padded_end_time, emfisis_file_name_stem, raw_data_path
     )
 
     efw_time_bin_methods = {
@@ -151,13 +180,13 @@ def process_rbsp_efw_emfisis_density_combined(
     efw_variables["Density_mapped"] = ep.processing.compute_equatorial_plasmaspheric_density(
         efw_variables["Density"],
         efw_variables["xGEO"],
-        magnetic_field_variables["xGEO_eq_" + mag_field],
+        magnetic_field_variables["xGEO_Eq_" + mag_field],
         method="Denton_average",
     )
     emfisis_variables["Density_mapped"] = ep.processing.compute_equatorial_plasmaspheric_density(
         emfisis_variables["Density"],
         efw_variables["xGEO"],
-        magnetic_field_variables["xGEO_eq_" + mag_field],
+        magnetic_field_variables["xGEO_Eq_" + mag_field],
         method="Denton_average",
     )
 
@@ -168,36 +197,32 @@ def process_rbsp_efw_emfisis_density_combined(
         hiss_derived_densities_vars["Density_mapped"] = ep.processing.compute_equatorial_plasmaspheric_density(
             hiss_derived_densities_vars["Density"],
             efw_variables["xGEO"],
-            magnetic_field_variables["xGEO_eq_" + mag_field],
+            magnetic_field_variables["xGEO_Eq_" + mag_field],
             method="Denton_average",
         )
 
-    variables_to_save = {
-        "time": binned_time_variable,
-        "density_efw_local": efw_variables["Density"],
-        "density_emfisis_local": emfisis_variables["Density"],
-        "density_efw_eq": efw_variables["Density_mapped"],
-        "density_emfisis_eq": emfisis_variables["Density_mapped"],
+    variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+        "Epoch": binned_time_variable,
+        "Number_density_efw": efw_variables["Density"],
+        "Number_density_emfisis": emfisis_variables["Density"],
+        "Number_density_efw_Eq": efw_variables["Density_mapped"],
+        "Number_density_emfisis_Eq": emfisis_variables["Density_mapped"],
         "MLT": magnetic_field_variables["MLT_" + mag_field],
-        "R_eq": magnetic_field_variables["R_eq_" + mag_field],
-        "density_emfisis_digi_type": emfisis_variables["Digi_type"],
-        "xGEO": efw_variables["xGEO"],
-        "xGEO_eq": magnetic_field_variables["xGEO_eq_" + mag_field],
+        "R_Eq": magnetic_field_variables["R_Eq_" + mag_field],
+        "Position": efw_variables["xGEO"],
+        "xGEO_Eq": magnetic_field_variables["xGEO_Eq_" + mag_field],
     }
 
     if add_hiss_derived_densitites:
         variables_to_save |= {
-            "density_hiss_derived_local": hiss_derived_densities_vars["Density"],
-            "density_hiss_derived_eq": hiss_derived_densities_vars["Density_mapped"],
+            "Number_density_hiss_derived": hiss_derived_densities_vars["Density"],
+            "Number_density_hiss_derived_Eq": hiss_derived_densities_vars["Density_mapped"],
         }
 
-    raise NotImplementedError
-
-    saving_strategy = ep.saving_strategies.DensityNetCDFStrategy(
-        base_data_path=processed_data_path,
-        file_name_stem=f"rbsp_{satellite}_densities_combined",
-        mag_field=mag_field,
-        satellite="RBSP",
+    saving_strategy = rbsp_efw_emfisis_density_combined_strategy(
+        processed_data_path,
+        satellite,
+        mag_field,
     )
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
@@ -206,24 +231,9 @@ def process_rbsp_efw_emfisis_density_combined(
 def _get_efw_variables(
     start_time: datetime,
     end_time: datetime,
-    satellite: Literal["a", "b"],
+    file_name_stem: str,
     raw_data_path: Path,
-    *,
-    skip_existing: bool = True,
 ) -> dict[str, ep.Variable]:
-    file_name_stem = "rbsp" + satellite + "_efw-l3_YYYYMMDD_.{3}.cdf"
-
-    ep.download(
-        start_time,
-        end_time,
-        save_path=raw_data_path,
-        download_url=f"https://spdf.gsfc.nasa.gov/pub/data/rbsp/rbsp{satellite}/l3/efw/YYYY/",
-        file_name_stem=file_name_stem,
-        file_cadence="daily",
-        method="request",
-        skip_existing=skip_existing,
-    )
-
     extraction_infos = [
         ep.ExtractionInfo(
             result_key="Epoch",
@@ -261,24 +271,9 @@ def _get_efw_variables(
 def _get_emfisis_variables(
     start_time: datetime,
     end_time: datetime,
-    satellite: Literal["a", "b"],
+    file_name_stem: str,
     raw_data_path: Path,
-    *,
-    skip_existing: bool = True,
 ) -> dict[str, ep.Variable]:
-    file_name_stem = "rbsp-" + satellite + "_density_emfisis-l4_YYYYMMDD_.{6,7}.cdf"
-
-    ep.download(
-        start_time,
-        end_time,
-        save_path=raw_data_path,
-        download_url=f"https://spdf.gsfc.nasa.gov/pub/data/rbsp/rbsp{satellite}/l4/emfisis/density/YYYY/",
-        file_name_stem=file_name_stem,
-        file_cadence="daily",
-        method="request",
-        skip_existing=skip_existing,
-    )
-
     extraction_infos = [
         ep.ExtractionInfo(
             result_key="Epoch",

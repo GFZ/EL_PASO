@@ -22,6 +22,11 @@ from pathlib import Path
 IRBEM_REPO_URL = "https://github.com/radiation-belts/IRBEM.git"
 IRBEM_REPO_BRANCH = "GFZ"
 
+# Appended to IRBEM's FFLAGS/CFLAGS when EL_PASO_IRBEM_MARCH_NATIVE is on (default).
+# See radiation-belts/IRBEM#6 and radiation-belts/IRBEM#1.
+_MARCH_NATIVE_FLAG = "-march=native"
+_FALSY_ENV_VALUES = frozenset({"", "0", "false", "no", "off"})
+
 
 class IrbemBuildError(Exception):
     """Raised when the IRBEM library cannot be built."""
@@ -89,11 +94,28 @@ def _clone_irbem_repo(tmp_dir: str) -> None:
         raise IrbemBuildError(msg) from exc
 
 
+def _march_native_enabled() -> bool:
+    """Return whether IRBEM should be compiled with ``-march=native``."""
+    value = os.environ.get("EL_PASO_IRBEM_MARCH_NATIVE")
+    if value is None:
+        return True
+    return value.strip().lower() not in _FALSY_ENV_VALUES
+
+
+def _run_make(make_args: list[str], irbem_dir: str) -> None:
+    """Run ``make`` in ``irbem_dir``, optionally appending ``-march=native``."""
+    if _march_native_enabled():
+        cmd = ["make", "-f", "Makefile", "-f", "-", *make_args]
+        fragment = f"FFLAGS += {_MARCH_NATIVE_FLAG}\nCFLAGS += {_MARCH_NATIVE_FLAG}\n"
+        subprocess.run(cmd, cwd=irbem_dir, input=fragment, text=True, check=True)  # noqa: S603
+    else:
+        subprocess.check_call(["make", *make_args], cwd=irbem_dir)  # noqa: S603, S607
+
+
 def _compile_irbem(irbem_dir: str) -> None:
     if sys.platform == "darwin":
-        base_cmd = ["make", "OS=osx64"]
-        subprocess.check_call([*base_cmd, "all"], cwd=irbem_dir)  # noqa: S603
-        subprocess.check_call([*base_cmd, "install"], cwd=irbem_dir)  # noqa: S603
+        _run_make(["OS=osx64", "all"], irbem_dir)
+        _run_make(["OS=osx64", "install"], irbem_dir)
     else:
-        subprocess.check_call(["make", "all"], cwd=irbem_dir)  # noqa: S607
-        subprocess.check_call(["make", "install", "."], cwd=irbem_dir)  # noqa: S607
+        _run_make(["all"], irbem_dir)
+        _run_make(["install", "."], irbem_dir)

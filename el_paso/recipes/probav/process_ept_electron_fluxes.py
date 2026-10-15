@@ -1,5 +1,7 @@
 # SPDX-FileCopyrightText: 2025 GFZ Helmholtz Centre for Geosciences
+# SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 import logging
@@ -132,6 +134,8 @@ def process_ept_electron_fluxes(
         authentication_info=(client_id, client_secret),
         skip_existing=skip_existing,
     )
+
+    ep.exit_if_download_only()
 
     flux_unit = typing.cast("u.Unit", (u.cm**2 * u.s * u.sr * u.MeV) ** (-1))
 
