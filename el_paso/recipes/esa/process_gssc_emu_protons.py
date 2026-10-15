@@ -139,6 +139,8 @@ def process_gssc_emu_protons(
         skip_existing=skip_existing,
     )
 
+    ep.exit_if_download_only()
+
     # Native CDF units for FPDO are cm^-2 s^-1 sr^-1 MeV^-1. construct_pitch_angle_distribution()
     # below expects an sr-free omnidirectional flux and introduces the "/sr" factor itself, so the
     # sr^-1 is converted to an equivalent 4*pi-integrated omnidirectional flux, same as
