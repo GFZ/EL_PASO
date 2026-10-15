@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
+# SPDX-FileContributor: Sahil Jhawar
+#
+# SPDX-License-Identifier: Apache-2.0
+
+name: Slash commands
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  dispatch:
+    if: github.event.issue.pull_request
+    runs-on: ubuntu-latest
+    steps:
+      - uses: peter-evans/slash-command-dispatch@9bdcd7914ec1b75590b790b844aa3b8eee7c683a # v5.0.2
+        with:
+          token: ${{ secrets.SLASH_COMMAND_PAT }}
+          commands: run-full-tests
+          permission: write
+          issue-type: pull-request

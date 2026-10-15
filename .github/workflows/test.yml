@@ -13,12 +13,24 @@ on:
     branches:
       - main
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      ref:
+        description: Commit to check out (defaults to the triggering commit)
+        type: string
+        default: ""
+
+permissions:
+  contents: read
 
 jobs:
   ruff:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
       - uses: astral-sh/ruff-action@main
         with:
           version: "latest"
@@ -28,6 +40,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
 
       - name: Install uv
         uses: astral-sh/setup-uv@main
@@ -55,6 +70,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -90,10 +108,12 @@ jobs:
           SPACETRACK_USER: ${{ secrets.SPACETRACK_USER }}
           SPACETRACK_PASS: ${{ secrets.SPACETRACK_PASS }}
           _TYPER_FORCE_DISABLE_TERMINAL: "1"
-        run: uv run coverage run --source el_paso -m pytest -rf tests -m basic --indices_sw_param_data_path tests/system/data/indices_sw_params
+          # Pull requests run only the minimal tests, every other trigger (push to main, manual dispatch, /run-full-tests) runs the basic tests.
+          MARKER: ${{ github.event_name == 'pull_request' && 'minimal' || 'basic' }}
+        run: uv run coverage run --source el_paso -m pytest -rf tests -m "$MARKER" --indices_sw_param_data_path tests/system/data/indices_sw_params
 
       - name: Run Coveralls
-        if: ${{ success() && matrix.python-version == '3.12' }}
+        if: ${{ success() && matrix.python-version == '3.12' && github.event_name != 'repository_dispatch' }}
         run: |
           uv run coveralls --service=github
         env:
