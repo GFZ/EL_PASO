@@ -42,7 +42,7 @@ def goes_r_mps_high_netcdf_strategy(
         Path(base_data_path),
         "GOES",
         satellite,
-        "MAGED",
+        "MPS_high",
         mag_field,
         data_standard=ep.data_standards.GFZStandard(),
         file_format=file_format,
@@ -78,7 +78,7 @@ def process_goes_r_mps_high(
     Args:
         start_time (datetime): Start of the time interval to process.
         end_time (datetime): End of the time interval to process.
-        satellite (Literal["goes18", "goes19"]): The GOES-R satellite to process.
+        satellite (Literal["goes16", "goes17", "goes18", "goes19"]): The GOES-R satellite to process.
         mag_field (MagneticFieldLiteral): Magnetic field model used for the derived quantities.
         raw_data_path (str | Path): Directory where the raw downloaded data files are stored.
         processed_data_path (str | Path): Directory where the processed output files are saved.
@@ -92,7 +92,7 @@ def process_goes_r_mps_high(
     data_path_stem = f"{raw_data_path}/YYYY/MM/{satellite}/"
 
     magn_url = f"https://data.ngdc.noaa.gov/platforms/solar-space-observing-satellites/goes/{satellite}/l2/data/magn-l2-avg1m/YYYY/MM/"
-    sat_stem = "g18" if satellite == "goes18" else "g19"
+    sat_stem = "g" + satellite[-2:]
 
     magn_file_name_stem = f"dn_magn-l2-avg1m_{sat_stem}_dYYYYMMDD_.{r'{6}'}.nc"
 
@@ -208,7 +208,7 @@ def process_goes_r_mps_high(
 
     # fold pitch angles around 90 degree
     local_pa = local_pa_var.get_data(u.degree)
-    local_pa_folded = np.where(local_pa > 90, local_pa - 90, local_pa)
+    local_pa_folded = np.where(local_pa > 90, 180 - local_pa, local_pa)
     local_pa_var.set_data(local_pa_folded, unit=u.degree)
 
     # sort pitch angles in ascending order and apply to fluxes
@@ -288,7 +288,6 @@ def _get_magn_variables(
 ) -> dict[str, ep.Variable]:
     extraction_infos = [
         ep.ExtractionInfo(name_or_column="time", unit=ep.units.j2k, result_key="time"),
-        ep.ExtractionInfo(name_or_column="DQF", unit=u.dimensionless_unscaled, result_key="dqf"),
         ep.ExtractionInfo(name_or_column="b_brf", unit=u.nT, result_key="b_brf"),
     ]
 

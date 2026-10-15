@@ -211,7 +211,7 @@ CASES: list[
         ("T89", "goes16"),
         {},
         ep.saving_strategies.MonthlyRBStrategy,
-        {"mission": "GOES", "satellite": "goes16", "instrument": "MAGED", "mag_field": "T89", "file_format": ".nc"},
+        {"mission": "GOES", "satellite": "goes16", "instrument": "MPS_high", "mag_field": "T89", "file_format": ".nc"},
     ),
     (
         goes_realtime_gfz_strategy,

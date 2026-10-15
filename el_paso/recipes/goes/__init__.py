@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Literal
 
 import lazy_loader as lazy
 
-GOESRSatellite = Literal["goes18", "goes19"]
+GOESRSatellite = Literal["goes16", "goes17", "goes18", "goes19"]
 GOESRealtimeSatellite = Literal["primary", "secondary"]
 
 __getattr__, _lazy_dir, _lazy_all = lazy.attach(

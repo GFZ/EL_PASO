@@ -166,6 +166,7 @@ def _construct_file_list(
 
     if callable(file_cadence):
         current_time = start_time
+
         while current_time <= end_time:
             next_time = file_cadence(current_time)
 
@@ -214,9 +215,34 @@ def _construct_file_list(
                 current_time += timedelta(days=1)
 
         case "monthly":
-            msg = "Monthly file cadence is not implemented yet!"
-            logger.error(msg)
-            raise NotImplementedError(msg)
+            current_time = start_time.replace(day=1)
+            while current_time <= end_time:
+                file_path_current = _fill_file_name_and_check_version(current_time, file_path)
+                if file_path_current is None:
+                    logger.warning(
+                        (
+                            f"No file found for {current_time.strftime('%Y-%m')} under path: {file_path}."
+                            "Skipping this month."
+                        ),
+                        stacklevel=2,
+                    )
+                else:
+                    file_paths.append(file_path_current)
+
+                    month_start = current_time.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                    if month_start.month == 12:
+                        next_month_start = month_start.replace(year=month_start.year + 1, month=1)
+                    else:
+                        next_month_start = month_start.replace(month=month_start.month + 1)
+                    month_end = next_month_start - timedelta(seconds=1)
+
+                    time_intervals.append((month_start, month_end))
+
+                month_start_for_advance = current_time.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                if month_start_for_advance.month == 12:
+                    current_time = month_start_for_advance.replace(year=month_start_for_advance.year + 1, month=1)
+                else:
+                    current_time = month_start_for_advance.replace(month=month_start_for_advance.month + 1)
 
         case "single_file":
             file_path_current = _fill_file_name_and_check_version(start_time, file_path)
@@ -491,8 +517,14 @@ def _extract_data_from_netcdf(
 
         for info in extraction_infos:
             if info.name_or_column in entries:
-                entry_data = file[info.name_or_column]
-                var_content = np.asarray([entry_data]).squeeze()
+                var_content = file[info.name_or_column][...]
+                # netCDF4 masks _FillValue and values outside of valid_min/valid_max
+                if isinstance(var_content, np.ma.MaskedArray):
+                    if np.issubdtype(var_content.dtype, np.floating):
+                        var_content = var_content.filled(np.nan)
+                    else:
+                        var_content = var_content.data
+                var_content = np.asarray([var_content]).squeeze()
                 variable_data[info.name_or_column] = var_content
             else:
                 logger.warning(

@@ -176,6 +176,10 @@ def download(
     save_path = Path(save_path)
 
     curr_time = start_time
+
+    if file_cadence == "monthly":
+        curr_time = curr_time.replace(day=1)
+
     tasks = []
 
     while curr_time <= end_time:
@@ -241,8 +245,9 @@ def _get_next_time(curr_time: datetime, file_cadence: FileCadence) -> datetime |
             return curr_time
 
         case "monthly":
-            msg = "Monthly file cadence has not been implemented yet!"
-            raise NotImplementedError(msg)
+            if curr_time.month == 12:
+                return curr_time.replace(year=curr_time.year + 1, month=1, day=1)
+            return curr_time.replace(month=curr_time.month + 1, day=1)
 
         case "single_file":
             return None

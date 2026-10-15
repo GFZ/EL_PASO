@@ -191,7 +191,7 @@ def bin_by_time(
 
         # calculate bin indices for given time array if it has not been calculated before
         if not index_iterables:
-            timestamps = typing.cast("NDArray[np.floating]", time_variable.get_data(ep.units.posixtime))
+            timestamps = time_variable.get_data(ep.units.posixtime).astype(np.float64)
             index_iterables = _calculate_index_iterables(timestamps, time_bins)
 
         unique_indices, indices_separation = index_iterables
