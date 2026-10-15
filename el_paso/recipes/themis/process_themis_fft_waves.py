@@ -16,6 +16,7 @@ from pyspedas.projects import themis
 import el_paso as ep
 from el_paso.pyspedas_utils import (
     build_trange,
+    load_with_local_fallback,
     set_pyspedas_data_dir,
     tplot_to_bin_variable,
     tplot_to_time_variable,
@@ -142,7 +143,8 @@ def _get_fft_data(
     probe = str(satellite)
     axis_names = [f"th{probe}_fff_32_scm{axis}" for axis in (3,)]
 
-    themis.fft(
+    load_with_local_fallback(
+        themis.fft,
         trange=build_trange(start_time, end_time),
         probe=probe,
         level="l2",
@@ -185,7 +187,8 @@ def _get_magnetometer_data(
     """Load the total magnetic field from FGM and interpolate it onto the FFT cadence."""
     probe = str(satellite)
 
-    themis.fgm(
+    load_with_local_fallback(
+        themis.fgm,
         trange=build_trange(start_time, end_time),
         probe=probe,
         level="l2",

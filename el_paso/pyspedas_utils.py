@@ -27,6 +27,7 @@ import pyspedas
 import el_paso as ep
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from datetime import datetime
     from pathlib import Path
 
@@ -81,6 +82,43 @@ def build_trange(start_time: datetime, end_time: datetime) -> list[str]:
         list[str]: The two bounds as ``"YYYY-MM-DD hh:mm:ss"`` strings.
     """
     return [start_time.strftime("%Y-%m-%d %H:%M:%S"), end_time.strftime("%Y-%m-%d %H:%M:%S")]
+
+
+def load_with_local_fallback(loader: Callable[..., Any], **kwargs: Any) -> Any:  # noqa: ANN401
+    """Update the local files from the server, then load from the local files only.
+
+    pyspedas falls back to local files when downloading a single file fails, but not when the
+    remote directory index cannot be retrieved (e.g. a slow or unresponsive server): it then
+    skips that directory and loads nothing, even if the files are already on disk. Splitting the
+    call into a download-only step, whose failures are tolerated, and a load with
+    ``no_update=True``, which reads the newest local version of each file, keeps a recipe working
+    from previously downloaded files whenever the server is unavailable.
+
+    Args:
+        loader (Callable[..., Any]): A pyspedas load routine accepting ``downloadonly`` and
+            ``no_update``, e.g. ``pyspedas.projects.themis.fgm``.
+        **kwargs (Any): Arguments passed on to the loader, e.g. ``trange``, ``probe``, ``level``
+            or ``varnames``.
+
+    Returns:
+        Any: What the loader returns when loading from the local files, for most loaders the
+        list of loaded tplot variable names.
+    """
+    loader_name = getattr(loader, "__qualname__", repr(loader))
+
+    try:
+        loader(**kwargs, downloadonly=True)
+    except Exception:
+        logger.warning(
+            f"Updating the local files with {loader_name} failed; using previously downloaded files only.",
+            exc_info=True,
+        )
+
+    loaded = loader(**kwargs, no_update=True)
+    if not loaded:
+        logger.warning(f"{loader_name} loaded no data from the local files for {kwargs}.")
+
+    return loaded
 
 
 def unpack_tplot(tplot_name: str) -> tuple[NDArray[Any], NDArray[Any], NDArray[Any] | None]:

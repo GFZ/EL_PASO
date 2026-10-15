@@ -23,6 +23,7 @@ import el_paso as ep
 from el_paso.processing.magnetic_field_utils.irbem import Coords
 from el_paso.pyspedas_utils import (
     build_trange,
+    load_with_local_fallback,
     tplot_to_time_variable,
     tplot_to_variable,
     unpack_tplot,
@@ -53,7 +54,9 @@ def get_themis_position_geo(
         dict[str, ep.Variable]: The "Epoch" time base and the GEO position "xGEO", in Earth radii.
     """
     probe = str(satellite)
-    themis.state(trange=build_trange(start_time, end_time), probe=probe, get_support_data=True)
+    load_with_local_fallback(
+        themis.state, trange=build_trange(start_time, end_time), probe=probe, get_support_data=True
+    )
 
     pos_var_name = f"th{probe}_pos_gsm"
 
@@ -105,7 +108,8 @@ def get_themis_scpot_density(
     probe = str(satellite)
     prefix = f"th{probe}"
 
-    themis.esa(
+    load_with_local_fallback(
+        themis.esa,
         trange=build_trange(start_time, end_time),
         probe=probe,
         level="l2",
