@@ -662,3 +662,12 @@ def test_describe_difference_reports_nan_mismatches_and_shapes() -> None:
         "Flux: different shapes ((2, 3) vs. (3, 2))"
     )
     assert _describe_difference("MLT", np.zeros(2), [0.0, 0.0]) == "MLT: different types (ndarray vs. list)"
+
+
+@pytest.mark.basic
+def test_describe_difference_respects_tolerance() -> None:
+    reference = np.array([1.0, 0.04012066392])
+    other = np.array([1.0, 0.04011394512])  # relative difference of ~1.7e-4
+
+    assert _describe_difference("InvK", reference, other).startswith("InvK: 1 of 2 elements differ")
+    assert _describe_difference("InvK", reference, other, rtol=1e-3).startswith("InvK: 0 of 2 elements differ")

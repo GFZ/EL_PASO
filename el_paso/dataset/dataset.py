@@ -58,7 +58,14 @@ class _LazyMethod:
         return func if obj is None else func.__get__(obj, objtype)
 
 
-def _describe_difference(var_name: str, self_var: Any, other_var: Any) -> str:  # noqa: ANN401
+def _describe_difference(
+    var_name: str,
+    self_var: Any,  # noqa: ANN401
+    other_var: Any,  # noqa: ANN401
+    *,
+    rtol: float = 1e-5,
+    atol: float = 1e-8,
+) -> str:
     """Describe how two values of the same variable differ, for use in assertion messages.
 
     For numeric arrays of equal shape, the number of elements failing `np.isclose`, the number of
@@ -69,6 +76,8 @@ def _describe_difference(var_name: str, self_var: Any, other_var: Any) -> str:  
         var_name (str): Name of the variable.
         self_var (Any): Value of the variable in the first dataset.
         other_var (Any): Value of the variable in the second dataset.
+        rtol (float): Relative tolerance passed to `np.isclose`. Defaults to 1e-5.
+        atol (float): Absolute tolerance passed to `np.isclose`. Defaults to 1e-8.
 
     Returns:
         str: A (possibly multi-line) description of the difference.
@@ -90,7 +99,7 @@ def _describe_difference(var_name: str, self_var: Any, other_var: Any) -> str:  
     a = self_var.astype(np.float64)
     b = other_var.astype(np.float64)
 
-    n_failing = int(np.sum(~np.isclose(a, b, equal_nan=True)))
+    n_failing = int(np.sum(~np.isclose(a, b, rtol=rtol, atol=atol, equal_nan=True)))
     lines = [f"{var_name}: {n_failing} of {a.size} elements differ"]
 
     nan_mismatch = np.isnan(a) != np.isnan(b)
@@ -547,14 +556,18 @@ class DataSet:
         """
         return [var for var in self.possible_variables if var in self.__dict__]
 
-    def assert_equal(self, other: DataSet) -> None:
+    def assert_equal(self, other: DataSet, *, rtol: float = 1e-5, atol: float = 1e-8) -> None:
         """Assert that two DataSet objects are equal.
 
         Compares the data standards, the set of standard variable names defined by
         the saving strategies, and the values of all currently loaded variables.
+        Numeric arrays are compared with `np.allclose`, so floating-point noise (e.g. from
+        magnetic field calculations on different hardware) can be tolerated via `rtol` and `atol`.
 
         Args:
             other (DataSet): The other DataSet instance to compare against.
+            rtol (float): Relative tolerance for numeric arrays. Defaults to 1e-5.
+            atol (float): Absolute tolerance for numeric arrays. Defaults to 1e-8.
 
         Raises:
             AssertionError: If the data standards differ, if the sets of standard
@@ -573,10 +586,11 @@ class DataSet:
             f"Standard names in saving strategies are different:\n{self_standard_names!r}!={other_standard_names!r}"
         )
 
-        different_vars = self.get_different_variables(other)
+        different_vars = self.get_different_variables(other, rtol=rtol, atol=atol)
 
         assert len(different_vars) == 0, "Variables differ between datasets:\n" + "\n".join(
-            _describe_difference(var, getattr(self, var), getattr(other, var)) for var in different_vars
+            _describe_difference(var, getattr(self, var), getattr(other, var), rtol=rtol, atol=atol)
+            for var in different_vars
         )
 
     def __eq__(self, other: object) -> bool:
@@ -592,11 +606,13 @@ class DataSet:
 
         return True
 
-    def get_different_variables(self, other: DataSet) -> list[str]:
+    def get_different_variables(self, other: DataSet, *, rtol: float = 1e-5, atol: float = 1e-8) -> list[str]:
         """Compare the currently loaded variables in this DataSet with another DataSet and return a list of variable names that are different.
 
         Args:
             other (DataSet): Another DataSet instance to compare against.
+            rtol (float): Relative tolerance for numeric arrays, passed to `np.allclose`. Defaults to 1e-5.
+            atol (float): Absolute tolerance for numeric arrays, passed to `np.allclose`. Defaults to 1e-8.
 
         Returns:
             list[str]: A list of variable names that are different between the two DataSet instances.
@@ -620,7 +636,9 @@ class DataSet:
                     different_vars.append(var_name)
                     continue
             elif isinstance(self_var, np.ndarray):
-                if self_var.shape != other_var.shape or not np.allclose(self_var, other_var, equal_nan=True):
+                if self_var.shape != other_var.shape or not np.allclose(
+                    self_var, other_var, rtol=rtol, atol=atol, equal_nan=True
+                ):
                     different_vars.append(var_name)
                     continue
             elif self_var != other_var:

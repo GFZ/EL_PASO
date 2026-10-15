@@ -53,4 +53,5 @@ def test_goes_eps_maged_and_epead_snapshot(
         end_time=end_time,
     )
 
-    goes_true.assert_equal(goes_proc)
+    # the invariant K (and V) is sensitive to floating-point differences of IRBEM on different hardware
+    goes_true.assert_equal(goes_proc, rtol=1e-3)
