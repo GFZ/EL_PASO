@@ -39,6 +39,7 @@ def _fake_result() -> dict[str, ep.Variable]:
     }
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_cache_hit_skips_recomputation(tmp_path: Path) -> None:
     """Second call with identical inputs must return cached result without recomputing."""
@@ -75,6 +76,7 @@ def test_cache_hit_skips_recomputation(tmp_path: Path) -> None:
     np.testing.assert_array_equal(result1["B_Eq_T89"].get_data(), result2["B_Eq_T89"].get_data())
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_cache_miss_on_different_input(tmp_path: Path) -> None:
     """Changing input data must trigger a fresh computation."""
@@ -112,6 +114,7 @@ def test_cache_miss_on_different_input(tmp_path: Path) -> None:
     assert call_count == 2
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_overwrite_cache_forces_recomputation(tmp_path: Path) -> None:
     """overwrite_cache=True must recompute even when a cached result exists."""
@@ -147,6 +150,7 @@ def test_overwrite_cache_forces_recomputation(tmp_path: Path) -> None:
     assert call_count == 2
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_no_caching_when_cache_dir_is_none() -> None:
     """cache_dir=None must skip caching entirely."""
@@ -181,6 +185,7 @@ def test_no_caching_when_cache_dir_is_none() -> None:
     assert call_count == 2
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_clear_cache_removes_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """clear_cache() must remove the joblib_cache subdirectory."""
@@ -194,6 +199,7 @@ def test_clear_cache_removes_directory(tmp_path: Path, monkeypatch: pytest.Monke
     assert not cache_dir.exists()
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_cleanup_stale_cache_removes_old_entries(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Entries older than max_age_days must be removed; recent ones kept."""
@@ -215,6 +221,7 @@ def test_cleanup_stale_cache_removes_old_entries(tmp_path: Path, monkeypatch: py
     assert recent_entry.exists()
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_get_cache_dir_creates_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """get_cache_dir() must create the directory if it doesn't exist."""

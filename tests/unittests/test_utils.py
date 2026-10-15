@@ -7,11 +7,10 @@ import functools
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import el_paso as ep
 import numpy as np
 import pytest
 from astropy import units as u
-
-import el_paso as ep
 from el_paso.utils import (
     datetime_to_datenum,
     enforce_utc_timezone,
@@ -29,6 +28,7 @@ REF_DT = datetime(2023, 11, 5, tzinfo=timezone.utc)
 # ── fill_str_template_with_time ───────────────────────────────────────────────
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 @pytest.mark.parametrize(
     ("template", "expected"),
@@ -43,12 +43,14 @@ def test_fill_str_template_with_time_placeholders(template: str, expected: str) 
     assert fill_str_template_with_time(template, REF_DT) == expected
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_fill_str_template_multiple_occurrences() -> None:
     result = fill_str_template_with_time("YYYY_YYYY.nc", REF_DT)
     assert result == "2023_2023.nc"
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_fill_str_template_mixed_placeholders() -> None:
     result = fill_str_template_with_time("path/yyyymmdd/YYYY-MM-DD.nc", REF_DT)
@@ -58,6 +60,7 @@ def test_fill_str_template_mixed_placeholders() -> None:
 # ── extract_version ───────────────────────────────────────────────────────────
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_extract_version_standard() -> None:
     base, ver = extract_version("file_v1.2.3.nc")
@@ -65,18 +68,21 @@ def test_extract_version_standard() -> None:
     assert str(ver) == "1.2.3"
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_extract_version_underscore_separators() -> None:
     _, ver = extract_version("file_v1_2_3.nc")
     assert str(ver) == "1.2.3"
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_extract_version_dash_separators() -> None:
     _, ver = extract_version("file_v1-2-3.nc")
     assert str(ver) == "1.2.3"
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_extract_version_no_version() -> None:
     base, ver = extract_version("file.nc")
@@ -84,6 +90,7 @@ def test_extract_version_no_version() -> None:
     assert str(ver) == "0"
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_extract_version_path_input() -> None:
     base, ver = extract_version(Path("/some/dir/data_v2.0.0.nc"))
@@ -91,6 +98,7 @@ def test_extract_version_path_input() -> None:
     assert str(ver) == "2.0.0"
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_extract_version_no_extension_no_version() -> None:
     base, ver = extract_version("noext")
@@ -101,23 +109,27 @@ def test_extract_version_no_extension_no_version() -> None:
 # ── get_file_by_version ───────────────────────────────────────────────────────
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_get_file_by_version_latest_returns_highest() -> None:
     files = ["data_v1.0.0.nc", "data_v2.0.0.nc", "data_v1.5.0.nc"]
     assert get_file_by_version(files, "latest") == "data_v2.0.0.nc"
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_get_file_by_version_specific_match() -> None:
     files = ["data_v1.0.0.nc", "data_v2.0.0.nc"]
     assert get_file_by_version(files, "v1.0.0") == "data_v1.0.0.nc"
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_get_file_by_version_empty_iterable_returns_none() -> None:
     assert get_file_by_version([], "latest") is None
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_get_file_by_version_path_objects() -> None:
     files = [Path("data_v1.0.0.nc"), Path("data_v3.1.0.nc")]
@@ -128,6 +140,7 @@ def test_get_file_by_version_path_objects() -> None:
 # ── enforce_utc_timezone ──────────────────────────────────────────────────────
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_enforce_utc_naive_gets_utc() -> None:
     dt = datetime(2023, 11, 5)  # noqa: DTZ001
@@ -135,6 +148,7 @@ def test_enforce_utc_naive_gets_utc() -> None:
     assert result.tzinfo == timezone.utc
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_enforce_utc_aware_unchanged() -> None:
     dt = datetime(2023, 11, 5, tzinfo=timezone.utc)
@@ -145,6 +159,7 @@ def test_enforce_utc_aware_unchanged() -> None:
 # ── timed_function ────────────────────────────────────────────────────────────
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_timed_function_returns_correct_result() -> None:
     @timed_function("test_add")
@@ -154,6 +169,7 @@ def test_timed_function_returns_correct_result() -> None:
     assert add(3, 4) == 7
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_timed_function_without_name() -> None:
     @timed_function()
@@ -166,6 +182,7 @@ def test_timed_function_without_name() -> None:
 # ── env_flag_enabled ──────────────────────────────────────────────────────────
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 @pytest.mark.parametrize("value", ["1", "true", "True", "yes", "on", "anything"])
 def test_env_flag_enabled_truthy(monkeypatch: pytest.MonkeyPatch, value: str) -> None:
@@ -173,6 +190,7 @@ def test_env_flag_enabled_truthy(monkeypatch: pytest.MonkeyPatch, value: str) ->
     assert env_flag_enabled("EL_PASO_TEST_FLAG")
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 @pytest.mark.parametrize("value", ["", "0", "false", "False", "FALSE", "no", "off", " 0 "])
 def test_env_flag_enabled_falsy(monkeypatch: pytest.MonkeyPatch, value: str) -> None:
@@ -180,12 +198,14 @@ def test_env_flag_enabled_falsy(monkeypatch: pytest.MonkeyPatch, value: str) -> 
     assert not env_flag_enabled("EL_PASO_TEST_FLAG")
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_env_flag_enabled_unset(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("EL_PASO_TEST_FLAG", raising=False)
     assert not env_flag_enabled("EL_PASO_TEST_FLAG")
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_make_dict_hashable_is_hashable_and_order_independent() -> None:
     first = make_dict_hashable({"a": 1, "b": 2})
@@ -197,11 +217,13 @@ def test_make_dict_hashable_is_hashable_and_order_independent() -> None:
     assert first == second
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_make_dict_hashable_none() -> None:
     assert make_dict_hashable(None) is None
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_datetime_to_datenum_keeps_subsecond_precision() -> None:
     whole = datetime(2024, 4, 16, 15, 30, 0, tzinfo=timezone.utc)
@@ -209,12 +231,14 @@ def test_datetime_to_datenum_keeps_subsecond_precision() -> None:
     assert datetime_to_datenum(half) - datetime_to_datenum(whole) == pytest.approx(0.5 / 86400, abs=1e-6)
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_datetime_to_datenum_naive_is_treated_as_utc() -> None:
     aware = datetime(2024, 4, 16, 15, 30, tzinfo=timezone.utc)
     assert datetime_to_datenum(aware.replace(tzinfo=None)) == datetime_to_datenum(aware)
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_datetime_to_datenum_converts_other_timezones_to_utc() -> None:
     utc = datetime(2024, 4, 16, 23, 30, tzinfo=timezone.utc)
@@ -222,6 +246,7 @@ def test_datetime_to_datenum_converts_other_timezones_to_utc() -> None:
     assert datetime_to_datenum(plus_two) == datetime_to_datenum(utc)
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_make_dict_hashable_with_variables_works_as_cache_key() -> None:
     # This is how compute_magnetic_field_variables hands indices_solar_wind to the functools.cache

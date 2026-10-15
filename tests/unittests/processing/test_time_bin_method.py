@@ -8,6 +8,7 @@ import pytest
 from el_paso import TimeBinMethod
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_mean() -> None:
     data = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
@@ -15,6 +16,7 @@ def test_mean() -> None:
     assert result == np.mean(data)
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_mean_drop_percent() -> None:
     data = np.array([10, 6.3, 3, 5.3, 6, 9, 7, 8, 2, 1, 5], dtype=np.float64)

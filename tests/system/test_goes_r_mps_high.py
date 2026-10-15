@@ -13,6 +13,7 @@ from el_paso.recipes.goes import goes_r_mps_high_netcdf_strategy, process_goes_r
 
 
 @pytest.mark.basic
+@pytest.mark.minimal
 def test_goes_r_mps_high_snapshot(
     tmpdir: Path,
     *,

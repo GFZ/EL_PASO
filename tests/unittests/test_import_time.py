@@ -75,6 +75,7 @@ def _run_cli(args: list[str]) -> tuple[float, set[str]]:
     return float(elapsed_line), set(modules_line.split(","))
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_import_does_not_load_heavy_packages() -> None:
     """`import el_paso` must not pull in any heavy third-party dependency."""
@@ -89,6 +90,7 @@ def test_import_does_not_load_heavy_packages() -> None:
     )
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_import_time_stays_within_budget() -> None:
     """`import el_paso` must complete within a small, fixed time budget."""
@@ -105,6 +107,7 @@ def test_import_time_stays_within_budget() -> None:
     )
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 @pytest.mark.parametrize("args", _CHEAP_CLI_ARGS)
 def test_cli_help_does_not_load_heavy_packages(args: list[str]) -> None:
@@ -120,6 +123,7 @@ def test_cli_help_does_not_load_heavy_packages(args: list[str]) -> None:
     )
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 @pytest.mark.parametrize("args", _CHEAP_CLI_ARGS)
 def test_cli_help_stays_within_time_budget(args: list[str]) -> None:

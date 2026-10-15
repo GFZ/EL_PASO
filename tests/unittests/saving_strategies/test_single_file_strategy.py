@@ -17,6 +17,7 @@ from astropy import units as u
 rng = np.random.default_rng(1337)
 
 
+@pytest.mark.minimal
 @pytest.mark.parametrize("file_format", [".mat", ".h5", ".nc", ".cdf"])
 @pytest.mark.basic
 def test_basic_single_file_strategy(tmp_path: Path, file_format: str) -> None:
@@ -38,6 +39,7 @@ def test_basic_single_file_strategy(tmp_path: Path, file_format: str) -> None:
     assert save_path.exists()
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_save_raises_for_invalid_value_type(tmp_path: Path) -> None:
     variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
@@ -55,6 +57,7 @@ def test_save_raises_for_invalid_value_type(tmp_path: Path) -> None:
         )
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_save_raises_for_invalid_internal_name(tmp_path: Path) -> None:
     variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
@@ -72,6 +75,7 @@ def test_save_raises_for_invalid_internal_name(tmp_path: Path) -> None:
         )
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_single_file_strategy_saves_variables_untruncated(tmp_path: Path) -> None:
     from scipy.io import loadmat  # noqa: PLC0415

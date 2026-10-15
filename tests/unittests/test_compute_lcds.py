@@ -54,6 +54,7 @@ LCDS_LSTAR_REF_T89 = np.array(
 )
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_lcds_runs():
 

@@ -106,6 +106,7 @@ def expected_psd(V_value: float, K_value: float) -> float:
 # =====================================================================================
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 class TestLinearInterp:
     def test_returns_endpoints(self) -> None:
@@ -130,6 +131,7 @@ class TestLinearInterp:
 # =====================================================================================
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 class TestTimeBinning:
     def test_bins_are_centred_on_timestamps(self) -> None:
@@ -180,6 +182,7 @@ class TestTimeBinning:
 # =====================================================================================
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 class TestBinInTime:
     @staticmethod
@@ -222,6 +225,7 @@ class TestBinInTime:
 # =====================================================================================
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 class TestBinInSpace:
     R_1d = (3.0, 4.0, 5.0, 6.0)
@@ -287,6 +291,7 @@ class TestBinInSpace:
 # =====================================================================================
 
 
+@pytest.mark.minimal
 class TestInterpolateOrBinInVK:
     @pytest.mark.basic
     def test_reproduces_an_exponential_exactly(self) -> None:
@@ -492,6 +497,7 @@ class TestInterpolateOrBinInVK:
 # =====================================================================================
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 class TestBinAndInterpolateEndToEnd:
     def test_plasmasphere_path_bins_density_in_P_R_and_time(self) -> None:
@@ -668,6 +674,7 @@ class TestBinAndInterpolateEndToEnd:
 # =====================================================================================
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 class TestSanityChecks:
     @staticmethod
@@ -724,6 +731,7 @@ class TestSanityChecks:
         assert bai._exceeds_range(reference, np.array([9.9, 20.0]))
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_full_pipeline_against_hard_coded_values() -> None:
     """One pass through all three stages, with every expected number written out.

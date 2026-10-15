@@ -12,6 +12,7 @@ from el_paso.dataset.identify_orbits import Trajectory, _identify_orbits
 from el_paso.dataset.linearize_trajectories import _linearize_trajectories
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_linearize_trajectories_monotonicity():
     """Verify that the resulting x-axis is strictly increasing even with inbound segments."""
@@ -27,6 +28,7 @@ def test_linearize_trajectories_monotonicity():
     assert not np.isnan(lin_x).any(), "Result contains NaNs"
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_linearize_trajectories_abs_sin():
     """Test with a more complex rectified sine wave."""
@@ -43,6 +45,7 @@ def test_linearize_trajectories_abs_sin():
     assert lin_x[-1] > lin_x[9]
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_linearize_trajectories_with_nans():
     """Ensure the interpolation logic handles NaNs in the input distance."""
@@ -57,6 +60,7 @@ def test_linearize_trajectories_with_nans():
     assert lin_x[1] > lin_x[0]
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_linearize_trajectories_single_point():
     """Edge case: ensure it handles very short trajectories without crashing."""

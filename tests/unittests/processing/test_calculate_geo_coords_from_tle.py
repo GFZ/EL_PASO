@@ -31,6 +31,7 @@ def sample_tle_file():
     Path(temp_path).unlink()
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 class TestCalculateGeoCoordsReturn:
     """Test the return values of calculate_geo_coords."""
@@ -94,6 +95,7 @@ class TestCalculateGeoCoordsReturn:
         assert any("NaN values found in GEO coordinates" in record.message for record in caplog.records)
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_geo_coords_are_earth_fixed(sample_tle_file: str):
     """The TLE path must return Earth-fixed (ITRF) coordinates, like the OMM path, not inertial ones."""

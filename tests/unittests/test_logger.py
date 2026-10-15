@@ -12,6 +12,7 @@ import pytest
 logger = logging.getLogger(__name__)
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_setup_logging_write_to_file(tmp_path: Path):
 
@@ -28,6 +29,7 @@ def test_setup_logging_write_to_file(tmp_path: Path):
     assert "This is a test!" in log_content
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_setup_logging_append_to_file(tmp_path: Path):
 

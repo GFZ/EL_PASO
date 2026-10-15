@@ -50,6 +50,7 @@ def _normalized_pad_shape(mlt: float, pdyn: float, pa_rad: np.ndarray) -> np.nda
     return shape[0, :] / np.max(shape)
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 class TestPADShapeNoonMLT:
     """Panel (a): 871 keV, 5.3<L<5.5, 11<MLT<13 -> single-peaked distribution,
@@ -84,6 +85,7 @@ class TestPADShapeNoonMLT:
         )
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 class TestPADShapeMidnightMLT:
     """Panel (b): 871 keV, 5.3<L<5.5, 23<MLT<01 -> butterfly

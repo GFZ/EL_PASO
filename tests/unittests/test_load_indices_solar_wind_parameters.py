@@ -13,6 +13,7 @@ import numpy as np
 import pytest
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_calculate_w_parameters() -> None:
     start_time = datetime(2015, 3, 17, 0, 0, tzinfo=timezone.utc)

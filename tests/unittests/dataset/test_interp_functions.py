@@ -10,6 +10,7 @@ from el_paso.dataset.interp_functions import _interp_flux_parallel, _linear_inte
 # ── _linear_interp ────────────────────────────────────────────────────────────
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 @pytest.mark.parametrize(
     ("flux_left", "flux_right", "target", "left", "right", "expected"),
@@ -65,6 +66,7 @@ def _make_arrays() -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     return flux, energy, alpha
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_interp_flux_parallel_known_point() -> None:
     flux, energy, alpha = _make_arrays()
@@ -73,6 +75,7 @@ def test_interp_flux_parallel_known_point() -> None:
     assert result[0] == pytest.approx(225.0)
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_interp_flux_parallel_on_grid_alpha() -> None:
     """Target exactly on a grid alpha value should return the flux at that alpha."""
@@ -85,6 +88,7 @@ def test_interp_flux_parallel_on_grid_alpha() -> None:
     assert result[0] == pytest.approx(250.0)
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_interp_flux_parallel_alpha_below_range_returns_nan() -> None:
     flux, energy, alpha = _make_arrays()
@@ -92,6 +96,7 @@ def test_interp_flux_parallel_alpha_below_range_returns_nan() -> None:
     assert np.isnan(result[0])
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_interp_flux_parallel_alpha_above_range_returns_nan() -> None:
     flux, energy, alpha = _make_arrays()
@@ -99,6 +104,7 @@ def test_interp_flux_parallel_alpha_above_range_returns_nan() -> None:
     assert np.isnan(result[0])
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_interp_flux_parallel_nan_flux_returns_nan() -> None:
     flux, energy, alpha = _make_arrays()
@@ -108,6 +114,7 @@ def test_interp_flux_parallel_nan_flux_returns_nan() -> None:
     assert np.isnan(result[0])
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_interp_flux_parallel_multiple_targets() -> None:
     flux, energy, alpha = _make_arrays()

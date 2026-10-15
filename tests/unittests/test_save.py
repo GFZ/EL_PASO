@@ -16,6 +16,7 @@ from astropy import units as u
 rng = np.random.default_rng(1337)
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_save_raises_warning_when_var_is_empty(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
 
@@ -42,6 +43,7 @@ def test_save_raises_warning_when_var_is_empty(tmp_path: Path, caplog: pytest.Lo
     )
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_time_independent_variable_is_written_to_every_daily_file(tmp_path: Path) -> None:
     """A variable that is not time dependent belongs in full in each interval's file.
@@ -104,6 +106,7 @@ def test_time_independent_variable_is_written_to_every_daily_file(tmp_path: Path
         np.testing.assert_allclose(second.variables["BB"][:], psd[samples_per_day:])
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_interval_without_records_is_skipped(tmp_path: Path) -> None:
     """An interval containing no samples is skipped, leaving no file behind.
@@ -144,6 +147,7 @@ def test_interval_without_records_is_skipped(tmp_path: Path) -> None:
     assert not (out_dir / "tha_fft_20240511.nc").exists()
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_variable_not_saved_by_strategy_is_warned_about(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """A variable missing from every output file of the strategy is dropped, so `save` warns about it."""

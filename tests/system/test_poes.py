@@ -73,6 +73,7 @@ def test_poes_ted_electron(
 
 
 @pytest.mark.basic
+@pytest.mark.minimal
 def test_poes_meped_electron(
     tmpdir: Path,
     *,

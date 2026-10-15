@@ -15,6 +15,7 @@ import el_paso as ep
 import pytest
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_esa_api(tmp_path: Path):
 
@@ -46,6 +47,7 @@ def test_esa_api(tmp_path: Path):
     assert len(list(tmp_path.glob("*"))) == 1
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_request(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 
@@ -107,6 +109,7 @@ def test_request(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     assert len(list(data_path.glob("*"))) == 1
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_get_next_time_with_callable_cadence() -> None:
     """A callable file_cadence should be invoked with curr_time and its return value used directly."""
@@ -122,6 +125,7 @@ def test_get_next_time_with_callable_cadence() -> None:
     assert next_time == datetime(2024, 1, 8, tzinfo=timezone.utc)
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_download_with_callable_cadence(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A callable file_cadence should drive ep.download the same way a built-in literal does."""
@@ -164,6 +168,7 @@ def test_download_with_callable_cadence(tmp_path: Path, monkeypatch: pytest.Monk
     assert len(downloaded_urls) == 3
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_download_single_file_cadence_runs_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """file_cadence="single_file" must create exactly one task instead of looping forever."""
@@ -216,6 +221,7 @@ def test_ftp(tmp_path: Path):
     assert files[0].name == "Kp_ap_Ap_SN_F107_2024.txt"
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_exit_after_download(caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch):
     download_module = importlib.import_module("el_paso.download")
@@ -265,6 +271,7 @@ def test_exit_after_download(caplog: pytest.LogCaptureFixture, monkeypatch: pyte
     download_module.exit_if_download_only()
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_skip_download_via_ep_flag(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture):
 
@@ -295,6 +302,7 @@ def test_skip_download_via_ep_flag(monkeypatch: pytest.MonkeyPatch, caplog: pyte
     assert "Skipping ep.download" in caplog.text
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_skip_download_via_env_var(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture):
 
@@ -325,6 +333,7 @@ def test_skip_download_via_env_var(monkeypatch: pytest.MonkeyPatch, caplog: pyte
     assert "Skipping ep.download" in caplog.text
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 @pytest.mark.parametrize("value", ["0", "false", "no", "off", ""])
 def test_falsy_env_values_neither_skip_nor_exit(
@@ -361,6 +370,7 @@ def test_falsy_env_values_neither_skip_nor_exit(
     assert "Exiting after ep.download" not in caplog.text
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_skip_existing_false_does_not_overwrite_files_outside_time_range(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -418,6 +428,7 @@ def _calls_function(tree: ast.AST, dotted_name: str) -> bool:
     return any(isinstance(node, ast.Call) and ast.unparse(node.func) == dotted_name for node in ast.walk(tree))
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_recipes_with_downloads_call_exit_if_download_only() -> None:
     recipes_dir = Path(ep.__file__).parent / "recipes"

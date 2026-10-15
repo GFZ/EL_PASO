@@ -162,6 +162,7 @@ def prbem_dataset(tmp_path: Path) -> DataSet:
     return DataSet(saving_strategy=strategy, start_time=start_time, end_time=end_time, preferred_extension="nc")
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 class TestDataSet:  # noqa: D101
     def test_init_datetime_timezone(self, mock_dataset: DataSet):
@@ -355,6 +356,7 @@ class TestDataSet:  # noqa: D101
             ), "File should not have been loaded again"
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 @pytest.mark.parametrize("file_format", ["nc", "h5", "cdf", "mat"])
 def test_dataset_equality_rejects_data_saved_with_different_standards(tmp_path: Path, file_format: MFSFormats) -> None:
@@ -409,6 +411,7 @@ def test_dataset_equality_rejects_data_saved_with_different_standards(tmp_path: 
         gfz_dataset.assert_equal(prbem_dataset)
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 @pytest.mark.parametrize("file_format", ["nc", "h5", "cdf", "mat"])
 def test_comparison_loads_all_strategy_variables(tmp_path: Path, file_format: MFSFormats) -> None:
@@ -454,6 +457,7 @@ def test_comparison_loads_all_strategy_variables(tmp_path: Path, file_format: MF
     assert expected.issubset(loaded), f"Variables not loaded after comparison: {expected - loaded}"
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_comparison_without_computed_property_inputs(tmp_path: Path) -> None:
     """Comparison must not fail for strategies lacking MLT/InvMu, the inputs of P and InvV."""
@@ -481,6 +485,7 @@ def test_comparison_without_computed_property_inputs(tmp_path: Path) -> None:
     assert len(ds1.InvV) == 0
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 @pytest.mark.parametrize("file_format", ["nc", "h5", "cdf", "mat"])
 @pytest.mark.parametrize("data_standard", [ep.data_standards.PRBEMStandard, ep.data_standards.GFZStandard])
@@ -543,6 +548,7 @@ _ECT_START = datetime(2017, 9, 8, tzinfo=timezone.utc)
 _ECT_END = _ECT_START + timedelta(days=0.4, seconds=-1)
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_dataset_equals_gfz_dataset_on_ect_combined() -> None:
     """DataSet and GFZDataSet loaded from the same file must compare equal."""
@@ -561,66 +567,77 @@ def test_dataset_equals_gfz_dataset_on_ect_combined() -> None:
     assert base_ds == gfz_ds
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_gfz_epoch_resolves_to_time(gfz_dataset: DataSet) -> None:
     result = gfz_dataset.get_by_internal_name("Epoch")
     np.testing.assert_array_equal(result, gfz_dataset.time)
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_gfz_fedu_resolves_to_flux(gfz_dataset: DataSet) -> None:
     result = gfz_dataset.get_by_internal_name("FEDU")
     np.testing.assert_array_equal(result, gfz_dataset.Flux)
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_gfz_r_eq_resolves_to_r0(gfz_dataset: DataSet) -> None:
     result = gfz_dataset.get_by_internal_name("R_Eq")
     np.testing.assert_array_equal(result, gfz_dataset.R0)
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_gfz_l_star_resolves_to_lstar(gfz_dataset: DataSet) -> None:
     result = gfz_dataset.get_by_internal_name("L_star")
     np.testing.assert_array_equal(result, gfz_dataset.Lstar)
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_gfz_energy_fedu_resolves_to_energy_channels(gfz_dataset: DataSet) -> None:
     result = gfz_dataset.get_by_internal_name("Energy_FEDU")
     np.testing.assert_array_equal(result, gfz_dataset.energy_channels)
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_gfz_alpha_eq_resolves_to_alpha_eq_model(gfz_dataset: DataSet) -> None:
     result = gfz_dataset.get_by_internal_name("Alpha_Eq")
     np.testing.assert_array_equal(result, gfz_dataset.alpha_eq_model)
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_prbem_epoch_resolves_to_epoch(prbem_dataset: DataSet) -> None:
     result = prbem_dataset.get_by_internal_name("Epoch")
     np.testing.assert_array_equal(result, prbem_dataset.Epoch)
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_prbem_r_eq_resolves_to_r_eq(prbem_dataset: DataSet) -> None:
     result = prbem_dataset.get_by_internal_name("R_Eq")
     np.testing.assert_array_equal(result, prbem_dataset.R_Eq)
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_prbem_l_star_resolves_to_l_star(prbem_dataset: DataSet) -> None:
     result = prbem_dataset.get_by_internal_name("L_star")
     np.testing.assert_array_equal(result, prbem_dataset.L_star)
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_unknown_internal_name_raises(gfz_dataset: DataSet) -> None:
     with pytest.raises(ValueError):  # noqa: PT011
         gfz_dataset.get_by_internal_name("NotAnInternalName")  # ty:ignore[invalid-argument-type]
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_describe_difference_reports_max_absolute_and_relative_difference() -> None:
     reference = np.array([[1.0, 2.0], [1e-4, np.nan]])
@@ -635,6 +652,7 @@ def test_describe_difference_reports_max_absolute_and_relative_difference() -> N
     ]
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_describe_difference_reports_nan_mismatches_and_shapes() -> None:
     nan_message = _describe_difference("Lstar", np.array([1.0, np.nan, 3.0]), np.array([1.0, 2.0, 3.0]))

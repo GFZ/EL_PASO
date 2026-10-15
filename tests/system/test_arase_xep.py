@@ -51,6 +51,7 @@ def _assert_variables_load(dataset: DataSet, internal_names: list[ep.typing.Inte
 
 
 @pytest.mark.basic
+@pytest.mark.minimal
 def test_arase_xep(tmpdir: Path) -> None:
 
     processed_data_path = Path(tmpdir)
@@ -61,7 +62,7 @@ def test_arase_xep(tmpdir: Path) -> None:
         mag_field=_MAG_FIELD,
         raw_data_path=Path(__file__).parent / "data" / "raw",
         processed_data_path=processed_data_path,
-        num_cores=4,
+        num_cores=16,
         use_level_3_orbit_data=False,
     )
 

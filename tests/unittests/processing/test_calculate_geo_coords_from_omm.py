@@ -39,6 +39,7 @@ def _write_omm_csv(path: Path, rows: list[dict[str, str]]) -> None:
     path.write_text("\n".join(lines) + "\n")
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_calculate_geo_coords_from_omm_dict_matches_file_single_record(tmp_path: Path) -> None:
     """The dict and single-record-file overloads should produce identical results."""
@@ -55,6 +56,7 @@ def test_calculate_geo_coords_from_omm_dict_matches_file_single_record(tmp_path:
     assert from_dict.metadata.source_files == []
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_calculate_geo_coords_from_omm_file_accepts_str_path(tmp_path: Path) -> None:
     csv_path = tmp_path / "single.csv"
@@ -64,6 +66,7 @@ def test_calculate_geo_coords_from_omm_file_accepts_str_path(tmp_path: Path) -> 
     assert result.get_data().shape == (1, 3)
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_calculate_geo_coords_from_omm_file_uses_first_record(tmp_path: Path) -> None:
     """`download_omm` writes one record per file; if a file ever holds more, the first is used."""
@@ -79,6 +82,7 @@ def test_calculate_geo_coords_from_omm_file_uses_first_record(tmp_path: Path) ->
     np.testing.assert_array_equal(from_file.get_data(), from_dict.get_data())
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_calculate_geo_coords_from_omm_empty_file_raises(tmp_path: Path) -> None:
     csv_path = tmp_path / "empty.csv"
@@ -88,6 +92,7 @@ def test_calculate_geo_coords_from_omm_empty_file_raises(tmp_path: Path) -> None
         calculate_geo_coords_from_omm(csv_path, [_TARGET_TIME])
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_calculate_geo_coords_from_omm_values_are_reasonable() -> None:
     """ISS orbits ~6800 km from Earth's center."""

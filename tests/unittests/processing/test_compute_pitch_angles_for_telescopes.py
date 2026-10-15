@@ -10,6 +10,7 @@ from astropy import units as u
 from el_paso.processing import compute_pitch_angles_for_telescopes
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_goes_pitch_angles_basic() -> None:
 

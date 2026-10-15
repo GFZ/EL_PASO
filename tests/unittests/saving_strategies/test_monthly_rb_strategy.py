@@ -113,6 +113,7 @@ _FORMAT_PARAMS = [
 ]
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 @pytest.mark.parametrize("data_standard", [ep.data_standards.GFZStandard, ep.data_standards.PRBEMStandard])
 @pytest.mark.parametrize(("output_format", "meta_keys_check"), _FORMAT_PARAMS)
@@ -249,6 +250,7 @@ def _mock_monthly_variables_for_append() -> dict[InternalName, ep.Variable]:
     return variables
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 @pytest.mark.parametrize("data_standard", [ep.data_standards.GFZStandard, ep.data_standards.PRBEMStandard])
 @pytest.mark.parametrize(("output_format", "meta_keys_check"), _FORMAT_PARAMS)
@@ -356,6 +358,7 @@ def test_append_data(
         assert var_attrs.get("unit", "unknown") != "unknown"
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_save_raises_when_required_dimension_is_missing(
     tmp_path: Path,
@@ -392,6 +395,7 @@ def test_save_raises_when_required_dimension_is_missing(
         )
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_save_raises_when_required_dimension_is_missing_tuples(
     tmp_path: Path,

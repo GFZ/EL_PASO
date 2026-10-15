@@ -10,6 +10,7 @@ import pytest
 from el_paso.dataset.identify_orbits import _identify_orbits
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_identify_orbits_clean_abs_sin():
     """Test orbital identification with a perfect abs(sin) wave."""
@@ -46,6 +47,7 @@ def test_identify_orbits_clean_abs_sin():
     assert orbits[5].direction == "inbound"
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_identify_orbits_noisy_all_extrema() -> None:
     np.random.seed(42)  # noqa: NPY002

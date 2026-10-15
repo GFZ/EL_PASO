@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_monthly_omni_flux_rb_strategy_saves_omnidirectional_flux(tmp_path: Path) -> None:
     args = (tmp_path, "Arase", "arase", "xep", "T89")

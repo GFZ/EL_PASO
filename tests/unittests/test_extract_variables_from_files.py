@@ -11,6 +11,7 @@ import pytest
 from el_paso.extract_variables_from_files import _construct_file_list
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_construct_file_list_with_weekly_callable_cadence(tmp_path: Path) -> None:
     """A weekly callable file_cadence should walk forward via curr_time + 7 days."""
@@ -50,6 +51,7 @@ def test_construct_file_list_with_weekly_callable_cadence(tmp_path: Path) -> Non
     assert last_end == end_time - timedelta(seconds=1)
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_construct_file_list_with_two_digit_year_placeholder(tmp_path: Path) -> None:
     """The YY (2-digit year) placeholder should work end-to-end for the real ns41 naming convention."""
@@ -77,6 +79,7 @@ def test_construct_file_list_with_two_digit_year_placeholder(tmp_path: Path) -> 
     assert len(time_intervals) == len(expected_dates)
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_construct_file_list_with_irregular_gapped_cadence(tmp_path: Path) -> None:
     """A lookup-table-driven callable should skip over a gap and produce one spanning interval."""
@@ -116,6 +119,7 @@ def test_construct_file_list_with_irregular_gapped_cadence(tmp_path: Path) -> No
     assert gap_end == datetime(2023, 1, 29, tzinfo=timezone.utc) - timedelta(seconds=1)
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_construct_file_list_with_callable_cadence_skips_missing_file(
     tmp_path: Path, caplog: pytest.LogCaptureFixture

@@ -87,6 +87,7 @@ def _isolate_default_logs_dir(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
     monkeypatch.chdir(tmp_path)
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 @pytest.mark.parametrize(
     ("text", "expected"),
@@ -104,12 +105,14 @@ def test_parse_cadence(text: str, expected: timedelta) -> None:
     assert parse_cadence(text) == expected
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_parse_cadence_passes_timedelta_through() -> None:
     # Typer re-runs the parser on its own default values, which are already timedeltas.
     assert parse_cadence(timedelta(minutes=5)) == timedelta(minutes=5)
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 @pytest.mark.parametrize("text", ["", "min", "5 fortnights", "abc", "5m30s"])
 def test_parse_cadence_rejects_malformed(text: str) -> None:
@@ -117,6 +120,7 @@ def test_parse_cadence_rejects_malformed(text: str) -> None:
         parse_cadence(text)
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 @pytest.mark.parametrize(
     ("value", "expected"),
@@ -133,6 +137,7 @@ def test_format_cadence_round_trips(value: timedelta, expected: str) -> None:
     assert parse_cadence(format_cadence(value)) == value
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 @pytest.mark.parametrize(
     ("text", "expected"),
@@ -146,11 +151,13 @@ def test_parse_datetime(text: str, expected: datetime) -> None:
     assert parse_datetime(text) == expected
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_parse_datetime_enforces_utc() -> None:
     assert parse_datetime(datetime(2013, 3, 16)).tzinfo == timezone.utc  # noqa: DTZ001
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_parse_docstring() -> None:
     docstring = """Do the thing.
@@ -177,6 +184,7 @@ def test_parse_docstring() -> None:
     assert "ValueError" not in args
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_parse_docstring_handles_missing_docstring() -> None:
     assert parse_docstring(None) == ("", {})
@@ -223,6 +231,7 @@ def stub_app() -> typer.Typer:
     return app
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_stub_defaults(stub_app: typer.Typer) -> None:
     result = runner.invoke(stub_app, ["--start-time", "2013-03-16", "--end-time", "2013-03-17"])
@@ -235,6 +244,7 @@ def test_stub_defaults(stub_app: typer.Typer) -> None:
     assert calls[0]["calculate_lstar"] is True
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_stub_round_trips_every_supported_type(stub_app: typer.Typer) -> None:
     result = runner.invoke(
@@ -277,6 +287,7 @@ def test_stub_round_trips_every_supported_type(stub_app: typer.Typer) -> None:
     assert call["strategy"] is None
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_stub_options_are_kebab_case_only(stub_app: typer.Typer) -> None:
     """Options are spelled --bin-cadence; the snake_case spelling is not accepted."""
@@ -289,6 +300,7 @@ def test_stub_options_are_kebab_case_only(stub_app: typer.Typer) -> None:
     assert not calls
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_stub_loops_over_repeated_satellite(stub_app: typer.Typer) -> None:
     result = runner.invoke(
@@ -300,6 +312,7 @@ def test_stub_loops_over_repeated_satellite(stub_app: typer.Typer) -> None:
     assert [call["satellite"] for call in calls] == ["a", "b"]
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_stub_rejects_invalid_choice(stub_app: typer.Typer) -> None:
     result = runner.invoke(stub_app, ["--start-time", "2020-01-02", "--end-time", "2020-01-03", "--mag-field", "T99"])
@@ -308,6 +321,7 @@ def test_stub_rejects_invalid_choice(stub_app: typer.Typer) -> None:
     assert not calls
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_stub_rejects_malformed_cadence(stub_app: typer.Typer) -> None:
     result = runner.invoke(
@@ -319,6 +333,7 @@ def test_stub_rejects_malformed_cadence(stub_app: typer.Typer) -> None:
     assert not calls
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_dry_run_does_not_call_the_recipe(stub_app: typer.Typer, caplog: pytest.LogCaptureFixture) -> None:
     result = runner.invoke(stub_app, ["--dry-run", "--start-time", "2020-01-02", "--end-time", "2020-01-03"])
@@ -328,6 +343,7 @@ def test_dry_run_does_not_call_the_recipe(stub_app: typer.Typer, caplog: pytest.
     assert "stub_recipe" in caplog.text
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_a_real_run_reports_the_settings_it_uses(stub_app: typer.Typer, caplog: pytest.LogCaptureFixture) -> None:
     """A run must not be a black box: it announces the resolved settings first."""
@@ -346,6 +362,7 @@ def test_a_real_run_reports_the_settings_it_uses(stub_app: typer.Typer, caplog: 
     assert "datetime.datetime(" not in caplog.text
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_dry_run_says_it_would_run(stub_app: typer.Typer, caplog: pytest.LogCaptureFixture) -> None:
     result = runner.invoke(
@@ -359,6 +376,7 @@ def test_dry_run_says_it_would_run(stub_app: typer.Typer, caplog: pytest.LogCapt
     assert "Would run stub_recipe" in caplog.text
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_run_report_numbers_each_looped_call(stub_app: typer.Typer, caplog: pytest.LogCaptureFixture) -> None:
     result = runner.invoke(
@@ -383,6 +401,7 @@ def failing_recipe(start_time: datetime, end_time: datetime) -> None:
     raise RuntimeError(msg)
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_failed_recipe_keeps_the_cache(monkeypatch: pytest.MonkeyPatch) -> None:
     """A failing recipe exits via typer.Exit, which bypasses sys.excepthook; the cache must still be kept."""
@@ -398,6 +417,7 @@ def test_failed_recipe_keeps_the_cache(monkeypatch: pytest.MonkeyPatch) -> None:
     assert el_paso.cache._exit_with_exception is True
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_run_report_hides_credentials(stub_app: typer.Typer, caplog: pytest.LogCaptureFixture) -> None:
     """Credentials must never be echoed to the console or into a job log."""
@@ -412,6 +432,7 @@ def test_run_report_hides_credentials(stub_app: typer.Typer, caplog: pytest.LogC
     assert "s3cr3t-value" in caplog.text
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 @pytest.mark.parametrize("name", ["client_secret", "erg_password", "api_token", "my_credential"])
 def test_secret_looking_parameters_are_masked(name: str) -> None:
@@ -421,6 +442,7 @@ def test_secret_looking_parameters_are_masked(name: str) -> None:
     assert _format_value(name, None) == "-"
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_quiet_suppresses_the_run_report(stub_app: typer.Typer, caplog: pytest.LogCaptureFixture) -> None:
     result = runner.invoke(
@@ -434,6 +456,7 @@ def test_quiet_suppresses_the_run_report(stub_app: typer.Typer, caplog: pytest.L
     assert "Running" not in caplog.text
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_help_uses_docstring_text(stub_app: typer.Typer) -> None:
     result = runner.invoke(stub_app, ["--help"], env={"COLUMNS": "200"})
@@ -445,6 +468,7 @@ def test_help_uses_docstring_text(stub_app: typer.Typer) -> None:
     assert "Args:" not in result.output
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_required_parameter_without_default_is_rejected() -> None:
     def bad_recipe(strategy: object) -> None:
@@ -458,6 +482,7 @@ def test_required_parameter_without_default_is_rejected() -> None:
         build_recipe_command(bad_recipe)
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 @pytest.mark.parametrize("entry", RECIPES, ids=lambda e: f"{e.mission}-{e.command}")
 def test_every_recipe_builds_and_binds(entry: RecipeEntry, caplog: pytest.LogCaptureFixture) -> None:
@@ -488,6 +513,7 @@ def test_every_recipe_builds_and_binds(entry: RecipeEntry, caplog: pytest.LogCap
     assert func.__name__ in caplog.text
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 @pytest.mark.parametrize("entry", RECIPES, ids=lambda e: f"{e.mission}-{e.command}")
 def test_every_recipe_has_the_shared_option_surface(entry: RecipeEntry) -> None:
@@ -519,6 +545,7 @@ def test_every_recipe_has_the_shared_option_surface(entry: RecipeEntry) -> None:
         )
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 @pytest.mark.parametrize("entry", RECIPES, ids=lambda e: f"{e.mission}-{e.command}")
 def test_spacecraft_parameter_is_always_named_satellite(entry: RecipeEntry) -> None:
@@ -530,6 +557,7 @@ def test_spacecraft_parameter_is_always_named_satellite(entry: RecipeEntry) -> N
         assert banned not in parameters, f"{func.__name__} should name this parameter 'satellite', not {banned!r}"
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 @pytest.mark.parametrize("entry", RECIPES, ids=lambda e: f"{e.mission}-{e.command}")
 def test_num_cores_default_is_shared_by_every_recipe(entry: RecipeEntry) -> None:
@@ -547,6 +575,7 @@ def test_num_cores_default_is_shared_by_every_recipe(entry: RecipeEntry) -> None
     )
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_the_time_range_is_mandatory_for_every_recipe() -> None:
     """start_time and end_time must be required options, never defaulted."""
@@ -561,6 +590,7 @@ def test_the_time_range_is_mandatory_for_every_recipe() -> None:
             )
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 @pytest.mark.parametrize("entry", RECIPES, ids=lambda e: f"{e.mission}-{e.command}")
 def test_every_recipe_is_exported_from_its_mission_package(entry: RecipeEntry) -> None:
@@ -575,6 +605,7 @@ def test_every_recipe_is_exported_from_its_mission_package(entry: RecipeEntry) -
     )
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_registry_matches_the_recipe_modules_on_disk() -> None:
     """The el-paso registry must cover every recipe module in the package."""
@@ -584,6 +615,7 @@ def test_registry_matches_the_recipe_modules_on_disk() -> None:
     assert {entry.module for entry in RECIPES} == on_disk
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_cli_list() -> None:
     result = invoke_app(["list"], env={"COLUMNS": "200"})
@@ -592,6 +624,7 @@ def test_cli_list() -> None:
     assert "el-paso poes meped" in result.output
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_cli_dispatches_to_a_recipe(caplog: pytest.LogCaptureFixture) -> None:
     result = invoke_app(

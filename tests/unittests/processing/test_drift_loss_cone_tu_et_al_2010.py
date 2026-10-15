@@ -18,12 +18,10 @@ import os
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
+import el_paso as ep
 import numpy as np
 import pytest
 from astropy import units as u
-from matplotlib import pyplot as plt
-
-import el_paso as ep
 from el_paso.processing.magnetic_field_utils import (
     Coords,
     IrbemInput,
@@ -34,6 +32,7 @@ from el_paso.processing.magnetic_field_utils import (
     get_drift_loss_cone,
 )
 from el_paso.processing.magnetic_field_utils.irbem import MagFields
+from matplotlib import pyplot as plt
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray

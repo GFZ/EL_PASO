@@ -14,6 +14,7 @@ from astropy import units as u
 mag_field_list = ["Dip", "OP77", "T89", "T01s", "TS04"]
 
 
+@pytest.mark.minimal
 @pytest.mark.parametrize("mag_field", mag_field_list)
 @pytest.mark.basic
 def test_magnetic_field(mag_field: Literal["T89", "OP77", "TS04", "T01s"]):
@@ -63,6 +64,7 @@ def test_magnetic_field(mag_field: Literal["T89", "OP77", "TS04", "T01s"]):
     assert max_value == true_data[mag_field][2]
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_mlt_mlt_eq_equal():
 
@@ -113,6 +115,7 @@ LOSS_CONE_REQUEST: ep.processing.VariableRequest = [
 ]
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_drift_loss_cone_equals_bounce_loss_cone_in_centred_dipole():
     # With no South Atlantic Anomaly, every longitude on a drift shell has the same foot point field, so nothing
@@ -133,6 +136,7 @@ def test_drift_loss_cone_equals_bounce_loss_cone_in_centred_dipole():
     )
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_drift_loss_cone_in_igrf():
     # Two points under the South Atlantic Anomaly and two well away from it.
@@ -166,6 +170,7 @@ def test_drift_loss_cone_in_igrf():
     assert (dlc_eq[2:] - lc_eq[2:] > 0.2).all()
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_lm_keeps_magnitude_of_flagged_values():
     # IRBEM negates Lm when the mirror point is in the loss cone, but the magnitude still names the drift shell,
@@ -201,6 +206,7 @@ def test_lm_keeps_magnitude_of_flagged_values():
     np.testing.assert_allclose(out["L_m_Dip"].get_data()[:, 0], np.abs(raw_lm))
 
 
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_loss_cone_uses_weaker_foot_point():
     # A particle is lost if it mirrors below 100 km in either hemisphere, so Alpha_LC is set by the weaker of the two
