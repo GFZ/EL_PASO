@@ -8,7 +8,7 @@ from astropy import units as u
 
 import el_paso as ep
 from el_paso.data_standard import ConsistencyCheck, DataStandard, VariableInfo
-from el_paso.typing import PRBEMName
+from el_paso.typing import InternalName, PRBEMName
 
 logger = logging.getLogger("__name__")
 
@@ -27,7 +27,7 @@ class PRBEMStandard(DataStandard[PRBEMName]):
         """Initializes the PRBEMStandard with a ConsistencyCheck object."""
         self.consistency_check = ConsistencyCheck()
 
-        self.variable_infos: dict[str, VariableInfo[PRBEMName]] = {
+        self.variable_infos: dict[InternalName, VariableInfo[PRBEMName]] = {
             "Epoch": VariableInfo[PRBEMName]("Epoch", "Posix Time", ep.units.posixtime, dependencies=["Epoch"]),
             "FEDU": VariableInfo[PRBEMName](
                 "FEDU",

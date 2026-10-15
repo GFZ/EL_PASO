@@ -15,4 +15,3 @@ uvx --from huggingface_hub hf download "${REPO_ID}" \
     --repo-type dataset --revision "${REVISION}" \
     --include "data/*" --local-dir "${OUTPUT_DIR}"
 echo "Done!"
-
