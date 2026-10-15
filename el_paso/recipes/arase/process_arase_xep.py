@@ -21,6 +21,7 @@ from el_paso.recipes.arase import (
     get_arase_orbit_level_2_variables,
     get_arase_orbit_level_3_variables,
 )
+from el_paso.recipes.arase.get_arase_orbit_variables import interpolate_level_3_to_pitch_angles
 
 
 def arase_xep_strategy(
@@ -220,6 +221,10 @@ def process_arase_xep(
         )
         xep_variables["Alpha_eq"] = ep.Variable(data=pa_eq, original_unit=u.radian)
 
+        pa_local_deg = xep_variables["AlphaLocal"].get_data(u.deg)
+        orb_variables["Lm"] = interpolate_level_3_to_pitch_angles(orb_variables["Lm"], pa_local_deg)
+        orb_variables["Lstar"] = interpolate_level_3_to_pitch_angles(orb_variables["Lstar"], pa_local_deg)
+
     else:
         time_bin_methods = {
             "pos_sm": ep.TimeBinMethod.NanMean,
@@ -320,10 +325,9 @@ def process_arase_xep(
         "L_star": orb_variables["Lstar"],
         "PSD": psd_var,
     }
-    # FIXME @DoctorRabbit55: L3 is not working in current setup  # noqa: FIX001, TD001, TD003
+    # Level 3 orbit data does not provide the adiabatic invariants
     if not use_level_3_orbit_data:
         variables_to_save |= {
-            "L_star": orb_variables["Lstar"],
             "InvK": orb_variables["InvK"],
             "InvMu": orb_variables["InvMu"],
         }

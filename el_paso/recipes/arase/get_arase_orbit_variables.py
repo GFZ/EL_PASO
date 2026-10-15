@@ -8,15 +8,24 @@
 from __future__ import annotations
 
 import typing
+from copy import deepcopy
 from pathlib import Path
 from typing import Literal
 
+import numpy as np
 from astropy import units as u
 
 import el_paso as ep
 
 if typing.TYPE_CHECKING:
     from datetime import datetime
+
+    from numpy.typing import NDArray
+
+ARASE_ORBIT_L3_PITCH_ANGLES = np.arange(90.0, 0.0, -10.0)
+"""Local pitch angles (deg) of the columns of the Level 3 "Lm" and "Lstar" variables, in file order."""
+
+_ARASE_ORBIT_L3_FILL_THRESHOLD = -1e30
 
 
 def get_arase_orbit_level_2_variables(
@@ -96,8 +105,12 @@ def get_arase_orbit_level_3_variables(
 
     Downloads the daily Arase ``orb/l3`` Level 3 CDF files corresponding to the given `mag_field`
     model, extracts the epoch, local and equatorial magnetic field magnitude, Lm, Lstar and
-    equatorial position variables, truncates all variables to the requested time range, and
-    derives "MLT" and "R0" variables from the equatorial position.
+    equatorial position variables, truncates all variables to the requested time range, replaces
+    fill values (-1e31) with NaN, and derives "MLT" and "R0" variables from the equatorial position.
+
+    "Lm" and "Lstar" are given for the local pitch angles in `ARASE_ORBIT_L3_PITCH_ANGLES`
+    (90 to 10 deg in 10 deg steps), one column each. Use
+    `interpolate_level_3_to_pitch_angles` to map them onto an instrument's pitch-angle grid.
 
     Args:
         start_time (datetime): Start of the time range to retrieve data for.
@@ -207,6 +220,12 @@ def get_arase_orbit_level_3_variables(
         variables[key].truncate(variables["Epoch"], start_time, end_time)
     variables["Epoch"].truncate(variables["Epoch"], start_time, end_time)
 
+    for key, variable in variables.items():
+        if key == "Epoch":
+            continue
+        variable.set_data(variable.get_data().astype(np.float64), unit="same")
+        variable.apply_thresholds_on_data(lower_threshold=_ARASE_ORBIT_L3_FILL_THRESHOLD)
+
     mlt_data = variables["pos_eq"].get_data()[:, 1]
     R_data = variables["pos_eq"].get_data()[:, 0]
 
@@ -216,3 +235,38 @@ def get_arase_orbit_level_3_variables(
     del variables["pos_eq"]
 
     return variables
+
+
+def interpolate_level_3_to_pitch_angles(
+    variable: ep.Variable, pa_local: NDArray[np.floating | np.integer]
+) -> ep.Variable:
+    """Interpolate a pitch-angle-dependent Arase Level 3 orbit variable onto other local pitch angles.
+
+    The Level 3 "Lm" and "Lstar" variables have one column per pitch angle in
+    `ARASE_ORBIT_L3_PITCH_ANGLES`. This linearly interpolates them along that axis, which is an
+    exact column selection for pitch angles on the 10 deg grid. Pitch angles below 10 deg take
+    the 10 deg value.
+
+    Args:
+        variable (ep.Variable): Level 3 variable of shape (time, 9).
+        pa_local (NDArray[np.floating | np.integer]): Target local pitch angles in degrees, of shape (pitch_angle,)
+                                        or (time, pitch_angle).
+
+    Returns:
+        ep.Variable: Copy of `variable` with data of shape (time, pitch_angle).
+    """
+    grid = ARASE_ORBIT_L3_PITCH_ANGLES[::-1]
+    data = variable.get_data()[:, ::-1]
+
+    idx = np.clip(np.searchsorted(grid, pa_local) - 1, 0, len(grid) - 2)
+    weight = np.clip((pa_local - grid[idx]) / (grid[idx + 1] - grid[idx]), 0.0, 1.0)
+
+    idx = np.broadcast_to(idx, (data.shape[0], *idx.shape[-1:]))
+    weight = np.broadcast_to(weight, idx.shape)
+
+    lower = np.take_along_axis(data, idx, axis=1)
+    upper = np.take_along_axis(data, idx + 1, axis=1)
+
+    result = deepcopy(variable)
+    result.set_data(lower * (1 - weight) + upper * weight, unit="same")
+    return result

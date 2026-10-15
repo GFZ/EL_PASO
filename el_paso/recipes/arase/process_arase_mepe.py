@@ -20,6 +20,7 @@ from el_paso.recipes.arase import (
     get_arase_orbit_level_2_variables,
     get_arase_orbit_level_3_variables,
 )
+from el_paso.recipes.arase.get_arase_orbit_variables import interpolate_level_3_to_pitch_angles
 
 
 def arase_mepe_gfz_strategy(
@@ -236,6 +237,10 @@ def process_arase_mepe(
             * np.sqrt(orb_variables["B_eq"].get_data(u.nT) / orb_variables["B_local"].get_data(u.nT))[:, np.newaxis]
         )
         mepe_variables["Pa_eq"] = ep.Variable(data=pa_eq, original_unit=u.radian)
+
+        orb_variables["Lm"] = interpolate_level_3_to_pitch_angles(
+            orb_variables["Lm"], mepe_variables["Pitch_angle"].get_data(u.deg)
+        )
 
     else:
         time_bin_methods = {
