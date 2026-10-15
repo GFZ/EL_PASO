@@ -39,6 +39,8 @@ Full documentation can be viewed [here](https://el-paso.readthedocs.io/en/latest
     - PWE density
 - **DMSP**
     - SSJ (electrons)
+- **GOES (13 and 15)**
+    - EPS MAGED and EPEAD combined
 - **GOES-R**
     - MPS-High real-time
     - MPS-High

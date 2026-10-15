@@ -1,11 +1,10 @@
-# SPDX-FileCopyrightText: 2025 GFZ Helmholtz Centre for Geosciences
+# SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
 #
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
@@ -14,6 +13,7 @@ from astropy import units as u
 from numpy.typing import NDArray
 
 import el_paso as ep
+from el_paso.recipes.goes import GOESNOPSatellite
 
 if TYPE_CHECKING:
     from el_paso.typing import InternalName
@@ -21,7 +21,34 @@ if TYPE_CHECKING:
 logging.captureWarnings(capture=True)
 logger = logging.getLogger(__name__)
 
-LONG_FROM_SAT = {
+
+def goes_eps_maged_and_epead_gfz_strategy(
+    base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral, satellite: GOESNOPSatellite
+) -> ep.SavingStrategy:
+    """Legacy GFZ .mat saving strategy for combined GOES-13/15 EPS MAGED and EPEAD."""
+    return ep.saving_strategies.GFZStrategy(Path(base_data_path), "GOES", satellite, "MAGEDandEPEAD", mag_field)
+
+
+def goes_eps_maged_and_epead_netcdf_strategy(
+    base_data_path: str | Path,
+    mag_field: ep.typing.MagneticFieldLiteral,
+    satellite: GOESNOPSatellite,
+    *,
+    file_format: ep.typing.MFSFormats = "nc",
+) -> ep.SavingStrategy:
+    """Monthly NetCDF saving strategy for combined GOES-13/15 EPS MAGED and EPEAD."""
+    return ep.saving_strategies.MonthlyRBStrategy(
+        Path(base_data_path),
+        "GOES",
+        satellite,
+        "MAGED_EPEAD",
+        mag_field,
+        data_standard=ep.data_standards.GFZStandard(),
+        file_format=file_format,
+    )
+
+
+LONG_FROM_SAT: dict[GOESNOPSatellite, float] = {
     "goes13": 74.5,
     "goes15": 135.1,
 }
@@ -32,19 +59,98 @@ EPEAD_E2_THRESHOLD_MEV = 2.0
 
 
 def process_goes_eps_maged_and_epead(
-    sat_str: Literal["goes13", "goes15"],
-    processed_data_path: str | Path,
-    raw_data_path: str | Path,
     start_time: datetime,
     end_time: datetime,
-    num_cores: int = 32,
+    satellite: GOESNOPSatellite = "goes13",
+    mag_field: ep.typing.MagneticFieldLiteral = "T89",
+    raw_data_path: str | Path = ".",
+    processed_data_path: str | Path = ".",
+    bin_cadence: timedelta = timedelta(minutes=5),
+    num_cores: int = 16,
+    save_strategy: Literal["gfz", "netcdf", "both"] = "netcdf",
+    skip_existing: bool = True,  # noqa: FBT001, FBT002,
 ) -> None:
+    """Process combined GOES-13/15 EPS MAGED and EPEAD electron data into phase space densities.
 
-    data_path_stem = f"{raw_data_path}/YYYY/MM/{sat_str}/"
+    Downloads and extracts the 5-minute EPS MAGED differential electron fluxes, the 1-minute
+    EPEAD integral electron fluxes (>0.8 MeV and >2 MeV, east and west telescopes) and the
+    1-minute EPS telescope pitch angles from CDAWeb for the given GOES-13/15 satellite. Points
+    with a non-zero quality flag are removed and all data are binned onto a common time cadence.
+    The local pitch angles are folded around 90 degrees and the MAGED fluxes sorted by ascending
+    pitch angle. The EPEAD integral channels are converted to differential fluxes on a fixed
+    energy grid (0.8 to 10 MeV) by fitting an exponential spectrum, and the pitch angle
+    distribution of the highest MAGED channel is applied to them. A fixed geostationary
+    spacecraft position is assigned, magnetic field quantities (B_Calc,
+    B_Eq, MLT, R_Eq, Alpha_Eq, L_star, L_m, InvMu, InvK) are computed, and the electron phase
+    space density is derived. The resulting variables are saved using the requested saving
+    strategy.
 
-    maged_vars = _get_and_prepare_eps_maged_variables(sat_str, data_path_stem, start_time, end_time)
-    epead_vars = _get_and_prepare_epead_variables(sat_str, data_path_stem, start_time, end_time)
-    pa_vars = _get_and_prepare_eps_pitch_angles_variables(sat_str, data_path_stem, start_time, end_time)
+    Args:
+        start_time (datetime): Start of the time interval to process.
+        end_time (datetime): End of the time interval to process.
+        satellite (Literal["goes13", "goes15"]): The GOES satellite to process.
+        mag_field (MagneticFieldLiteral): Magnetic field model used for the derived quantities.
+        raw_data_path (str | Path): Directory where the raw downloaded data files are stored.
+        processed_data_path (str | Path): Directory where the processed output files are saved.
+        bin_cadence (timedelta): Time cadence used to bin the extracted variables.
+        num_cores (int): Number of CPU cores used for the magnetic field computations.
+        save_strategy (Literal["gfz", "netcdf", "both"]): Strategy used to save the processed
+            data. "gfz" saves using the GFZ format, "netcdf" saves monthly NetCDF files, and
+            "both" saves using both strategies.
+        skip_existing (bool): If True, skip downloading files that already exist on disk.
+    """
+    data_path_stem = f"{raw_data_path}/YYYY/MM/{satellite}/"
+
+    maged_url = f"https://spdf.gsfc.nasa.gov/pub/data/goes/{satellite}/eps-maged/19me15_5min/YYYY/"
+    maged_file_name_stem = f"{satellite}_eps-maged_5min_YYYYMMDD_.{r'{3}'}.cdf"
+
+    ep.download(
+        start_time,
+        end_time,
+        save_path=data_path_stem,
+        file_cadence="monthly",
+        download_url=maged_url,
+        file_name_stem=maged_file_name_stem,
+        skip_existing=skip_existing,
+    )
+
+    epead_url = f"https://spdf.gsfc.nasa.gov/pub/data/goes/{satellite}/epead-electrons/e13ew_1min/YYYY/"
+    epead_file_name_stem = f"{satellite}_epead-science-electrons-e13ew_1min_YYYYMMDD_.{r'{3}'}.cdf"
+
+    ep.download(
+        start_time,
+        end_time,
+        save_path=data_path_stem,
+        file_cadence="monthly",
+        download_url=epead_url,
+        file_name_stem=epead_file_name_stem,
+        skip_existing=skip_existing,
+    )
+
+    pa_url = f"https://spdf.gsfc.nasa.gov/pub/data/goes/{satellite}/eps-pitch-angles_1min/YYYY/"
+    pa_file_name_stem = f"{satellite}_eps-pitch-angles_1min_YYYYMMDD_.{r'{3}'}.cdf"
+
+    ep.download(
+        start_time,
+        end_time,
+        save_path=data_path_stem,
+        file_cadence="monthly",
+        download_url=pa_url,
+        file_name_stem=pa_file_name_stem,
+        skip_existing=skip_existing,
+    )
+
+    ep.exit_if_download_only()
+
+    maged_vars = _get_and_prepare_eps_maged_variables(
+        maged_file_name_stem, data_path_stem, start_time, end_time, satellite, bin_cadence
+    )
+    epead_vars = _get_and_prepare_epead_variables(
+        epead_file_name_stem, data_path_stem, start_time, end_time, bin_cadence
+    )
+    pa_vars = _get_and_prepare_eps_pitch_angles_variables(
+        pa_file_name_stem, data_path_stem, start_time, end_time, bin_cadence
+    )
 
     # sort pitch angles in ascending order and apply to fluxes
     local_pa = pa_vars["AlphaLocal"].get_data(u.degree)
@@ -71,7 +177,8 @@ def process_goes_eps_maged_and_epead(
 
     combined_flux = np.concatenate((maged_flux, epead_flux), axis=1)
     combined_energies = np.concatenate(
-        (maged_vars["Energy"].get_data(u.keV), epead_vars["Energy_FEDU"].get_data(u.keV)), axis=1,
+        (maged_vars["Energy"].get_data(u.keV), epead_vars["Energy_FEDU"].get_data(u.keV)),
+        axis=1,
     )
 
     maged_vars["FEDU"].set_data(combined_flux, unit=(u.cm**2 * u.s * u.sr * u.keV) ** (-1))
@@ -79,15 +186,15 @@ def process_goes_eps_maged_and_epead(
 
     # Calculate magnetic field variables
     variables_to_compute: ep.processing.VariableRequest = [
-        ("B_Calc", "T89"),
-        ("B_Eq", "T89"),
-        ("MLT", "T89"),
-        ("R_Eq", "T89"),
-        ("Alpha_Eq", "T89"),
-        ("L_star", "T89"),
-        ("L_m", "T89"),
-        ("InvMu", "T89"),
-        ("InvK", "T89"),
+        ("B_Calc", mag_field),
+        ("B_Eq", mag_field),
+        ("MLT", mag_field),
+        ("R_Eq", mag_field),
+        ("Alpha_Eq", mag_field),
+        ("L_star", mag_field),
+        ("L_m", mag_field),
+        ("InvMu", mag_field),
+        ("InvK", mag_field),
     ]
 
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
@@ -112,48 +219,33 @@ def process_goes_eps_maged_and_epead(
         "Energy_FEDU": maged_vars["Energy"],
         "Alpha": pa_vars["AlphaLocal"],
         "PSD": psd_var,
-        "Alpha_Eq": magnetic_field_variables["Alpha_Eq_T89"],
-        "MLT": magnetic_field_variables["MLT_T89"],
-        "L_star": magnetic_field_variables["L_star_T89"],
-        "R_Eq": magnetic_field_variables["R_Eq_T89"],
-        "B_Eq": magnetic_field_variables["B_Eq_T89"],
-        "B_Calc": magnetic_field_variables["B_Calc_T89"],
-        "InvMu": magnetic_field_variables["InvMu_T89"],
-        "InvK": magnetic_field_variables["InvK_T89"],
+        "Alpha_Eq": magnetic_field_variables[f"Alpha_Eq_{mag_field}"],
+        "MLT": magnetic_field_variables[f"MLT_{mag_field}"],
+        "L_star": magnetic_field_variables[f"L_star_{mag_field}"],
+        "R_Eq": magnetic_field_variables[f"R_Eq_{mag_field}"],
+        "B_Eq": magnetic_field_variables[f"B_Eq_{mag_field}"],
+        "B_Calc": magnetic_field_variables[f"B_Calc_{mag_field}"],
+        "InvMu": magnetic_field_variables[f"InvMu_{mag_field}"],
+        "InvK": magnetic_field_variables[f"InvK_{mag_field}"],
     }
 
-    saving_strategy = ep.saving_strategies.MonthlyRBStrategy(
-        Path(processed_data_path),
-        mission="GOES",
-        satellite=sat_str,
-        instrument="MAGED_EPEAD",
-        mag_field="T89",
-        file_format="nc",
-        data_standard=ep.data_standards.GFZStandard(),
-    )
+    if save_strategy in ("gfz", "both"):
+        saving_strategy = goes_eps_maged_and_epead_gfz_strategy(processed_data_path, mag_field, satellite)
+        ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=maged_vars["Epoch"], append=True)
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=maged_vars["Epoch"], append=True)
+    if save_strategy in ("netcdf", "both"):
+        saving_strategy = goes_eps_maged_and_epead_netcdf_strategy(processed_data_path, mag_field, satellite)
+        ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=maged_vars["Epoch"], append=True)
 
 
 def _get_and_prepare_eps_maged_variables(
-    sat_str: Literal["goes13", "goes15"],
+    file_name_stem: str,
     data_path_stem: str | Path,
     start_time: datetime,
     end_time: datetime,
+    satellite: GOESNOPSatellite,
+    bin_cadence: timedelta,
 ) -> dict[str, ep.Variable]:
-    url = f"https://spdf.gsfc.nasa.gov/pub/data/goes/{sat_str}/eps-maged/19me15_5min/YYYY/"
-
-    file_name_stem = f"{sat_str}_eps-maged_5min_YYYYMMDD_.{r'{3}'}.cdf"
-
-    ep.download(
-        start_time,
-        end_time,
-        save_path=data_path_stem,
-        file_cadence="monthly",
-        download_url=url,
-        file_name_stem=file_name_stem,
-    )
-
     extraction_infos_maged = [
         ep.ExtractionInfo(name_or_column="Epoch", unit=ep.units.tt2000, result_key="Epoch"),
         ep.ExtractionInfo(
@@ -175,7 +267,7 @@ def _get_and_prepare_eps_maged_variables(
     maged_vars["FEDU"] = _remove_bad_points(maged_vars["FEDU"], maged_vars["qual_flag"], "MAGED FEDU")
 
     # calculate xGEO
-    xgeo_data = _geo_cartesian_from_west_lon_incl(LONG_FROM_SAT[sat_str], 0)
+    xgeo_data = _geo_cartesian_from_west_lon_incl(LONG_FROM_SAT[satellite], 0)
     maged_vars["xGEO"] = ep.Variable(data=xgeo_data, original_unit=u.km)
 
     time_bin_methods_maged = {
@@ -191,7 +283,7 @@ def _get_and_prepare_eps_maged_variables(
         time_variable=maged_vars["Epoch"],
         variables=maged_vars,
         time_bin_method_dict=time_bin_methods_maged,
-        time_binning_cadence=timedelta(minutes=5),
+        time_binning_cadence=bin_cadence,
         start_time=start_time,
         end_time=end_time,
     )
@@ -200,27 +292,13 @@ def _get_and_prepare_eps_maged_variables(
 
 
 def _get_and_prepare_epead_variables(
-    sat_str: Literal["goes13", "goes15"],
+    file_name_stem: str,
     data_path_stem: str | Path,
     start_time: datetime,
     end_time: datetime,
+    bin_cadence: timedelta,
 ) -> dict[str, ep.Variable]:
-    url = f"https://spdf.gsfc.nasa.gov/pub/data/goes/{sat_str}/epead-electrons/e13ew_1min/YYYY/"
-
-    ep.setup_logging()
-
-    file_name_stem = f"{sat_str}_epead-science-electrons-e13ew_1min_YYYYMMDD_.{r'{3}'}.cdf"
-
-    ep.download(
-        start_time,
-        end_time,
-        save_path=data_path_stem,
-        file_cadence="monthly",
-        download_url=url,
-        file_name_stem=file_name_stem,
-    )
-
-    extraction_infos_maged = [
+    extraction_infos_epead = [
         ep.ExtractionInfo(name_or_column="Epoch", unit=ep.units.tt2000, result_key="Epoch"),
         ep.ExtractionInfo(
             name_or_column="E1W_COR_FLUX", unit=(u.cm**2 * u.s * u.sr) ** (-1), result_key="FEIU_0_8_west"
@@ -246,10 +324,10 @@ def _get_and_prepare_epead_variables(
         file_cadence="monthly",
         data_path=data_path_stem,
         file_name_stem=file_name_stem,
-        extraction_infos=extraction_infos_maged,
+        extraction_infos=extraction_infos_epead,
     )
 
-    # apply maged quality flags
+    # apply epead quality flags
     epead_vars["FEIU_0_8_west"] = _remove_bad_points(
         epead_vars["FEIU_0_8_west"], epead_vars["qual_flag_0_8_west"], "EPEAD E1W"
     )
@@ -296,7 +374,7 @@ def _get_and_prepare_epead_variables(
         time_variable=epead_vars["Epoch"],
         variables=epead_vars,
         time_bin_method_dict=time_bin_methods_epead,
-        time_binning_cadence=timedelta(minutes=5),
+        time_binning_cadence=bin_cadence,
         start_time=start_time,
         end_time=end_time,
     )
@@ -320,24 +398,12 @@ def _get_and_prepare_epead_variables(
 
 
 def _get_and_prepare_eps_pitch_angles_variables(
-    sat_str: Literal["goes13", "goes15"],
+    file_name_stem: str,
     data_path_stem: str | Path,
     start_time: datetime,
     end_time: datetime,
+    bin_cadence: timedelta,
 ) -> dict[str, ep.Variable]:
-    url = f"https://spdf.gsfc.nasa.gov/pub/data/goes/{sat_str}/eps-pitch-angles_1min/YYYY/"
-
-    file_name_stem = f"{sat_str}_eps-pitch-angles_1min_YYYYMMDD_.{r'{3}'}.cdf"
-
-    ep.download(
-        start_time,
-        end_time,
-        save_path=data_path_stem,
-        file_cadence="monthly",
-        download_url=url,
-        file_name_stem=file_name_stem,
-    )
-
     extraction_infos = [
         ep.ExtractionInfo(name_or_column="Epoch", unit=ep.units.tt2000, result_key="Epoch"),
         ep.ExtractionInfo(name_or_column="pitch_angles", unit=u.degree, result_key="AlphaLocal"),
@@ -365,7 +431,7 @@ def _get_and_prepare_eps_pitch_angles_variables(
         time_variable=pa_vars["Epoch"],
         variables=pa_vars,
         time_bin_method_dict=time_bin_methods_pa,
-        time_binning_cadence=timedelta(minutes=5),
+        time_binning_cadence=bin_cadence,
         start_time=start_time,
         end_time=end_time,
     )
@@ -387,7 +453,6 @@ def _geo_cartesian_from_west_lon_incl(
 
 
 def _remove_bad_points(flux_var: ep.Variable, qf_var: ep.Variable, channel_name: str) -> ep.Variable:
-
     qual_flag = qf_var.get_data()
     n_bad_points = np.sum(qual_flag != 0)
 
@@ -399,22 +464,10 @@ def _remove_bad_points(flux_var: ep.Variable, qf_var: ep.Variable, channel_name:
     return flux_var
 
 
+CLI_DEFAULTS = {
+    "raw_data_path": "goes/raw/",
+    "processed_data_path": "goes/processed/",
+}
+
 if __name__ == "__main__":
-
-    ep.setup_logging()
-
-    start_time = datetime(2017, 4, 20, tzinfo=timezone.utc)
-    end_time = datetime(2017, 4, 25, 23, 59, tzinfo=timezone.utc)
-
-    Satellite = Literal["goes13", "goes15"]
-    sats: list[Satellite] = ["goes13"]
-
-    for sat in sats:
-        process_goes_eps_maged_and_epead(
-            sat_str=sat,
-            raw_data_path="goes/raw/",
-            processed_data_path="goes/processed/",
-            start_time=start_time,
-            end_time=end_time,
-            num_cores=64,
-        )
+    ep.run_recipe_cli(process_goes_eps_maged_and_epead, defaults=CLI_DEFAULTS)

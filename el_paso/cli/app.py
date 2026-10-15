@@ -74,6 +74,12 @@ RECIPES: tuple[RecipeEntry, ...] = (
     ),
     RecipeEntry("esa", "gssc-emu-protons", "el_paso.recipes.esa.process_gssc_emu_protons", "process_gssc_emu_protons"),
     RecipeEntry("esa", "ngrm", "el_paso.recipes.esa.process_ngrm_satellite", "process_ngrm_electron_fluxes"),
+    RecipeEntry(
+        "goes",
+        "eps-maged-epead",
+        "el_paso.recipes.goes.process_goes_eps_maged_and_epead",
+        "process_goes_eps_maged_and_epead",
+    ),
     RecipeEntry("goes", "mps-high", "el_paso.recipes.goes.process_goes_r_mps_high", "process_goes_r_mps_high"),
     RecipeEntry("goes", "realtime", "el_paso.recipes.goes.process_goes_realtime", "process_goes_real_time"),
     RecipeEntry("gps", "cxd", "el_paso.recipes.gps.process_gps", "process_gps_data"),
