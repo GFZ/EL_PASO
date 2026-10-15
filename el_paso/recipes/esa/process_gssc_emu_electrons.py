@@ -3,9 +3,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from __future__ import annotations
-
-import csv
 import logging
 import os
 import typing
@@ -14,119 +11,48 @@ from pathlib import Path
 from typing import Literal
 
 import numpy as np
-import requests
 from astropy import units as u
 from astropy.coordinates import GCRS, ITRS, CartesianRepresentation
 
 import el_paso as ep
+from el_paso.recipes.esa import ESAGSSCSatellite
+from el_paso.recipes.esa._gssc_emu_omm import fill_invalid_positions_from_omm
 from el_paso.utils import timed_function
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_BIN_CADENCE = timedelta(minutes=1)
 
-_GSSC_EMU_SATELLITE_TO_ID: dict[str, str] = {
+_GSSC_EMU_SATELLITE_TO_ID: dict[ESAGSSCSatellite, str] = {
     "gsat0207": "galileo_gssc_emu_gsat0207_sd_l1",
     "gsat0215": "galileo_gssc_emu_gsat0215_sd_l1",
 }
 
-# NORAD catalog IDs, used to query Celestrak for orbital elements when ODI_Position is invalid
-# (see _download_gssc_emu_omm).
-_GSSC_EMU_SATELLITE_TO_NORAD_ID: dict[str, int] = {
-    "gsat0207": 41859,
-    "gsat0215": 43055,
-}
-
-_CELESTRAK_TIMEOUT_SECONDS = 30
-
 
 def gssc_emu_electron_strategy(
     base_data_path: str | Path,
-    satellite: str,
     mag_field: ep.typing.MagneticFieldLiteral,
+    satellite: ESAGSSCSatellite,
     *,
     file_format: ep.typing.MFSFormats = ".nc",
 ) -> ep.SavingStrategy:
     """Monthly RB saving strategy for GSSC EMU electrons."""
     return ep.saving_strategies.MonthlyRBStrategy(
-        base_data_path=Path(base_data_path),
-        mission="ESA",
-        satellite=satellite,
-        instrument="emu-electron",
-        mag_field=mag_field,
-        file_format=file_format,
+        Path(base_data_path),
+        "ESA",
+        satellite,
+        "emu-electron",
+        mag_field,
         data_standard=ep.data_standards.GFZStandard(),
+        file_format=file_format,
     )
-
-
-def _download_gssc_emu_omm(
-    satellite: Literal["gsat0207", "gsat0215"],
-    raw_data_path: str | Path,
-    skip_existing: bool = True,  # noqa: FBT001, FBT002
-) -> dict[str, str]:
-    """Download today's orbital elements (OMM) for a GSSC EMU satellite from Celestrak.
-
-    Used as a fallback for samples where `ODI_Position` (the CDF's own spacecraft position) is
-    zero-filled or NaN. Celestrak's `gp.php` endpoint only serves the *current* element set, not
-    a historical archive, so this caches one CSV per satellite per day under
-    `<raw_data_path>/OMM/<satellite>/<satellite>_omm_YYYYMMDD.csv` and reuses it for the rest of
-    the day instead of re-querying (Celestrak rate-limits/IP-blocks repeated requests).
-
-    Args:
-        satellite (Literal["gsat0207", "gsat0215"]): Which Galileo satellite's orbital elements
-            to download.
-        raw_data_path (str | Path): Base directory the OMM CSV is downloaded into.
-        skip_existing (bool, optional): If True, reuse today's already-downloaded OMM file
-            instead of re-querying Celestrak. Defaults to True.
-
-    Returns:
-        dict[str, str]: The OMM record as CCSDS OMM field name -> value, ready to pass to
-        `el_paso.processing.calculate_geo_coords_from_omm`.
-
-    Raises:
-        FileNotFoundError: If Celestrak has no current element set for the satellite.
-        ValueError: If the downloaded OMM CSV is empty.
-    """
-    norad_id = _GSSC_EMU_SATELLITE_TO_NORAD_ID[satellite]
-    time_now = datetime.now(timezone.utc)
-
-    sat_dir = Path(raw_data_path) / "OMM" / satellite
-    sat_dir.mkdir(parents=True, exist_ok=True)
-    omm_file_path = sat_dir / f"{satellite}_omm_{time_now:%Y%m%d}.csv"
-
-    if skip_existing and omm_file_path.exists():
-        logger.info(f"OMM file for {satellite} already downloaded today, reusing {omm_file_path}.")
-    else:
-        celestrak_url = f"https://celestrak.org/NORAD/elements/gp.php?CATNR={norad_id}&FORMAT=CSV"
-        response = requests.get(celestrak_url, stream=True, timeout=_CELESTRAK_TIMEOUT_SECONDS)
-
-        if response.status_code == requests.codes.not_found:
-            msg = f"No current OMM data found on Celestrak for {satellite} (NORAD {norad_id})."
-            raise FileNotFoundError(msg)
-
-        response.raise_for_status()
-
-        with omm_file_path.open("wb") as file:
-            for chunk in response.iter_content(chunk_size=8192):
-                file.write(chunk)
-
-        logger.info(f"Downloaded OMM data for {satellite} from Celestrak.")
-
-    with omm_file_path.open(newline="") as f:
-        rows = list(csv.DictReader(f))
-
-    if not rows:
-        msg = f"OMM file {omm_file_path} is empty!"
-        raise ValueError(msg)
-
-    return rows[0]
 
 
 @timed_function("process_gssc_emu_electrons")
 def process_gssc_emu_electrons(
     start_time: datetime,
     end_time: datetime,
-    satellite: Literal["gsat0207", "gsat0215"] = "gsat0207",
+    satellite: ESAGSSCSatellite = "gsat0207",
     mag_field: ep.typing.MagneticFieldLiteral = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
@@ -134,7 +60,7 @@ def process_gssc_emu_electrons(
     num_cores: int = 16,
     username: str | None = None,
     password: str | None = None,
-    save_strategy: ep.SavingStrategy | None = None,
+    save_strategy: Literal["netcdf"] = "netcdf",
     skip_existing: bool = True,  # noqa: FBT001, FBT002
     *,
     calculate_Lstar: bool = True,
@@ -145,17 +71,17 @@ def process_gssc_emu_electrons(
     the given satellite from the ESA GSSC FTP server, extracts the differential electron flux
     (FEDO) and spacecraft position (J2000, treated as ECI), converts the position to GEO. For
     samples where the CDF's own position (`ODI_Position`) is zero-filled or NaN, position is
-    instead reconstructed from Celestrak's current orbital elements for the satellite (see
-    `_download_gssc_emu_omm`). Magnetic field quantities (B_Calc, B_Eq, MLT, R_Eq, Alpha_Eq,
+    instead reconstructed from the satellite's OMM orbital elements, downloaded from Space-Track
+    (see `el_paso.download_omm`). Magnetic field quantities (B_Calc, B_Eq, MLT, R_Eq, Alpha_Eq,
     L_m, and optionally L_star) are computed using `mag_field` via the IRBEM library, the pitch angle distribution
     (FEDU) and phase space density (electron PSD) are derived from the omnidirectional flux, and
-    the resulting variables are saved to disk (appending to existing files) using either the
-    provided `save_strategy` or a default monthly strategy.
+    the resulting variables are saved to disk (appending to existing files) using the
+    `gssc_emu_electron_strategy`.
 
     Args:
         start_time (datetime): Start of the time range to process.
         end_time (datetime): End of the time range to process.
-        satellite (Literal["gsat0207", "gsat0215"]): Which Galileo satellite's EMU data to process.
+        satellite (ESAGSSCSatellite): Which Galileo satellite's EMU data to process.
         mag_field (MagneticFieldLiteral): Magnetic field model used for the derived quantities.
         raw_data_path (str | Path): Base directory used for downloading and locating the raw EMU
             CDF files.
@@ -169,9 +95,8 @@ def process_gssc_emu_electrons(
             `GSSC_USER` environment variable. Defaults to None.
         password (str | None, optional): FTP password for GSSC. If None, read from the
             `GSSC_PASS` environment variable. Defaults to None.
-        save_strategy (ep.SavingStrategy | None, optional): Strategy used to save the
-            processed variables. If None, a `MonthlyRBStrategy` (instrument "emu-electron") is
-            used. Defaults to None.
+        save_strategy (Literal["netcdf"]): The saving strategy used to write the processed
+            variables. GSSC EMU data only supports a single netCDF-based strategy.
         skip_existing (bool, optional): If True, skip downloading files that already exist
             locally. Defaults to True.
         calculate_Lstar (bool, optional): If True, also compute the L* magnetic field quantity.
@@ -179,8 +104,12 @@ def process_gssc_emu_electrons(
 
     Raises:
         ValueError: If `username` or `password` is not provided and not available via the
-            `GSSC_USER`/`GSSC_PASS` environment variables.
+            `GSSC_USER`/`GSSC_PASS` environment variables, or if the Space-Track credentials
+            (`SPACETRACK_USER`/`SPACETRACK_PASS`) are missing while OMM data is needed.
+        FileNotFoundError: If OMM data is needed but Space-Track has no element sets for the satellite.
     """
+    del save_strategy
+
     if username is None:
         username = os.environ.get("GSSC_USER")
     if password is None:
@@ -246,14 +175,20 @@ def process_gssc_emu_electrons(
     xgeo_data = np.stack((coords_ITRS.x, coords_ITRS.y, coords_ITRS.z)).T.value  # ty:ignore[unresolved-attribute]
 
     # ODI_Position is zero-filled or NaN for some/all samples in some GSSC EMU files; for those
-    # samples only, position is reconstructed from Celestrak's current orbital elements instead.
+    # samples only, position is reconstructed from OMM element sets downloaded from Space-Track.
     invalid_position_mask = np.all(xeci_data == 0, axis=1) | np.any(np.isnan(xeci_data), axis=1)
 
     if invalid_position_mask.any():
-        omm_line = _download_gssc_emu_omm(satellite=satellite, raw_data_path=raw_data_path, skip_existing=skip_existing)
-        invalid_obstimes = [t for t, invalid in zip(obstimes, invalid_position_mask, strict=True) if invalid]
-        omm_xgeo_var = ep.processing.calculate_geo_coords_from_omm(omm_line, invalid_obstimes)
-        xgeo_data[invalid_position_mask] = omm_xgeo_var.get_data(u.km)
+        fill_invalid_positions_from_omm(
+            xgeo_data,
+            invalid_position_mask,
+            obstimes,
+            satellite,
+            raw_data_path,
+            start_time,
+            end_time,
+            skip_existing=skip_existing,
+        )
 
     variables["xGEO"] = ep.Variable(data=xgeo_data, original_unit=u.km)
     del variables["x_ECI"]
@@ -282,11 +217,11 @@ def process_gssc_emu_electrons(
         ("MLT_Eq", mag_field),
         ("R_Eq", mag_field),
         ("Alpha_Eq", mag_field),
+        ("L_m", mag_field),
     ]
 
     if calculate_Lstar:
         variables_to_compute.append(("L_star", mag_field))
-        variables_to_compute.append(("L_m", mag_field))
 
     irbem_options = ep.processing.magnetic_field_utils.IrbemOptions(
         lstar_quantity=ep.processing.magnetic_field_utils.LstarQuantity.LSTAR
@@ -324,16 +259,15 @@ def process_gssc_emu_electrons(
         "B_Eq": magnetic_field_variables[f"B_Eq_{mag_field}"],
         "Position": variables["xGEO"],
         "PSD": psd_var,
+        "L_m": magnetic_field_variables[f"L_m_{mag_field}"],
     }
 
     if calculate_Lstar:
         variables_to_save["L_star"] = magnetic_field_variables[f"L_star_{mag_field}"]
-        variables_to_save["L_m"] = magnetic_field_variables[f"L_m_{mag_field}"]
 
-    if save_strategy is None:
-        save_strategy = gssc_emu_electron_strategy(processed_data_path, satellite, mag_field)
+    saving_strategy = gssc_emu_electron_strategy(processed_data_path, mag_field, satellite)
 
-    ep.save(variables_to_save, save_strategy, start_time, end_time, time_var=binned_time_var, append=True)
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=True)
 
 
 CLI_DEFAULTS = {

@@ -37,6 +37,8 @@ from el_paso.recipes.arase.process_arase_xep_realtime import (
     arase_xep_realtime_strategy as arase_xep_realtime_netcdf_strategy,
 )
 from el_paso.recipes.dmsp.process_dmsp_ssj_electrons import dmsp_ssj_electron_strategy
+from el_paso.recipes.esa.process_gssc_emu_electrons import gssc_emu_electron_strategy
+from el_paso.recipes.esa.process_gssc_emu_protons import gssc_emu_proton_strategy
 from el_paso.recipes.esa.process_ngrm_satellite import esa_ngrm_strategy
 from el_paso.recipes.goes.process_goes_r_mps_high import (
     goes_r_mps_high_gfz_strategy,
@@ -170,6 +172,32 @@ CASES: list[
         {},
         ep.saving_strategies.MonthlyRBStrategy,
         {"mission": "ESA", "satellite": "edrs-c", "instrument": "ngrm", "mag_field": "T89", "file_format": ".nc"},
+    ),
+    (
+        gssc_emu_electron_strategy,
+        ("T89", "gsat0207"),
+        {},
+        ep.saving_strategies.MonthlyRBStrategy,
+        {
+            "mission": "ESA",
+            "satellite": "gsat0207",
+            "instrument": "emu-electron",
+            "mag_field": "T89",
+            "file_format": ".nc",
+        },
+    ),
+    (
+        gssc_emu_proton_strategy,
+        ("T89", "gsat0215"),
+        {},
+        ep.saving_strategies.MonthlyRBStrategy,
+        {
+            "mission": "ESA",
+            "satellite": "gsat0215",
+            "instrument": "emu-proton",
+            "mag_field": "T89",
+            "file_format": ".nc",
+        },
     ),
     (
         goes_r_mps_high_gfz_strategy,
