@@ -149,7 +149,7 @@ the full list.
 
 ### Step 1: Download the Test Data
 
-Most tests rely on reference/system test data hosted on [Hugging Face](https://huggingface.co/datasets/DoctorRabbit55/EL-PASO-Test-Data). Download it by running the following script from the repository root:
+Most tests rely on reference/system test data hosted on [Hugging Face](https://huggingface.co/datasets/spsw/EL-PASO-Test-Data). Download it by running the following script from the repository root:
 
 ```bash
 bash download_data_for_tests.sh

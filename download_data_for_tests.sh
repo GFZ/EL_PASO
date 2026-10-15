@@ -6,7 +6,7 @@
 #!/bin/bash
 set -e
 
-REPO_ID="DoctorRabbit55/EL-PASO-Test-Data"
+REPO_ID="spsw/EL-PASO-Test-Data"
 REVISION="0e6fa3d8b08285f6220bb25a40b69f92b6451e30"   # bump when the data changes
 OUTPUT_DIR="./tests/system/"
 
