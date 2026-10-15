@@ -58,6 +58,64 @@ class _LazyMethod:
         return func if obj is None else func.__get__(obj, objtype)
 
 
+def _describe_difference(var_name: str, self_var: Any, other_var: Any) -> str:  # noqa: ANN401
+    """Describe how two values of the same variable differ, for use in assertion messages.
+
+    For numeric arrays of equal shape, the number of elements failing `np.isclose`, the number of
+    NaN mismatches, and the maximum absolute and relative difference (relative to the larger of the
+    two absolute values) are reported together with the index and both values at that position.
+
+    Args:
+        var_name (str): Name of the variable.
+        self_var (Any): Value of the variable in the first dataset.
+        other_var (Any): Value of the variable in the second dataset.
+
+    Returns:
+        str: A (possibly multi-line) description of the difference.
+    """
+    if not isinstance(other_var, type(self_var)):
+        return f"{var_name}: different types ({type(self_var).__name__} vs. {type(other_var).__name__})"
+
+    if not isinstance(self_var, np.ndarray):
+        if isinstance(self_var, list) and len(self_var) != len(other_var):
+            return f"{var_name}: different lengths ({len(self_var)} vs. {len(other_var)})"
+        return f"{var_name}: values differ"
+
+    if self_var.shape != other_var.shape:
+        return f"{var_name}: different shapes ({self_var.shape} vs. {other_var.shape})"
+
+    if not (np.issubdtype(self_var.dtype, np.number) and np.issubdtype(other_var.dtype, np.number)):
+        return f"{var_name}: values differ"
+
+    a = self_var.astype(np.float64)
+    b = other_var.astype(np.float64)
+
+    n_failing = int(np.sum(~np.isclose(a, b, equal_nan=True)))
+    lines = [f"{var_name}: {n_failing} of {a.size} elements differ"]
+
+    nan_mismatch = np.isnan(a) != np.isnan(b)
+    if nan_mismatch.any():
+        first_idx = tuple(int(i) for i in np.argwhere(nan_mismatch)[0])
+        lines.append(
+            f"  NaN in only one dataset: {int(nan_mismatch.sum())} elements "
+            f"(first at index {first_idx}: {a[first_idx]:.10g} vs. {b[first_idx]:.10g})"
+        )
+
+    both_finite = np.isfinite(a) & np.isfinite(b)
+    if both_finite.any():
+        abs_diff = np.where(both_finite, np.abs(a - b), -np.inf)
+        denominator = np.maximum(np.abs(a), np.abs(b))
+        rel_diff = np.full(a.shape, -np.inf)
+        np.divide(abs_diff, denominator, out=rel_diff, where=both_finite & (denominator > 0))
+        rel_diff[both_finite & (denominator == 0)] = 0.0
+
+        for label, diff in (("absolute", abs_diff), ("relative", rel_diff)):
+            idx = tuple(int(i) for i in np.unravel_index(np.argmax(diff), a.shape))
+            lines.append(f"  max {label} difference: {diff[idx]:.6g} at index {idx} ({a[idx]:.10g} vs. {b[idx]:.10g})")
+
+    return "\n".join(lines)
+
+
 class DataSet:
     """DataSet class supporting .mat, and .nc file formats.
 
@@ -518,7 +576,7 @@ class DataSet:
         different_vars = self.get_different_variables(other)
 
         assert len(different_vars) == 0, "Variables differ between datasets:\n" + "\n".join(
-            str(var) for var in different_vars
+            _describe_difference(var, getattr(self, var), getattr(other, var)) for var in different_vars
         )
 
     def __eq__(self, other: object) -> bool:

@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Sahil Jhawar
+# SPDX-FileContributor: Bernhard Haas
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -16,6 +17,7 @@ import numpy as np
 import pytest
 from astropy import units as u
 from el_paso.dataset import DataSet, GFZDataSet
+from el_paso.dataset.dataset import _describe_difference
 from el_paso.dataset.utils import python2matlab
 
 if TYPE_CHECKING:
@@ -617,3 +619,28 @@ def test_prbem_l_star_resolves_to_l_star(prbem_dataset: DataSet) -> None:
 def test_unknown_internal_name_raises(gfz_dataset: DataSet) -> None:
     with pytest.raises(ValueError):  # noqa: PT011
         gfz_dataset.get_by_internal_name("NotAnInternalName")  # ty:ignore[invalid-argument-type]
+
+
+@pytest.mark.basic
+def test_describe_difference_reports_max_absolute_and_relative_difference() -> None:
+    reference = np.array([[1.0, 2.0], [1e-4, np.nan]])
+    other = np.array([[1.0, 2.5], [2e-4, np.nan]])
+
+    message = _describe_difference("InvK", reference, other)
+
+    assert message.splitlines() == [
+        "InvK: 2 of 4 elements differ",
+        "  max absolute difference: 0.5 at index (0, 1) (2 vs. 2.5)",
+        "  max relative difference: 0.5 at index (1, 0) (0.0001 vs. 0.0002)",
+    ]
+
+
+@pytest.mark.basic
+def test_describe_difference_reports_nan_mismatches_and_shapes() -> None:
+    nan_message = _describe_difference("Lstar", np.array([1.0, np.nan, 3.0]), np.array([1.0, 2.0, 3.0]))
+    assert "NaN in only one dataset: 1 elements (first at index (1,): nan vs. 2)" in nan_message
+
+    assert _describe_difference("Flux", np.zeros((2, 3)), np.zeros((3, 2))) == (
+        "Flux: different shapes ((2, 3) vs. (3, 2))"
+    )
+    assert _describe_difference("MLT", np.zeros(2), [0.0, 0.0]) == "MLT: different types (ndarray vs. list)"
