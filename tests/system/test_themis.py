@@ -8,7 +8,7 @@
 These check that each recipe runs end to end against the live archive, writes the file its
 saving strategy promises, and that every variable it claims to save is readable back through
 `el_paso.dataset`. They deliberately do not compare against a reference solution, so they need
-no Zenodo data; they are a smoke test of the download, processing and saving path.
+no reference test data; they are a smoke test of the download, processing and saving path.
 """
 
 from collections.abc import Callable

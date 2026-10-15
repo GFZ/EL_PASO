@@ -29,7 +29,7 @@ Expand the section below that matches this PR, fill it in, and delete the other 
 - [ ] `README.md` "Available processing scripts" list updated to include this recipe.
 - [ ] Type hints added on new/changed code.
 - [ ] A test covers the new recipe.
-- [ ] If the recipe needs new reference/system test data, it's been added to the Zenodo dataset (or flagged in this PR for a maintainer to do so).
+- [ ] If the recipe needs new reference/system test data, it's been added to the Hugging Face test dataset (or flagged in this PR for a maintainer to do so).
 - [ ] If the recipe needs credentials/secrets to download data (e.g. `ESA_CLIENT_ID`), that's called out below.
 
 **Notes for reviewers**

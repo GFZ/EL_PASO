@@ -10,7 +10,7 @@ Python framework (GFZ Helmholtz Centre for Geosciences) for downloading, process
 
 ## Layout
 - `el_paso/` is the package: `cli/`, `data_standards/` (PRBEM/GFZ standards), `dataset/`, `processing/` (algorithms, incl. `magnetic_field_utils/irbem.py`), `recipes/<mission>/` (one subpackage per satellite mission, plugin-style), `saving_strategies/` (output writers).
-- `tests/unittests/` mirrors `el_paso/`'s subpackage layout; `tests/system/` uses Zenodo-hosted reference data.
+- `tests/unittests/` mirrors `el_paso/`'s subpackage layout; `tests/system/` uses reference data hosted on Hugging Face (`DoctorRabbit55/EL-PASO-Test-Data`, revision pinned in `download_data_for_tests.sh`).
 - `docs/`: mkdocs-material site (built by ReadTheDocs). `tutorials/`: numbered Jupyter notebooks. `scripts/`: SLURM/ops helpers. `hooks/`: local pre-commit hooks.
 
 ## Rules

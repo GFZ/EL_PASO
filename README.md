@@ -149,13 +149,13 @@ the full list.
 
 ### Step 1: Download the Test Data
 
-Most tests rely on reference/system test data hosted on [Zenodo](https://zenodo.org). Download it by running the following script from the repository root:
+Most tests rely on reference/system test data hosted on [Hugging Face](https://huggingface.co/datasets/DoctorRabbit55/EL-PASO-Test-Data). Download it by running the following script from the repository root:
 
 ```bash
 bash download_data_for_tests.sh
 ```
 
-This fetches the dataset archive and extracts it into `tests/system/`. You only need to do this once (rerun it if the data changes upstream).
+This fetches the pinned revision of the dataset into `tests/system/data/` using the Hugging Face CLI (run through `uvx`, so [uv](https://docs.astral.sh/uv/) must be installed). You only need to do this once (rerun it if the pinned revision changes).
 
 `pytest` is installed as part of the regular dependencies (see [Installation](#installation)), so no separate test install step is needed.
 

@@ -13,7 +13,7 @@ from el_paso.recipes.esa import process_ngrm_electron_fluxes
 
 
 @pytest.mark.basic
-@pytest.mark.skip(reason="update data on zenodo")
+@pytest.mark.skip(reason="update test data on Hugging Face")
 def test_esa_ngrm(
     tmpdir: Path,
     *,

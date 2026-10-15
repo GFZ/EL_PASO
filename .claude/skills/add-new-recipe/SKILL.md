@@ -39,7 +39,7 @@ The hook does not check the runtime `lazy.attach` entry, the docs page, or the R
   .venv/bin/python -m pytest tests/unittests/test_recipe_saving_strategies.py tests/unittests/test_recipe_cli.py -m "not visual" -o log_cli=false
   ```
   `test_recipe_cli.py` builds every `RECIPES` entry's command, checks the shared option surface, and checks that each `process_*` resolves at runtime from its mission package. `test_every_recipe_strategy_is_exported_from_its_mission_package` does the same for strategy factories.
-- A full end-to-end test belongs in `tests/system/test_<mission>.py`. It needs reference data in the Zenodo archive, which a maintainer has to upload, so flag that in the PR. Say too if downloading the data needs credentials.
+- A full end-to-end test belongs in `tests/system/test_<mission>.py`. It needs reference data in the Hugging Face dataset (`DoctorRabbit55/EL-PASO-Test-Data`), which a maintainer has to upload and tag before bumping `REVISION` in `download_data_for_tests.sh`, so flag that in the PR. Say too if downloading the data needs credentials.
 
 ## Try it without downloading
 `--dry-run` resolves and prints the recipe's arguments, then exits without downloading or processing:

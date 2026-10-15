@@ -34,7 +34,7 @@ Recipe changes (`el_paso/recipes/**`, `el_paso/cli/**`) are covered by `tests/un
 
 **Mark every new test `@pytest.mark.basic`** (the repo's convention is a per-test decorator). CI runs only `-m basic`, so an unmarked test never runs in CI.
 
-System tests (`tests/system/test_<mission>.py`) download real mission data, need the Zenodo reference data (`./download_data_for_tests.sh`), and some need credentials (`CLIENT_ID`/`CLIENT_SECRET`, `SPACETRACK_USER`/`SPACETRACK_PASS`). Run one only when asked. Files prefixed `_test_` are deliberately disabled.
+System tests (`tests/system/test_<mission>.py`) download real mission data, need the Hugging Face reference data (`./download_data_for_tests.sh`), and some need credentials (`CLIENT_ID`/`CLIENT_SECRET`, `SPACETRACK_USER`/`SPACETRACK_PASS`). Run one only when asked. Files prefixed `_test_` are deliberately disabled.
 
 Regenerate reference solutions only when asked: `.venv/bin/python -m pytest <file> --renew_solution=true`.
 

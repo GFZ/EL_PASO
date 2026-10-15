@@ -69,18 +69,22 @@ jobs:
         run: |
           sudo apptainer exec --no-mount cwd ${{ env.IMAGE_NAME }}.sif python -c "import el_paso; print('Import successful',  el_paso.__file__)"
 
-      - name: Get zenodo record ID
-        id: zenodo-record
-        run: echo "id=$(grep -oP 'RECORD_ID="\K[^"]+' download_data_for_tests.sh)" >> "$GITHUB_OUTPUT"
+      - name: Get test data revision
+        id: test-data-revision
+        run: echo "id=$(grep -oP 'REVISION="\K[^"]+' download_data_for_tests.sh)" >> "$GITHUB_OUTPUT"
 
       - name: Cache test data
         id: cache-test-data
         uses: actions/cache@v6
         with:
           path: tests/system/data
-          key: zenodo-test-data-${{ steps.zenodo-record.outputs.id }}
+          key: hf-test-data-${{ steps.test-data-revision.outputs.id }}
 
-      - name: Download test data from zenodo
+      - name: Install uv
+        if: steps.cache-test-data.outputs.cache-hit != 'true'
+        uses: astral-sh/setup-uv@v7
+
+      - name: Download test data from Hugging Face
         if: steps.cache-test-data.outputs.cache-hit != 'true'
         run: bash download_data_for_tests.sh
 
