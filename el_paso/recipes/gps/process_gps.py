@@ -14,6 +14,7 @@ from astropy import units as u
 
 import el_paso as ep
 from el_paso.recipes.gps import LANLSatellite
+from el_paso.recipes.solarwind.process_solar_wind_indices import process_solar_wind_indices
 
 #  If you add a satellite, add it to BOTH: here, and to the Literal in el_paso/recipes/gps/__init__.py.
 
@@ -139,6 +140,7 @@ def process_gps_data(
     save_strategy: Literal["netcdf"] = "netcdf",
     *,
     skip_existing: bool = True,
+    save_sw: bool = False,
 ) -> None:
     """Process LANL GPS electron flux data into magnetic-field-resolved data products.
 
@@ -173,6 +175,8 @@ def process_gps_data(
                                                     netCDF-based strategy.
         skip_existing (bool): If True, skip downloading files that already exist locally.
                                             Defaults to True.
+        save_sw (bool): If True, also save all solar wind indices and parameters,
+            independent of this recipe's own output. Defaults to False.
     """
     del save_strategy
 
@@ -314,7 +318,7 @@ def process_gps_data(
 
     psd_var = ep.processing.compute_phase_space_density(FEDU_var, variables["Energy_FEDO"], particle_species="electron")
 
-    variables_to_save = {
+    variables_to_save: ep.typing.VariablesDict = {
         "Epoch": binned_time_var,
         "FEDU": FEDU_var,
         "Energy_FEDU": variables["Energy_FEDO"],
@@ -334,7 +338,12 @@ def process_gps_data(
 
     saving_strategy = gps_cxd_strategy(processed_data_path, mag_field, satellite)
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var)  # ty:ignore[invalid-argument-type]
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var)
+
+    if save_sw:
+        process_solar_wind_indices(
+            start_time, end_time, processed_data_path=processed_data_path, bin_cadence=bin_cadence
+        )
 
 
 if __name__ == "__main__":

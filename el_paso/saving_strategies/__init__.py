@@ -13,6 +13,7 @@ from el_paso.saving_strategies.monthly_omni_flux_rb_strategy import MonthlyOmniF
 from el_paso.saving_strategies.monthly_rb_strategy import MonthlyRBStrategy
 from el_paso.saving_strategies.rbsp_density_strategy import RBSPDensityStrategy
 from el_paso.saving_strategies.single_file_strategy import SingleFileStrategy
+from el_paso.saving_strategies.solar_wind_indices_strategy import SolarWindIndicesStrategy
 
 __all__ = [
     "DailyLEORBStrategy",
@@ -24,4 +25,5 @@ __all__ = [
     "MonthlyRBStrategy",
     "RBSPDensityStrategy",
     "SingleFileStrategy",
+    "SolarWindIndicesStrategy",
 ]

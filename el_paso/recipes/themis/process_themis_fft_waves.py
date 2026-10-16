@@ -22,6 +22,7 @@ from el_paso.pyspedas_utils import (
     tplot_to_time_variable,
     tplot_to_variable,
 )
+from el_paso.recipes.solarwind.process_solar_wind_indices import process_solar_wind_indices
 from el_paso.recipes.themis import ThemisProbe
 from el_paso.recipes.themis.get_themis_pyspedas_variables import (
     get_themis_position_geo,
@@ -61,6 +62,7 @@ def process_themis_fft_waves(
     save_strategy: Literal["netcdf"] = "netcdf",
     *,
     skip_existing: bool = True,
+    save_sw: bool = False,
 ) -> None:
     """Process THEMIS FFT wave data and save the magnetic power spectral density.
 
@@ -95,6 +97,8 @@ def process_themis_fft_waves(
         skip_existing (bool): Unused by this recipe; accepted only for interface consistency
             with other EL-PASO recipes, since pyspedas decides on its own whether a locally
             cached THEMIS file is still current. Defaults to True.
+        save_sw (bool): If True, also save all solar wind indices and parameters,
+            independent of this recipe's own output. Defaults to False.
     """
     del bin_cadence
     del save_strategy
@@ -132,6 +136,9 @@ def process_themis_fft_waves(
     saving_strat = themis_fft_waves_strategy(processed_data_path, satellite)
 
     ep.save(vars_to_save, saving_strat, start_time, end_time, time_var=target_time_var)
+
+    if save_sw:
+        process_solar_wind_indices(start_time, end_time, processed_data_path=processed_data_path)
 
 
 def _get_fft_data(

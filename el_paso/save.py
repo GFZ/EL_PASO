@@ -20,14 +20,14 @@ if TYPE_CHECKING:
 
     from el_paso.data_standard import DataStandard
     from el_paso.saving_strategy import SavingStrategy
-    from el_paso.typing import SavedDataDict
+    from el_paso.typing import SavedDataDict, VariablesDict
 
 logger = logging.getLogger(__name__)
 
 
 @timed_function()
 def save(
-    variables_dict: dict[InternalName, Variable],
+    variables_dict: VariablesDict,
     saving_strategy: SavingStrategy,
     start_time: datetime,
     end_time: datetime,
@@ -43,7 +43,7 @@ def save(
     and includes a check for missing data.
 
     Args:
-        variables_dict (dict[str, Variable]): A dictionary mapping variable names to their
+        variables_dict (VariablesDict): A dictionary mapping variable names to their
             `Variable` objects to be saved.
         saving_strategy (SavingStrategy): The strategy object that defines how to
             organize, standardize, and save the data (e.g., file paths, formats).
@@ -153,7 +153,7 @@ def _has_records_in_interval(time_var: Variable, interval_start: datetime, inter
     return bool(np.any(in_interval))
 
 
-def _validate_variables_dict(variables_dict: dict[InternalName, Variable], data_standard: DataStandard | None) -> None:
+def _validate_variables_dict(variables_dict: VariablesDict, data_standard: DataStandard | None) -> None:
     """Validates runtime types for data passed to ``save``.
 
     This guard complements static type checking by rejecting invalid keys and
@@ -203,7 +203,7 @@ def _validate_variables_dict(variables_dict: dict[InternalName, Variable], data_
 
 
 def _get_data_dict_to_save(
-    target_variables: dict[InternalName, Variable],
+    target_variables: VariablesDict,
 ) -> SavedDataDict:
     """Generates a dictionary of data and metadata for saving.
 
@@ -212,7 +212,7 @@ def _get_data_dict_to_save(
     persistence. It also sanitizes the metadata to handle `None` values.
 
     Args:
-        target_variables (dict[str, Variable]): A dictionary of variables to be prepared
+        target_variables (VariablesDict): A dictionary of variables to be prepared
             for saving.
 
     Returns:

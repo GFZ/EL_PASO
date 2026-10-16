@@ -15,9 +15,10 @@ from astropy import units as u
 
 import el_paso as ep
 from el_paso.recipes.goes import GOESRSatellite
+from el_paso.recipes.solarwind.process_solar_wind_indices import process_solar_wind_indices
 
 if TYPE_CHECKING:
-    from el_paso.typing import InternalName
+    from el_paso.typing import VariablesDict
 
 logging.captureWarnings(capture=True)
 logger = logging.getLogger(__name__)
@@ -64,6 +65,8 @@ def process_goes_r_mps_high(
     num_cores: int = 16,
     save_strategy: Literal["gfz", "netcdf", "both"] = "netcdf",
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
+    *,
+    save_sw: bool = False,
 ) -> None:
     """Process GOES-R MPS-HI MAGED electron data into pitch-angle resolved phase space densities.
 
@@ -88,6 +91,8 @@ def process_goes_r_mps_high(
             data. "gfz" saves using the GFZ format, "netcdf" saves monthly NetCDF files, and
             "both" saves using both strategies.
         skip_existing (bool): If True, skip downloading files that already exist on disk.
+        save_sw (bool): If True, also save all solar wind indices and parameters,
+            independent of this recipe's own output. Defaults to False.
     """
     data_path_stem = f"{raw_data_path}/YYYY/MM/{satellite}/"
 
@@ -254,7 +259,7 @@ def process_goes_r_mps_high(
         mps_vars["diff_flux"], mps_vars["diff_energy"], particle_species="electron"
     )
 
-    variables_to_save: dict[InternalName, ep.Variable] = {
+    variables_to_save: VariablesDict = {
         "Epoch": binned_time_var,
         "FEDU": mps_vars["diff_flux"],
         "Position": xgeo_var,
@@ -273,11 +278,30 @@ def process_goes_r_mps_high(
 
     if save_strategy in ("gfz", "both"):
         saving_strategy = goes_r_mps_high_gfz_strategy(processed_data_path, mag_field, satellite)
-        ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=True)
+        ep.save(
+            variables_to_save,
+            saving_strategy,
+            start_time,
+            end_time,
+            time_var=binned_time_var,
+            append=True,
+        )
 
     if save_strategy in ("netcdf", "both"):
         saving_strategy = goes_r_mps_high_netcdf_strategy(processed_data_path, mag_field, satellite)
-        ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=True)
+        ep.save(
+            variables_to_save,
+            saving_strategy,
+            start_time,
+            end_time,
+            time_var=binned_time_var,
+            append=True,
+        )
+
+    if save_sw:
+        process_solar_wind_indices(
+            start_time, end_time, processed_data_path=processed_data_path, bin_cadence=bin_cadence
+        )
 
 
 def _get_magn_variables(

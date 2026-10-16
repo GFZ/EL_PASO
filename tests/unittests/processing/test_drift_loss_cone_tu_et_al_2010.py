@@ -134,7 +134,7 @@ def test_replot_tu2010_figure() -> None:
     # --- drift loss cone, traced independently at every longitude ------------------------------------------
     irbem_input = IrbemInput(
         magnetic_field=MagneticField.Dip,
-        maginput=construct_maginput(time_var, MagneticField.Dip),
+        maginput=construct_maginput(time_var, MagneticField.Dip).maginput,
         irbem_options=irbem_options,
         num_cores=NUM_CORES,
     )

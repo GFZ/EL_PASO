@@ -21,6 +21,7 @@ from el_paso.recipes.arase import (
     get_arase_orbit_level_3_variables,
 )
 from el_paso.recipes.arase.get_arase_orbit_variables import interpolate_level_3_to_pitch_angles
+from el_paso.recipes.solarwind.process_solar_wind_indices import process_solar_wind_indices
 
 
 def arase_mepe_gfz_strategy(
@@ -82,6 +83,7 @@ def process_arase_mepe(
     *,
     use_level_3_orbit_data: bool = True,
     skip_existing: bool = True,
+    save_sw: bool = False,
 ) -> None:
     """Process Arase MEP-e Level 3 electron flux data and save derived products.
 
@@ -121,6 +123,8 @@ def process_arase_mepe(
                                                 quantities via IRBEM. Defaults to True.
         skip_existing (bool): If True, skip downloading files that already exist locally.
                                             Defaults to True.
+        save_sw (bool): If True, also save all solar wind indices and parameters,
+            independent of this recipe's own output. Defaults to False.
     """
     del satellite
 
@@ -305,7 +309,7 @@ def process_arase_mepe(
         ep.data_standards.GFZStandard() if data_standard == "gfz" else ep.data_standards.PRBEMStandard()
     )
 
-    variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+    variables_to_save: ep.typing.VariablesDict = {
         "Epoch": binned_time_variable,
         "FEDU": mepe_variables["FEDU"],
         "Energy_FEDU": mepe_variables["Energy"],
@@ -327,6 +331,11 @@ def process_arase_mepe(
             saving_strategy = arase_mepe_netcdf_strategy(processed_data_path, mag_field_save, data_standard_instance)
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
+
+    if save_sw:
+        process_solar_wind_indices(
+            start_time, end_time, processed_data_path=processed_data_path, bin_cadence=bin_cadence
+        )
 
 
 if __name__ == "__main__":

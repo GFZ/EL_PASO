@@ -15,6 +15,7 @@ from astropy import units as u
 import el_paso as ep
 from el_paso.processing.magnetic_field_utils import InternalFieldModel, IrbemOptions, LstarQuantity
 from el_paso.recipes.rbsp import RBSPSatellite
+from el_paso.recipes.solarwind.process_solar_wind_indices import process_solar_wind_indices
 
 
 def rbsp_hope_proton_gfz_strategy(
@@ -54,6 +55,8 @@ def process_rbsp_hope_protons(
     num_cores: int = 16,
     save_strategy: Literal["gfz", "netcdf", "both"] = "both",
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
+    *,
+    save_sw: bool = False,
 ) -> None:
     """Process RBSP ECT/HOPE proton flux data into the EL-PASO data standard.
 
@@ -82,6 +85,8 @@ def process_rbsp_hope_protons(
         save_strategy (Literal["gfz", "netcdf", "both"]): Which saving strategy/strategies
             to use for writing the processed output. Defaults to "both".
         skip_existing (bool): If True, skip downloading files that already exist on disk.
+        save_sw (bool): If True, also save all solar wind indices and parameters,
+            independent of this recipe's own output. Defaults to False.
     """
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
@@ -191,7 +196,7 @@ def process_rbsp_hope_protons(
 
     psd_var = ep.processing.compute_phase_space_density(variables["FPDU"], variables["Energy"], "proton")
 
-    variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+    variables_to_save: ep.typing.VariablesDict = {
         "Epoch": binned_time_variable,
         "FPDU": variables["FPDU"],
         "Position": variables["xGEO"],
@@ -211,11 +216,30 @@ def process_rbsp_hope_protons(
 
     if save_strategy in ("gfz", "both"):
         strategy = rbsp_hope_proton_gfz_strategy(processed_data_path, mag_field, satellite)
-        ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=True)
+        ep.save(
+            variables_to_save,
+            strategy,
+            start_time,
+            end_time,
+            time_var=binned_time_variable,
+            append=True,
+        )
 
     if save_strategy in ("netcdf", "both"):
         strategy = rbsp_hope_proton_netcdf_strategy(processed_data_path, mag_field, satellite)
-        ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=True)
+        ep.save(
+            variables_to_save,
+            strategy,
+            start_time,
+            end_time,
+            time_var=binned_time_variable,
+            append=True,
+        )
+
+    if save_sw:
+        process_solar_wind_indices(
+            start_time, end_time, processed_data_path=processed_data_path, bin_cadence=bin_cadence
+        )
 
 
 CLI_DEFAULTS = {

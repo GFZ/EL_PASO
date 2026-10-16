@@ -22,6 +22,7 @@ from el_paso.recipes.arase import (
     get_arase_orbit_level_3_variables,
 )
 from el_paso.recipes.arase.get_arase_orbit_variables import interpolate_level_3_to_pitch_angles
+from el_paso.recipes.solarwind.process_solar_wind_indices import process_solar_wind_indices
 
 
 def arase_xep_strategy(
@@ -67,6 +68,7 @@ def process_arase_xep(
     *,
     use_level_3_orbit_data: bool = True,
     skip_existing: bool = True,
+    save_sw: bool = False,
 ) -> None:
     """Process Arase XEP Level 2 omnidirectional electron flux data and save derived products.
 
@@ -108,6 +110,8 @@ def process_arase_xep(
                                                 quantities via IRBEM. Defaults to True.
         skip_existing (bool): If True, skip downloading files that already exist locally.
                                             Defaults to True.
+        save_sw (bool): If True, also save all solar wind indices and parameters,
+            independent of this recipe's own output. Defaults to False.
     """
     del satellite
 
@@ -310,7 +314,7 @@ def process_arase_xep(
         original_unit=u.degree,
     )
 
-    variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+    variables_to_save: ep.typing.VariablesDict = {
         "Epoch": binned_time_variable,
         "FEDU": xep_variables["FEDU"],
         "FEDO": fedo_var,
@@ -339,6 +343,11 @@ def process_arase_xep(
             saving_strategy = arase_xep_strategy(processed_data_path, mag_field)
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
+
+    if save_sw:
+        process_solar_wind_indices(
+            start_time, end_time, processed_data_path=processed_data_path, bin_cadence=bin_cadence
+        )
 
 
 CLI_DEFAULTS = {

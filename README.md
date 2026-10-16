@@ -64,8 +64,9 @@ Full documentation can be viewed [here](https://el-paso.readthedocs.io/en/latest
     - ECT-combined
     - EMFISIS waves
     - EMFISIS and EFW density
-- **Models** (no spacecraft data needed)
-    - Last closed drift shell (LCDS)
+- **Models**
+    - Last closed drift shell (LCDS)  (no spacecraft data needed)
+    - Solar wind and geomagnetic indices
 
 Every recipe shares one command line interface; see
 [Running a recipe](#running-a-recipe) below.

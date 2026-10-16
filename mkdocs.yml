@@ -108,6 +108,7 @@ nav:
           - POES: API_reference/recipes/poes.md
           - ProbaV: API_reference/recipes/probav.md
           - RBSP: API_reference/recipes/rbsp.md
+          - Solar wind indices: API_reference/recipes/solar_wind_indices.md
           - THEMIS: API_reference/recipes/themis.md
   - Tutorial Notebooks:
       - Data Downloading and Extraction: tutorials/1_download_data_and_extracting_variables.ipynb

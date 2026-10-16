@@ -1231,8 +1231,8 @@ class MagFields:
         ordered_keys = (
             "Kp",
             "Dst",
-            "dens",
-            "velo",
+            "Nsw",
+            "Vsw",
             "Pdyn",
             "ByIMF",
             "BzIMF",

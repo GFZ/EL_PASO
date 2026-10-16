@@ -149,7 +149,15 @@ class GFZStrategy(SavingStrategy):
 
         file_name = self.get_file_name_stem() + f"_{start_year_month_day}to{end_year_month_day}_{output_file.name}"
 
-        if output_file.name in ["alpha_and_energy", "lstar", "lm", "invmu_and_invk", "mlt", "bfield", "R0"]:
+        if output_file.name in [
+            "alpha_and_energy",
+            "lstar",
+            "lm",
+            "invmu_and_invk",
+            "mlt",
+            "bfield",
+            "R0",
+        ]:
             file_name += f"_n4_4_{self.mag_field}"
 
         file_name += "_ver4.mat"

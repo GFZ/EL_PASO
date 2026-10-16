@@ -15,6 +15,7 @@ from astropy import units as u
 from dotenv import load_dotenv
 
 import el_paso as ep
+from el_paso.recipes.solarwind.process_solar_wind_indices import process_solar_wind_indices
 from el_paso.utils import timed_function
 
 CHI2_BAD_QUALITY_THRESHOLD = 2
@@ -62,6 +63,8 @@ def process_ept_proton_fluxes(
     client_secret: str | None = None,
     save_strategy: typing.Literal["gfz", "netcdf", "both"] = "netcdf",
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
+    *,
+    save_sw: bool = False,
 ) -> None:
     """Process PROBA-V EPT proton flux data into pitch-angle-resolved fluxes with magnetic field coordinates.
 
@@ -93,6 +96,8 @@ def process_ept_proton_fluxes(
         save_strategy (typing.Literal["gfz", "netcdf", "both"]): Which saving strategy (or
             strategies) to use for the processed output.
         skip_existing (bool): If True, skip downloading files that already exist locally.
+        save_sw (bool): If True, also save all solar wind indices and parameters,
+            independent of this recipe's own output. Defaults to False.
 
     Raises:
         ValueError: If `client_id` or `client_secret` is not provided and not available via the
@@ -286,7 +291,7 @@ def process_ept_proton_fluxes(
 
     variables |= magnetic_field_variables
 
-    variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+    variables_to_save: ep.typing.VariablesDict = {
         "Epoch": binned_time_var,
         "FPDU": variables["FPDU"],
         "Energy_FPDU": variables["Energy_FPDU"],
@@ -306,6 +311,11 @@ def process_ept_proton_fluxes(
     if save_strategy in ("netcdf", "both"):
         strategy = probav_ept_proton_netcdf_strategy(processed_data_path, mag_field)
     ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_var, append=True)
+
+    if save_sw:
+        process_solar_wind_indices(
+            start_time, end_time, processed_data_path=processed_data_path, bin_cadence=bin_cadence
+        )
 
 
 if __name__ == "__main__":

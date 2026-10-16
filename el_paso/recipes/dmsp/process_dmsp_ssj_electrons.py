@@ -15,6 +15,7 @@ from astropy import units as u
 
 import el_paso as ep
 from el_paso.recipes.dmsp import DMSPSatellite
+from el_paso.recipes.solarwind.process_solar_wind_indices import process_solar_wind_indices
 
 logging.captureWarnings(capture=True)
 logger = logging.getLogger(__name__)
@@ -54,6 +55,7 @@ def process_dmsp_ssj_electrons(
     save_strategy: Literal["netcdf"] = "netcdf",
     *,
     skip_existing: bool = True,
+    save_sw: bool = False,
 ) -> None:
     """Process DMSP SSJ precipitating electron data into omnidirectional fluxes with magnetic field coordinates.
 
@@ -79,6 +81,8 @@ def process_dmsp_ssj_electrons(
         save_strategy (Literal["netcdf"]): The saving strategy used to write the processed
                                                     data. DMSP SSJ electron data only supports a single
                                                     netCDF-based strategy.
+        save_sw (bool): If True, also save all solar wind indices and parameters,
+            independent of this recipe's own output. Defaults to False.
     """
     del save_strategy
 
@@ -220,7 +224,7 @@ def process_dmsp_ssj_electrons(
         num_cores=num_cores,
     )
 
-    variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+    variables_to_save: ep.typing.VariablesDict = {
         "Epoch": binned_time_var,
         "FEDO": ssj_vars["diff_omni_flux"],
         "Energy_FEDO": ssj_vars["diff_energy"],
@@ -241,6 +245,11 @@ def process_dmsp_ssj_electrons(
     saving_strategy = dmsp_ssj_electron_strategy(processed_data_path, mag_field, satellite)
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var)
+
+    if save_sw:
+        process_solar_wind_indices(
+            start_time, end_time, processed_data_path=processed_data_path, bin_cadence=bin_cadence
+        )
 
 
 def _get_ssm_variables(

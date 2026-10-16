@@ -15,6 +15,7 @@ from astropy import units as u
 
 import el_paso as ep
 from el_paso.recipes.rbsp import RBSPSatellite
+from el_paso.recipes.solarwind.process_solar_wind_indices import process_solar_wind_indices
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,7 @@ def process_rbsp_efw_emfisis_density_combined(
     skip_existing: bool = True,
     add_hiss_derived_densitites: bool = True,
     hiss_derived_densities_data_path: str | Path = ".",
+    save_sw: bool = False,
 ) -> None:
     """Process and combine RBSP EFW and EMFISIS electron density data.
 
@@ -79,6 +81,8 @@ def process_rbsp_efw_emfisis_density_combined(
             equator the hiss-derived density data.
         hiss_derived_densities_data_path (str | Path): Directory containing the
             hiss-derived density text files.
+        save_sw (bool): If True, also save all solar wind indices and parameters,
+            independent of this recipe's own output. Defaults to False.
 
     Raises:
         NotImplementedError: Always raised before the processed variables are saved; saving via
@@ -226,6 +230,11 @@ def process_rbsp_efw_emfisis_density_combined(
     )
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
+
+    if save_sw:
+        process_solar_wind_indices(
+            start_time, end_time, processed_data_path=processed_data_path, bin_cadence=bin_cadence
+        )
 
 
 def _get_efw_variables(

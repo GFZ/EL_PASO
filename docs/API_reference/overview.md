@@ -126,3 +126,5 @@ This section provides a detailed reference for all modules, classes, and functio
 [ProbaV](recipes/probav.md)
 
 [RBSP](recipes/rbsp.md)
+
+[Solar wind indices](recipes/solar_wind_indices.md)
