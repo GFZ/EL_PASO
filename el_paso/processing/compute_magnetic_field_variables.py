@@ -158,20 +158,18 @@ def compute_magnetic_field_variables(
             energy_var,
             particle_species,
         )
-        call_kwargs = {"irbem_lib_path": irbem_lib_path}
-
         if overwrite_cache:
             logger.info("Overwriting cached magnetic field variables (overwrite_cache=True).")
-            computed_variables, _ = cached_fn.call(*call_args, **call_kwargs)
+            computed_variables, _ = cached_fn.call(*call_args, irbem_lib_path=irbem_lib_path)
             logger.info("Magnetic field variables computed and cached at %s.", cache_dir)
             return computed_variables
 
-        if cached_fn.check_call_in_cache(*call_args, **call_kwargs):
+        if cached_fn.check_call_in_cache(*call_args, irbem_lib_path=irbem_lib_path):
             logger.info("Loading magnetic field variables from cache at %s.", cache_dir)
         else:
             logger.info("No cache hit at %s — computing magnetic field variables.", cache_dir)
 
-        return cached_fn(*call_args, **call_kwargs)
+        return cached_fn(*call_args, irbem_lib_path=irbem_lib_path)
 
     return _compute_core(
         time_var,
@@ -248,11 +246,11 @@ def _compute_core(
 
         indices_solar_wind_hashable = make_dict_hashable(indices_solar_wind)
 
-        maginput_result = mag_utils.construct_maginput(time_var, mag_field, indices_solar_wind_hashable)
+        maginput = mag_utils.construct_maginput(time_var, mag_field, indices_solar_wind_hashable)
 
         irbem_input = mag_utils.IrbemInput(
             magnetic_field=mag_field,
-            maginput=maginput_result.maginput,
+            maginput=maginput,
             irbem_options=irbem_options,
             num_cores=num_cores,
             irbem_lib_path=irbem_lib_path,

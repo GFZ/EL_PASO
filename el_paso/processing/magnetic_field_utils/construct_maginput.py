@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 from functools import cache
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
     from el_paso.load_indices_solar_wind_parameters import SW_Index
-    from el_paso.typing import MagInputKeys, VariablesDict
+    from el_paso.typing import MagInputKeys
 
 logger = logging.getLogger(__name__)
 
@@ -73,27 +73,10 @@ MAGINPUT_TO_INDEX: dict[SW_Index, int | list[int]] = {
 }
 
 
-class MagInputResult(NamedTuple):
-    """The result of :func:`construct_maginput`.
-
-    Attributes:
-        maginput (dict[MagInputKeys, NDArray[np.float64]]): The IRBEM-facing magnetospheric input
-            parameters, interpolated to the cadence of `time_var`.
-        indices_solar_wind (VariablesDict): The actual `ep.Variable`s (with
-            their original units and metadata, e.g. `source_files`) used to build `maginput`,
-            keyed by the `SW_Index` they were loaded for (every `SW_Index` is also a valid
-            `InternalName`, so callers can merge this directly into a `variables_to_save` dict).
-            Restricted to the indices the requested `magnetic_field` model actually needs.
-    """
-
-    maginput: dict[MagInputKeys, NDArray[np.float64]]
-    indices_solar_wind: VariablesDict
-
-
 @cache
 def construct_maginput(
     time_var: ep.Variable, magnetic_field: MagneticField, indices_solar_wind: dict[SW_Index, ep.Variable] | None = None
-) -> MagInputResult:
+) -> dict[MagInputKeys, NDArray[np.float64]]:
     """Construct the magnetospheric input parameters required by IRBEM magnetic field models.
 
     This function gathers the geomagnetic indices and solar wind parameters required by the
@@ -119,8 +102,8 @@ def construct_maginput(
                                                                     wind variables. Defaults to None.
 
     Returns:
-        MagInputResult: The interpolated magnetospheric input parameters, plus the underlying
-            `ep.Variable`s (with metadata) they were built from.
+        dict[MagInputKeys, NDArray[np.float64]]: A dictionary containing the interpolated magnetospheric
+                                                input parameters.
     """
     time = time_var.get_data(ep.units.posixtime).astype(np.float64)
     start_time = datetime.fromtimestamp(time[0], tz=timezone.utc)
@@ -179,6 +162,4 @@ def construct_maginput(
         "AL": maginput[:, 16],
     }
 
-    used_indices_solar_wind: VariablesDict = {req_input: indices_solar_wind[req_input] for req_input in required_inputs}
-
-    return MagInputResult(maginput=maginput_dict, indices_solar_wind=used_indices_solar_wind)
+    return maginput_dict

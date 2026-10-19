@@ -143,20 +143,13 @@ class MonthlyRBStrategy(SavingStrategy):
         """
         return self.satellite.lower() + "_" + self.instrument.lower()
 
-    def get_file_path(self, interval_start: datetime, interval_end: datetime, output_file: OutputFile) -> Path:
-        """Generate the monthly file path for the configured format.
-
-        The default "full" output file keeps its historical, unsuffixed name for backwards
-        compatibility. Any additional output file gets `output_file.name` appended to
-        disambiguate it from "full" and from other extra groups.
-        """
+    def get_file_path(self, interval_start: datetime, interval_end: datetime, output_file: OutputFile) -> Path:  # noqa: ARG002
+        """Generate the monthly file path for the configured format."""
         start_year_month_day = interval_start.strftime("%Y%m%d")
         end_year_month_day = interval_end.strftime("%Y%m%d")
-        file_name = f"{self.get_file_name_stem()}_{start_year_month_day}to{end_year_month_day}_{self.mag_field}"
-
-        if output_file.name != "full":
-            file_name += f"_{output_file.name}"
-
-        file_name += self.file_format
+        file_name = (
+            f"{self.get_file_name_stem()}_{start_year_month_day}to{end_year_month_day}_"
+            f"{self.mag_field}{self.file_format}"
+        )
 
         return self.get_file_path_stem() / file_name

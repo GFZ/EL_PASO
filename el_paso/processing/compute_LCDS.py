@@ -47,13 +47,11 @@ def compute_LCDS(
     """
     indices_solar_wind_hashable = make_dict_hashable(indices_solar_wind)
 
-    maginput_result = mag_utils.construct_maginput(
-        time_var, mag_utils.MagneticField(mag_field), indices_solar_wind_hashable
-    )
+    maginput = mag_utils.construct_maginput(time_var, mag_utils.MagneticField(mag_field), indices_solar_wind_hashable)
 
     irbem_input = mag_utils.IrbemInput(
         magnetic_field=mag_utils.MagneticField(mag_field),
-        maginput=maginput_result.maginput,
+        maginput=maginput,
         irbem_options=irbem_options,
         num_cores=num_cores,
         irbem_lib_path=irbem_lib_path,
