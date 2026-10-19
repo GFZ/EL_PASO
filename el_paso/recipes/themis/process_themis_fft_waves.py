@@ -63,6 +63,7 @@ def process_themis_fft_waves(
     *,
     skip_existing: bool = True,
     save_indices_sw: bool = False,
+    fill_sw: bool = True,
 ) -> None:
     """Process THEMIS FFT wave data and save the magnetic power spectral density.
 
@@ -99,6 +100,9 @@ def process_themis_fft_waves(
             cached THEMIS file is still current. Defaults to True.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        fill_sw (bool): Forwarded to `process_solar_wind_indices` when `save_indices_sw`
+            is True; controls whether gaps in the OMNI solar wind data are forward/backward filled
+            after linear interpolation. Defaults to True.
     """
     del bin_cadence
     del save_strategy
@@ -138,7 +142,12 @@ def process_themis_fft_waves(
     ep.save(vars_to_save, saving_strat, start_time, end_time, time_var=target_time_var)
 
     if save_indices_sw:
-        process_solar_wind_indices(start_time, end_time, processed_data_path=processed_data_path)
+        process_solar_wind_indices(
+            start_time,
+            end_time,
+            processed_data_path=processed_data_path,
+            fill_sw=fill_sw,
+        )
 
 
 def _get_fft_data(

@@ -33,6 +33,7 @@ def load_indices_solar_wind_parameters(
     target_time_variable: None = None,
     *,
     w_parameter_method: Literal["TsyWebsite", "Calculation"] = "Calculation",
+    fill_sw: bool = True,
 ) -> dict[SW_Index, tuple[ep.Variable, ep.Variable]]: ...
 
 
@@ -44,6 +45,7 @@ def load_indices_solar_wind_parameters(
     target_time_variable: ep.Variable,
     *,
     w_parameter_method: Literal["TsyWebsite", "Calculation"] = "Calculation",
+    fill_sw: bool = True,
 ) -> dict[SW_Index, ep.Variable]: ...
 
 
@@ -54,6 +56,7 @@ def load_indices_solar_wind_parameters(
     target_time_variable: ep.Variable | None = None,
     *,
     w_parameter_method: Literal["TsyWebsite", "Calculation"] = "Calculation",
+    fill_sw: bool = True,
 ) -> dict[SW_Index, tuple[ep.Variable, ep.Variable]] | dict[SW_Index, ep.Variable]:
     """Loads a variety of space weather indices and solar wind parameters.
 
@@ -78,6 +81,10 @@ def load_indices_solar_wind_parameters(
                                                             the Tsyganenko website (only available until 2023),
                                                             while 'Calculation' computes them from other
                                                             solar wind data. Defaults to 'Calculation'.
+        fill_sw (bool): For the high-resolution OMNI parameters (Pdyn, BzIMF, ByIMF, Vsw, Nsw),
+                                    whether leading/trailing gaps that linear interpolation cannot reach are
+                                    forward/backward filled. If False, those edge gaps are left as NaN.
+                                    Defaults to True.
 
     Returns:
         dict[SW_Index, ep.Variable | tuple[ep.Variable, ep.Variable]]: A dictionary where each key
@@ -140,7 +147,9 @@ def load_indices_solar_wind_parameters(
                 output_df = _cache_omni_high_res(base_data_path, start_time, end_time)
                 assert isinstance(output_df, pd.DataFrame)
 
-                output_df["pdyn"] = output_df["pdyn"].interpolate(method="linear", order=3).ffill().bfill()
+                output_df["pdyn"] = output_df["pdyn"].interpolate(method="linear", order=3)
+                if fill_sw:
+                    output_df["pdyn"] = output_df["pdyn"].ffill().bfill()
 
                 result = _create_variables_from_data_frame(
                     output_df, "pdyn", u.nPa, target_time_variable, "linear", "Pdyn"
@@ -151,7 +160,9 @@ def load_indices_solar_wind_parameters(
                 output_df = _cache_omni_high_res(base_data_path, start_time, end_time)
                 assert isinstance(output_df, pd.DataFrame)
 
-                output_df["bz_gsm"] = output_df["bz_gsm"].interpolate(method="linear", order=3).ffill().bfill()
+                output_df["bz_gsm"] = output_df["bz_gsm"].interpolate(method="linear", order=3)
+                if fill_sw:
+                    output_df["bz_gsm"] = output_df["bz_gsm"].ffill().bfill()
 
                 result = _create_variables_from_data_frame(
                     output_df, "bz_gsm", u.nT, target_time_variable, "linear", "BzIMF"
@@ -162,7 +173,9 @@ def load_indices_solar_wind_parameters(
                 output_df = _cache_omni_high_res(base_data_path, start_time, end_time)
                 assert isinstance(output_df, pd.DataFrame)
 
-                output_df["by_gsm"] = output_df["by_gsm"].interpolate(method="linear", order=3).ffill().bfill()
+                output_df["by_gsm"] = output_df["by_gsm"].interpolate(method="linear", order=3)
+                if fill_sw:
+                    output_df["by_gsm"] = output_df["by_gsm"].ffill().bfill()
 
                 result = _create_variables_from_data_frame(
                     output_df, "by_gsm", u.nT, target_time_variable, "linear", "ByIMF"
@@ -173,7 +186,9 @@ def load_indices_solar_wind_parameters(
                 output_df = _cache_omni_high_res(base_data_path, start_time, end_time)
                 assert isinstance(output_df, pd.DataFrame)
 
-                output_df["speed"] = output_df["speed"].interpolate(method="linear", order=3).ffill().bfill()
+                output_df["speed"] = output_df["speed"].interpolate(method="linear", order=3)
+                if fill_sw:
+                    output_df["speed"] = output_df["speed"].ffill().bfill()
 
                 result = _create_variables_from_data_frame(
                     output_df,
@@ -189,9 +204,9 @@ def load_indices_solar_wind_parameters(
                 output_df = _cache_omni_high_res(base_data_path, start_time, end_time)
                 assert isinstance(output_df, pd.DataFrame)
 
-                output_df["proton_density"] = (
-                    output_df["proton_density"].interpolate(method="linear", order=3).ffill().bfill()
-                )
+                output_df["proton_density"] = output_df["proton_density"].interpolate(method="linear", order=3)
+                if fill_sw:
+                    output_df["proton_density"] = output_df["proton_density"].ffill().bfill()
                 output_df["proton_density"] = output_df["proton_density"].clip(lower=0)
 
                 result = _create_variables_from_data_frame(
@@ -317,8 +332,10 @@ def _calculate_g1(
     time_var = ep.Variable(data=timestamps, original_unit=ep.units.posixtime)
 
     if target_time_variable is not None:
-        f = sp.interpolate.interp1d(time_var.get_data(), data_var.get_data(), kind="linear")
-        data_var.set_data(f(target_time_variable.get_data(ep.units.posixtime)), "same")
+        interpolated = np.interp(  # ty:ignore[no-matching-overload]
+            target_time_variable.get_data(ep.units.posixtime), time_var.get_data(), data_var.get_data()
+        )
+        data_var.set_data(interpolated, "same")
 
     return data_var, time_var
 
@@ -355,8 +372,10 @@ def _calculate_g2(
     time_var = ep.Variable(data=timestamps, original_unit=ep.units.posixtime)
 
     if target_time_variable is not None:
-        f = sp.interpolate.interp1d(time_var.get_data(), data_var.get_data(), kind="linear")
-        data_var.set_data(f(target_time_variable.get_data(ep.units.posixtime)), "same")
+        interpolated = np.interp(  # ty:ignore[no-matching-overload]
+            target_time_variable.get_data(ep.units.posixtime), time_var.get_data(), data_var.get_data()
+        )
+        data_var.set_data(interpolated, "same")
 
     return data_var, time_var
 
@@ -396,8 +415,10 @@ def _calculate_g3(
     time_var = ep.Variable(data=timestamps, original_unit=ep.units.posixtime)
 
     if target_time_variable is not None:
-        f = sp.interpolate.interp1d(time_var.get_data(), data_var.get_data(), kind="linear")
-        data_var.set_data(f(target_time_variable.get_data(ep.units.posixtime)), "same")
+        interpolated = np.interp(  # ty:ignore[no-matching-overload]
+            target_time_variable.get_data(ep.units.posixtime), time_var.get_data(), data_var.get_data()
+        )
+        data_var.set_data(interpolated, "same")
 
     return data_var, time_var
 

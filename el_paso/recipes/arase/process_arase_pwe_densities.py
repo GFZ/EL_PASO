@@ -46,6 +46,7 @@ def process_arase_pwe_density(
     *,
     skip_existing: bool = True,
     save_indices_sw: bool = False,
+    fill_sw: bool = True,
 ) -> None:
     """Process Arase PWE/HFA electron density data and save the mapped equatorial density.
 
@@ -78,6 +79,9 @@ def process_arase_pwe_density(
                                             Defaults to True.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        fill_sw (bool): Forwarded to `process_solar_wind_indices` when `save_indices_sw`
+            is True; controls whether gaps in the OMNI solar wind data are forward/backward filled
+            after linear interpolation. Defaults to True.
     """
     del satellite
     del save_strategy
@@ -199,7 +203,11 @@ def process_arase_pwe_density(
 
     if save_indices_sw:
         process_solar_wind_indices(
-            start_time, end_time, processed_data_path=processed_data_path, bin_cadence=bin_cadence
+            start_time,
+            end_time,
+            processed_data_path=processed_data_path,
+            bin_cadence=bin_cadence,
+            fill_sw=fill_sw,
         )
 
 

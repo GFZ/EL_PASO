@@ -39,6 +39,7 @@ def process_solar_wind_indices(
     *,
     skip_existing: bool = True,
     save_indices_sw: bool = False,
+    fill_sw: bool = True,
 ) -> None:
     """Save every solar wind and geomagnetic index EL-PASO can load over a time range.
 
@@ -63,6 +64,9 @@ def process_solar_wind_indices(
         save_strategy (Literal["gfz"]): Unused.
         skip_existing (bool): Unused.
         save_indices_sw (bool): Unused.
+        fill_sw (bool): For the high-resolution OMNI parameters (Pdyn, BzIMF, ByIMF, Vsw, Nsw),
+            whether leading/trailing gaps that linear interpolation cannot reach are forward/backward
+            filled. If False, those edge gaps are left as NaN. Defaults to True.
     """
     del satellite, mag_field, raw_data_path, num_cores, save_strategy, skip_existing, save_indices_sw
 
@@ -75,7 +79,9 @@ def process_solar_wind_indices(
     time_var = ep.Variable(data=np.asarray(timestamps), original_unit=ep.units.posixtime)
     time_var.metadata.original_cadence_seconds = bin_cadence.total_seconds()
 
-    indices_solar_wind = ep.load_indices_solar_wind_parameters(start_time, end_time, ALL_SW_INDICES, time_var)
+    indices_solar_wind = ep.load_indices_solar_wind_parameters(
+        start_time, end_time, ALL_SW_INDICES, time_var, fill_sw=fill_sw
+    )
 
     variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
         "Epoch": time_var,

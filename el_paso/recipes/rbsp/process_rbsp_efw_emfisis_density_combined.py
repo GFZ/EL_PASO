@@ -52,6 +52,7 @@ def process_rbsp_efw_emfisis_density_combined(
     add_hiss_derived_densitites: bool = True,
     hiss_derived_densities_data_path: str | Path = ".",
     save_indices_sw: bool = False,
+    fill_sw: bool = True,
 ) -> None:
     """Process and combine RBSP EFW and EMFISIS electron density data.
 
@@ -83,6 +84,9 @@ def process_rbsp_efw_emfisis_density_combined(
             hiss-derived density text files.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        fill_sw (bool): Forwarded to `process_solar_wind_indices` when `save_indices_sw`
+            is True; controls whether gaps in the OMNI solar wind data are forward/backward filled
+            after linear interpolation. Defaults to True.
 
     Raises:
         NotImplementedError: Always raised before the processed variables are saved; saving via
@@ -233,7 +237,11 @@ def process_rbsp_efw_emfisis_density_combined(
 
     if save_indices_sw:
         process_solar_wind_indices(
-            start_time, end_time, processed_data_path=processed_data_path, bin_cadence=bin_cadence
+            start_time,
+            end_time,
+            processed_data_path=processed_data_path,
+            bin_cadence=bin_cadence,
+            fill_sw=fill_sw,
         )
 
 
