@@ -16,7 +16,7 @@ from astropy import units as u
 import el_paso as ep
 from el_paso.processing.magnetic_field_utils import InternalFieldModel, IrbemOptions, LstarQuantity
 from el_paso.recipes.rbsp import RBSPSatellite
-from el_paso.recipes.solarwind.process_solar_wind_indices import process_solar_wind_indices
+from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import process_solar_wind_indices
 
 
 def rbsp_mageis_proton_gfz_strategy(
@@ -57,7 +57,7 @@ def process_rbsp_mageis_protons(
     save_strategy: Literal["gfz", "netcdf", "both"] = "both",
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
     *,
-    save_sw: bool = False,
+    save_indices_sw: bool = False,
 ) -> None:
     """Process RBSP ECT/MagEIS proton flux data into the EL-PASO data standard.
 
@@ -87,7 +87,7 @@ def process_rbsp_mageis_protons(
         save_strategy (Literal["gfz", "netcdf", "both"]): Which saving strategy/strategies
             to use for writing the processed output. Defaults to "both".
         skip_existing (bool): If True, skip downloading files that already exist on disk.
-        save_sw (bool): If True, also save all solar wind indices and parameters,
+        save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
     """
     raw_data_path = Path(raw_data_path)
@@ -277,7 +277,7 @@ def process_rbsp_mageis_protons(
             append=True,
         )
 
-    if save_sw:
+    if save_indices_sw:
         process_solar_wind_indices(
             start_time, end_time, processed_data_path=processed_data_path, bin_cadence=bin_cadence
         )

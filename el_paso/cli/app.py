@@ -119,9 +119,9 @@ RECIPES: tuple[RecipeEntry, ...] = (
         "rbsp", "rbspice-protons", "el_paso.recipes.rbsp.process_rbsp_rbspice_protons", "process_rbsp_rbspice_protons"
     ),
     RecipeEntry(
-        "solarwind",
+        "solar_wind_indices",
         "solar-wind-indices",
-        "el_paso.recipes.solarwind.process_solar_wind_indices",
+        "el_paso.recipes.solar_wind_indices.process_solar_wind_indices",
         "process_solar_wind_indices",
     ),
     RecipeEntry("themis", "fft-waves", "el_paso.recipes.themis.process_themis_fft_waves", "process_themis_fft_waves"),

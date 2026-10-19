@@ -12,17 +12,29 @@ import lazy_loader as lazy
 # `el_paso.recipes.rbsp` does not also pay for arase/esa/goes/gps/poes/probav/dmsp/themis.
 __getattr__, __dir__, __all__ = lazy.attach(
     __name__,
-    submodules=["arase", "dmsp", "esa", "goes", "gps", "model", "poes", "probav", "rbsp", "solarwind", "themis"],
+    submodules=[
+        "arase",
+        "dmsp",
+        "esa",
+        "goes",
+        "gps",
+        "model",
+        "poes",
+        "probav",
+        "rbsp",
+        "solar_wind_indices",
+        "themis",
+    ],
     submod_attrs={
         "model": ["process_lcds"],
-        "solarwind": ["process_solar_wind_indices"],
+        "solar_wind_indices": ["process_solar_wind_indices"],
     },
 )
 
 if TYPE_CHECKING:
-    from el_paso.recipes import arase, dmsp, esa, goes, gps, model, poes, probav, rbsp, solarwind, themis
+    from el_paso.recipes import arase, dmsp, esa, goes, gps, model, poes, probav, rbsp, solar_wind_indices, themis
     from el_paso.recipes.model import process_lcds
-    from el_paso.recipes.solarwind import process_solar_wind_indices
+    from el_paso.recipes.solar_wind_indices import process_solar_wind_indices
 
     __all__ = [
         "arase",
@@ -36,6 +48,6 @@ if TYPE_CHECKING:
         "process_lcds",
         "process_solar_wind_indices",
         "rbsp",
-        "solarwind",
+        "solar_wind_indices",
         "themis",
     ]

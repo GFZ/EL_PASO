@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
 import el_paso as ep
-from el_paso.recipes.solarwind.process_solar_wind_indices import process_solar_wind_indices
+from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import process_solar_wind_indices
 
 
 def arase_xep_realtime_gfz_strategy(
@@ -69,7 +69,7 @@ def process_arase_xep_real_time(
     download: bool = True,
     skip_existing: bool = True,
     do_xep_extraction: bool = True,
-    save_sw: bool = False,
+    save_indices_sw: bool = False,
 ) -> None:
     """Process Arase XEP real-time electron flux data and save derived products.
 
@@ -102,7 +102,7 @@ def process_arase_xep_real_time(
         skip_existing (bool): Whether to skip downloading files that already exist locally.
         do_xep_extraction (bool): Whether to extract the XEP flux product. If False, only the
             orbit data is processed.
-        save_sw (bool): If True, also save all solar wind indices and parameters,
+        save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
 
     Raises:
@@ -264,7 +264,7 @@ def process_arase_xep_real_time(
             append=True,
         )
 
-    if save_sw:
+    if save_indices_sw:
         process_solar_wind_indices(
             start_time, end_time, processed_data_path=processed_data_path, bin_cadence=bin_cadence
         )

@@ -15,7 +15,7 @@ from astropy import units as u
 from dotenv import load_dotenv
 
 import el_paso as ep
-from el_paso.recipes.solarwind.process_solar_wind_indices import process_solar_wind_indices
+from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import process_solar_wind_indices
 from el_paso.utils import timed_function
 
 CHI2_BAD_QUALITY_THRESHOLD = 2
@@ -64,7 +64,7 @@ def process_ept_proton_fluxes(
     save_strategy: typing.Literal["gfz", "netcdf", "both"] = "netcdf",
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
     *,
-    save_sw: bool = False,
+    save_indices_sw: bool = False,
 ) -> None:
     """Process PROBA-V EPT proton flux data into pitch-angle-resolved fluxes with magnetic field coordinates.
 
@@ -96,7 +96,7 @@ def process_ept_proton_fluxes(
         save_strategy (typing.Literal["gfz", "netcdf", "both"]): Which saving strategy (or
             strategies) to use for the processed output.
         skip_existing (bool): If True, skip downloading files that already exist locally.
-        save_sw (bool): If True, also save all solar wind indices and parameters,
+        save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
 
     Raises:
@@ -312,7 +312,7 @@ def process_ept_proton_fluxes(
         strategy = probav_ept_proton_netcdf_strategy(processed_data_path, mag_field)
     ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_var, append=True)
 
-    if save_sw:
+    if save_indices_sw:
         process_solar_wind_indices(
             start_time, end_time, processed_data_path=processed_data_path, bin_cadence=bin_cadence
         )

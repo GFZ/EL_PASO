@@ -22,7 +22,7 @@ def __dir__() -> list[str]:
 
 
 if TYPE_CHECKING:
-    from el_paso.recipes.solarwind.process_solar_wind_indices import (
+    from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import (
         process_solar_wind_indices,
         solar_wind_indices_strategy,
     )

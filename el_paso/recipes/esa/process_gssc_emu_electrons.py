@@ -17,7 +17,7 @@ from astropy.coordinates import GCRS, ITRS, CartesianRepresentation
 import el_paso as ep
 from el_paso.recipes.esa import ESAGSSCSatellite
 from el_paso.recipes.esa._gssc_emu_omm import fill_invalid_positions_from_omm
-from el_paso.recipes.solarwind.process_solar_wind_indices import process_solar_wind_indices
+from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import process_solar_wind_indices
 from el_paso.utils import timed_function
 
 logger = logging.getLogger(__name__)
@@ -65,7 +65,7 @@ def process_gssc_emu_electrons(
     skip_existing: bool = True,  # noqa: FBT001, FBT002
     *,
     calculate_Lstar: bool = True,
-    save_sw: bool = False,
+    save_indices_sw: bool = False,
 ) -> None:
     """Process ESA GSSC EMU (Galileo) electron data into pitch-angle resolved flux and PSD.
 
@@ -103,7 +103,7 @@ def process_gssc_emu_electrons(
             locally. Defaults to True.
         calculate_Lstar (bool, optional): If True, also compute the L* magnetic field quantity.
             Defaults to True.
-        save_sw (bool): If True, also save all solar wind indices and parameters,
+        save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
 
     Raises:
@@ -282,7 +282,7 @@ def process_gssc_emu_electrons(
         append=True,
     )
 
-    if save_sw:
+    if save_indices_sw:
         process_solar_wind_indices(
             start_time, end_time, processed_data_path=processed_data_path, bin_cadence=bin_cadence
         )

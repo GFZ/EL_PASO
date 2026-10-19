@@ -16,7 +16,7 @@ from numpy.typing import NDArray
 
 import el_paso as ep
 from el_paso.recipes.goes import GOESRealtimeSatellite
-from el_paso.recipes.solarwind.process_solar_wind_indices import process_solar_wind_indices
+from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import process_solar_wind_indices
 from el_paso.utils import timed_function
 
 logging.captureWarnings(capture=True)
@@ -79,7 +79,7 @@ def process_goes_real_time(
     save_strategy: Literal["gfz", "netcdf", "both"] = "netcdf",
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
     *,
-    save_sw: bool = False,
+    save_indices_sw: bool = False,
 ) -> None:
     """Process GOES real-time differential electron flux data into pitch-angle resolved phase space densities.
 
@@ -106,7 +106,7 @@ def process_goes_real_time(
             processed data. "gfz" saves using the GFZ format, "netcdf" saves monthly NetCDF files,
             and "both" saves using both strategies.
         skip_existing (bool): If True, skip downloading files that already exist on disk.
-        save_sw (bool): If True, also save all solar wind indices and parameters,
+        save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
     """
     # Part 1: specify source files to extract variables
@@ -261,7 +261,7 @@ def process_goes_real_time(
         strategy = goes_realtime_netcdf_strategy(processed_data_path, mag_field, satellite)
         ep.save(vars_to_save, strategy, start_time, end_time, time_var=binned_time_var, append=True)
 
-    if save_sw:
+    if save_indices_sw:
         process_solar_wind_indices(
             start_time, end_time, processed_data_path=processed_data_path, bin_cadence=bin_cadence
         )

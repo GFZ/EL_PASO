@@ -13,7 +13,7 @@ from astropy import units as u
 
 import el_paso as ep
 from el_paso.recipes.rbsp import RBSPSatellite
-from el_paso.recipes.solarwind.process_solar_wind_indices import process_solar_wind_indices
+from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import process_solar_wind_indices
 from el_paso.variable import Variable
 
 if TYPE_CHECKING:
@@ -47,7 +47,7 @@ def process_rbsp_emfisis_waves(
     save_strategy: Literal["netcdf"] = "netcdf",
     *,
     skip_existing: bool = True,
-    save_sw: bool = False,
+    save_indices_sw: bool = False,
 ) -> None:
     """Process RBSP EMFISIS wave, density, and magnetometer data and save derived wave properties.
 
@@ -84,7 +84,7 @@ def process_rbsp_emfisis_waves(
             strategy factory only supports a single output format. Defaults to "netcdf".
         skip_existing (bool): If True, skip downloading files that already exist locally.
             Defaults to True.
-        save_sw (bool): If True, also save all solar wind indices and parameters,
+        save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
     """
     del mag_field
@@ -202,7 +202,7 @@ def process_rbsp_emfisis_waves(
 
     ep.save(vars_to_save, saving_strat, start_time, end_time, target_time_var)
 
-    if save_sw:
+    if save_indices_sw:
         process_solar_wind_indices(start_time, end_time, processed_data_path=processed_data_path)
 
 

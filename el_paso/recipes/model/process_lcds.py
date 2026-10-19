@@ -11,7 +11,7 @@ import numpy as np
 from astropy import units as u
 
 import el_paso as ep
-from el_paso.recipes.solarwind.process_solar_wind_indices import process_solar_wind_indices
+from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import process_solar_wind_indices
 
 DEFAULT_ALPHA_EQ_DEG = [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0]
 """Equatorial pitch angles the LCDS is computed for unless the caller asks for others."""
@@ -46,7 +46,7 @@ def process_lcds(
     max_search_radius: float = 10,
     *,
     skip_existing: bool = True,
-    save_sw: bool = False,
+    save_indices_sw: bool = False,
 ) -> None:
     """Compute the Last Closed Drift Shell (LCDS) over a time range and save it to disk.
 
@@ -77,7 +77,7 @@ def process_lcds(
                                    still closed at this radius is censored rather than
                                    reported as the LCDS.
         skip_existing (bool): Unused. The recipe downloads no files.
-        save_sw (bool): If True, also save all solar wind indices and parameters,
+        save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
     """
     del satellite, raw_data_path, save_strategy, skip_existing
@@ -115,7 +115,7 @@ def process_lcds(
 
     ep.save(variables_to_save, lcds_strategy(processed_data_path, mag_field), start_time, end_time, time_var)
 
-    if save_sw:
+    if save_indices_sw:
         process_solar_wind_indices(
             start_time, end_time, processed_data_path=processed_data_path, bin_cadence=bin_cadence
         )

@@ -17,7 +17,7 @@ from astropy import units as u
 import el_paso as ep
 from el_paso.processing.magnetic_field_utils.irbem import Coords
 from el_paso.recipes.arase.get_arase_orbit_variables import get_arase_orbit_level_2_variables
-from el_paso.recipes.solarwind.process_solar_wind_indices import process_solar_wind_indices
+from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import process_solar_wind_indices
 
 
 def arase_pwe_densities_strategy(
@@ -45,7 +45,7 @@ def process_arase_pwe_density(
     save_strategy: Literal["netcdf"] = "netcdf",
     *,
     skip_existing: bool = True,
-    save_sw: bool = False,
+    save_indices_sw: bool = False,
 ) -> None:
     """Process Arase PWE/HFA electron density data and save the mapped equatorial density.
 
@@ -76,7 +76,7 @@ def process_arase_pwe_density(
                                                     saving strategy, so this has only one value.
         skip_existing (bool): If True, skip downloading files that already exist locally.
                                             Defaults to True.
-        save_sw (bool): If True, also save all solar wind indices and parameters,
+        save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
     """
     del satellite
@@ -197,7 +197,7 @@ def process_arase_pwe_density(
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
 
-    if save_sw:
+    if save_indices_sw:
         process_solar_wind_indices(
             start_time, end_time, processed_data_path=processed_data_path, bin_cadence=bin_cadence
         )

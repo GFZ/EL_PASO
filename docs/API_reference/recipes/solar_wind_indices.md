@@ -5,4 +5,4 @@ SPDX-FileContributor: Sahil Jhawar
 SPDX-License-Identifier: Apache-2.0
 -->
 
-::: el_paso.recipes.solarwind.process_solar_wind_indices.process_solar_wind_indices
+::: el_paso.recipes.solar_wind_indices.process_solar_wind_indices.process_solar_wind_indices

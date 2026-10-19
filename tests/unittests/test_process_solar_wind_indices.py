@@ -11,7 +11,7 @@ import el_paso as ep
 import numpy as np
 import pytest
 from astropy import units as u
-from el_paso.recipes.solarwind.process_solar_wind_indices import (
+from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import (
     process_solar_wind_indices,
     solar_wind_indices_strategy,
 )

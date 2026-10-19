@@ -85,7 +85,7 @@ from el_paso.recipes.rbsp.process_rbsp_rbspice_protons import (
     rbsp_rbspice_proton_gfz_strategy,
     rbsp_rbspice_proton_netcdf_strategy,
 )
-from el_paso.recipes.solarwind.process_solar_wind_indices import solar_wind_indices_strategy
+from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import solar_wind_indices_strategy
 from el_paso.recipes.themis.process_themis_fft_waves import themis_fft_waves_strategy
 from el_paso.recipes.themis.process_themis_scpot_density import themis_scpot_density_strategy
 

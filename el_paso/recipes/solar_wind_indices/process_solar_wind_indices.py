@@ -38,7 +38,7 @@ def process_solar_wind_indices(
     save_strategy: Literal["gfz"] = "gfz",
     *,
     skip_existing: bool = True,
-    save_sw: bool = False,
+    save_indices_sw: bool = False,
 ) -> None:
     """Save every solar wind and geomagnetic index EL-PASO can load over a time range.
 
@@ -62,9 +62,9 @@ def process_solar_wind_indices(
         num_cores (int): Unused. Loading the indices is not parallelized.
         save_strategy (Literal["gfz"]): Unused.
         skip_existing (bool): Unused.
-        save_sw (bool): Unused.
+        save_indices_sw (bool): Unused.
     """
-    del satellite, mag_field, raw_data_path, num_cores, save_strategy, skip_existing, save_sw
+    del satellite, mag_field, raw_data_path, num_cores, save_strategy, skip_existing, save_indices_sw
 
     timestamps = []
     curr_time = start_time
