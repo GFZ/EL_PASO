@@ -143,10 +143,10 @@ def process_goes_eps_maged_and_epead(
         skip_existing=skip_existing,
     )
 
-    magn_url = f"https://spdf.gsfc.nasa.gov/pub/data/goes/{satellite}/mag_l2_netcdf/YYYY/"
-    magn_file_name_stem = f"dn_magn-l2-hires_g{satellite[-2:]}_dYYYYMMDD_.{r'{6}'}.nc"
-
     if add_B_obs:
+        magn_url = f"https://spdf.gsfc.nasa.gov/pub/data/goes/{satellite}/mag_l2_netcdf/YYYY/"
+        magn_file_name_stem = f"dn_magn-l2-hires_g{satellite[-2:]}_dYYYYMMDD_.{r'{6}'}.nc"
+
         ep.download(
             start_time,
             end_time,
