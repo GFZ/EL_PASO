@@ -197,11 +197,20 @@ def process_goes_r_mps_high(
     )
     xgeo_var = ep.Variable(data=xgeo_data, original_unit=ep.units.RE)
 
-    # calculate pitch angles
+    # calculate pitch angles; the telescope angles are defined in the sensor frame, so the BRF field
+    # is rotated into it first: (x, y, z)_tele = (-z, y, x)_BRF
+    b_brf = magn_vars["b_brf"].get_data(u.nT)
+    b_tele_aligned_var = ep.Variable(
+        data=np.stack([-b_brf[:, 2], b_brf[:, 1], b_brf[:, 0]], axis=1),
+        original_unit=u.nT,
+        source_files=magn_vars["b_brf"].metadata.source_files,
+    )
+    b_tele_aligned_var.metadata.add_processing_note("Rotated from magn b_brf into the MPS-HI telescope frame.")
+
     tele_alpha_angles_var = ep.Variable(data=TELE_ALPHA_ANGLES, original_unit=u.deg)
     tele_beta_angles_var = ep.Variable(data=TELE_BETA_ANGLES, original_unit=u.deg)
     local_pa_var = ep.processing.compute_pitch_angles_for_telescopes(
-        magn_vars["b_brf"],
+        b_tele_aligned_var,
         tele_alpha_angles_var,
         tele_beta_angles_var,
     )
