@@ -13,6 +13,7 @@ from astropy import units as u
 
 import el_paso as ep
 from el_paso.recipes.rbsp import RBSPSatellite
+from el_paso.recipes.rbsp._emfisis_magnetometer import compute_observed_B_variables, download_emfisis_magnetometer
 
 
 def rbsp_hope_electron_gfz_strategy(
@@ -54,6 +55,7 @@ def process_rbsp_hope_electrons(
     *,
     calculate_Lstar: bool = True,
     skip_existing: bool = True,
+    add_B_obs: bool = False,
 ) -> None:
     """Process RBSP ECT/HOPE electron flux data into the EL-PASO data standard.
 
@@ -82,6 +84,8 @@ def process_rbsp_hope_electrons(
             to use for writing the processed output. Defaults to "netcdf".
         calculate_Lstar (bool): Whether Lstar should be calculated or not. Defaults to True.
         skip_existing (bool): If True, skip downloading files that already exist on disk.
+        add_B_obs (bool): If True, also download the EMFISIS magnetometer data and save the observed
+            magnetic field magnitude (B_total_obs) and InvMu_obs computed from it. Defaults to False.
     """
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
@@ -98,6 +102,9 @@ def process_rbsp_hope_electrons(
         method="request",
         skip_existing=skip_existing,
     )
+
+    if add_B_obs:
+        download_emfisis_magnetometer(start_time, end_time, satellite, raw_data_path, skip_existing=skip_existing)
 
     ep.exit_if_download_only()
 
@@ -153,6 +160,8 @@ def process_rbsp_hope_electrons(
         variables=variables,
         time_bin_method_dict=time_bin_methods,
         time_binning_cadence=bin_cadence,
+        start_time=start_time,
+        end_time=end_time,
     )
 
     variables["FEDU"].transpose_data([0, 2, 1])  # making it having dimensions (time, energy, pitch angle)
@@ -211,6 +220,19 @@ def process_rbsp_hope_electrons(
         "B_Calc": magnetic_field_variables["B_Calc_" + mag_field],
         "PSD": psd_var,
     }
+
+    if add_B_obs:
+        variables_to_save |= compute_observed_B_variables(
+            start_time,
+            end_time,
+            satellite,
+            raw_data_path,
+            binned_time_variable,
+            bin_cadence,
+            variables["Energy"],
+            variables["Pitch_angle"],
+            "electron",
+        )
 
     if save_strategy in ("gfz", "both"):
         strategy = rbsp_hope_electron_gfz_strategy(processed_data_path, mag_field, satellite)

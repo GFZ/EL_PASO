@@ -16,6 +16,7 @@ from astropy import units as u
 import el_paso as ep
 from el_paso.processing.magnetic_field_utils import InternalFieldModel, IrbemOptions, LstarQuantity
 from el_paso.recipes.rbsp import RBSPSatellite
+from el_paso.recipes.rbsp._emfisis_magnetometer import compute_observed_B_variables, download_emfisis_magnetometer
 
 
 def rbsp_mageis_proton_gfz_strategy(
@@ -55,6 +56,7 @@ def process_rbsp_mageis_protons(
     num_cores: int = 16,
     save_strategy: Literal["gfz", "netcdf", "both"] = "both",
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
+    add_B_obs: bool = False,  # noqa: FBT001, FBT002
 ) -> None:
     """Process RBSP ECT/MagEIS proton flux data into the EL-PASO data standard.
 
@@ -84,6 +86,8 @@ def process_rbsp_mageis_protons(
         save_strategy (Literal["gfz", "netcdf", "both"]): Which saving strategy/strategies
             to use for writing the processed output. Defaults to "both".
         skip_existing (bool): If True, skip downloading files that already exist on disk.
+        add_B_obs (bool): If True, also download the EMFISIS magnetometer data and save the observed
+            magnetic field magnitude (B_total_obs) and InvMu_obs computed from it. Defaults to False.
     """
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
@@ -100,6 +104,9 @@ def process_rbsp_mageis_protons(
         method="request",
         skip_existing=skip_existing,
     )
+
+    if add_B_obs:
+        download_emfisis_magnetometer(start_time, end_time, satellite, raw_data_path, skip_existing=skip_existing)
 
     ep.exit_if_download_only()
 
@@ -191,6 +198,8 @@ def process_rbsp_mageis_protons(
         variables=variables,
         time_bin_method_dict=time_bin_methods,
         time_binning_cadence=bin_cadence,
+        start_time=start_time,
+        end_time=end_time,
     )
 
     binned_time_variable_xGEO = ep.processing.bin_by_time(
@@ -198,6 +207,8 @@ def process_rbsp_mageis_protons(
         variables=variables,
         time_bin_method_dict=time_bin_methods_xGEO,
         time_binning_cadence=bin_cadence,
+        start_time=start_time,
+        end_time=end_time,
     )
 
     variables["FPDU"].transpose_data([0, 2, 1])  # making it have dimensions (time, energy, pitch angle)
@@ -236,7 +247,7 @@ def process_rbsp_mageis_protons(
         "Epoch": binned_time_variable,
         "FPDU": variables["FPDU"],
         "Position": variables["xGEO"],
-        "Energy_FEDU": variables["Energy"],
+        "Energy_FPDU": variables["Energy"],
         "Alpha": variables["Pitch_angle"],
         "Alpha_Eq": magnetic_field_variables["Alpha_Eq_" + mag_field],
         "L_star": magnetic_field_variables["L_star_" + mag_field],
@@ -249,6 +260,19 @@ def process_rbsp_mageis_protons(
         "B_Calc": magnetic_field_variables["B_Calc_" + mag_field],
         "PSD": psd_var,
     }
+
+    if add_B_obs:
+        variables_to_save |= compute_observed_B_variables(
+            start_time,
+            end_time,
+            satellite,
+            raw_data_path,
+            binned_time_variable,
+            bin_cadence,
+            variables["Energy"],
+            variables["Pitch_angle"],
+            "proton",
+        )
 
     if save_strategy in ("gfz", "both"):
         strategy = rbsp_mageis_proton_gfz_strategy(processed_data_path, mag_field, satellite)
