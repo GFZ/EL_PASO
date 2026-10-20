@@ -433,13 +433,29 @@ def _calls_function(tree: ast.AST, dotted_name: str) -> bool:
 def test_recipes_with_downloads_call_exit_if_download_only() -> None:
     recipes_dir = Path(ep.__file__).parent / "recipes"
 
+    # Private helper modules (e.g. `rbsp/_emfisis_magnetometer.py`) download data for several recipes.
+    # They must not exit themselves, since recipes call them before their other downloads, so their
+    # download functions are checked where they are called instead.
+    helper_modules = [path for path in recipes_dir.rglob("_*.py") if path.name != "__init__.py"]
+    helper_download_functions = {
+        node.name
+        for path in helper_modules
+        for node in ast.walk(ast.parse(path.read_text()))
+        if isinstance(node, ast.FunctionDef) and _calls_function(node, "ep.download")
+    }
+
     modules_with_download = []
     modules_without_exit = []
 
     for module_path in sorted(recipes_dir.rglob("*.py")):
+        if module_path in helper_modules:
+            continue
+
         tree = ast.parse(module_path.read_text())
 
-        if _calls_function(tree, "ep.download"):
+        if _calls_function(tree, "ep.download") or any(
+            _calls_function(tree, name) for name in helper_download_functions
+        ):
             modules_with_download.append(module_path.name)
 
             if not (
