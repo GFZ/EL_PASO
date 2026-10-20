@@ -11,6 +11,7 @@ from __future__ import annotations
 import importlib
 import inspect
 import logging
+import typing
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
@@ -419,6 +420,101 @@ def test_failed_recipe_keeps_the_cache(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.mark.minimal
 @pytest.mark.basic
+def test_stub_satellite_all_runs_every_satellite(stub_app: typer.Typer) -> None:
+    result = runner.invoke(stub_app, ["--start-time", "2020-01-02", "--end-time", "2020-01-03", "--satellite", "all"])
+
+    assert result.exit_code == 0, result.output
+    assert [call["satellite"] for call in calls] == ["a", "b"]
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_stub_satellite_all_absorbs_explicit_satellites(stub_app: typer.Typer) -> None:
+    result = runner.invoke(
+        stub_app,
+        ["--start-time", "2020-01-02", "--end-time", "2020-01-03", "--satellite", "b", "--satellite", "all"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert [call["satellite"] for call in calls] == ["a", "b"]
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_stub_help_lists_satellite_all(stub_app: typer.Typer) -> None:
+    result = runner.invoke(stub_app, ["--help"], env={"COLUMNS": "200"})
+
+    assert result.exit_code == 0, result.output
+    assert "<a|b|all>" in click.unstyle(result.output)
+
+
+def recipe_failing_for_satellite_a(
+    start_time: datetime, end_time: datetime, satellite: Literal["a", "b"] = "a"
+) -> None:
+    """Stub recipe that fails for one satellite only.
+
+    Args:
+        start_time (datetime): Start of the range.
+        end_time (datetime): End of the range.
+        satellite (Literal["a", "b"]): Which satellite.
+    """
+    calls.append(locals())
+    if satellite == "a":
+        msg = "no data for satellite a"
+        raise RuntimeError(msg)
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_failing_satellite_does_not_stop_the_others(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    import el_paso.cache  # noqa: PLC0415
+
+    monkeypatch.setattr(el_paso.cache, "_exit_with_exception", False)
+    calls.clear()
+    failing_app = typer.Typer(add_completion=False)
+    failing_app.command()(build_recipe_command(recipe_failing_for_satellite_a))
+
+    result = runner.invoke(
+        failing_app, ["--start-time", "2020-01-02", "--end-time", "2020-01-03", "--satellite", "all"]
+    )
+
+    assert result.exit_code == 1
+    assert [call["satellite"] for call in calls] == ["a", "b"]
+    assert "1 of 2 calls failed: satellite=a" in caplog.text
+    assert el_paso.cache._exit_with_exception is True
+
+
+def recipe_exiting_after_download(start_time: datetime, end_time: datetime, satellite: Literal["a", "b"] = "a") -> None:
+    """Stub recipe that stops like `ep.exit_if_download_only` does.
+
+    Args:
+        start_time (datetime): Start of the range.
+        end_time (datetime): End of the range.
+        satellite (Literal["a", "b"]): Which satellite.
+    """
+    calls.append(locals())
+    raise SystemExit(0)
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_exit_after_download_continues_with_the_next_satellite() -> None:
+    calls.clear()
+    download_app = typer.Typer(add_completion=False)
+    download_app.command()(build_recipe_command(recipe_exiting_after_download))
+
+    result = runner.invoke(
+        download_app, ["--start-time", "2020-01-02", "--end-time", "2020-01-03", "--satellite", "all"]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert [call["satellite"] for call in calls] == ["a", "b"]
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
 def test_run_report_hides_credentials(stub_app: typer.Typer, caplog: pytest.LogCaptureFixture) -> None:
     """Credentials must never be echoed to the console or into a job log."""
     result = runner.invoke(
@@ -555,6 +651,21 @@ def test_spacecraft_parameter_is_always_named_satellite(entry: RecipeEntry) -> N
 
     for banned in ("sat_str", "satellite_str", "sat"):
         assert banned not in parameters, f"{func.__name__} should name this parameter 'satellite', not {banned!r}"
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+@pytest.mark.parametrize("entry", RECIPES, ids=lambda e: f"{e.mission}-{e.command}")
+def test_every_recipe_accepts_satellite_all(entry: RecipeEntry) -> None:
+    """`--satellite all` must be available for every recipe, so job scripts can use it uniformly."""
+    func, defaults = load_recipe(entry)
+    command = build_recipe_command(func, defaults=defaults)
+
+    # Annotated[list[<choice enum>], <option>]
+    satellite_annotation = inspect.signature(command).parameters["satellite"].annotation
+    choice_enum = typing.get_args(typing.get_args(satellite_annotation)[0])[0]
+
+    assert "all" in [member.value for member in choice_enum]
 
 
 @pytest.mark.minimal

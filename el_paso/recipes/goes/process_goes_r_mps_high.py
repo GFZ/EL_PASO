@@ -260,7 +260,10 @@ def process_goes_r_mps_high(
     B_total_obs_var.metadata.add_processing_note("Derived from magn b_brf variable.")
 
     inv_mu_obs_var = ep.processing.compute_invariant_mu(
-        mps_vars["diff_energy"], local_pa_var, B_total_obs_var, "electron",
+        mps_vars["diff_energy"],
+        local_pa_var,
+        B_total_obs_var,
+        "electron",
     )
 
     variables_to_save: dict[InternalName, ep.Variable] = {

@@ -26,6 +26,7 @@ from el_paso.recipes.themis import ThemisProbe
 from el_paso.recipes.themis.get_themis_pyspedas_variables import (
     get_themis_position_geo,
     get_themis_scpot_density,
+    use_spdf_for_themis_downloads,
 )
 
 if TYPE_CHECKING:
@@ -101,6 +102,7 @@ def process_themis_fft_waves(
     del skip_existing
 
     set_pyspedas_data_dir("themis", raw_data_path)
+    use_spdf_for_themis_downloads()
 
     fft_vars = _get_fft_data(start_time, end_time, satellite)
     target_time_var = fft_vars["Epoch"]

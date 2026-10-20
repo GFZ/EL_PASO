@@ -105,6 +105,8 @@ class Variable:
             description (str): A description of the variable. Defaults to "".
             processing_notes (str): Notes on how the data was processed. Defaults to "".
             standard_name (StandardName): The standard name of the variable. Defaults to "".
+            source_files (list[str] | None): Files the data was read from. Defaults to an
+                empty list if None.
         """
         self._data = np.array([]) if data is None else data
 
