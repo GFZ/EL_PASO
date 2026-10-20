@@ -51,7 +51,8 @@ class GFZDataSet(DataSet):
         FPDU (NDArray[np.float64]): Proton differential unidirectional flux.
         Flux (NDArray[np.float64]): Electron differential unidirectional flux.
         InvK (NDArray[np.float64]): Calculated modified second adiabatic invariant.
-        InvMu (NDArray[np.float64]): Calculated first adiabatic invariant.
+        InvMu (NDArray[np.float64]): Calculated first adiabatic invariant from modelled magnetic field.
+        InvMu_obs (NDArray[np.float64]): Calculated first adiabatic invariant from magnetic field observations.
         LCDS (NDArray[np.float64]): Last Closed Drift Shell.
         Lm (NDArray[np.float64]): Calculated Lm of the particles.
         Lstar (NDArray[np.float64]): Calculated Lstar of the particles.
@@ -103,6 +104,7 @@ class GFZDataSet(DataSet):
     Flux: NDArray[np.float64]
     InvK: NDArray[np.float64]
     InvMu: NDArray[np.float64]
+    InvMu_obs: NDArray[np.float64]
     LCDS: NDArray[np.float64]
     Lm: NDArray[np.float64]
     Lstar: NDArray[np.float64]

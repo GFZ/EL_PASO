@@ -94,6 +94,7 @@ class Variable:
         description: str = "",
         processing_notes: str = "",
         standard_name: StandardName = "",  # ty:ignore[invalid-parameter-default]
+        source_files: list[str] | None = None,
     ) -> None:
         """Initializes a Variable instance.
 
@@ -107,11 +108,15 @@ class Variable:
         """
         self._data = np.array([]) if data is None else data
 
+        if source_files is None:
+            source_files = []
+
         self.metadata = VariableMetadata(
             unit=original_unit,
             description=description,
             processing_notes=processing_notes,
             standard_name=standard_name,
+            source_files=source_files,
         )
 
     def __repr__(self) -> str:

@@ -62,7 +62,7 @@ def process_goes_r_mps_high(
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=5),
     num_cores: int = 16,
-    save_strategy: Literal["gfz", "netcdf", "both"] = "netcdf",
+    save_strategy: Literal["gfz", "netcdf"] = "netcdf",
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
 ) -> None:
     """Process GOES-R MPS-HI MAGED electron data into pitch-angle resolved phase space densities.
@@ -254,6 +254,15 @@ def process_goes_r_mps_high(
         mps_vars["diff_flux"], mps_vars["diff_energy"], particle_species="electron"
     )
 
+    # observed magnetic field
+    B_total_obs = np.linalg.norm(magn_vars["b_brf"].get_data(u.nT), axis=1, ord=2)
+    B_total_obs_var = ep.Variable(u.nT, B_total_obs, source_files=magn_vars["b_brf"].metadata.source_files)
+    B_total_obs_var.metadata.add_processing_note("Derived from magn b_brf variable.")
+
+    inv_mu_obs_var = ep.processing.compute_invariant_mu(
+        mps_vars["diff_energy"], local_pa_var, B_total_obs_var, "electron",
+    )
+
     variables_to_save: dict[InternalName, ep.Variable] = {
         "Epoch": binned_time_var,
         "FEDU": mps_vars["diff_flux"],
@@ -269,13 +278,15 @@ def process_goes_r_mps_high(
         "B_Calc": magnetic_field_variables[f"B_Calc_{mag_field}"],
         "InvMu": magnetic_field_variables[f"InvMu_{mag_field}"],
         "InvK": magnetic_field_variables[f"InvK_{mag_field}"],
+        "InvMu_obs": inv_mu_obs_var,
+        "B_total_obs": B_total_obs_var,
     }
 
-    if save_strategy in ("gfz", "both"):
+    if save_strategy == "gfz":
         saving_strategy = goes_r_mps_high_gfz_strategy(processed_data_path, mag_field, satellite)
         ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=True)
 
-    if save_strategy in ("netcdf", "both"):
+    elif save_strategy == "netcdf":
         saving_strategy = goes_r_mps_high_netcdf_strategy(processed_data_path, mag_field, satellite)
         ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=True)
 

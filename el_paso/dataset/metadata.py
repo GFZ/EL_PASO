@@ -153,7 +153,8 @@ class GFZMetaData(DatasetMetadata):
         FPDU (VariableMetadata): Proton differential unidirectional flux.
         Flux (VariableMetadata): Electron differential unidirectional flux.
         InvK (VariableMetadata): Calculated modified second adiabatic invariant.
-        InvMu (VariableMetadata): Calculated first adiabatic invariant.
+        InvMu (VariableMetadata): Calculated first adiabatic invariant from modelled magnetic field.
+        InvMu_obs (VariableMetadata): Calculated first adiabatic invariant from magnetic field observations.
         LCDS (VariableMetadata): Last Closed Drift Shell.
         Lm (VariableMetadata): Calculated Lm of the particles.
         Lstar (VariableMetadata): Calculated Lstar of the particles.
@@ -203,6 +204,7 @@ class GFZMetaData(DatasetMetadata):
     Flux: VariableMetadata
     InvK: VariableMetadata
     InvMu: VariableMetadata
+    InvMu_obs: VariableMetadata
     LCDS: VariableMetadata
     Lm: VariableMetadata
     Lstar: VariableMetadata
