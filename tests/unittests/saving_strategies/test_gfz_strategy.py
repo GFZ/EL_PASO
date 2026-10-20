@@ -51,6 +51,7 @@ def _mock_monthly_variables() -> dict[InternalName, ep.Variable]:
         ),
         "B_Calc": ep.Variable(original_unit=u.nT, data=np.full(time_size, 75.0)),
         "B_Eq": ep.Variable(original_unit=u.nT, data=np.full(time_size, 50.0)),
+        "B_total_obs": ep.Variable(original_unit=u.nT, data=np.full(time_size, 70.0)),
         "InvK": ep.Variable(
             original_unit=ep.units.RE * u.G**0.5,
             data=np.full((time_size, alpha_size), 1.5),
@@ -58,6 +59,10 @@ def _mock_monthly_variables() -> dict[InternalName, ep.Variable]:
         "InvMu": ep.Variable(
             original_unit=u.MeV / u.G,
             data=np.full((time_size, energy_size, alpha_size), 2.5),
+        ),
+        "InvMu_obs": ep.Variable(
+            original_unit=u.MeV / u.G,
+            data=np.full((time_size, energy_size, alpha_size), 2.7),
         ),
         "Position": ep.Variable(
             original_unit=ep.units.RE,
@@ -178,6 +183,7 @@ def _mock_monthly_variables_for_append() -> dict[InternalName, ep.Variable]:
         ),
         "B_Calc": ep.Variable(original_unit=u.nT, data=np.full(time_size, 75.0)),
         "B_Eq": ep.Variable(original_unit=u.nT, data=np.full(time_size, 50.0)),
+        "B_total_obs": ep.Variable(original_unit=u.nT, data=np.full(time_size, 70.0)),
         "InvK": ep.Variable(
             original_unit=ep.units.RE * u.G**0.5,
             data=np.full((time_size, alpha_size), 1.5),
@@ -185,6 +191,10 @@ def _mock_monthly_variables_for_append() -> dict[InternalName, ep.Variable]:
         "InvMu": ep.Variable(
             original_unit=u.MeV / u.G,
             data=np.full((time_size, energy_size, alpha_size), 2.5),
+        ),
+        "InvMu_obs": ep.Variable(
+            original_unit=u.MeV / u.G,
+            data=np.full((time_size, energy_size, alpha_size), 2.7),
         ),
         "Position": ep.Variable(
             original_unit=ep.units.RE,

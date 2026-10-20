@@ -543,6 +543,27 @@ def test_dataset_equality_accepts_data_saved_with_different_strategies_but_same_
     assert gfz_strategy_dataset == mfs_strategy_dataset
 
 
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_loading_variable_from_missing_file_keeps_loaded_epoch(tmp_path: Path) -> None:
+    """A variable whose output file was not written must not blank variables loaded from other files."""
+    variables = _mock_monthly_variables()  # no InvMu_obs, so the GFZ real_invmu_and_alpha file is not written
+    start_time = datetime(2013, 1, 1, tzinfo=timezone.utc)
+    end_time = datetime(2013, 1, 2, tzinfo=timezone.utc)
+    strategy = ep.saving_strategies.GFZStrategy(
+        base_data_path=tmp_path, mission="GOES", satellite="primary", instrument="MAGED", mag_field="T89"
+    )
+    ep.save(variables, strategy, start_time=start_time, end_time=end_time, time_var=variables["Epoch"])
+
+    dataset = DataSet(saving_strategy=strategy, start_time=start_time, end_time=end_time, verbose=False)
+    epoch_name = strategy.data_standard.get_standard_name("Epoch")
+    epoch = getattr(dataset, epoch_name).copy()
+    assert epoch.size > 0
+
+    assert getattr(dataset, strategy.data_standard.get_standard_name("InvMu_obs")).size == 0
+    np.testing.assert_array_equal(getattr(dataset, epoch_name), epoch)
+
+
 _PROCESSED = pathlib.Path(__file__).parent.parent.parent / "system" / "data" / "processed"
 _ECT_START = datetime(2017, 9, 8, tzinfo=timezone.utc)
 _ECT_END = _ECT_START + timedelta(days=0.4, seconds=-1)

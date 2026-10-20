@@ -256,13 +256,15 @@ class PRBEMMetaData(DatasetMetadata):
             and B_Eq
         B_Calc (VariableMetadata): Calculated magnetic field strength at the spacecraft position
         B_Eq (VariableMetadata): Calculated magnetic field strength at magnetic equator
+        B_total_obs (VariableMetadata): Observed magnetic field strength at the spacecraft position
         Energy_FEDU (VariableMetadata): Central energy of unidirectional differential electron flux
         Energy_FPDU (VariableMetadata): Central energy of unidirectional differential proton flux
         Epoch (VariableMetadata): Posix Time
         FEDU (VariableMetadata): Processed unidirectional differential electron flux
         FPDU (VariableMetadata): Processed unidirectional differential proton flux
         InvK (VariableMetadata): Calculated modified second adiabatic invariant.
-        InvMu (VariableMetadata): Calculated first adiabatic invariant.
+        InvMu (VariableMetadata): Calculated first adiabatic invariant from modelled magnetic field.
+        InvMu_obs (VariableMetadata): Calculated first adiabatic invariant from magnetic field observations.
         L_m (VariableMetadata): Calculated L McIlwain's L parameter
         L_star (VariableMetadata): Calculated Roederer's L* parameter
         MLT (VariableMetadata): Magnetic local time at the satellite location.
@@ -282,6 +284,7 @@ class PRBEMMetaData(DatasetMetadata):
     Alpha_Eq: VariableMetadata
     B_Calc: VariableMetadata
     B_Eq: VariableMetadata
+    B_total_obs: VariableMetadata
     Energy_FEDU: VariableMetadata
     Energy_FPDU: VariableMetadata
     Epoch: VariableMetadata
@@ -289,6 +292,7 @@ class PRBEMMetaData(DatasetMetadata):
     FPDU: VariableMetadata
     InvK: VariableMetadata
     InvMu: VariableMetadata
+    InvMu_obs: VariableMetadata
     L_m: VariableMetadata
     L_star: VariableMetadata
     MLT: VariableMetadata
