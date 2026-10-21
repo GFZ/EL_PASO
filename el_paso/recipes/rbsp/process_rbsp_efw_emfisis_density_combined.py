@@ -32,7 +32,7 @@ def rbsp_efw_emfisis_density_combined_strategy(
     return ep.saving_strategies.RBSPDensityStrategy(
         base_data_path=base_data_path,
         mission="RBSP",
-        satellite=satellite,
+        satellite="rbsp" + satellite,
         instrument="densities_combined",
         mag_field=mag_field,
         data_standard=data_standard,
