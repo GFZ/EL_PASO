@@ -16,6 +16,7 @@ from astropy import units as u
 import el_paso as ep
 from el_paso.processing.magnetic_field_utils import InternalFieldModel, IrbemOptions, LstarQuantity
 from el_paso.recipes.rbsp import RBSPSatellite
+from el_paso.recipes.rbsp._emfisis_magnetometer import compute_observed_B_variables, download_emfisis_magnetometer
 from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import process_solar_wind_indices
 
 
@@ -54,9 +55,10 @@ def process_rbsp_mageis_protons(
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=5),
     num_cores: int = 16,
-    save_strategy: Literal["gfz", "netcdf", "both"] = "both",
+    save_strategy: Literal["gfz", "netcdf"] = "netcdf",
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
     *,
+    add_B_obs: bool = False,
     save_indices_sw: bool = False,
 ) -> None:
     """Process RBSP ECT/MagEIS proton flux data into the EL-PASO data standard.
@@ -84,9 +86,11 @@ def process_rbsp_mageis_protons(
         bin_cadence (timedelta): Time-binning cadence applied to all variables.
         num_cores (int): Number of CPU cores used for the magnetic field computations.
             Defaults to 16.
-        save_strategy (Literal["gfz", "netcdf", "both"]): Which saving strategy/strategies
-            to use for writing the processed output. Defaults to "both".
+        save_strategy (Literal["gfz", "netcdf"]): Which saving strategy/strategies
+            to use for writing the processed output. Defaults to "netcdf".
         skip_existing (bool): If True, skip downloading files that already exist on disk.
+        add_B_obs (bool): If True, also download the EMFISIS magnetometer data and save the observed
+            magnetic field magnitude (B_total_obs) and InvMu_obs computed from it. Defaults to False.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
     """
@@ -105,6 +109,9 @@ def process_rbsp_mageis_protons(
         method="request",
         skip_existing=skip_existing,
     )
+
+    if add_B_obs:
+        download_emfisis_magnetometer(start_time, end_time, satellite, raw_data_path, skip_existing=skip_existing)
 
     ep.exit_if_download_only()
 
@@ -196,6 +203,8 @@ def process_rbsp_mageis_protons(
         variables=variables,
         time_bin_method_dict=time_bin_methods,
         time_binning_cadence=bin_cadence,
+        start_time=start_time,
+        end_time=end_time,
     )
 
     binned_time_variable_xGEO = ep.processing.bin_by_time(
@@ -203,6 +212,8 @@ def process_rbsp_mageis_protons(
         variables=variables,
         time_bin_method_dict=time_bin_methods_xGEO,
         time_binning_cadence=bin_cadence,
+        start_time=start_time,
+        end_time=end_time,
     )
 
     variables["FPDU"].transpose_data([0, 2, 1])  # making it have dimensions (time, energy, pitch angle)
@@ -241,7 +252,7 @@ def process_rbsp_mageis_protons(
         "Epoch": binned_time_variable,
         "FPDU": variables["FPDU"],
         "Position": variables["xGEO"],
-        "Energy_FEDU": variables["Energy"],
+        "Energy_FPDU": variables["Energy"],
         "Alpha": variables["Pitch_angle"],
         "Alpha_Eq": magnetic_field_variables["Alpha_Eq_" + mag_field],
         "L_star": magnetic_field_variables["L_star_" + mag_field],
@@ -255,27 +266,25 @@ def process_rbsp_mageis_protons(
         "PSD": psd_var,
     }
 
-    if save_strategy in ("gfz", "both"):
-        strategy = rbsp_mageis_proton_gfz_strategy(processed_data_path, mag_field, satellite)
-        ep.save(
-            variables_to_save,
-            strategy,
+    if add_B_obs:
+        variables_to_save |= compute_observed_B_variables(
             start_time,
             end_time,
-            time_var=binned_time_variable,
-            append=True,
+            satellite,
+            raw_data_path,
+            binned_time_variable,
+            bin_cadence,
+            variables["Energy"],
+            variables["Pitch_angle"],
+            "proton",
         )
 
-    if save_strategy in ("netcdf", "both"):
+    if save_strategy == "gfz":
+        strategy = rbsp_mageis_proton_gfz_strategy(processed_data_path, mag_field, satellite)
+    else:
         strategy = rbsp_mageis_proton_netcdf_strategy(processed_data_path, mag_field, satellite)
-        ep.save(
-            variables_to_save,
-            strategy,
-            start_time,
-            end_time,
-            time_var=binned_time_variable,
-            append=True,
-        )
+
+    ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=True)
 
     if save_indices_sw:
         process_solar_wind_indices(

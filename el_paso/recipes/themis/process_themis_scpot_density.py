@@ -15,6 +15,7 @@ from el_paso.recipes.themis import ThemisProbe
 from el_paso.recipes.themis.get_themis_pyspedas_variables import (
     get_themis_position_geo,
     get_themis_scpot_density,
+    use_spdf_for_themis_downloads,
 )
 
 logger = logging.getLogger(__name__)
@@ -88,6 +89,7 @@ def process_themis_scpot_density(
     del save_strategy
 
     set_pyspedas_data_dir("themis", raw_data_path)
+    use_spdf_for_themis_downloads()
 
     density_variables = get_themis_scpot_density(satellite, start_time, end_time)
     orbit_variables = get_themis_position_geo(satellite, start_time, end_time)

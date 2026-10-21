@@ -86,7 +86,10 @@ class GFZStrategy(SavingStrategy):
             OutputFile("psd", ["Epoch", "PSD"]),
             OutputFile("xGEO", ["Epoch", "Position"]),
             OutputFile("invmu_and_invk", ["Epoch", "InvMu", "InvK"]),
-            OutputFile("bfield", ["Epoch", "B_Eq", "B_Calc"]),
+            OutputFile("real_invmu_and_alpha", ["Epoch", "InvMu_obs"]),
+            # B_total_obs only exists when a recipe adds the observed field, so B_Eq and B_Calc
+            # must not be dropped without it
+            OutputFile("bfield", ["Epoch", "B_Eq", "B_Calc", "B_total_obs"], save_incomplete=True),
             OutputFile("R0", ["Epoch", "R_Eq"]),
         ]
 

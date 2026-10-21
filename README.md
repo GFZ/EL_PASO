@@ -139,7 +139,7 @@ python -m el_paso.recipes.poes.process_poes_meped \
 Both forms accept the same options, because both are generated from the recipe
 function's own signature. `--start-time` and `--end-time` are required; the rest
 have per-recipe defaults. Common options are
-`--satellite` (repeat it to process several), `--mag-field`, `--bin-cadence`
+`--satellite` (repeat it to process several, or pass `all`), `--mag-field`, `--bin-cadence`
 (`10s`, `5min`, `1h`), `--raw-data-path`, `--processed-data-path` and
 `--num-cores`. Add `--dry-run` to print the resolved arguments without
 processing anything, and `--install-completion` to set up shell completion.

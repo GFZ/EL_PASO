@@ -68,9 +68,10 @@ def process_goes_eps_maged_and_epead(
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=5),
     num_cores: int = 16,
-    save_strategy: Literal["gfz", "netcdf", "both"] = "netcdf",
+    save_strategy: Literal["gfz", "netcdf"] = "netcdf",
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
     *,
+    add_B_obs: bool = False,
     save_indices_sw: bool = False,
 ) -> None:
     """Process combined GOES-13/15 EPS MAGED and EPEAD electron data into phase space densities.
@@ -97,10 +98,11 @@ def process_goes_eps_maged_and_epead(
         processed_data_path (str | Path): Directory where the processed output files are saved.
         bin_cadence (timedelta): Time cadence used to bin the extracted variables.
         num_cores (int): Number of CPU cores used for the magnetic field computations.
-        save_strategy (Literal["gfz", "netcdf", "both"]): Strategy used to save the processed
-            data. "gfz" saves using the GFZ format, "netcdf" saves monthly NetCDF files, and
-            "both" saves using both strategies.
+        save_strategy (Literal["gfz", "netcdf"]): Strategy used to save the processed
+            data. "gfz" saves using the GFZ format, "netcdf" saves monthly NetCDF files.
         skip_existing (bool): If True, skip downloading files that already exist on disk.
+        add_B_obs (bool): If True, also download the high-resolution L2 magnetometer data and save the
+            observed magnetic field magnitude (B_total_obs) and InvMu_obs computed from it. Defaults to False.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
     """
@@ -144,6 +146,20 @@ def process_goes_eps_maged_and_epead(
         file_name_stem=pa_file_name_stem,
         skip_existing=skip_existing,
     )
+
+    if add_B_obs:
+        magn_url = f"https://spdf.gsfc.nasa.gov/pub/data/goes/{satellite}/mag_l2_netcdf/YYYY/"
+        magn_file_name_stem = f"dn_magn-l2-hires_g{satellite[-2:]}_dYYYYMMDD_.{r'{6}'}.nc"
+
+        ep.download(
+            start_time,
+            end_time,
+            save_path=data_path_stem,
+            file_cadence="daily",
+            download_url=magn_url,
+            file_name_stem=magn_file_name_stem,
+            skip_existing=skip_existing,
+        )
 
     ep.exit_if_download_only()
 
@@ -234,27 +250,21 @@ def process_goes_eps_maged_and_epead(
         "InvK": magnetic_field_variables[f"InvK_{mag_field}"],
     }
 
-    if save_strategy in ("gfz", "both"):
-        saving_strategy = goes_eps_maged_and_epead_gfz_strategy(processed_data_path, mag_field, satellite)
-        ep.save(
-            variables_to_save,
-            saving_strategy,
-            start_time,
-            end_time,
-            time_var=maged_vars["Epoch"],
-            append=True,
+    if add_B_obs:
+        magn_vars = _get_and_prepare_magnetometer_variables(
+            magn_file_name_stem, data_path_stem, start_time, end_time, bin_cadence
+        )
+        variables_to_save["B_total_obs"] = magn_vars["B_total_obs"]
+        variables_to_save["InvMu_obs"] = ep.processing.compute_invariant_mu(
+            maged_vars["Energy"], pa_vars["AlphaLocal"], magn_vars["B_total_obs"], "electron"
         )
 
-    if save_strategy in ("netcdf", "both"):
+    if save_strategy == "gfz":
+        saving_strategy = goes_eps_maged_and_epead_gfz_strategy(processed_data_path, mag_field, satellite)
+    else:
         saving_strategy = goes_eps_maged_and_epead_netcdf_strategy(processed_data_path, mag_field, satellite)
-        ep.save(
-            variables_to_save,
-            saving_strategy,
-            start_time,
-            end_time,
-            time_var=maged_vars["Epoch"],
-            append=True,
-        )
+
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=maged_vars["Epoch"], append=True)
 
     if save_indices_sw:
         process_solar_wind_indices(
@@ -464,6 +474,50 @@ def _get_and_prepare_eps_pitch_angles_variables(
     )
 
     return pa_vars
+
+
+def _get_and_prepare_magnetometer_variables(
+    file_name_stem: str,
+    data_path_stem: str | Path,
+    start_time: datetime,
+    end_time: datetime,
+    bin_cadence: timedelta,
+) -> dict[str, ep.Variable]:
+    extraction_infos = [
+        ep.ExtractionInfo(name_or_column="time", unit=ep.units.j2k, result_key="Epoch"),
+        ep.ExtractionInfo(name_or_column="b_epn", unit=u.nT, result_key="b_epn"),
+        ep.ExtractionInfo(name_or_column="quality", unit=u.dimensionless_unscaled, result_key="quality"),
+    ]
+
+    magn_vars = ep.extract_variables_from_files(
+        start_time,
+        end_time,
+        file_cadence="daily",
+        data_path=data_path_stem,
+        file_name_stem=file_name_stem,
+        extraction_infos=extraction_infos,
+    )
+
+    # b_total is fill in the hires files, so the magnitude is taken from the best-estimate field vector
+    b_epn_var = magn_vars.pop("b_epn")
+    b_total_obs = np.linalg.norm(b_epn_var.get_data(u.nT).astype(np.float64), axis=1)
+    b_total_obs[magn_vars.pop("quality").get_data() != 0] = np.nan
+
+    magn_vars["B_total_obs"] = ep.Variable(u.nT, b_total_obs, source_files=b_epn_var.metadata.source_files)
+    magn_vars["B_total_obs"].metadata.add_processing_note(
+        "Magnitude of the magn b_epn variable; samples with a non-zero quality flag set to NaN."
+    )
+
+    magn_vars["Epoch"] = ep.processing.bin_by_time(
+        time_variable=magn_vars["Epoch"],
+        variables=magn_vars,
+        time_bin_method_dict={"B_total_obs": ep.TimeBinMethod.NanMean},
+        time_binning_cadence=bin_cadence,
+        start_time=start_time,
+        end_time=end_time,
+    )
+
+    return magn_vars
 
 
 def _geo_cartesian_from_west_lon_incl(

@@ -6,6 +6,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+import logging
 from collections.abc import Iterable
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -16,11 +17,23 @@ from astropy import units as u
 from numpy.typing import NDArray
 
 import el_paso as ep
-from el_paso.processing.magnetic_field_utils import InternalFieldModel, IrbemOptions, LstarQuantity
+from el_paso.processing.magnetic_field_utils import IrbemOptions
 from el_paso.recipes.rbsp import RBSPSatellite
+from el_paso.recipes.rbsp._emfisis_magnetometer import compute_observed_B_variables, download_emfisis_magnetometer
 from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import process_solar_wind_indices
 
-BAD_CHANNELS = (13, 21, 22, 23, 24)
+logger = logging.getLogger(__name__)
+
+# FEDU_Energy and FEDU_Alpha entries after these are fill values
+N_ENERGY_CHANNELS = 21
+N_PITCH_ANGLES = 11
+
+# FEDU_Energy of a complete rel04 file (rbspa_rel04_ect-mageis-l3_20140101_v8.1.0.cdf). Files with missing
+# channels have the remaining ones shifted down; these are mapped back onto this list.
+STANDARD_ENERGIES_KEV = np.array(
+    [33, 54, 80, 108, 143, 184, 226, 235, 346, 470, 597, 749, 909, 1064, 1079, 1575, 1728, 2280, 2619, 3618, 4062],
+    dtype=np.float64,
+)
 
 
 def rbsp_mageis_electron_strategy(
@@ -54,19 +67,24 @@ def process_rbsp_mageis_electrons(
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
     save_strategy: Literal["netcdf"] = "netcdf",
     *,
+    add_B_obs: bool = False,
     save_indices_sw: bool = False,
 ) -> None:
     """Process RBSP ECT/MagEIS electron flux data into the EL-PASO data standard.
 
     Downloads the daily RBSP MagEIS level-3 electron CDF files for the given time range and
-    satellite, extracts the energy/pitch-angle-resolved flux (FEDU) and position on their
-    respective time grids, applies a lower bound threshold to the flux, filters out non-positive
-    energy channels, truncates all variables to the requested time range, time-bins all variables
-    to a common cadence (FEDU and position are binned independently due to differing time grids),
-    folds the pitch angles and flux to the [0, 90] degree range, computes magnetic-field-related
+    satellite and extracts the energy/pitch-angle-resolved flux (FEDU) and position. Each file is
+    treated as in the GFZ MATLAB reader `mageis_read_one_file`: fill energy channels and pitch angles
+    are removed, files with missing energy channels are mapped onto the standard rel04 energies,
+    non-positive fluxes are set to NaN, and positions are converted to Earth radii; energies are kept
+    per file, so they are time dependent. The pitch angles and flux are then folded to the [0, 90]
+    degree range with a NaN-mean, all variables are time-binned to a common cadence, magnetic-field-related
     quantities (B field, equatorial pitch angle, L*, L_m, MLT, InvK, InvMu, etc.) using the position
     time grid to ensure consistent time/position pairing with IRBEM, computes the electron phase space
     density from FEDU, and saves all resulting variables using the requested saving strategy.
+    If `add_B_obs` is set, the EMFISIS level-3 4-second magnetometer CDF files are downloaded as well,
+    and the observed magnetic field magnitude (B_total_obs) and the first adiabatic invariant computed
+    from it (InvMu_obs) are saved in addition.
 
     Args:
         start_time (datetime): Start of the time range to process.
@@ -85,6 +103,8 @@ def process_rbsp_mageis_electrons(
             raw_data_path. Defaults to True.
         save_strategy (Literal["netcdf"]): Saving strategy used for the output files.
             Only "netcdf" is currently supported for this recipe. Defaults to "netcdf".
+        add_B_obs (bool): If True, also download the EMFISIS magnetometer data and save the observed
+            magnetic field magnitude (B_total_obs) and InvMu_obs computed from it. Defaults to False.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
     """
@@ -105,6 +125,9 @@ def process_rbsp_mageis_electrons(
         skip_existing=skip_existing,
     )
 
+    if add_B_obs:
+        download_emfisis_magnetometer(start_time, end_time, satellite, raw_data_path, skip_existing=skip_existing)
+
     ep.exit_if_download_only()
 
     extraction_infos = [
@@ -113,17 +136,16 @@ def process_rbsp_mageis_electrons(
             name_or_column="Epoch",
             unit=ep.units.cdf_epoch,
         ),
+        # made time dependent per file by _mageis_data_modifier, since the energy channels differ between files
         ep.ExtractionInfo(
             result_key="Energy",
             name_or_column="FEDU_Energy",
             unit=u.keV,
-            is_time_dependent=False,
         ),
         ep.ExtractionInfo(
             result_key="Pitch_angle",
             name_or_column="FEDU_Alpha",
             unit=u.deg,
-            is_time_dependent=False,
         ),
         ep.ExtractionInfo(
             result_key="FEDU",
@@ -144,26 +166,17 @@ def process_rbsp_mageis_electrons(
         data_path=raw_data_path,
         file_name_stem=file_name_stem,
         extraction_infos=extraction_infos,
-        data_modifier=_xgeo_data_modifier,
+        data_modifier=_mageis_data_modifier,
     )
 
-    variables["FEDU"].apply_thresholds_on_data(1e-21)
-    variables["Energy"].apply_thresholds_on_data(1e-21)
-
-    # delete bad channels; these are always nan
-    flux = variables["FEDU"].get_data()
-
-    flux = np.delete(flux, BAD_CHANNELS, axis=2)
-    variables["FEDU"].set_data(flux, unit="same")
-
-    energy = variables["Energy"].get_data()
-    energy = np.delete(energy, BAD_CHANNELS, axis=0)
-    variables["Energy"].set_data(energy, unit="same")
+    # fold before time binning, as in the GFZ MATLAB processing
+    variables["FEDU"].transpose_data([0, 2, 1])  # making it have dimensions (time, energy, pitch angle)
+    ep.processing.fold_pitch_angles_and_flux(variables["FEDU"], variables["Pitch_angle"])
 
     time_bin_methods = {
-        "Energy": ep.TimeBinMethod.Repeat,  # making energy time dependent
+        "Energy": ep.TimeBinMethod.NanMean,
         "FEDU": ep.TimeBinMethod.NanMedian,
-        "Pitch_angle": ep.TimeBinMethod.Repeat,
+        "Pitch_angle": ep.TimeBinMethod.NanMean,
         "xGEO": ep.TimeBinMethod.NanMean,
     }
 
@@ -172,10 +185,9 @@ def process_rbsp_mageis_electrons(
         variables=variables,
         time_bin_method_dict=time_bin_methods,
         time_binning_cadence=bin_cadence,
+        start_time=start_time,
+        end_time=end_time,
     )
-
-    variables["FEDU"].transpose_data([0, 2, 1])  # making it have dimensions (time, energy, pitch angle)
-    ep.processing.fold_pitch_angles_and_flux(variables["FEDU"], variables["Pitch_angle"])
 
     # not needed anymore
     del variables["Epoch"]
@@ -196,7 +208,7 @@ def process_rbsp_mageis_electrons(
         time_var=binned_time_variable,
         xgeo_var=variables["xGEO"],
         variables_to_compute=vars_to_compute,
-        irbem_options=IrbemOptions(LstarQuantity.LSTAR, 1, 0, 0, InternalFieldModel.IGRF),
+        irbem_options=IrbemOptions(),
         num_cores=num_cores,
         pa_local_var=variables["Pitch_angle"],
         energy_var=variables["Energy"],
@@ -223,6 +235,19 @@ def process_rbsp_mageis_electrons(
         "PSD": psd_var,
     }
 
+    if add_B_obs:
+        variables_to_save |= compute_observed_B_variables(
+            start_time,
+            end_time,
+            satellite,
+            raw_data_path,
+            binned_time_variable,
+            bin_cadence,
+            variables["Energy"],
+            variables["Pitch_angle"],
+            "electron",
+        )
+
     strategy = rbsp_mageis_electron_strategy(processed_data_path, mag_field, satellite)
     ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=False)
 
@@ -235,16 +260,52 @@ def process_rbsp_mageis_electrons(
         )
 
 
-def _xgeo_data_modifier(
+def _mageis_data_modifier(
     variable_data: dict[str | int, NDArray[np.generic]],
     extraction_infos: Iterable[ep.ExtractionInfo],  # noqa: ARG001
 ) -> dict[str | int, NDArray[np.generic]]:
+    """Apply the per-file treatment of the GFZ MATLAB reader `mageis_read_one_file`."""
+    energy = variable_data["FEDU_Energy"].astype(np.float64)
+    alpha = variable_data["FEDU_Alpha"].astype(np.float64)
+    flux = variable_data["FEDU"].astype(np.float64)  # (time, pitch angle, energy)
 
-    xgeo_data = variable_data["Position"].astype(np.float64)
+    energy[energy < 0] = np.nan
+    alpha[alpha < 0] = np.nan
 
-    if np.max(xgeo_data) > 100:  # unit is km
-        xgeo_data = (xgeo_data * u.km).to_value(ep.units.RE)
-        variable_data["Position"] = xgeo_data
+    if np.isfinite(energy[N_ENERGY_CHANNELS:]).any() or np.isfinite(alpha[N_PITCH_ANGLES:]).any():
+        msg = "MagEIS fill channels contain data; the channel layout of this file is not the expected one!"
+        raise ValueError(msg)
+
+    energy = energy[:N_ENERGY_CHANNELS]
+    alpha = alpha[:N_PITCH_ANGLES]
+    flux = flux[:, :N_PITCH_ANGLES, :N_ENERGY_CHANNELS]
+
+    # some files miss channels and shift the remaining ones down; map them back onto the standard energies
+    is_valid = np.isfinite(energy)
+    if not is_valid.all():
+        matches = np.isclose(energy[is_valid, np.newaxis], STANDARD_ENERGIES_KEV[np.newaxis, :], rtol=1e-6, atol=0)
+
+        if matches.any(axis=1).all():
+            shifted_flux = np.full_like(flux, np.nan)
+            shifted_flux[:, :, matches.argmax(axis=1)] = flux[:, :, is_valid]
+            flux = shifted_flux
+            energy = STANDARD_ENERGIES_KEV.copy()
+            logger.info(f"Shifted MagEIS energy channels onto standard energies at {matches.argmax(axis=1)}.")
+        else:
+            logger.warning("MagEIS energy channel definitions are different from usual in this file!")
+
+    flux[flux <= 0] = np.nan
+
+    position = variable_data["Position"].astype(np.float64)
+    position[np.abs(position) > 1e10] = np.nan
+    is_km = ~(np.linalg.norm(position, axis=1) < 16)  # rows not already in Earth radii
+    position[is_km] = (position[is_km] * u.km).to_value(ep.units.RE)
+
+    n_time = flux.shape[0]
+    variable_data["FEDU_Energy"] = np.tile(energy, (n_time, 1))
+    variable_data["FEDU_Alpha"] = np.tile(alpha, (n_time, 1))
+    variable_data["FEDU"] = flux
+    variable_data["Position"] = position
 
     return variable_data
 

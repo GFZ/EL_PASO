@@ -80,6 +80,12 @@ class PRBEMStandard(DataStandard[PRBEMName]):
                 u.nT,
                 dependencies=["Epoch"],
             ),
+            "B_total_obs": VariableInfo[PRBEMName](
+                "B_total_obs",
+                "Observed magnetic field strength at the spacecraft position",
+                u.nT,
+                dependencies=["Epoch"],
+            ),
             "L_m": VariableInfo[PRBEMName](
                 "L_m",
                 "Calculated L McIlwain's L parameter",
@@ -94,7 +100,13 @@ class PRBEMStandard(DataStandard[PRBEMName]):
             ),
             "InvMu": VariableInfo[PRBEMName](
                 "InvMu",
-                "Calculated first adiabatic invariant.",
+                "Calculated first adiabatic invariant from modelled magnetic field.",
+                u.MeV / u.G,
+                ["Epoch", ("Energy_FEDU", "Energy_FPDU"), "Alpha"],
+            ),
+            "InvMu_obs": VariableInfo[PRBEMName](
+                "InvMu_obs",
+                "Calculated first adiabatic invariant from magnetic field observations.",
                 u.MeV / u.G,
                 ["Epoch", ("Energy_FEDU", "Energy_FPDU"), "Alpha"],
             ),

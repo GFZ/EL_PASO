@@ -13,6 +13,7 @@ from astropy import units as u
 
 import el_paso as ep
 from el_paso.recipes.rbsp import RBSPSatellite
+from el_paso.recipes.rbsp._emfisis_magnetometer import compute_observed_B_variables, download_emfisis_magnetometer
 from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import process_solar_wind_indices
 
 
@@ -51,9 +52,10 @@ def process_rbsp_ect_combined(
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=5),
     num_cores: int = 16,
-    save_strategy: Literal["gfz", "netcdf", "both"] = "netcdf",
+    save_strategy: Literal["gfz", "netcdf"] = "netcdf",
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
     *,
+    add_B_obs: bool = False,
     save_indices_sw: bool = False,
 ) -> None:
     """Process combined RBSP ECT (REPT/MagEIS) electron flux data into the EL-PASO data standard.
@@ -77,11 +79,13 @@ def process_rbsp_ect_combined(
         processed_data_path (str | Path): Directory where the processed output files are
             written to. Defaults to ".".
         bin_cadence (timedelta): Time-binning cadence applied to all variables.
-        save_strategy (Literal["gfz", "netcdf", "both"]): Which saving strategy/strategies
+        save_strategy (Literal["gfz", "netcdf"]): Which saving strategy/strategies
             to use for writing the processed output. Defaults to "netcdf".
         num_cores (int): Number of CPU cores used for the magnetic field computations.
             Defaults to 16.
         skip_existing (bool): If True, skip downloading files that already exist on disk.
+        add_B_obs (bool): If True, also download the EMFISIS magnetometer data and save the observed
+            magnetic field magnitude (B_total_obs) and InvMu_obs computed from it. Defaults to False.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
     """
@@ -100,6 +104,9 @@ def process_rbsp_ect_combined(
         method="request",
         skip_existing=skip_existing,
     )
+
+    if add_B_obs:
+        download_emfisis_magnetometer(start_time, end_time, satellite, raw_data_path, skip_existing=skip_existing)
 
     ep.exit_if_download_only()
 
@@ -226,13 +233,25 @@ def process_rbsp_ect_combined(
         "Position": variables["xGEO"],
     }
 
-    if save_strategy in ("gfz", "both"):
-        strategy = rbsp_ect_combined_gfz_strategy(processed_data_path, mag_field, satellite)
-        ep.save(variables_to_save, strategy, start_time, end_time, binned_time_variable, append=True)
+    if add_B_obs:
+        variables_to_save |= compute_observed_B_variables(
+            start_time,
+            end_time,
+            satellite,
+            raw_data_path,
+            binned_time_variable,
+            bin_cadence,
+            variables["Energy"],
+            variables["Pitch_angle"],
+            "electron",
+        )
 
-    if save_strategy in ("netcdf", "both"):
+    if save_strategy == "gfz":
+        strategy = rbsp_ect_combined_gfz_strategy(processed_data_path, mag_field, satellite)
+    else:
         strategy = rbsp_ect_combined_netcdf_strategy(processed_data_path, mag_field, satellite)
-        ep.save(variables_to_save, strategy, start_time, end_time, binned_time_variable, append=True)
+
+    ep.save(variables_to_save, strategy, start_time, end_time, binned_time_variable, append=True)
 
     if save_indices_sw:
         process_solar_wind_indices(

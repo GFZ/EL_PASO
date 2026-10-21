@@ -108,6 +108,7 @@ InternalName: TypeAlias = (
         "G2",
         "G3",
         "W_params",
+        "InvMu_obs",
         "LCDS",
     ]
     | MagFieldVarTypes
@@ -134,6 +135,7 @@ GFZVarNames: TypeAlias = Literal[
     "G3",
     "InvK",
     "InvMu",
+    "InvMu_obs",
     "Kp",
     "LCDS",
     "Lm",

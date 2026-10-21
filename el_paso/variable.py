@@ -94,6 +94,7 @@ class Variable:
         description: str = "",
         processing_notes: str = "",
         standard_name: StandardName = "",  # ty:ignore[invalid-parameter-default]
+        source_files: list[str] | None = None,
     ) -> None:
         """Initializes a Variable instance.
 
@@ -104,14 +105,20 @@ class Variable:
             description (str): A description of the variable. Defaults to "".
             processing_notes (str): Notes on how the data was processed. Defaults to "".
             standard_name (StandardName): The standard name of the variable. Defaults to "".
+            source_files (list[str] | None): Files the data was read from. Defaults to an
+                empty list if None.
         """
         self._data = np.array([]) if data is None else data
+
+        if source_files is None:
+            source_files = []
 
         self.metadata = VariableMetadata(
             unit=original_unit,
             description=description,
             processing_notes=processing_notes,
             standard_name=standard_name,
+            source_files=source_files,
         )
 
     def __repr__(self) -> str:

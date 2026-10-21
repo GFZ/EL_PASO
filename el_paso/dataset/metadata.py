@@ -159,7 +159,8 @@ class GFZMetaData(DatasetMetadata):
         G2 (VariableMetadata): Tsyganenko G2 parameter.
         G3 (VariableMetadata): Tsyganenko G3 parameter.
         InvK (VariableMetadata): Calculated modified second adiabatic invariant.
-        InvMu (VariableMetadata): Calculated first adiabatic invariant.
+        InvMu (VariableMetadata): Calculated first adiabatic invariant from modelled magnetic field.
+        InvMu_obs (VariableMetadata): Calculated first adiabatic invariant from magnetic field observations.
         Kp (VariableMetadata): Planetary Kp geomagnetic index.
         LCDS (VariableMetadata): Last Closed Drift Shell.
         Lm (VariableMetadata): Calculated Lm of the particles.
@@ -220,6 +221,7 @@ class GFZMetaData(DatasetMetadata):
     G3: VariableMetadata
     InvK: VariableMetadata
     InvMu: VariableMetadata
+    InvMu_obs: VariableMetadata
     Kp: VariableMetadata
     LCDS: VariableMetadata
     Lm: VariableMetadata
@@ -276,6 +278,7 @@ class PRBEMMetaData(DatasetMetadata):
             and B_Eq
         B_Calc (VariableMetadata): Calculated magnetic field strength at the spacecraft position
         B_Eq (VariableMetadata): Calculated magnetic field strength at magnetic equator
+        B_total_obs (VariableMetadata): Observed magnetic field strength at the spacecraft position
         ByIMF (VariableMetadata): GSM y-component of the interplanetary magnetic field.
         BzIMF (VariableMetadata): GSM z-component of the interplanetary magnetic field.
         Dst (VariableMetadata): Disturbance storm time index.
@@ -288,7 +291,8 @@ class PRBEMMetaData(DatasetMetadata):
         G2 (VariableMetadata): Tsyganenko G2 parameter.
         G3 (VariableMetadata): Tsyganenko G3 parameter.
         InvK (VariableMetadata): Calculated modified second adiabatic invariant.
-        InvMu (VariableMetadata): Calculated first adiabatic invariant.
+        InvMu (VariableMetadata): Calculated first adiabatic invariant from modelled magnetic field.
+        InvMu_obs (VariableMetadata): Calculated first adiabatic invariant from magnetic field observations.
         Kp (VariableMetadata): Planetary Kp geomagnetic index.
         L_m (VariableMetadata): Calculated L McIlwain's L parameter
         L_star (VariableMetadata): Calculated Roederer's L* parameter
@@ -313,6 +317,7 @@ class PRBEMMetaData(DatasetMetadata):
     Alpha_Eq: VariableMetadata
     B_Calc: VariableMetadata
     B_Eq: VariableMetadata
+    B_total_obs: VariableMetadata
     ByIMF: VariableMetadata
     BzIMF: VariableMetadata
     Dst: VariableMetadata
@@ -326,6 +331,7 @@ class PRBEMMetaData(DatasetMetadata):
     G3: VariableMetadata
     InvK: VariableMetadata
     InvMu: VariableMetadata
+    InvMu_obs: VariableMetadata
     Kp: VariableMetadata
     L_m: VariableMetadata
     L_star: VariableMetadata

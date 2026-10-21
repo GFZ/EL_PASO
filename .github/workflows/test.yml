@@ -103,6 +103,7 @@ jobs:
           SPACETRACK_USER: ${{ secrets.SPACETRACK_USER }}
           SPACETRACK_PASS: ${{ secrets.SPACETRACK_PASS }}
           _TYPER_FORCE_DISABLE_TERMINAL: "1"
+          EL_PASO_SKIP_DOWNLOAD: "1"
           # Pull requests run only the minimal tests, except the run started by adding the run-basic-tests label.
           # Everything else (push to main, manual dispatch) runs the basic tests.
           MARKER: ${{ github.event_name == 'pull_request' && !(github.event.action == 'labeled' && github.event.label.name == 'run-basic-tests') && 'minimal' || 'basic' }}

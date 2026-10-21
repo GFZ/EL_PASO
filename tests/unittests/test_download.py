@@ -15,6 +15,7 @@ import el_paso as ep
 import pytest
 
 
+@pytest.mark.usefixtures("enable_downloads")
 @pytest.mark.minimal
 @pytest.mark.basic
 def test_esa_api(tmp_path: Path):
@@ -47,6 +48,7 @@ def test_esa_api(tmp_path: Path):
     assert len(list(tmp_path.glob("*"))) == 1
 
 
+@pytest.mark.usefixtures("enable_downloads")
 @pytest.mark.minimal
 @pytest.mark.basic
 def test_request(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
@@ -109,6 +111,7 @@ def test_request(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     assert len(list(data_path.glob("*"))) == 1
 
 
+@pytest.mark.usefixtures("enable_downloads")
 @pytest.mark.minimal
 @pytest.mark.basic
 def test_get_next_time_with_callable_cadence() -> None:
@@ -125,6 +128,7 @@ def test_get_next_time_with_callable_cadence() -> None:
     assert next_time == datetime(2024, 1, 8, tzinfo=timezone.utc)
 
 
+@pytest.mark.usefixtures("enable_downloads")
 @pytest.mark.minimal
 @pytest.mark.basic
 def test_download_with_callable_cadence(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -168,6 +172,7 @@ def test_download_with_callable_cadence(tmp_path: Path, monkeypatch: pytest.Monk
     assert len(downloaded_urls) == 3
 
 
+@pytest.mark.usefixtures("enable_downloads")
 @pytest.mark.minimal
 @pytest.mark.basic
 def test_download_single_file_cadence_runs_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -196,6 +201,8 @@ def test_download_single_file_cadence_runs_once(tmp_path: Path, monkeypatch: pyt
     assert steps == [(start_time, end_time)]
 
 
+@pytest.mark.usefixtures("enable_downloads")
+@pytest.mark.minimal
 @pytest.mark.basic
 def test_ftp(tmp_path: Path):
 
@@ -221,6 +228,7 @@ def test_ftp(tmp_path: Path):
     assert files[0].name == "Kp_ap_Ap_SN_F107_2024.txt"
 
 
+@pytest.mark.usefixtures("enable_downloads")
 @pytest.mark.minimal
 @pytest.mark.basic
 def test_exit_after_download(caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch):
@@ -370,6 +378,7 @@ def test_falsy_env_values_neither_skip_nor_exit(
     assert "Exiting after ep.download" not in caplog.text
 
 
+@pytest.mark.usefixtures("enable_downloads")
 @pytest.mark.minimal
 @pytest.mark.basic
 def test_skip_existing_false_does_not_overwrite_files_outside_time_range(
@@ -433,13 +442,29 @@ def _calls_function(tree: ast.AST, dotted_name: str) -> bool:
 def test_recipes_with_downloads_call_exit_if_download_only() -> None:
     recipes_dir = Path(ep.__file__).parent / "recipes"
 
+    # Private helper modules (e.g. `rbsp/_emfisis_magnetometer.py`) download data for several recipes.
+    # They must not exit themselves, since recipes call them before their other downloads, so their
+    # download functions are checked where they are called instead.
+    helper_modules = [path for path in recipes_dir.rglob("_*.py") if path.name != "__init__.py"]
+    helper_download_functions = {
+        node.name
+        for path in helper_modules
+        for node in ast.walk(ast.parse(path.read_text()))
+        if isinstance(node, ast.FunctionDef) and _calls_function(node, "ep.download")
+    }
+
     modules_with_download = []
     modules_without_exit = []
 
     for module_path in sorted(recipes_dir.rglob("*.py")):
+        if module_path in helper_modules:
+            continue
+
         tree = ast.parse(module_path.read_text())
 
-        if _calls_function(tree, "ep.download"):
+        if _calls_function(tree, "ep.download") or any(
+            _calls_function(tree, name) for name in helper_download_functions
+        ):
             modules_with_download.append(module_path.name)
 
             if not (

@@ -61,7 +61,7 @@ def process_ept_proton_fluxes(
     num_cores: int = 16,
     client_id: str | None = None,
     client_secret: str | None = None,
-    save_strategy: typing.Literal["gfz", "netcdf", "both"] = "netcdf",
+    save_strategy: typing.Literal["gfz", "netcdf"] = "netcdf",
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
     *,
     save_indices_sw: bool = False,
@@ -93,7 +93,7 @@ def process_ept_proton_fluxes(
             from the `CLIENT_ID` environment variable.
         client_secret (str | None): Client secret for the ESA SWE authentication. If None, it
             is read from the `CLIENT_SECRET` environment variable.
-        save_strategy (typing.Literal["gfz", "netcdf", "both"]): Which saving strategy (or
+        save_strategy (typing.Literal["gfz", "netcdf"]): Which saving strategy (or
             strategies) to use for the processed output.
         skip_existing (bool): If True, skip downloading files that already exist locally.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
@@ -305,11 +305,12 @@ def process_ept_proton_fluxes(
         "Position": variables["xGEO"],
     }
 
-    if save_strategy in ("gfz", "both"):
+    if save_strategy == "gfz":
         strategy = probav_ept_proton_gfz_strategy(processed_data_path, mag_field)
 
-    if save_strategy in ("netcdf", "both"):
+    else:
         strategy = probav_ept_proton_netcdf_strategy(processed_data_path, mag_field)
+
     ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_var, append=True)
 
     if save_indices_sw:

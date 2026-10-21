@@ -20,6 +20,7 @@ from el_paso.recipes.arase import (
     get_arase_orbit_level_2_variables,
     get_arase_orbit_level_3_variables,
 )
+from el_paso.recipes.arase._mgf_magnetometer import compute_observed_B_variables, download_mgf_magnetometer
 from el_paso.recipes.arase.get_arase_orbit_variables import interpolate_level_3_to_pitch_angles
 from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import process_solar_wind_indices
 
@@ -83,6 +84,7 @@ def process_arase_mepe(
     *,
     use_level_3_orbit_data: bool = True,
     skip_existing: bool = True,
+    add_B_obs: bool = False,
     save_indices_sw: bool = False,
 ) -> None:
     """Process Arase MEP-e Level 3 electron flux data and save derived products.
@@ -92,9 +94,10 @@ def process_arase_mepe(
     files for the requested time range, then sorts energies into ascending order, time-bins the
     flux, position and pitch-angle variables onto a common cadence, folds the pitch-angle
     distribution, applies a lower flux threshold, and computes the equatorial pitch angle and
-    magnetic-field-related quantities (Lm, MLT, R0) either from the Level 3 orbit data directly
-    or via IRBEM using the SM position from Level 2 orbit data. The resulting variables are
-    saved using the requested saving strategy.
+    magnetic-field-related quantities (Lm, MLT, R0, InvMu) either from the Level 3 orbit data directly
+    or via IRBEM using the SM position from Level 2 orbit data. If `add_B_obs` is set, the observed
+    magnetic field magnitude from the MGF magnetometer and the first adiabatic invariant computed from
+    it are added. The resulting variables are saved using the requested saving strategy.
 
     Args:
         start_time (datetime): Start of the time range to process.
@@ -123,10 +126,21 @@ def process_arase_mepe(
                                                 quantities via IRBEM. Defaults to True.
         skip_existing (bool): If True, skip downloading files that already exist locally.
                                             Defaults to True.
+        add_B_obs (bool): If True, also download the MGF Level 2 8-second magnetometer data and save
+                                the observed magnetic field magnitude (B_total_obs) and InvMu_obs computed
+                                from it. Only supported with the "gfz" data standard. Defaults to False.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+
+    Raises:
+        ValueError: If `add_B_obs` is set together with the "prbem" data standard, which does not
+            define B_total_obs and InvMu_obs.
     """
     del satellite
+
+    if add_B_obs and data_standard == "prbem":
+        msg = "add_B_obs requires the gfz data standard; the prbem standard does not define B_total_obs and InvMu_obs."
+        raise ValueError(msg)
 
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
@@ -144,6 +158,10 @@ def process_arase_mepe(
         method="request",
         skip_existing=skip_existing,
     )
+
+    # downloaded before the orbit data, since the orbit helpers exit in download-only mode
+    if add_B_obs:
+        download_mgf_magnetometer(start_time, end_time, raw_data_path, skip_existing=skip_existing)
 
     if use_level_3_orbit_data:
         orb_variables = get_arase_orbit_level_3_variables(
@@ -242,6 +260,11 @@ def process_arase_mepe(
         )
         mepe_variables["Pa_eq"] = ep.Variable(data=pa_eq, original_unit=u.radian)
 
+        # same as IRBEM's InvMu, which uses the model field at the satellite
+        mepe_variables["InvMu"] = ep.processing.compute_invariant_mu(
+            mepe_variables["Energy"], mepe_variables["Pitch_angle"], orb_variables["B_local"], "electron"
+        )
+
         orb_variables["Lm"] = interpolate_level_3_to_pitch_angles(
             orb_variables["Lm"], mepe_variables["Pitch_angle"].get_data(u.deg)
         )
@@ -281,6 +304,7 @@ def process_arase_mepe(
             ("R_Eq", mag_field),
             ("Alpha_Eq", mag_field),
             ("L_m", mag_field),
+            ("InvMu", mag_field),
         ]
 
         magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
@@ -290,12 +314,15 @@ def process_arase_mepe(
             irbem_options=irbem_options,
             num_cores=num_cores,
             pa_local_var=mepe_variables["Pitch_angle"],
+            energy_var=mepe_variables["Energy"],
+            particle_species="electron",
         )
 
         orb_variables["R0"] = magnetic_field_variables["R_Eq_" + mag_field]
         orb_variables["MLT"] = magnetic_field_variables["MLT_" + mag_field]
         mepe_variables["Pa_eq"] = magnetic_field_variables["Alpha_Eq_" + mag_field]
         orb_variables["Lm"] = magnetic_field_variables["L_m_" + mag_field]
+        mepe_variables["InvMu"] = magnetic_field_variables["InvMu_" + mag_field]
 
     match mag_field:
         case "T89":
@@ -318,7 +345,20 @@ def process_arase_mepe(
         "R_Eq": orb_variables["R0"],
         "MLT": orb_variables["MLT"],
         "L_m": orb_variables["Lm"],
+        "InvMu": mepe_variables["InvMu"],
     }
+
+    if add_B_obs:
+        variables_to_save |= compute_observed_B_variables(
+            start_time,
+            end_time,
+            raw_data_path,
+            binned_time_variable,
+            bin_cadence,
+            mepe_variables["Energy"],
+            mepe_variables["Pitch_angle"],
+            "electron",
+        )
 
     match save_strategy:
         case "gfz":

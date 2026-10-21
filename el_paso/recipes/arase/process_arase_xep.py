@@ -21,6 +21,7 @@ from el_paso.recipes.arase import (
     get_arase_orbit_level_2_variables,
     get_arase_orbit_level_3_variables,
 )
+from el_paso.recipes.arase._mgf_magnetometer import compute_observed_B_variables, download_mgf_magnetometer
 from el_paso.recipes.arase.get_arase_orbit_variables import interpolate_level_3_to_pitch_angles
 from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import process_solar_wind_indices
 
@@ -68,6 +69,7 @@ def process_arase_xep(
     *,
     use_level_3_orbit_data: bool = True,
     skip_existing: bool = True,
+    add_B_obs: bool = False,
     save_indices_sw: bool = False,
 ) -> None:
     """Process Arase XEP Level 2 omnidirectional electron flux data and save derived products.
@@ -110,6 +112,9 @@ def process_arase_xep(
                                                 quantities via IRBEM. Defaults to True.
         skip_existing (bool): If True, skip downloading files that already exist locally.
                                             Defaults to True.
+        add_B_obs (bool): If True, also download the MGF Level 2 8-second magnetometer data and save
+                                the observed magnetic field magnitude (B_total_obs) and InvMu_obs computed
+                                from it. Defaults to False.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
     """
@@ -131,6 +136,10 @@ def process_arase_xep(
         method="request",
         skip_existing=skip_existing,
     )
+
+    # downloaded before the orbit data, since the orbit helpers exit in download-only mode
+    if add_B_obs:
+        download_mgf_magnetometer(start_time, end_time, raw_data_path, skip_existing=skip_existing)
 
     if use_level_3_orbit_data:
         orb_variables = get_arase_orbit_level_3_variables(
@@ -335,6 +344,18 @@ def process_arase_xep(
             "InvK": orb_variables["InvK"],
             "InvMu": orb_variables["InvMu"],
         }
+
+    if add_B_obs:
+        variables_to_save |= compute_observed_B_variables(
+            start_time,
+            end_time,
+            raw_data_path,
+            binned_time_variable,
+            bin_cadence,
+            xep_variables["Energy"],
+            xep_variables["AlphaLocal"],
+            "electron",
+        )
 
     match save_strategy:
         case "gfz":

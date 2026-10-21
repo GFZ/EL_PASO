@@ -63,7 +63,7 @@ def process_goes_r_mps_high(
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=5),
     num_cores: int = 16,
-    save_strategy: Literal["gfz", "netcdf", "both"] = "netcdf",
+    save_strategy: Literal["gfz", "netcdf"] = "netcdf",
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
     *,
     save_indices_sw: bool = False,
@@ -87,9 +87,8 @@ def process_goes_r_mps_high(
         processed_data_path (str | Path): Directory where the processed output files are saved.
         bin_cadence (timedelta): Time cadence used to bin the extracted variables.
         num_cores (int): Number of CPU cores used for the magnetic field computations.
-        save_strategy (Literal["gfz", "netcdf", "both"]): Strategy used to save the processed
-            data. "gfz" saves using the GFZ format, "netcdf" saves monthly NetCDF files, and
-            "both" saves using both strategies.
+        save_strategy (Literal["gfz", "netcdf"]): Strategy used to save the processed
+            data. "gfz" saves using the GFZ format, "netcdf" saves monthly NetCDF files.
         skip_existing (bool): If True, skip downloading files that already exist on disk.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
@@ -202,11 +201,20 @@ def process_goes_r_mps_high(
     )
     xgeo_var = ep.Variable(data=xgeo_data, original_unit=ep.units.RE)
 
-    # calculate pitch angles
+    # calculate pitch angles; the telescope angles are defined in the sensor frame, so the BRF field
+    # is rotated into it first: (x, y, z)_tele = (-z, y, x)_BRF
+    b_brf = magn_vars["b_brf"].get_data(u.nT)
+    b_tele_aligned_var = ep.Variable(
+        data=np.stack([-b_brf[:, 2], b_brf[:, 1], b_brf[:, 0]], axis=1),
+        original_unit=u.nT,
+        source_files=magn_vars["b_brf"].metadata.source_files,
+    )
+    b_tele_aligned_var.metadata.add_processing_note("Rotated from magn b_brf into the MPS-HI telescope frame.")
+
     tele_alpha_angles_var = ep.Variable(data=TELE_ALPHA_ANGLES, original_unit=u.deg)
     tele_beta_angles_var = ep.Variable(data=TELE_BETA_ANGLES, original_unit=u.deg)
     local_pa_var = ep.processing.compute_pitch_angles_for_telescopes(
-        magn_vars["b_brf"],
+        b_tele_aligned_var,
         tele_alpha_angles_var,
         tele_beta_angles_var,
     )
@@ -259,6 +267,18 @@ def process_goes_r_mps_high(
         mps_vars["diff_flux"], mps_vars["diff_energy"], particle_species="electron"
     )
 
+    # observed magnetic field
+    B_total_obs = np.linalg.norm(magn_vars["b_brf"].get_data(u.nT), axis=1, ord=2)
+    B_total_obs_var = ep.Variable(u.nT, B_total_obs, source_files=magn_vars["b_brf"].metadata.source_files)
+    B_total_obs_var.metadata.add_processing_note("Derived from magn b_brf variable.")
+
+    inv_mu_obs_var = ep.processing.compute_invariant_mu(
+        mps_vars["diff_energy"],
+        local_pa_var,
+        B_total_obs_var,
+        "electron",
+    )
+
     variables_to_save: VariablesDict = {
         "Epoch": binned_time_var,
         "FEDU": mps_vars["diff_flux"],
@@ -274,29 +294,16 @@ def process_goes_r_mps_high(
         "B_Calc": magnetic_field_variables[f"B_Calc_{mag_field}"],
         "InvMu": magnetic_field_variables[f"InvMu_{mag_field}"],
         "InvK": magnetic_field_variables[f"InvK_{mag_field}"],
+        "InvMu_obs": inv_mu_obs_var,
+        "B_total_obs": B_total_obs_var,
     }
 
-    if save_strategy in ("gfz", "both"):
+    if save_strategy == "gfz":
         saving_strategy = goes_r_mps_high_gfz_strategy(processed_data_path, mag_field, satellite)
-        ep.save(
-            variables_to_save,
-            saving_strategy,
-            start_time,
-            end_time,
-            time_var=binned_time_var,
-            append=True,
-        )
-
-    if save_strategy in ("netcdf", "both"):
+    else:
         saving_strategy = goes_r_mps_high_netcdf_strategy(processed_data_path, mag_field, satellite)
-        ep.save(
-            variables_to_save,
-            saving_strategy,
-            start_time,
-            end_time,
-            time_var=binned_time_var,
-            append=True,
-        )
+
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=True)
 
     if save_indices_sw:
         process_solar_wind_indices(

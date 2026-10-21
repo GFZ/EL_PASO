@@ -34,6 +34,29 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+THEMIS_SPDF_URL = "https://spdf.gsfc.nasa.gov/pub/data/themis/"
+"""SPDF mirror of the THEMIS data archive, with the same directory layout as the Berkeley server."""
+
+_THEMIS_BERKELEY_HOST = "themis.ssl.berkeley.edu"
+
+
+def use_spdf_for_themis_downloads() -> None:
+    """Download THEMIS data from the SPDF mirror instead of the Berkeley server.
+
+    pyspedas defaults to the Berkeley server, which is not always reachable. The THEMIS loaders
+    read their server from the module-level ``CONFIG`` dict on each call, so it is switched to
+    SPDF here. A server configured explicitly by the user (e.g. through the pyspedas preferences
+    file) is kept.
+    """
+    from pyspedas.projects.themis.config import CONFIG  # noqa: PLC0415
+
+    configured_url = str(CONFIG["remote_data_dir"])
+    if _THEMIS_BERKELEY_HOST in configured_url:
+        CONFIG["remote_data_dir"] = THEMIS_SPDF_URL
+        logger.info(f"pyspedas 'themis' server set to: {THEMIS_SPDF_URL}")
+    else:
+        logger.info(f"Keeping the configured pyspedas 'themis' server: {configured_url}")
+
 
 def get_themis_position_geo(
     satellite: ThemisProbe,

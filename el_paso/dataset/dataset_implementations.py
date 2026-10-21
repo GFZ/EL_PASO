@@ -57,7 +57,8 @@ class GFZDataSet(DataSet):
         G2 (NDArray[np.float64]): Tsyganenko G2 parameter.
         G3 (NDArray[np.float64]): Tsyganenko G3 parameter.
         InvK (NDArray[np.float64]): Calculated modified second adiabatic invariant.
-        InvMu (NDArray[np.float64]): Calculated first adiabatic invariant.
+        InvMu (NDArray[np.float64]): Calculated first adiabatic invariant from modelled magnetic field.
+        InvMu_obs (NDArray[np.float64]): Calculated first adiabatic invariant from magnetic field observations.
         Kp (NDArray[np.float64]): Planetary Kp geomagnetic index.
         LCDS (NDArray[np.float64]): Last Closed Drift Shell.
         Lm (NDArray[np.float64]): Calculated Lm of the particles.
@@ -120,6 +121,7 @@ class GFZDataSet(DataSet):
     G3: NDArray[np.float64]
     InvK: NDArray[np.float64]
     InvMu: NDArray[np.float64]
+    InvMu_obs: NDArray[np.float64]
     Kp: NDArray[np.float64]
     LCDS: NDArray[np.float64]
     Lm: NDArray[np.float64]
@@ -231,6 +233,7 @@ class PRBEMDataSet(DataSet):
             and B_Eq
         B_Calc (NDArray[np.float64]): Calculated magnetic field strength at the spacecraft position
         B_Eq (NDArray[np.float64]): Calculated magnetic field strength at magnetic equator
+        B_total_obs (NDArray[np.float64]): Observed magnetic field strength at the spacecraft position
         ByIMF (NDArray[np.float64]): GSM y-component of the interplanetary magnetic field.
         BzIMF (NDArray[np.float64]): GSM z-component of the interplanetary magnetic field.
         Dst (NDArray[np.float64]): Disturbance storm time index.
@@ -243,7 +246,8 @@ class PRBEMDataSet(DataSet):
         G2 (NDArray[np.float64]): Tsyganenko G2 parameter.
         G3 (NDArray[np.float64]): Tsyganenko G3 parameter.
         InvK (NDArray[np.float64]): Calculated modified second adiabatic invariant.
-        InvMu (NDArray[np.float64]): Calculated first adiabatic invariant.
+        InvMu (NDArray[np.float64]): Calculated first adiabatic invariant from modelled magnetic field.
+        InvMu_obs (NDArray[np.float64]): Calculated first adiabatic invariant from magnetic field observations.
         Kp (NDArray[np.float64]): Planetary Kp geomagnetic index.
         L_m (NDArray[np.float64]): Calculated L McIlwain's L parameter
         L_star (NDArray[np.float64]): Calculated Roederer's L* parameter
@@ -269,6 +273,7 @@ class PRBEMDataSet(DataSet):
     Alpha_Eq: NDArray[np.float64]
     B_Calc: NDArray[np.float64]
     B_Eq: NDArray[np.float64]
+    B_total_obs: NDArray[np.float64]
     ByIMF: NDArray[np.float64]
     BzIMF: NDArray[np.float64]
     Dst: NDArray[np.float64]
@@ -282,6 +287,7 @@ class PRBEMDataSet(DataSet):
     G3: NDArray[np.float64]
     InvK: NDArray[np.float64]
     InvMu: NDArray[np.float64]
+    InvMu_obs: NDArray[np.float64]
     Kp: NDArray[np.float64]
     L_m: NDArray[np.float64]
     L_star: NDArray[np.float64]

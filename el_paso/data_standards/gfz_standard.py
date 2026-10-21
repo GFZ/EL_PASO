@@ -162,7 +162,13 @@ class GFZStandard(DataStandard[GFZVarNames]):
             ),
             "InvMu": VariableInfo[GFZVarNames](
                 "InvMu",
-                "Calculated first adiabatic invariant.",
+                "Calculated first adiabatic invariant from modelled magnetic field.",
+                u.MeV / u.G,
+                ["Epoch", ("Energy_FEDU", "Energy_FPDU"), "Alpha"],
+            ),
+            "InvMu_obs": VariableInfo[GFZVarNames](
+                "InvMu_obs",
+                "Calculated first adiabatic invariant from magnetic field observations.",
                 u.MeV / u.G,
                 ["Epoch", ("Energy_FEDU", "Energy_FPDU"), "Alpha"],
             ),

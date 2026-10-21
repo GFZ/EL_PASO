@@ -13,6 +13,10 @@ from astropy import units as u
 
 import el_paso as ep
 from el_paso.recipes.rbsp import RBSPSatellite
+from el_paso.recipes.rbsp._emfisis_magnetometer import (
+    download_emfisis_magnetometer,
+    emfisis_magnetometer_file_name_stem,
+)
 from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import process_solar_wind_indices
 from el_paso.variable import Variable
 
@@ -147,24 +151,11 @@ def process_rbsp_emfisis_waves(
         skip_existing=skip_existing,
     )
 
-    magnetometer_url = (
-        f"https://cdaweb.gsfc.nasa.gov/pub/data/rbsp/rbsp{satellite}/l3/emfisis/magnetometer/4sec/sm/YYYY/"
-    )
-
-    magnetometer_file_name_stem = "rbsp-" + satellite + r"_magnetometer_4sec-sm_emfisis-l3_YYYYMMDD_.{6}.cdf"
+    magnetometer_file_name_stem = emfisis_magnetometer_file_name_stem(satellite)
 
     magnetometer_path = Path(raw_data_path) / "YYYY" / "MM" / "magnetometer"
 
-    ep.download(
-        start_time,
-        end_time,
-        save_path=magnetometer_path,
-        download_url=magnetometer_url,
-        file_name_stem=magnetometer_file_name_stem,
-        file_cadence="daily",
-        method="request",
-        skip_existing=skip_existing,
-    )
+    download_emfisis_magnetometer(start_time, end_time, satellite, magnetometer_path, skip_existing=skip_existing)
 
     ep.exit_if_download_only()
 
