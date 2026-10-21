@@ -204,6 +204,59 @@ def test_download_single_file_cadence_runs_once(tmp_path: Path, monkeypatch: pyt
 @pytest.mark.usefixtures("enable_downloads")
 @pytest.mark.minimal
 @pytest.mark.basic
+@pytest.mark.parametrize(
+    ("file_cadence", "start_time", "end_time", "expected_starts"),
+    [
+        (
+            "daily",
+            datetime(2013, 2, 28, 23, 50, tzinfo=timezone.utc),
+            datetime(2013, 3, 3, 22, 10, tzinfo=timezone.utc),
+            [
+                datetime(2013, 2, 28, tzinfo=timezone.utc),
+                *(datetime(2013, 3, d, tzinfo=timezone.utc) for d in (1, 2, 3)),
+            ],
+        ),
+        (
+            "monthly",
+            datetime(2024, 1, 15, 12, tzinfo=timezone.utc),
+            datetime(2024, 3, 1, 6, tzinfo=timezone.utc),
+            [datetime(2024, m, 1, tzinfo=timezone.utc) for m in (1, 2, 3)],
+        ),
+    ],
+)
+def test_download_includes_end_file_when_start_is_late_in_its_day(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    file_cadence: str,
+    start_time: datetime,
+    end_time: datetime,
+    expected_starts: list[datetime],
+) -> None:
+    """A start time later in its day than the end time must not drop the file of the end day or month.
+
+    Stepping a full day from 2013-02-28 23:50 would land on 2013-03-03 23:50, past the end time, and skip
+    the 03-03 file; the same holds for months stepped from a time of day later than the end's.
+    """
+    download_mod = importlib.import_module("el_paso.download")
+
+    steps: list[datetime] = []
+    monkeypatch.setattr(download_mod, "_download_single_step", lambda curr_time, **_kwargs: steps.append(curr_time))
+
+    ep.download(
+        start_time=start_time,
+        end_time=end_time,
+        save_path=tmp_path,
+        file_cadence=file_cadence,  # ty:ignore[invalid-argument-type]
+        download_url="https://fake.server/data/",
+        file_name_stem="file_YYYYMMDD.cdf",
+    )
+
+    assert sorted(steps) == expected_starts
+
+
+@pytest.mark.usefixtures("enable_downloads")
+@pytest.mark.minimal
+@pytest.mark.basic
 def test_ftp(tmp_path: Path):
 
     start_time = datetime(2024, 1, 3, tzinfo=timezone.utc)

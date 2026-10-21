@@ -177,8 +177,11 @@ def download(
 
     curr_time = start_time
 
-    if file_cadence == "monthly":
-        curr_time = curr_time.replace(day=1)
+    # start at midnight, so the end day or month is not skipped when start_time lies later in its day than end_time
+    if file_cadence == "daily":
+        curr_time = curr_time.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif file_cadence == "monthly":
+        curr_time = curr_time.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
     tasks = []
 
