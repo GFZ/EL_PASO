@@ -126,7 +126,7 @@ def process_themis_fft_waves(
         "Epoch": target_time_var,
         "Wave_frequency": fft_vars["freq"],
         "Magnetic_Power_Spectral_Density": fft_vars["BB"],
-        "Number_density": density_vars["Density"],
+        "Number_density_scpot": density_vars["Density"],
         "B_total_obs": mag_vars["Bt"],
         "MLat": orbit_vars["MLat"],
         "MLT": orbit_vars["MLT_" + mag_field],

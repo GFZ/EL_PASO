@@ -28,10 +28,12 @@ class MonthlyDensityStrategy(MonthlyRBStrategy):
     format (`.nc`), primarily targeting the time-series of density, position, and
     coordinate variables.
 
-    It saves a single density pair -- the density at the satellite location
-    (`Number_density`) and the same density mapped to the magnetic equator
-    (`Number_density_Eq`) -- which fits any mission carrying one density product. RBSP
-    carries several independent density products at once and is served by
+    It saves a single density pair -- the density at the satellite location and the same
+    density mapped to the magnetic equator -- which fits any mission carrying one density
+    product. The pair is whichever density type the recipe provides: `Number_density_scpot`
+    (derived from the spacecraft potential), `Number_density_spectrogram` (derived from wave
+    spectrograms), or `Number_density_other` (derived by other methods), each with its `_Eq`
+    counterpart. RBSP carries several independent density products at once and is served by
     `RBSPDensityStrategy` instead.
 
     Attributes:
@@ -91,6 +93,6 @@ class MonthlyDensityStrategy(MonthlyRBStrategy):
             "xGEO_Eq",
             "MLT",
             "R_Eq",
-            "Number_density",
-            "Number_density_Eq",
+            ("Number_density_scpot", "Number_density_spectrogram", "Number_density_other"),
+            ("Number_density_scpot_Eq", "Number_density_spectrogram_Eq", "Number_density_other_Eq"),
         ]

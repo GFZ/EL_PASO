@@ -181,7 +181,7 @@ def process_rbsp_emfisis_waves(
         "Wave_planarity": wna_vars["planarity"],
         "Wave_ellipticity": wna_vars["ellipticity"],
         "Magnetic_Power_Spectral_Density": psd_var,
-        "Number_density": density_vars["Density"],
+        "Number_density_spectrogram": density_vars["Density"],
         "B_total_obs": mag_vars["Bt"],
         "MLat": orbit_vars["MLat"],
         "MLT": orbit_vars["MLT"],

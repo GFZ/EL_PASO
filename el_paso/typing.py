@@ -82,8 +82,6 @@ InternalName: TypeAlias = (
         "Position_geo_alt",
         "Position_geo_lat",
         "Position_geo_lon",
-        "Number_density",
-        "Number_density_Eq",
         "Number_density_scpot",
         "Number_density_scpot_Eq",
         "Number_density_spectrogram",

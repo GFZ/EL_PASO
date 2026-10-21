@@ -35,7 +35,7 @@ _WAVE_VARIABLES: list[ep.typing.InternalName] = [
     "Epoch",
     "Wave_frequency",
     "Magnetic_Power_Spectral_Density",
-    "Number_density",
+    "Number_density_scpot",
     "B_total_obs",
     "MLat",
     "MLT",
@@ -46,8 +46,8 @@ _WAVE_VARIABLES: list[ep.typing.InternalName] = [
 
 _DENSITY_VARIABLES: list[ep.typing.InternalName] = [
     "Epoch",
-    "Number_density",
-    "Number_density_Eq",
+    "Number_density_scpot",
+    "Number_density_scpot_Eq",
     "Position",
     "xGEO_Eq",
     "MLT",

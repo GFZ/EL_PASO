@@ -187,8 +187,8 @@ def process_arase_pwe_density(
 
     variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
         "Epoch": binned_time_variable,
-        "Number_density": pwe_variables["Density"],
-        "Number_density_Eq": pwe_variables["Density_mapped_" + mag_field],
+        "Number_density_spectrogram": pwe_variables["Density"],
+        "Number_density_spectrogram_Eq": pwe_variables["Density_mapped_" + mag_field],
         "MLT": magnetic_field_variables["MLT_" + mag_field],
         "R_Eq": magnetic_field_variables["R_Eq_" + mag_field],
         "Position": pos_geo_var,

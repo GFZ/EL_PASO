@@ -143,8 +143,8 @@ def process_themis_scpot_density(
 
     variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
         "Epoch": binned_time_variable,
-        "Number_density": density_variables["Density"],
-        "Number_density_Eq": density_eq_var,
+        "Number_density_scpot": density_variables["Density"],
+        "Number_density_scpot_Eq": density_eq_var,
         "MLT": magnetic_field_variables["MLT_" + mag_field],
         "R_Eq": magnetic_field_variables["R_Eq_" + mag_field],
         "Position": pos_geo_var,
