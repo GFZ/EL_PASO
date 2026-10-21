@@ -182,8 +182,17 @@ class GFZMetaData(DatasetMetadata):
         alpha_lc_eq (VariableMetadata): Local loss cone size at the satellite location mapped to the equator.
         alpha_local (VariableMetadata): Local pitch angles of the particles.
         alpha_local_range (VariableMetadata): Local pitch angle ranges of the particles.
-        density (VariableMetadata): Electron number density at the satellite location.
-        density_eq (VariableMetadata): Electron number density at the magnetic equator.
+        density_other (VariableMetadata): Electron number density at the satellite location, derived by other methods.
+        density_other_eq (VariableMetadata): Electron number density derived by other methods, mapped to the
+            magnetic equator.
+        density_scpot (VariableMetadata): Electron number density at the satellite location, derived from the
+            spacecraft potential.
+        density_scpot_eq (VariableMetadata): Electron number density derived from the spacecraft potential, mapped
+            to the magnetic equator.
+        density_spectrogram (VariableMetadata): Electron number density at the satellite location, derived from wave
+            spectrograms.
+        density_spectrogram_eq (VariableMetadata): Electron number density derived from wave spectrograms, mapped to
+            the magnetic equator.
         ellipticity (VariableMetadata): Frequency of the power spectral density.
         energy_FEDO (VariableMetadata): Central energy of measured omnidirecitonal flux.
         energy_FEIU (VariableMetadata): Central energy of measured integral flux.
@@ -243,8 +252,12 @@ class GFZMetaData(DatasetMetadata):
     alpha_lc_eq: VariableMetadata
     alpha_local: VariableMetadata
     alpha_local_range: VariableMetadata
-    density: VariableMetadata
-    density_eq: VariableMetadata
+    density_other: VariableMetadata
+    density_other_eq: VariableMetadata
+    density_scpot: VariableMetadata
+    density_scpot_eq: VariableMetadata
+    density_spectrogram: VariableMetadata
+    density_spectrogram_eq: VariableMetadata
     ellipticity: VariableMetadata
     energy_FEDO: VariableMetadata  # noqa: N815
     energy_FEIU: VariableMetadata  # noqa: N815
@@ -298,8 +311,18 @@ class PRBEMMetaData(DatasetMetadata):
         L_star (VariableMetadata): Calculated Roederer's L* parameter
         MLT (VariableMetadata): Magnetic local time at the satellite location.
         Nsw (VariableMetadata): Solar wind proton density.
-        Number_density (VariableMetadata): Electron number density at the satellite location.
-        Number_density_Eq (VariableMetadata): Electron number density mapped to the magnetic equator.
+        Number_density_other (VariableMetadata): Electron number density at the satellite location, derived by other
+            methods.
+        Number_density_other_Eq (VariableMetadata): Electron number density derived by other methods, mapped to the
+            magnetic equator.
+        Number_density_scpot (VariableMetadata): Electron number density at the satellite location, derived from the
+            spacecraft potential.
+        Number_density_scpot_Eq (VariableMetadata): Electron number density derived from the spacecraft potential,
+            mapped to the magnetic equator.
+        Number_density_spectrogram (VariableMetadata): Electron number density at the satellite location, derived
+            from wave spectrograms.
+        Number_density_spectrogram_Eq (VariableMetadata): Electron number density derived from wave spectrograms,
+            mapped to the magnetic equator.
         PSD (VariableMetadata): Calculated phase space density of particles.
         Pdyn (VariableMetadata): Solar wind dynamic pressure.
         Position (VariableMetadata): Spacecraft position in geographic cartesian coordinates
@@ -337,8 +360,12 @@ class PRBEMMetaData(DatasetMetadata):
     L_star: VariableMetadata
     MLT: VariableMetadata
     Nsw: VariableMetadata
-    Number_density: VariableMetadata
-    Number_density_Eq: VariableMetadata
+    Number_density_other: VariableMetadata
+    Number_density_other_Eq: VariableMetadata
+    Number_density_scpot: VariableMetadata
+    Number_density_scpot_Eq: VariableMetadata
+    Number_density_spectrogram: VariableMetadata
+    Number_density_spectrogram_Eq: VariableMetadata
     PSD: VariableMetadata
     Pdyn: VariableMetadata
     Position: VariableMetadata

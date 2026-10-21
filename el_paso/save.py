@@ -60,6 +60,8 @@ def save(
     Raises:
         TypeError: If `variables_dict` is not a dictionary of `Variable` objects.
         KeyError: If `variables_dict` contains invalid internal variable names.
+        ValueError: If `variables_dict` contains variables that are not part of the saving strategy's
+            data standard, or misses data for a dimension that a saved variable depends on.
 
     Note:
         If an output file is missing one or more of its required variables, a
@@ -175,6 +177,15 @@ def _validate_variables_dict(variables_dict: VariablesDict, data_standard: DataS
     if invalid_values:
         msg = f"variables_dict must map each internal name to an ep.Variable. Invalid entries: {invalid_values}"
         raise TypeError(msg)
+
+    if data_standard:
+        unknown_names = [name for name in variables_dict if name not in data_standard.variable_infos]
+        if unknown_names:
+            msg = (
+                f"The following variables are not part of {type(data_standard).__name__}: {unknown_names}. "
+                f"Add them to the data standard's variable_infos or use a data standard that defines them."
+            )
+            raise ValueError(msg)
 
     # check if necessary dimensions are saved
     if data_standard:

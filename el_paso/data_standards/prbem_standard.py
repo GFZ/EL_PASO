@@ -129,15 +129,39 @@ class PRBEMStandard(DataStandard[PRBEMName]):
                 ep.units.RE,
                 ["Epoch", "Position_components"],
             ),
-            "Number_density": VariableInfo[PRBEMName](
-                "Number_density",
-                "Electron number density at the satellite location.",
+            "Number_density_scpot": VariableInfo[PRBEMName](
+                "Number_density_scpot",
+                "Electron number density at the satellite location, derived from the spacecraft potential.",
                 u.cm ** (-3),
                 ["Epoch"],
             ),
-            "Number_density_Eq": VariableInfo[PRBEMName](
-                "Number_density_Eq",
-                "Electron number density mapped to the magnetic equator.",
+            "Number_density_scpot_Eq": VariableInfo[PRBEMName](
+                "Number_density_scpot_Eq",
+                "Electron number density derived from the spacecraft potential, mapped to the magnetic equator.",
+                u.cm ** (-3),
+                ["Epoch"],
+            ),
+            "Number_density_spectrogram": VariableInfo[PRBEMName](
+                "Number_density_spectrogram",
+                "Electron number density at the satellite location, derived from wave spectrograms.",
+                u.cm ** (-3),
+                ["Epoch"],
+            ),
+            "Number_density_spectrogram_Eq": VariableInfo[PRBEMName](
+                "Number_density_spectrogram_Eq",
+                "Electron number density derived from wave spectrograms, mapped to the magnetic equator.",
+                u.cm ** (-3),
+                ["Epoch"],
+            ),
+            "Number_density_other": VariableInfo[PRBEMName](
+                "Number_density_other",
+                "Electron number density at the satellite location, derived by other methods.",
+                u.cm ** (-3),
+                ["Epoch"],
+            ),
+            "Number_density_other_Eq": VariableInfo[PRBEMName](
+                "Number_density_other_Eq",
+                "Electron number density derived by other methods, mapped to the magnetic equator.",
                 u.cm ** (-3),
                 ["Epoch"],
             ),

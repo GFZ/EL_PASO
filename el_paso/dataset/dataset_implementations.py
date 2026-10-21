@@ -80,8 +80,18 @@ class GFZDataSet(DataSet):
         alpha_lc_eq (NDArray[np.float64]): Local loss cone size at the satellite location mapped to the equator.
         alpha_local (NDArray[np.float64]): Local pitch angles of the particles.
         alpha_local_range (NDArray[np.float64]): Local pitch angle ranges of the particles.
-        density (NDArray[np.float64]): Electron number density at the satellite location.
-        density_eq (NDArray[np.float64]): Electron number density at the magnetic equator.
+        density_other (NDArray[np.float64]): Electron number density at the satellite location, derived by other
+            methods.
+        density_other_eq (NDArray[np.float64]): Electron number density derived by other methods, mapped to the
+            magnetic equator.
+        density_scpot (NDArray[np.float64]): Electron number density at the satellite location, derived from the
+            spacecraft potential.
+        density_scpot_eq (NDArray[np.float64]): Electron number density derived from the spacecraft potential,
+            mapped to the magnetic equator.
+        density_spectrogram (NDArray[np.float64]): Electron number density at the satellite location, derived from
+            wave spectrograms.
+        density_spectrogram_eq (NDArray[np.float64]): Electron number density derived from wave spectrograms, mapped
+            to the magnetic equator.
         ellipticity (NDArray[np.float64]): Frequency of the power spectral density.
         energy_FEDO (NDArray[np.float64]): Central energy of measured omnidirecitonal flux.
         energy_FEIU (NDArray[np.float64]): Central energy of measured integral flux.
@@ -143,8 +153,12 @@ class GFZDataSet(DataSet):
     alpha_lc_eq: NDArray[np.float64]
     alpha_local: NDArray[np.float64]
     alpha_local_range: NDArray[np.float64]
-    density: NDArray[np.float64]
-    density_eq: NDArray[np.float64]
+    density_other: NDArray[np.float64]
+    density_other_eq: NDArray[np.float64]
+    density_scpot: NDArray[np.float64]
+    density_scpot_eq: NDArray[np.float64]
+    density_spectrogram: NDArray[np.float64]
+    density_spectrogram_eq: NDArray[np.float64]
     ellipticity: NDArray[np.float64]
     energy_FEDO: NDArray[np.float64]  # noqa: N815
     energy_FEIU: NDArray[np.float64]  # noqa: N815
@@ -253,8 +267,18 @@ class PRBEMDataSet(DataSet):
         L_star (NDArray[np.float64]): Calculated Roederer's L* parameter
         MLT (NDArray[np.float64]): Magnetic local time at the satellite location.
         Nsw (NDArray[np.float64]): Solar wind proton density.
-        Number_density (NDArray[np.float64]): Electron number density at the satellite location.
-        Number_density_Eq (NDArray[np.float64]): Electron number density mapped to the magnetic equator.
+        Number_density_other (NDArray[np.float64]): Electron number density at the satellite location, derived by
+            other methods.
+        Number_density_other_Eq (NDArray[np.float64]): Electron number density derived by other methods, mapped to
+            the magnetic equator.
+        Number_density_scpot (NDArray[np.float64]): Electron number density at the satellite location, derived from
+            the spacecraft potential.
+        Number_density_scpot_Eq (NDArray[np.float64]): Electron number density derived from the spacecraft
+            potential, mapped to the magnetic equator.
+        Number_density_spectrogram (NDArray[np.float64]): Electron number density at the satellite location, derived
+            from wave spectrograms.
+        Number_density_spectrogram_Eq (NDArray[np.float64]): Electron number density derived from wave spectrograms,
+            mapped to the magnetic equator.
         PSD (NDArray[np.float64]): Calculated phase space density of particles.
         Pdyn (NDArray[np.float64]): Solar wind dynamic pressure.
         Position (NDArray[np.float64]): Spacecraft position in geographic cartesian coordinates
@@ -293,8 +317,12 @@ class PRBEMDataSet(DataSet):
     L_star: NDArray[np.float64]
     MLT: NDArray[np.float64]
     Nsw: NDArray[np.float64]
-    Number_density: NDArray[np.float64]
-    Number_density_Eq: NDArray[np.float64]
+    Number_density_other: NDArray[np.float64]
+    Number_density_other_Eq: NDArray[np.float64]
+    Number_density_scpot: NDArray[np.float64]
+    Number_density_scpot_Eq: NDArray[np.float64]
+    Number_density_spectrogram: NDArray[np.float64]
+    Number_density_spectrogram_Eq: NDArray[np.float64]
     PSD: NDArray[np.float64]
     Pdyn: NDArray[np.float64]
     Position: NDArray[np.float64]

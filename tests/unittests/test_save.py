@@ -171,3 +171,24 @@ def test_variable_not_saved_by_strategy_is_warned_about(tmp_path: Path, caplog: 
     warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
     assert any("Energy_FEDO are not saved by MonthlyRBStrategy" in message for message in warnings)
     assert not any("MLT" in message and "not saved by" in message for message in warnings)
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_variable_not_in_data_standard_raises_descriptive_error(tmp_path: Path) -> None:
+    """A valid internal name that the strategy's data standard does not define is named in the error."""
+    start_time = datetime(2024, 5, 10, tzinfo=timezone.utc)
+    end_time = datetime(2024, 5, 10, 23, 59, tzinfo=timezone.utc)
+    times = np.array([start_time.timestamp() + 3600 * i for i in range(6)])
+
+    variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+        "Epoch": ep.Variable(ep.units.posixtime, data=times),
+        "Wave_frequency": ep.Variable(u.Hz, data=np.array([100.0, 200.0])),
+    }
+
+    saving_strategy = ep.saving_strategies.MonthlyRBStrategy(
+        tmp_path, "RBSP", "rbspa", "emfisis", "T89", data_standard=ep.data_standards.PRBEMStandard()
+    )
+
+    with pytest.raises(ValueError, match=r"not part of PRBEMStandard: \['Wave_frequency'\]"):
+        ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=variables_to_save["Epoch"])

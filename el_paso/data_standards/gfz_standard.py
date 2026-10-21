@@ -233,11 +233,41 @@ class GFZStandard(DataStandard[GFZVarNames]):
             "f_ce_Eq": VariableInfo[GFZVarNames](
                 "fce_eq", "Electron gyrofrequency mapped to the magnetic equator.", u.Hz, ["Epoch"]
             ),
-            "Number_density": VariableInfo[GFZVarNames](
-                "density", "Electron number density at the satellite location.", u.cm ** (-3), ["Epoch"]
+            "Number_density_scpot": VariableInfo[GFZVarNames](
+                "density_scpot",
+                "Electron number density at the satellite location, derived from the spacecraft potential.",
+                u.cm ** (-3),
+                ["Epoch"],
             ),
-            "Number_density_Eq": VariableInfo[GFZVarNames](
-                "density_eq", "Electron number density at the magnetic equator.", u.cm ** (-3), ["Epoch"]
+            "Number_density_scpot_Eq": VariableInfo[GFZVarNames](
+                "density_scpot_eq",
+                "Electron number density derived from the spacecraft potential, mapped to the magnetic equator.",
+                u.cm ** (-3),
+                ["Epoch"],
+            ),
+            "Number_density_spectrogram": VariableInfo[GFZVarNames](
+                "density_spectrogram",
+                "Electron number density at the satellite location, derived from wave spectrograms.",
+                u.cm ** (-3),
+                ["Epoch"],
+            ),
+            "Number_density_spectrogram_Eq": VariableInfo[GFZVarNames](
+                "density_spectrogram_eq",
+                "Electron number density derived from wave spectrograms, mapped to the magnetic equator.",
+                u.cm ** (-3),
+                ["Epoch"],
+            ),
+            "Number_density_other": VariableInfo[GFZVarNames](
+                "density_other",
+                "Electron number density at the satellite location, derived by other methods.",
+                u.cm ** (-3),
+                ["Epoch"],
+            ),
+            "Number_density_other_Eq": VariableInfo[GFZVarNames](
+                "density_other_eq",
+                "Electron number density derived by other methods, mapped to the magnetic equator.",
+                u.cm ** (-3),
+                ["Epoch"],
             ),
             "LCDS": VariableInfo[GFZVarNames](
                 "LCDS", "Last Closed Drift Shell.", u.dimensionless_unscaled, ["Epoch", "Alpha"]

@@ -121,7 +121,14 @@ class DataStandard(ABC, Generic[T_co]):
 
         Returns:
             list[InternalName | FixedDimensionName]: The ordered list of dimension names.
+
+        Raises:
+            ValueError: If ``internal_name`` is not part of this data standard.
         """
+        if internal_name not in self.variable_infos:
+            msg = f"Internal name {internal_name} is not part of the {type(self)}!"
+            raise ValueError(msg)
+
         return self.variable_infos[internal_name].dependencies
 
     @staticmethod

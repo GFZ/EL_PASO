@@ -25,8 +25,10 @@ def rbsp_efw_emfisis_density_combined_strategy(
     satellite: RBSPSatellite,
     mag_field: ep.typing.MagneticFieldLiteral,
     data_standard: ep.typing.DataStandard[ep.typing.StandardName] | None = None,
+    *,
+    file_format: ep.typing.MFSFormats = "nc",
 ) -> ep.SavingStrategy:
-    """Daily NetCDF wave saving strategy for THEMIS FFT."""
+    """Monthly density saving strategy for the combined RBSP EFW/EMFISIS densities."""
     return ep.saving_strategies.RBSPDensityStrategy(
         base_data_path=base_data_path,
         mission="RBSP",
@@ -34,6 +36,7 @@ def rbsp_efw_emfisis_density_combined_strategy(
         instrument="densities_combined",
         mag_field=mag_field,
         data_standard=data_standard,
+        file_format=file_format,
     )
 
 
@@ -207,10 +210,10 @@ def process_rbsp_efw_emfisis_density_combined(
 
     variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
         "Epoch": binned_time_variable,
-        "Number_density_efw": efw_variables["Density"],
-        "Number_density_emfisis": emfisis_variables["Density"],
-        "Number_density_efw_Eq": efw_variables["Density_mapped"],
-        "Number_density_emfisis_Eq": emfisis_variables["Density_mapped"],
+        "Number_density_scpot": efw_variables["Density"],
+        "Number_density_spectrogram": emfisis_variables["Density"],
+        "Number_density_scpot_Eq": efw_variables["Density_mapped"],
+        "Number_density_spectrogram_Eq": emfisis_variables["Density_mapped"],
         "MLT": magnetic_field_variables["MLT_" + mag_field],
         "R_Eq": magnetic_field_variables["R_Eq_" + mag_field],
         "Position": efw_variables["xGEO"],
@@ -219,8 +222,8 @@ def process_rbsp_efw_emfisis_density_combined(
 
     if add_hiss_derived_densitites:
         variables_to_save |= {
-            "Number_density_hiss_derived": hiss_derived_densities_vars["Density"],
-            "Number_density_hiss_derived_Eq": hiss_derived_densities_vars["Density_mapped"],
+            "Number_density_other": hiss_derived_densities_vars["Density"],
+            "Number_density_other_Eq": hiss_derived_densities_vars["Density_mapped"],
         }
 
     saving_strategy = rbsp_efw_emfisis_density_combined_strategy(

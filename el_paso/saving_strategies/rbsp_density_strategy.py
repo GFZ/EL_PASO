@@ -17,22 +17,24 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from el_paso.data_standard import DataStandard
-    from el_paso.typing import InternalName, MagneticFieldLiteral, StandardName
+    from el_paso.typing import InternalName, MagneticFieldLiteral, MFSFormats, StandardName
 
 logger = logging.getLogger(__name__)
 
 
 class RBSPDensityStrategy(MonthlyRBStrategy):
-    """Saving strategy for writing RBSP plasma density and related data to monthly NetCDF files.
+    """Saving strategy for writing RBSP plasma density and related data to monthly files.
 
-    This strategy extends `MonthlyRBStrategy` but implements saving to the NetCDF
-    format (`.nc`), primarily targeting the time-series of density, position, and
-    coordinate variables.
+    This strategy extends `MonthlyRBStrategy`, primarily targeting the time-series of
+    density, position, and coordinate variables.
 
     The variable set is specific to RBSP, which carries several independent density
-    products (EMFISIS, EFW, and hiss-derived), each saved both at the satellite
-    location and mapped to the magnetic equator. For every other mission use
-    `MonthlyDensityStrategy`, which saves a single local/equatorial density pair.
+    products, each saved both at the satellite location and mapped to the magnetic
+    equator: `Number_density_scpot` (derived from the spacecraft potential, EFW),
+    `Number_density_spectrogram` (derived from wave spectrograms, EMFISIS), and
+    `Number_density_other` (derived by other methods, e.g. from plasmaspheric hiss).
+    For every other mission use `MonthlyDensityStrategy`, which saves a single
+    local/equatorial density pair.
 
     Attributes:
         output_files (list[OutputFile]): List of file configurations to be produced.
@@ -51,11 +53,12 @@ class RBSPDensityStrategy(MonthlyRBStrategy):
         instrument: str,
         mag_field: MagneticFieldLiteral,
         data_standard: Optional[DataStandard[StandardName]] = None,
+        file_format: MFSFormats = "nc",
     ) -> None:
         """Initializes the monthly RBSP density saving strategy.
 
         Args:
-            base_data_path (str | Path): The base directory where the output NetCDF files will be saved.
+            base_data_path (str | Path): The base directory where the output files will be saved.
             mission (str): The mission name, used in file path and name generation.
             satellite (str): The satellite name, used in file path and name generation.
             instrument (str): The instrument name, used in file path and name generation.
@@ -64,6 +67,8 @@ class RBSPDensityStrategy(MonthlyRBStrategy):
             data_standard (DataStandard | None, optional):
                 An optional `DataStandard` instance to use for standardizing variables.
                 If `None`, `ep.data_standards.PRBEMStandard` is used by default.
+            file_format (MFSFormats): One of ``"nc"``, ``"cdf"``, ``"h5"``, or ``"mat"``.
+                A leading dot is also accepted.
         """
         # Resolve the fallback before `super().__init__`, which assigns `self.data_standard`
         # from whatever it is handed.
@@ -75,7 +80,7 @@ class RBSPDensityStrategy(MonthlyRBStrategy):
             mission=mission,
             instrument=instrument,
             mag_field=mag_field,
-            file_format="nc",
+            file_format=file_format,
             data_standard=data_standard,
         )
 
@@ -91,10 +96,10 @@ class RBSPDensityStrategy(MonthlyRBStrategy):
             "xGEO_Eq",
             "MLT",
             "R_Eq",
-            "Number_density_emfisis",
-            "Number_density_efw",
-            "Number_density_hiss_derived",
-            "Number_density_emfisis_Eq",
-            "Number_density_efw_Eq",
-            "Number_density_hiss_derived_Eq",
+            "Number_density_scpot",
+            "Number_density_spectrogram",
+            "Number_density_other",
+            "Number_density_scpot_Eq",
+            "Number_density_spectrogram_Eq",
+            "Number_density_other_Eq",
         ]
