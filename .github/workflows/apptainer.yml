@@ -119,6 +119,7 @@ jobs:
               export SPACETRACK_USER="$(echo "$SPACETRACK_USER_B64" | base64 -d)"
               export SPACETRACK_PASS="$(echo "$SPACETRACK_PASS_B64" | base64 -d)"
               export _TYPER_FORCE_DISABLE_TERMINAL=1
+              export EL_PASO_SKIP_DOWNLOAD=1
               python -m pytest -rf /mnt/tests -m "basic" -c /mnt/pytest.ini --ignore /mnt/tests/unittests/test_release_mode.py
             '
           rm -f "$ENV_FILE"

@@ -13,6 +13,7 @@ from el_paso.recipes.esa import process_gssc_emu_electrons, process_gssc_emu_pro
 
 
 @pytest.mark.basic
+@pytest.mark.usefixtures("enable_downloads")
 def test_esa_gssc_emu_electrons(
     tmpdir: Path,
     skip_if_unreachable: Callable[..., None],
@@ -50,6 +51,7 @@ def test_esa_gssc_emu_electrons(
 
 
 @pytest.mark.basic
+@pytest.mark.usefixtures("enable_downloads")
 def test_esa_gssc_emu_protons(
     tmpdir: Path,
     skip_if_unreachable: Callable[..., None],
