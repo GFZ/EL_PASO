@@ -72,7 +72,6 @@ def process_goes_eps_maged_and_epead(
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
     *,
     save_indices_sw: bool = False,
-    fill_sw: bool = True,
 ) -> None:
     """Process combined GOES-13/15 EPS MAGED and EPEAD electron data into phase space densities.
 
@@ -104,9 +103,6 @@ def process_goes_eps_maged_and_epead(
         skip_existing (bool): If True, skip downloading files that already exist on disk.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
-        fill_sw (bool): Forwarded to `process_solar_wind_indices` when `save_indices_sw`
-            is True; controls whether gaps in the OMNI solar wind data are forward/backward filled
-            after linear interpolation. Defaults to True.
     """
     data_path_stem = f"{raw_data_path}/YYYY/MM/{satellite}/"
 
@@ -266,7 +262,6 @@ def process_goes_eps_maged_and_epead(
             end_time,
             processed_data_path=processed_data_path,
             bin_cadence=bin_cadence,
-            fill_sw=fill_sw,
         )
 
 

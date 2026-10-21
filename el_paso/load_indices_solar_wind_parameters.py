@@ -147,8 +147,8 @@ def load_indices_solar_wind_parameters(
                 output_df = _cache_omni_high_res(base_data_path, start_time, end_time)
                 assert isinstance(output_df, pd.DataFrame)
 
-                output_df["pdyn"] = output_df["pdyn"].interpolate(method="linear", order=3)
                 if fill_sw:
+                    output_df["pdyn"] = output_df["pdyn"].interpolate(method="linear", order=3)
                     output_df["pdyn"] = output_df["pdyn"].ffill().bfill()
 
                 result = _create_variables_from_data_frame(
@@ -160,8 +160,8 @@ def load_indices_solar_wind_parameters(
                 output_df = _cache_omni_high_res(base_data_path, start_time, end_time)
                 assert isinstance(output_df, pd.DataFrame)
 
-                output_df["bz_gsm"] = output_df["bz_gsm"].interpolate(method="linear", order=3)
                 if fill_sw:
+                    output_df["bz_gsm"] = output_df["bz_gsm"].interpolate(method="linear", order=3)
                     output_df["bz_gsm"] = output_df["bz_gsm"].ffill().bfill()
 
                 result = _create_variables_from_data_frame(
@@ -173,8 +173,8 @@ def load_indices_solar_wind_parameters(
                 output_df = _cache_omni_high_res(base_data_path, start_time, end_time)
                 assert isinstance(output_df, pd.DataFrame)
 
-                output_df["by_gsm"] = output_df["by_gsm"].interpolate(method="linear", order=3)
                 if fill_sw:
+                    output_df["by_gsm"] = output_df["by_gsm"].interpolate(method="linear", order=3)
                     output_df["by_gsm"] = output_df["by_gsm"].ffill().bfill()
 
                 result = _create_variables_from_data_frame(
@@ -186,8 +186,8 @@ def load_indices_solar_wind_parameters(
                 output_df = _cache_omni_high_res(base_data_path, start_time, end_time)
                 assert isinstance(output_df, pd.DataFrame)
 
-                output_df["speed"] = output_df["speed"].interpolate(method="linear", order=3)
                 if fill_sw:
+                    output_df["speed"] = output_df["speed"].interpolate(method="linear", order=3)
                     output_df["speed"] = output_df["speed"].ffill().bfill()
 
                 result = _create_variables_from_data_frame(
@@ -204,8 +204,8 @@ def load_indices_solar_wind_parameters(
                 output_df = _cache_omni_high_res(base_data_path, start_time, end_time)
                 assert isinstance(output_df, pd.DataFrame)
 
-                output_df["proton_density"] = output_df["proton_density"].interpolate(method="linear", order=3)
                 if fill_sw:
+                    output_df["proton_density"] = output_df["proton_density"].interpolate(method="linear", order=3)
                     output_df["proton_density"] = output_df["proton_density"].ffill().bfill()
                 output_df["proton_density"] = output_df["proton_density"].clip(lower=0)
 

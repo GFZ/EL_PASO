@@ -65,7 +65,6 @@ def process_ept_proton_fluxes(
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
     *,
     save_indices_sw: bool = False,
-    fill_sw: bool = True,
 ) -> None:
     """Process PROBA-V EPT proton flux data into pitch-angle-resolved fluxes with magnetic field coordinates.
 
@@ -99,9 +98,6 @@ def process_ept_proton_fluxes(
         skip_existing (bool): If True, skip downloading files that already exist locally.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
-        fill_sw (bool): Forwarded to `process_solar_wind_indices` when `save_indices_sw`
-            is True; controls whether gaps in the OMNI solar wind data are forward/backward filled
-            after linear interpolation. Defaults to True.
 
     Raises:
         ValueError: If `client_id` or `client_secret` is not provided and not available via the
@@ -322,7 +318,6 @@ def process_ept_proton_fluxes(
             end_time,
             processed_data_path=processed_data_path,
             bin_cadence=bin_cadence,
-            fill_sw=fill_sw,
         )
 
 

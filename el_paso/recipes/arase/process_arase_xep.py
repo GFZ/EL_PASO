@@ -69,7 +69,6 @@ def process_arase_xep(
     use_level_3_orbit_data: bool = True,
     skip_existing: bool = True,
     save_indices_sw: bool = False,
-    fill_sw: bool = True,
 ) -> None:
     """Process Arase XEP Level 2 omnidirectional electron flux data and save derived products.
 
@@ -113,9 +112,6 @@ def process_arase_xep(
                                             Defaults to True.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
-        fill_sw (bool): Forwarded to `process_solar_wind_indices` when `save_indices_sw`
-            is True; controls whether gaps in the OMNI solar wind data are forward/backward filled
-            after linear interpolation. Defaults to True.
     """
     del satellite
 
@@ -354,7 +350,6 @@ def process_arase_xep(
             end_time,
             processed_data_path=processed_data_path,
             bin_cadence=bin_cadence,
-            fill_sw=fill_sw,
         )
 
 

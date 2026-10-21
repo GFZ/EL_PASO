@@ -56,7 +56,6 @@ def process_rbsp_hope_electrons(
     calculate_Lstar: bool = True,
     skip_existing: bool = True,
     save_indices_sw: bool = False,
-    fill_sw: bool = True,
 ) -> None:
     """Process RBSP ECT/HOPE electron flux data into the EL-PASO data standard.
 
@@ -87,9 +86,6 @@ def process_rbsp_hope_electrons(
         skip_existing (bool): If True, skip downloading files that already exist on disk.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
-        fill_sw (bool): Forwarded to `process_solar_wind_indices` when `save_indices_sw`
-            is True; controls whether gaps in the OMNI solar wind data are forward/backward filled
-            after linear interpolation. Defaults to True.
     """
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
@@ -248,7 +244,6 @@ def process_rbsp_hope_electrons(
             end_time,
             processed_data_path=processed_data_path,
             bin_cadence=bin_cadence,
-            fill_sw=fill_sw,
         )
 
 

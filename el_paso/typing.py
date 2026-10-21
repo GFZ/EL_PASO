@@ -269,7 +269,6 @@ class Recipe(Protocol):
         skip_existing: bool = ...,
         save_strategy: Any = ...,  # noqa: ANN401 (must be Any: see class docstring on contravariance)
         save_indices_sw: bool = ...,
-        fill_sw: bool = ...,
     ) -> None:
         """Process and save data for the interval from `start_time` to `end_time`."""
         ...

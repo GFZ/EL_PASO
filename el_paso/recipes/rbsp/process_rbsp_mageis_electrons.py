@@ -55,7 +55,6 @@ def process_rbsp_mageis_electrons(
     save_strategy: Literal["netcdf"] = "netcdf",
     *,
     save_indices_sw: bool = False,
-    fill_sw: bool = True,
 ) -> None:
     """Process RBSP ECT/MagEIS electron flux data into the EL-PASO data standard.
 
@@ -88,9 +87,6 @@ def process_rbsp_mageis_electrons(
             Only "netcdf" is currently supported for this recipe. Defaults to "netcdf".
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
-        fill_sw (bool): Forwarded to `process_solar_wind_indices` when `save_indices_sw`
-            is True; controls whether gaps in the OMNI solar wind data are forward/backward filled
-            after linear interpolation. Defaults to True.
     """
     del save_strategy
     raw_data_path = Path(raw_data_path)
@@ -236,7 +232,6 @@ def process_rbsp_mageis_electrons(
             end_time,
             processed_data_path=processed_data_path,
             bin_cadence=bin_cadence,
-            fill_sw=fill_sw,
         )
 
 
