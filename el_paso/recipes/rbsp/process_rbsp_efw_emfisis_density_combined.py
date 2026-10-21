@@ -49,7 +49,7 @@ def process_rbsp_efw_emfisis_density_combined(
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=1),
     num_cores: int = 16,
-    save_strategy: Literal["netcdf"] = "netcdf",
+    save_strategy: Literal["netcdf", "mat"] = "netcdf",
     *,
     skip_existing: bool = True,
     add_hiss_derived_densitites: bool = True,
@@ -77,8 +77,8 @@ def process_rbsp_efw_emfisis_density_combined(
             would be written to.
         bin_cadence (timedelta): Time-binning cadence applied to the density and position variables.
         num_cores (int): Number of CPU cores used for the magnetic field computations.
-        save_strategy (Literal["netcdf"]): The saving strategy used to write the processed
-            data. This recipe only supports a single netCDF-based strategy.
+        save_strategy (Literal["netcdf", "mat"]): The file format of the monthly output files,
+            either NetCDF (`.nc`) or MATLAB (`.mat`).
         skip_existing (bool): If True, skip downloading files that already exist locally.
         add_hiss_derived_densitites (bool): If True, also load, time-bin, and map to the
             equator the hiss-derived density data.
@@ -86,13 +86,7 @@ def process_rbsp_efw_emfisis_density_combined(
             hiss-derived density text files.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
-
-    Raises:
-        NotImplementedError: Always raised before the processed variables are saved; saving via
-            `RBSPDensityStrategy` is not yet implemented.
     """
-    del save_strategy
-
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
 
@@ -230,6 +224,7 @@ def process_rbsp_efw_emfisis_density_combined(
         processed_data_path,
         satellite,
         mag_field,
+        file_format="mat" if save_strategy == "mat" else "nc",
     )
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
