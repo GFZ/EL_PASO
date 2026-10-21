@@ -34,7 +34,7 @@ def test_calculate_w_parameters() -> None:
 
 @pytest.mark.minimal
 @pytest.mark.basic
-def test_fill_sw_controls_edge_gap_filling_for_high_res_omni_params(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_fill_sw_controls_gap_filling_for_high_res_omni_params(monkeypatch: pytest.MonkeyPatch) -> None:
     load_sw_module = importlib.import_module("el_paso.load_indices_solar_wind_parameters")
 
     idx = pd.date_range("2020-01-01", periods=5, freq="h", tz="UTC")
@@ -49,14 +49,14 @@ def test_fill_sw_controls_edge_gap_filling_for_high_res_omni_params(monkeypatch:
     data_filled = filled["Pdyn"][0].get_data()
     assert not np.any(np.isnan(data_filled))
     assert data_filled[0] == pytest.approx(1.0)  # back-filled from index 1
-    assert data_filled[2] == pytest.approx(2.0)  # linearly interpolated regardless of fill_sw
+    assert data_filled[2] == pytest.approx(2.0)  # interior gap linearly interpolated
     assert data_filled[-1] == pytest.approx(3.0)  # held forward by interpolate() itself
 
     unfilled = ep.load_indices_solar_wind_parameters(start_time, end_time, ["Pdyn"], fill_sw=False)
     data_unfilled = unfilled["Pdyn"][0].get_data()
     assert np.isnan(data_unfilled[0])  # the leading gap is left unfilled
-    assert data_unfilled[2] == pytest.approx(2.0)  # linearly interpolated regardless of fill_sw
-    assert data_unfilled[-1] == pytest.approx(3.0)  # held forward by interpolate() itself
+    assert np.isnan(data_unfilled[2])  # the interior gap is also left unfilled
+    assert np.isnan(data_unfilled[-1])  # the trailing gap is also left unfilled
 
 
 @pytest.mark.visual
