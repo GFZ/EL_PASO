@@ -73,6 +73,24 @@ Every recipe shares one command line interface; see
 
 ## Installation
 
+### Step 0: Install Prerequisites
+
+EL-PASO uses [uv](https://docs.astral.sh/uv/) for environment and dependency management. Install it if you do not have it yet:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Installing EL-PASO also compiles the IRBEM Fortran library, so a Fortran compiler (`gfortran`) and `make` must be available on your `PATH`. For example:
+
+```bash
+# Debian/Ubuntu
+sudo apt install gfortran make
+
+# macOS (Homebrew)
+brew install gcc make
+```
+
 ### Step 1: Clone the Repository
 
 Begin by cloning the EL-PASO repository and navigating into its directory.

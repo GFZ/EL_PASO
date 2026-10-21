@@ -7,6 +7,24 @@ SPDX-License-Identifier: Apache-2.0
 
 # Installation
 
+## Step 0: Install prerequisites
+
+EL-PASO uses [uv](https://docs.astral.sh/uv/) for environment and dependency management. Install it if you do not have it yet:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Installing EL-PASO also compiles the IRBEM Fortran library, so a Fortran compiler (`gfortran`) and `make` must be available on your `PATH`. For example:
+
+```bash
+# Debian/Ubuntu
+sudo apt install gfortran make
+
+# macOS (Homebrew)
+brew install gcc make
+```
+
 ## Installing EL-PASO
 
 After cloning the repository, the main package can be installed using a virtual environment and pip. Make sure your current directory is set to the EL-PASO repository:
