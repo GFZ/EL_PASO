@@ -53,6 +53,32 @@ def test_construct_file_list_with_weekly_callable_cadence(tmp_path: Path) -> Non
 
 @pytest.mark.minimal
 @pytest.mark.basic
+def test_construct_file_list_daily_includes_end_day_when_start_is_late_in_its_day(tmp_path: Path) -> None:
+    """A start time later in its day than the end time must not drop the file of the end day.
+
+    Recipes pad their time range, e.g. 2013-03-01 00:00 - 10 min to 2013-03-03 22:00 + 10 min. Stepping
+    a full day from 23:50 would land on 2013-03-03 23:50, past the end time, and skip the 03-03 file.
+    """
+    start_time = datetime(2013, 2, 28, 23, 50, tzinfo=timezone.utc)
+    end_time = datetime(2013, 3, 3, 22, 10, tzinfo=timezone.utc)
+
+    expected_days = ["20130228", "20130301", "20130302", "20130303"]
+    for day in expected_days:
+        (tmp_path / f"rbspb_efw-l3_{day}_v04.cdf").touch()
+
+    file_paths, time_intervals = _construct_file_list(
+        start_time, end_time, "daily", tmp_path / "rbspb_efw-l3_YYYYMMDD_.{3}.cdf"
+    )
+
+    assert [path.name for path in file_paths] == [f"rbspb_efw-l3_{day}_v04.cdf" for day in expected_days]
+    assert time_intervals[-1] == (
+        datetime(2013, 3, 3, tzinfo=timezone.utc),
+        datetime(2013, 3, 3, 23, 59, 59, tzinfo=timezone.utc),
+    )
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
 def test_construct_file_list_with_two_digit_year_placeholder(tmp_path: Path) -> None:
     """The YY (2-digit year) placeholder should work end-to-end for the real ns41 naming convention."""
     start_time = datetime(2023, 1, 1, tzinfo=timezone.utc)

@@ -190,7 +190,8 @@ def _construct_file_list(
 
     match file_cadence:
         case "daily":
-            current_time = start_time
+            # start at midnight, so the end day is not skipped when start_time lies later in its day than end_time
+            current_time = start_time.replace(hour=0, minute=0, second=0, microsecond=0)
             while current_time <= end_time:
                 file_path_current = _fill_file_name_and_check_version(current_time, file_path)
                 if file_path_current is None:
