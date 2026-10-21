@@ -84,9 +84,8 @@ def process_goes_r_mps_high(
         processed_data_path (str | Path): Directory where the processed output files are saved.
         bin_cadence (timedelta): Time cadence used to bin the extracted variables.
         num_cores (int): Number of CPU cores used for the magnetic field computations.
-        save_strategy (Literal["gfz", "netcdf", "both"]): Strategy used to save the processed
-            data. "gfz" saves using the GFZ format, "netcdf" saves monthly NetCDF files, and
-            "both" saves using both strategies.
+        save_strategy (Literal["gfz", "netcdf"]): Strategy used to save the processed
+            data. "gfz" saves using the GFZ format, "netcdf" saves monthly NetCDF files.
         skip_existing (bool): If True, skip downloading files that already exist on disk.
     """
     data_path_stem = f"{raw_data_path}/YYYY/MM/{satellite}/"
@@ -296,11 +295,10 @@ def process_goes_r_mps_high(
 
     if save_strategy == "gfz":
         saving_strategy = goes_r_mps_high_gfz_strategy(processed_data_path, mag_field, satellite)
-        ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=True)
-
-    elif save_strategy == "netcdf":
+    else:
         saving_strategy = goes_r_mps_high_netcdf_strategy(processed_data_path, mag_field, satellite)
-        ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=True)
+
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=True)
 
 
 def _get_magn_variables(

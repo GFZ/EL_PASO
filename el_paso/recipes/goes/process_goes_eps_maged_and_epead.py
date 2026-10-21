@@ -67,7 +67,7 @@ def process_goes_eps_maged_and_epead(
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=5),
     num_cores: int = 16,
-    save_strategy: Literal["gfz", "netcdf", "both"] = "netcdf",
+    save_strategy: Literal["gfz", "netcdf"] = "netcdf",
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
     add_B_obs: bool = False,  # noqa: FBT001, FBT002
 ) -> None:
@@ -95,9 +95,8 @@ def process_goes_eps_maged_and_epead(
         processed_data_path (str | Path): Directory where the processed output files are saved.
         bin_cadence (timedelta): Time cadence used to bin the extracted variables.
         num_cores (int): Number of CPU cores used for the magnetic field computations.
-        save_strategy (Literal["gfz", "netcdf", "both"]): Strategy used to save the processed
-            data. "gfz" saves using the GFZ format, "netcdf" saves monthly NetCDF files, and
-            "both" saves using both strategies.
+        save_strategy (Literal["gfz", "netcdf"]): Strategy used to save the processed
+            data. "gfz" saves using the GFZ format, "netcdf" saves monthly NetCDF files.
         skip_existing (bool): If True, skip downloading files that already exist on disk.
         add_B_obs (bool): If True, also download the high-resolution L2 magnetometer data and save the
             observed magnetic field magnitude (B_total_obs) and InvMu_obs computed from it. Defaults to False.
@@ -257,11 +256,10 @@ def process_goes_eps_maged_and_epead(
 
     if save_strategy == "gfz":
         saving_strategy = goes_eps_maged_and_epead_gfz_strategy(processed_data_path, mag_field, satellite)
-        ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=maged_vars["Epoch"], append=True)
-
-    elif save_strategy == "netcdf":
+    else:
         saving_strategy = goes_eps_maged_and_epead_netcdf_strategy(processed_data_path, mag_field, satellite)
-        ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=maged_vars["Epoch"], append=True)
+
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=maged_vars["Epoch"], append=True)
 
 
 def _get_and_prepare_eps_maged_variables(

@@ -75,7 +75,7 @@ def process_goes_real_time(
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=5),
     num_cores: int = 16,
-    save_strategy: Literal["gfz", "netcdf", "both"] = "netcdf",
+    save_strategy: Literal["gfz", "netcdf"] = "netcdf",
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
 ) -> None:
     """Process GOES real-time differential electron flux data into pitch-angle resolved phase space densities.
@@ -99,9 +99,8 @@ def process_goes_real_time(
         processed_data_path (str | Path): Directory where the processed output files are saved.
         bin_cadence (timedelta): Time cadence used to bin the extracted variables.
         num_cores (int): Number of CPU cores used for the magnetic field computations.
-        save_strategy (Literal["gfz", "netcdf", "both"]): Strategy used to save the
-            processed data. "gfz" saves using the GFZ format, "netcdf" saves monthly NetCDF files,
-            and "both" saves using both strategies.
+        save_strategy (Literal["gfz", "netcdf"]): Strategy used to save the
+            processed data. "gfz" saves using the GFZ format, "netcdf" saves monthly NetCDF files.
         skip_existing (bool): If True, skip downloading files that already exist on disk.
     """
     # Part 1: specify source files to extract variables
@@ -248,13 +247,12 @@ def process_goes_real_time(
         "InvK": magnetic_field_variables[f"InvK_{mag_field}"],
     }
 
-    if save_strategy in ("gfz", "both"):
+    if save_strategy == "gfz":
         strategy = goes_realtime_gfz_strategy(processed_data_path, mag_field, satellite)
-        ep.save(vars_to_save, strategy, start_time, end_time, time_var=binned_time_var, append=True)
-
-    if save_strategy in ("netcdf", "both"):
+    else:
         strategy = goes_realtime_netcdf_strategy(processed_data_path, mag_field, satellite)
-        ep.save(vars_to_save, strategy, start_time, end_time, time_var=binned_time_var, append=True)
+
+    ep.save(vars_to_save, strategy, start_time, end_time, time_var=binned_time_var, append=True)
 
 
 CLI_DEFAULTS = {

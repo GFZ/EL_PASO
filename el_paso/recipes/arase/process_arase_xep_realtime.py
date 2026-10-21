@@ -63,7 +63,7 @@ def process_arase_xep_real_time(
     num_cores: int = 16,
     erg_user: str | None = None,
     erg_password: str | None = None,
-    save_strategy: Literal["gfz", "netcdf", "both"] = "netcdf",
+    save_strategy: Literal["gfz", "netcdf"] = "netcdf",
     *,
     download: bool = True,
     skip_existing: bool = True,
@@ -94,7 +94,7 @@ def process_arase_xep_real_time(
             from the ``ERG_USER`` environment variable.
         erg_password (str | None): Password for the ERG data server. If None, it is
             read from the ``ERG_PASSWORD`` environment variable.
-        save_strategy (Literal["gfz", "netcdf", "both"]): Which saving strategy/strategies
+        save_strategy (Literal["gfz", "netcdf"]): Which saving strategy/strategies
             to use for writing the processed data.
         download (bool): Whether to download the raw data files before processing.
         skip_existing (bool): Whether to skip downloading files that already exist locally.
@@ -236,29 +236,19 @@ def process_arase_xep_real_time(
         "Position": variables_combined["xGEO"],
     }
 
-    if save_strategy in ("gfz", "both"):
+    if save_strategy == "gfz":
         saving_strategy = arase_xep_realtime_gfz_strategy(processed_data_path, mag_field)
-
-        ep.save(
-            variables_to_save,
-            saving_strategy,
-            start_time,
-            end_time,
-            time_var=binned_time_var,
-            append=True,
-        )
-
-    if save_strategy in ("netcdf", "both"):
+    else:
         saving_strategy = arase_xep_realtime_strategy(processed_data_path, mag_field)
 
-        ep.save(
-            variables_to_save,
-            saving_strategy,
-            start_time,
-            end_time,
-            time_var=binned_time_var,
-            append=True,
-        )
+    ep.save(
+        variables_to_save,
+        saving_strategy,
+        start_time,
+        end_time,
+        time_var=binned_time_var,
+        append=True,
+    )
 
 
 def _get_xep_variables(

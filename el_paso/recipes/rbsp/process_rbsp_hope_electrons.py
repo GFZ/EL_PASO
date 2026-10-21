@@ -51,7 +51,7 @@ def process_rbsp_hope_electrons(
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=5),
     num_cores: int = 16,
-    save_strategy: Literal["gfz", "netcdf", "both"] = "netcdf",
+    save_strategy: Literal["gfz", "netcdf"] = "netcdf",
     *,
     calculate_Lstar: bool = True,
     skip_existing: bool = True,
@@ -80,7 +80,7 @@ def process_rbsp_hope_electrons(
         bin_cadence (timedelta): Time-binning cadence applied to all variables.
         num_cores (int): Number of CPU cores used for the magnetic field computations.
             Defaults to 16.
-        save_strategy (Literal["gfz", "netcdf", "both"]): Which saving strategy/strategies
+        save_strategy (Literal["gfz", "netcdf"]): Which saving strategy/strategies
             to use for writing the processed output. Defaults to "netcdf".
         calculate_Lstar (bool): Whether Lstar should be calculated or not. Defaults to True.
         skip_existing (bool): If True, skip downloading files that already exist on disk.
@@ -234,13 +234,12 @@ def process_rbsp_hope_electrons(
             "electron",
         )
 
-    if save_strategy in ("gfz", "both"):
+    if save_strategy == "gfz":
         strategy = rbsp_hope_electron_gfz_strategy(processed_data_path, mag_field, satellite)
-        ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=True)
-
-    if save_strategy in ("netcdf", "both"):
+    else:
         strategy = rbsp_hope_electron_netcdf_strategy(processed_data_path, mag_field, satellite)
-        ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=True)
+
+    ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=True)
 
 
 if __name__ == "__main__":

@@ -51,7 +51,7 @@ def process_rbsp_ect_combined(
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=5),
     num_cores: int = 16,
-    save_strategy: Literal["gfz", "netcdf", "both"] = "netcdf",
+    save_strategy: Literal["gfz", "netcdf"] = "netcdf",
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
     add_B_obs: bool = False,  # noqa: FBT001, FBT002
 ) -> None:
@@ -76,7 +76,7 @@ def process_rbsp_ect_combined(
         processed_data_path (str | Path): Directory where the processed output files are
             written to. Defaults to ".".
         bin_cadence (timedelta): Time-binning cadence applied to all variables.
-        save_strategy (Literal["gfz", "netcdf", "both"]): Which saving strategy/strategies
+        save_strategy (Literal["gfz", "netcdf"]): Which saving strategy/strategies
             to use for writing the processed output. Defaults to "netcdf".
         num_cores (int): Number of CPU cores used for the magnetic field computations.
             Defaults to 16.
@@ -241,13 +241,12 @@ def process_rbsp_ect_combined(
             "electron",
         )
 
-    if save_strategy in ("gfz", "both"):
+    if save_strategy == "gfz":
         strategy = rbsp_ect_combined_gfz_strategy(processed_data_path, mag_field, satellite)
-        ep.save(variables_to_save, strategy, start_time, end_time, binned_time_variable, append=True)
-
-    if save_strategy in ("netcdf", "both"):
+    else:
         strategy = rbsp_ect_combined_netcdf_strategy(processed_data_path, mag_field, satellite)
-        ep.save(variables_to_save, strategy, start_time, end_time, binned_time_variable, append=True)
+
+    ep.save(variables_to_save, strategy, start_time, end_time, binned_time_variable, append=True)
 
 
 if __name__ == "__main__":

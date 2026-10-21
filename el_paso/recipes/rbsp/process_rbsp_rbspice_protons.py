@@ -54,7 +54,7 @@ def process_rbsp_rbspice_protons(
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=5),
     num_cores: int = 16,
-    save_strategy: Literal["gfz", "netcdf", "both"] = "both",
+    save_strategy: Literal["gfz", "netcdf"] = "netcdf",
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
     add_B_obs: bool = False,  # noqa: FBT001, FBT002
 ) -> None:
@@ -83,8 +83,8 @@ def process_rbsp_rbspice_protons(
         bin_cadence (timedelta): Time-binning cadence applied to all variables.
         num_cores (int): Number of CPU cores used for the magnetic field computations.
             Defaults to 16.
-        save_strategy (Literal["gfz", "netcdf", "both"]): Which saving strategy/strategies
-            to use for writing the processed output. Defaults to "both".
+        save_strategy (Literal["gfz", "netcdf"]): Which saving strategy/strategies
+            to use for writing the processed output. Defaults to "netcdf".
         skip_existing (bool): If True, skip downloading files that already exist on disk.
         add_B_obs (bool): If True, also download the EMFISIS magnetometer data and save the observed
             magnetic field magnitude (B_total_obs) and InvMu_obs computed from it. Defaults to False.
@@ -251,13 +251,12 @@ def process_rbsp_rbspice_protons(
             "proton",
         )
 
-    if save_strategy in ("gfz", "both"):
+    if save_strategy == "gfz":
         strategy = rbsp_rbspice_proton_gfz_strategy(processed_data_path, mag_field, satellite)
-        ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=True)
-
-    if save_strategy in ("netcdf", "both"):
+    else:
         strategy = rbsp_rbspice_proton_netcdf_strategy(processed_data_path, mag_field, satellite)
-        ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=True)
+
+    ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=True)
 
 
 CLI_DEFAULTS = {
