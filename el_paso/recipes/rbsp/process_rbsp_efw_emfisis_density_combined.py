@@ -133,7 +133,6 @@ def process_rbsp_efw_emfisis_density_combined(
     )
 
     emfisis_time_bin_methods = {
-        "Digi_type": ep.TimeBinMethod.Unique,
         "Density": ep.TimeBinMethod.NanMedian,
     }
 
@@ -145,10 +144,6 @@ def process_rbsp_efw_emfisis_density_combined(
         start_time=start_time,
         end_time=end_time,
     )
-
-    digi_type_cleaned = np.asarray([s.strip() for s in emfisis_variables["Digi_type"].get_data()])
-    digi_type_cleaned = digi_type_cleaned.astype("S")
-    emfisis_variables["Digi_type"].set_data(digi_type_cleaned, "same")
 
     datetimes = [datetime.fromtimestamp(t, tz=timezone.utc) for t in binned_time_variable.get_data(ep.units.posixtime)]
 
