@@ -153,6 +153,8 @@ class GFZMetaData(DatasetMetadata):
         Dst (VariableMetadata): Disturbance storm time index.
         FEDO (VariableMetadata): Electron differential omnidirectional flux.
         FEIU (VariableMetadata): Electron integral unidirectional flux.
+        FEIU_SA (VariableMetadata): Electron integral flux, spin-averaged over the look directions (no pitch angle
+            resolution).
         FPDU (VariableMetadata): Proton differential unidirectional flux.
         Flux (VariableMetadata): Electron differential unidirectional flux.
         G1 (VariableMetadata): Tsyganenko G1 parameter.
@@ -223,6 +225,7 @@ class GFZMetaData(DatasetMetadata):
     Dst: VariableMetadata
     FEDO: VariableMetadata
     FEIU: VariableMetadata
+    FEIU_SA: VariableMetadata
     FPDU: VariableMetadata
     Flux: VariableMetadata
     G1: VariableMetadata

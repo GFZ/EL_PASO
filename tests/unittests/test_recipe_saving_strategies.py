@@ -41,6 +41,7 @@ from el_paso.recipes.esa.process_gssc_emu_electrons import gssc_emu_electron_str
 from el_paso.recipes.esa.process_gssc_emu_protons import gssc_emu_proton_strategy
 from el_paso.recipes.esa.process_ngrm_satellite import esa_ngrm_strategy
 from el_paso.recipes.goes.process_goes_eps_maged_and_epead import (
+    _MonthlyMagedEpeadStrategy,
     goes_eps_maged_and_epead_gfz_strategy,
     goes_eps_maged_and_epead_netcdf_strategy,
 )
@@ -215,7 +216,7 @@ CASES: list[
         goes_eps_maged_and_epead_netcdf_strategy,
         ("T89", "goes15"),
         {},
-        ep.saving_strategies.MonthlyRBStrategy,
+        _MonthlyMagedEpeadStrategy,
         {
             "mission": "GOES",
             "satellite": "goes15",
@@ -574,3 +575,20 @@ def test_every_recipe_strategy_is_exported_from_its_mission_package() -> None:
             assert any(getattr(mission_package, exported, None) is factory for exported in exported_names), (
                 f"{module_name}.{name} is not exported (under any name) from el_paso/recipes/{mission}/__init__.py"
             )
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_goes_eps_maged_and_epead_strategy_saves_integral_channels(tmp_path: Path) -> None:
+    """The EPEAD integral channels are saved by the GOES MAGED+EPEAD strategy only, not by the shared monthly one."""
+    strategy = goes_eps_maged_and_epead_netcdf_strategy(tmp_path, "T89", "goes15")
+    entries = strategy.output_files[0].names_to_save
+
+    assert "FEIU_SA" in entries
+    assert "Energy_FEIU" in entries
+
+    default_strategy = goes_r_mps_high_netcdf_strategy(tmp_path, "T89", "goes16")
+    default_entries = default_strategy.output_files[0].names_to_save
+
+    assert "FEIU_SA" not in default_entries
+    assert "Energy_FEIU" not in default_entries

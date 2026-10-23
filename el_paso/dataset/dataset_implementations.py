@@ -51,6 +51,8 @@ class GFZDataSet(DataSet):
         Dst (NDArray[np.float64]): Disturbance storm time index.
         FEDO (NDArray[np.float64]): Electron differential omnidirectional flux.
         FEIU (NDArray[np.float64]): Electron integral unidirectional flux.
+        FEIU_SA (NDArray[np.float64]): Electron integral flux, spin-averaged over the look directions (no pitch
+            angle resolution).
         FPDU (NDArray[np.float64]): Proton differential unidirectional flux.
         Flux (NDArray[np.float64]): Electron differential unidirectional flux.
         G1 (NDArray[np.float64]): Tsyganenko G1 parameter.
@@ -124,6 +126,7 @@ class GFZDataSet(DataSet):
     Dst: NDArray[np.float64]
     FEDO: NDArray[np.float64]
     FEIU: NDArray[np.float64]
+    FEIU_SA: NDArray[np.float64]
     FPDU: NDArray[np.float64]
     Flux: NDArray[np.float64]
     G1: NDArray[np.float64]
