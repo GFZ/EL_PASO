@@ -33,40 +33,43 @@ Full documentation can be viewed [here](https://el-paso.readthedocs.io/en/latest
 
 ## Available processing scripts
 
+Color code: <span style="color:green">publication ready</span>, <span style="color:E6D753">needs verification</span>, <span style="color:E67D53">draft</span>
+
 - **Arase**
-    - MEPe
-    - XEP (archived and real-time)
-    - PWE density
+    - <span style="color:E6D753"> MEPe
+    - <span style="color:green"> XEP (archived and real-time)
+    - <span style="color:green"> PWE density
 - **DMSP**
-    - SSJ (electrons)
+    - <span style="color:E6D753"> SSJ (electrons)
 - **GOES (13 and 15)**
-    - EPS MAGED and EPEAD combined
+    - <span style="color:green"> EPS MAGED and EPEAD combined
 - **GOES-R**
-    - MPS-High real-time
-    - MPS-High
+    - <span style="color:E6D753"> MPS-High (archived and real-time)
 - **GPS**
-    - GPS processing
+    - <span style="color:E6D753"> GPS processing
 - **ESA**
-    - NGRM satellites
-    - GSSC EMU (electrons and protons)
-- **POES**
-    - MEPED (electrons)
-    - TED (electrons)
+    - <span style="color:E67D53"> NGRM satellites
+    - <span style="color:E67D53"> GSSC EMU (electrons and protons)
+- **POES (no proton correction)**
+    - <span style="color:green"> MEPED (electrons)
+    - <span style="color:green"> TED (electrons)
 - **PROBA-V**
-    - EPT (electrons and protons)
+    - <span style="color:E6D753"> EPT (electrons and protons)
 - **THEMIS**
-    - FFT waves
-    - Spacecraft-potential density
+    - <span style="color:E6D753"> FFT waves
+    - <span style="color:E6D753"> Spacecraft-potential density
 - **Van Allen Probes**
-    - HOPE (electrons and protons)
-    - MagEIS (electrons and protons)
-    - RBSPICE (protons)
-    - ECT-combined
-    - EMFISIS waves
-    - EMFISIS and EFW density
+    - <span style="color:green"> HOPE (electrons)
+    - <span style="color:E67D53"> HOPE (protons)
+    - <span style="color:green"> MagEIS (electrons)
+    - <span style="color:E67D53"> MagEIS (protons)
+    - <span style="color:E67D53"> RBSPICE (protons)
+    - <span style="color:green"> ECT-combined
+    - <span style="color:green"> EMFISIS waves
+    - <span style="color:green"> EMFISIS and EFW density
 - **Models**
-    - Last closed drift shell (LCDS)  (no spacecraft data needed)
-    - Solar wind and geomagnetic indices
+    - <span style="color:green"> Last closed drift shell (LCDS)
+    - <span style="color:green"> Solar wind and geomagnetic indices
 
 Every recipe shares one command line interface; see
 [Running a recipe](#running-a-recipe) below.
