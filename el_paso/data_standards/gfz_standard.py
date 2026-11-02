@@ -78,6 +78,12 @@ class GFZStandard(DataStandard[GFZVarNames]):
                 (u.cm**2 * u.s * u.sr) ** (-1),
                 ["Epoch", "Energy_FEIU", "Alpha"],
             ),
+            "FEIU_SA": VariableInfo[GFZVarNames](
+                "FEIU_SA",
+                "Electron integral flux, spin-averaged over the look directions (no pitch angle resolution).",
+                (u.cm**2 * u.s * u.sr) ** (-1),
+                ["Epoch", "Energy_FEIU"],
+            ),
             "FEDO": VariableInfo[GFZVarNames](
                 "FEDO",
                 "Electron differential omnidirectional flux.",
