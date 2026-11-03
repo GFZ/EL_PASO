@@ -40,7 +40,9 @@ from el_paso.cache import mark_run_failed
 from el_paso.cli.recipe_cli import build_recipe_command
 
 if TYPE_CHECKING:
-    from el_paso.typing import Recipe
+    from collections.abc import Callable
+
+    from el_paso.typing import Recipe, SavingStrategy
 
 
 class RecipeEntry(NamedTuple):
@@ -51,12 +53,15 @@ class RecipeEntry(NamedTuple):
         command: The sub-command name within that group (e.g. ``"meped"``).
         module: Import path of the module defining the recipe.
         function: Name of the recipe function inside that module.
+        strategy: Name of the recipe's strategy factory inside that module, or ``None`` if the
+            recipe does not register one yet.
     """
 
     mission: str
     command: str
     module: str
     function: str
+    strategy: str | None = None
 
 
 RECIPES: tuple[RecipeEntry, ...] = (
@@ -111,6 +116,7 @@ RECIPES: tuple[RecipeEntry, ...] = (
         "mageis-electrons",
         "el_paso.recipes.rbsp.process_rbsp_mageis_electrons",
         "process_rbsp_mageis_electrons",
+        strategy="rbsp_mageis_electron_strategy",
     ),
     RecipeEntry(
         "rbsp", "mageis-protons", "el_paso.recipes.rbsp.process_rbsp_mageis_protons", "process_rbsp_mageis_protons"
@@ -146,6 +152,20 @@ def load_recipe(entry: RecipeEntry) -> tuple[Recipe, dict[str, object]]:
     """
     module = importlib.import_module(entry.module)
     return getattr(module, entry.function), getattr(module, "CLI_DEFAULTS", {})
+
+
+def load_strategy_factory(entry: RecipeEntry) -> Callable[..., SavingStrategy] | None:
+    """Import a recipe's strategy factory.
+
+    Args:
+        entry (RecipeEntry): The registry entry to load.
+
+    Returns:
+        Callable[..., SavingStrategy] | None: The factory, or ``None`` if the entry registers none.
+    """
+    if entry.strategy is None:
+        return None
+    return getattr(importlib.import_module(entry.module), entry.strategy)
 
 
 _PACKAGE_ROOT = pathlib.Path(el_paso.__file__).resolve().parent

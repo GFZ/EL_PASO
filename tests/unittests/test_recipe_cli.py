@@ -22,14 +22,16 @@ import el_paso as ep
 import pytest
 import typer
 import typer.testing
-from el_paso.cli.app import RECIPES, RecipeEntry, app, load_recipe
+from el_paso.cli.app import RECIPES, RecipeEntry, app, load_recipe, load_strategy_factory
 from el_paso.cli.recipe_cli import (
     _format_value,
     build_recipe_command,
+    check_strategy_factory,
     format_cadence,
     parse_cadence,
     parse_datetime,
     parse_docstring,
+    run_recipe_cli,
 )
 from typer.testing import CliRunner, Result
 
@@ -761,3 +763,83 @@ def test_cli_dispatches_to_a_recipe(caplog: pytest.LogCaptureFixture) -> None:
     assert "process_poes_meped_electron" in caplog.text
     assert "T96" in caplog.text
     assert "1min" in caplog.text
+
+
+# --- strategy factory registration -------------------------------------------------------------------------------
+
+
+def _recipe(  # noqa: PLR0913
+    start_time: datetime,
+    end_time: datetime,
+    satellite: Literal["a", "b"] = "a",
+    mag_field: Literal["T89", "TS04"] = "T89",
+    processed_data_path: str | Path = ".",
+    num_cores: int = 1,
+) -> None:
+    """Recipe used to test the factory check.
+
+    Args:
+        start_time (datetime): Start.
+        end_time (datetime): End.
+        satellite (Literal["a", "b"]): Satellite.
+        mag_field (Literal["T89", "TS04"]): Field model.
+        processed_data_path (str | Path): Output path.
+        num_cores (int): Cores.
+    """
+    del start_time, end_time, satellite, mag_field, processed_data_path, num_cores
+
+
+@pytest.mark.minimal
+def test_check_strategy_factory_accepts_matching_factory() -> None:
+    def factory(
+        processed_data_path: str | Path, mag_field: Literal["T89", "TS04"], satellite: Literal["a", "b"]
+    ) -> None: ...
+
+    check_strategy_factory(_recipe, factory)
+
+
+@pytest.mark.minimal
+def test_check_strategy_factory_reports_all_problems() -> None:
+    def factory(base_data_path: str | Path, mag_field: Literal["T89", "T96"], num_cores: dict) -> None: ...
+
+    with pytest.raises(TypeError) as excinfo:
+        check_strategy_factory(_recipe, factory)
+
+    message = str(excinfo.value)
+    assert "'base_data_path': not a parameter" in message
+    assert "'mag_field': annotated" in message
+    assert "'num_cores': unsupported annotation" in message
+
+
+@pytest.mark.minimal
+def test_run_recipe_cli_rejects_mismatching_factory() -> None:
+    def factory(base_data_path: str | Path) -> None: ...
+
+    with pytest.raises(TypeError, match="does not match recipe"):
+        run_recipe_cli(_recipe, strategy=factory, args=["--help"])
+
+
+@pytest.mark.minimal
+def test_run_recipe_cli_plot_defaults_require_strategy() -> None:
+    with pytest.raises(ValueError, match="requires a strategy factory"):
+        run_recipe_cli(_recipe, plot_defaults={"panels": []}, args=["--help"])
+
+
+@pytest.mark.minimal
+@pytest.mark.parametrize(
+    "entry", [e for e in RECIPES if e.strategy is not None], ids=lambda e: f"{e.mission}-{e.command}"
+)
+def test_registered_strategy_factories_match_their_recipes(entry: RecipeEntry) -> None:
+    recipe, _ = load_recipe(entry)
+    factory = load_strategy_factory(entry)
+
+    assert factory is not None
+    check_strategy_factory(recipe, factory)
+
+
+@pytest.mark.minimal
+def test_mageis_electrons_registers_its_strategy_factory() -> None:
+    entry = next(e for e in RECIPES if e.command == "mageis-electrons")
+
+    assert load_strategy_factory(entry) is not None
+    assert load_strategy_factory(next(e for e in RECIPES if e.command == "meped")) is None

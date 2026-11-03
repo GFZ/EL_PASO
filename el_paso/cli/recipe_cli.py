@@ -777,11 +777,64 @@ def _report_call(
         logger.info(line)
 
 
+def check_strategy_factory(
+    recipe: Recipe, factory: Callable[..., Any], *, loop_over: Sequence[str] | None = None
+) -> None:
+    """Check that a strategy factory can be exposed on the command line next to its recipe.
+
+    The ``el-paso plot`` command takes the factory's parameters as its data options, so each of them has
+    to mean the same thing as in the recipe. Every parameter of `factory` must
+
+    - exist in the signature of `recipe`,
+    - have the same type annotation there, with the same allowed values for a ``Literal``, and
+    - have a type the command line builder supports.
+
+    Args:
+        recipe (Recipe): The recipe function.
+        factory (Callable[..., Any]): The strategy factory the recipe uses to build its saving strategy.
+        loop_over (Sequence[str] | None): Parameters of the recipe that accept several values. Defaults to
+            any parameter named in :data:`LOOP_PARAMETER_NAMES`.
+
+    Raises:
+        TypeError: If any parameter violates the rules above. The message lists all violations.
+    """
+    recipe_parameters = inspect.signature(recipe).parameters
+    recipe_hints = typing.get_type_hints(recipe)
+    factory_hints = typing.get_type_hints(factory)
+    loop_names = set(loop_over) if loop_over is not None else set(LOOP_PARAMETER_NAMES)
+
+    problems: list[str] = []
+    for name, parameter in inspect.signature(factory).parameters.items():
+        if parameter.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
+            problems.append(f"{name!r}: variadic parameters cannot be exposed on the command line")
+            continue
+
+        factory_hint = factory_hints.get(name, parameter.annotation)
+
+        if name not in recipe_parameters:
+            problems.append(f"{name!r}: not a parameter of {_func_name(recipe)}")
+        elif recipe_hints.get(name, recipe_parameters[name].annotation) != factory_hint:
+            problems.append(
+                f"{name!r}: annotated {factory_hint!r} in the factory but "
+                f"{recipe_hints.get(name, recipe_parameters[name].annotation)!r} in {_func_name(recipe)}"
+            )
+
+        if _build_parameter_spec(name, factory_hint, parameter.default, "", is_loop=name in loop_names) is None:
+            problems.append(f"{name!r}: unsupported annotation {factory_hint!r}")
+
+    if problems:
+        details = "\n  - ".join(problems)
+        msg = f"Strategy factory {_func_name(factory)} does not match recipe {_func_name(recipe)}:\n  - {details}"
+        raise TypeError(msg)
+
+
 def run_recipe_cli(
     func: Recipe,
     *,
     defaults: dict[str, Any] | None = None,
     loop_over: Sequence[str] | None = None,
+    strategy: Callable[..., Any] | None = None,
+    plot_defaults: dict[str, Any] | None = None,
     args: Sequence[str] | None = None,
 ) -> None:
     """Run a recipe as a standalone command line program.
@@ -798,9 +851,23 @@ def run_recipe_cli(
         loop_over (Sequence[str] | None): Parameters that accept several values, causing
             one call to `func` per value. Defaults to any parameter named in
             :data:`LOOP_PARAMETER_NAMES`.
+        strategy (Callable[..., Any] | None): The strategy factory the recipe builds its saving strategy
+            with. It is checked against the recipe with :func:`check_strategy_factory`, so a mismatch
+            fails at start-up. The ``el-paso plot`` command uses it to locate the processed data.
+        plot_defaults (dict[str, Any] | None): Recipe-specific plot settings for ``el-paso plot``.
+            Requires `strategy`.
         args (Sequence[str] | None): Command line arguments to parse. Defaults to
             `sys.argv`; mainly useful for testing.
+
+    Raises:
+        ValueError: If `plot_defaults` is given without `strategy`.
     """
+    if plot_defaults is not None and strategy is None:
+        msg = "plot_defaults requires a strategy factory."
+        raise ValueError(msg)
+    if strategy is not None:
+        check_strategy_factory(func, strategy, loop_over=loop_over)
+
     app = typer.Typer(add_completion=False, pretty_exceptions_show_locals=False)
     app.command()(build_recipe_command(func, defaults=defaults, loop_over=loop_over))
     app(args=args)

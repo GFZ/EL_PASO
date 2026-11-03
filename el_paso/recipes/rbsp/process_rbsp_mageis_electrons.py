@@ -37,15 +37,25 @@ STANDARD_ENERGIES_KEV = np.array(
 
 
 def rbsp_mageis_electron_strategy(
-    base_data_path: str | Path,
-    mag_field: ep.typing.MagneticFieldLiteral,
+    processed_data_path: str | Path,
+    mag_field: Literal["T89", "T96", "TS04"],
     satellite: RBSPSatellite,
-    *,
-    file_format: ep.typing.MFSFormats = "nc",
+    save_strategy: Literal["netcdf"] = "netcdf",
 ) -> ep.SavingStrategy:
-    """Monthly NetCDF saving strategy for RBSP MagEIS electrons."""
+    """Saving strategy of the RBSP MagEIS electron recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (Literal["T89", "T96", "TS04"]): Magnetic field model the data was processed with.
+        satellite (RBSPSatellite): RBSP satellite, "a" or "b".
+        save_strategy (Literal["netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Monthly NetCDF saving strategy.
+    """
+    file_format: ep.typing.MFSFormats = {"netcdf": "nc"}[save_strategy]
     return ep.saving_strategies.MonthlyRBStrategy(
-        Path(base_data_path),
+        Path(processed_data_path),
         "RBSP",
         "rbsp" + satellite,
         "mageis",
@@ -108,7 +118,6 @@ def process_rbsp_mageis_electrons(
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
     """
-    del save_strategy
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
 
@@ -248,7 +257,7 @@ def process_rbsp_mageis_electrons(
             "electron",
         )
 
-    strategy = rbsp_mageis_electron_strategy(processed_data_path, mag_field, satellite)
+    strategy = rbsp_mageis_electron_strategy(processed_data_path, mag_field, satellite, save_strategy)
     ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=False)
 
     if save_indices_sw:
@@ -311,4 +320,4 @@ def _mageis_data_modifier(
 
 
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_rbsp_mageis_electrons)
+    ep.run_recipe_cli(process_rbsp_mageis_electrons, strategy=rbsp_mageis_electron_strategy)
