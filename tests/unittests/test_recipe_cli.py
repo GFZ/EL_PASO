@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import importlib
 import inspect
-import logging
 import typing
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -36,7 +35,9 @@ from el_paso.cli.recipe_cli import (
 from typer.testing import CliRunner, Result
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Sequence
+    from collections.abc import Sequence
+
+pytestmark = pytest.mark.usefixtures("no_live_logging")
 
 runner = CliRunner()
 
@@ -49,34 +50,6 @@ def invoke_app(args: Sequence[str], **kwargs: Any) -> Result:  # noqa: ANN401
 
 DEFAULT_NUM_CORES = 16
 """The core count every recipe defaults to; see test_num_cores_default_is_shared_by_every_recipe."""
-
-
-@pytest.fixture(autouse=True)
-def _no_crashy_live_logging(request: pytest.FixtureRequest) -> Iterator[None]:
-    """Detach pytest's live-log handler for the duration of each test.
-
-    Recipe commands report their run settings and failures through the standard `logging`
-    module rather than printing straight to stdout, so a `CliRunner.invoke()` in these tests
-    can trigger a real log emission mid-command. Combined with `log_cli = 1` in pytest.ini,
-    such an emission makes pytest's own live-log handler try to interleave output with
-    Click's captured stdout, which raises "ValueError: I/O operation on closed file" (a known
-    pytest/Click incompatibility, unrelated to whether the recipe command itself is correct).
-    Detaching it here does not affect `caplog`, which is backed by its own separate handler.
-    """
-    plugin = request.config.pluginmanager.get_plugin("logging-plugin")
-    if plugin is None:
-        yield
-        return
-
-    root_logger = logging.getLogger()
-    attached = plugin.log_cli_handler in root_logger.handlers
-    if attached:
-        root_logger.removeHandler(plugin.log_cli_handler)
-    try:
-        yield
-    finally:
-        if attached:
-            root_logger.addHandler(plugin.log_cli_handler)
 
 
 @pytest.fixture(autouse=True)

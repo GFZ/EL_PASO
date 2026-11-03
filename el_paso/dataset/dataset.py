@@ -716,7 +716,9 @@ class DataSet:
         from .identify_orbits import identify_orbits  # noqa: PLC0415
         from .interp_functions import interp_flux, interp_psd  # noqa: PLC0415
         from .linearize_trajectories import linearize_trajectories  # noqa: PLC0415
+        from .plot import plot  # noqa: PLC0415
     else:
+        plot = _LazyMethod(".plot")
         bin_and_interpolate_to_model_grid = _LazyMethod(".bin_and_interpolate_to_model_grid")
         identify_orbits = _LazyMethod(".identify_orbits")
         interp_flux = _LazyMethod(".interp_functions")

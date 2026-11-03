@@ -3,9 +3,10 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+import logging
 import socket
 import typing
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from urllib.parse import urlparse
 
 import pytest
@@ -79,3 +80,31 @@ def skip_if_unreachable() -> Callable[..., None]:
                 pytest.skip(f"External resource '{url}' is not reachable; skipping test that requires network access.")
 
     return _skip_if_unreachable
+
+
+@pytest.fixture
+def no_live_logging(request: pytest.FixtureRequest) -> Iterator[None]:
+    """Detach pytest's live-log handler for the duration of a test that invokes a CLI command.
+
+    CLI commands report their run settings and failures through the standard `logging`
+    module rather than printing straight to stdout, so a `CliRunner.invoke()`
+    in a test can trigger a real log emission mid-command. Combined with `log_cli = 1` in pytest.ini,
+    such an emission makes pytest's own live-log handler try to interleave output with
+    Click's captured stdout, which raises "ValueError: I/O operation on closed file" (a known
+    pytest/Click incompatibility, unrelated to whether the command itself is correct).
+    Detaching it here does not affect `caplog`, which is backed by its own separate handler.
+    """
+    plugin = request.config.pluginmanager.get_plugin("logging-plugin")
+    if plugin is None:
+        yield
+        return
+
+    root_logger = logging.getLogger()
+    attached = plugin.log_cli_handler in root_logger.handlers
+    if attached:
+        root_logger.removeHandler(plugin.log_cli_handler)
+    try:
+        yield
+    finally:
+        if attached:
+            root_logger.addHandler(plugin.log_cli_handler)
