@@ -15,10 +15,26 @@ three sources:
 - the strategy factory's signature, e.g. ``--satellite``, ``--mag-field``,
   ``--processed-data-path``, with the recipe's defaults, so that the same arguments find the
   files a processing run wrote;
-- plot-only options: ``--variable``, ``--output`` and ``--show``.
+- plot-only options: ``--variable``, ``--energy``, ``--pitch-angle``, ``--vmin``, ``--vmax``,
+  ``--along-L-star``/``--along-L-m``/``--along-R-eq`` (at most one), ``--output`` and ``--show``.
 
 Processing-only options such as ``--num-cores`` or ``--raw-data-path`` are not part of the
 factory's signature and so are rejected.
+
+Plot settings come in layers: the defaults of each variable's plot type (in `DataSet.plot`), then
+the recipe's ``PLOT_DEFAULTS``, then the plot-only options. ``PLOT_DEFAULTS`` is a dict with an
+optional ``"panels"`` list of internal names, used when ``--variable`` is not given, and settings per
+internal name with keys from :data:`el_paso.dataset.plot.PANEL_SETTING_NAMES`::
+
+    PLOT_DEFAULTS = {
+        "panels": ["FEDU", "L_star", "MLT"],
+        "FEDU": {"pitch_angle": 90 * u.deg, "energies": [470, 1575] * u.keV, "vmin": 1e0, "vmax": 1e6},
+    }
+
+``--variable`` replaces the panel list and ignores ``PLOT_DEFAULTS`` entirely (the variable-type defaults
+still apply); ``--energy``, ``--pitch-angle``, ``--vmin``, ``--vmax`` and ``--along-*`` override the
+matching setting of every panel. A variable's ``"along"`` setting (``"L_star"``, ``"L_m"`` or ``"R_Eq"``)
+draws it as scatter panels over time with that coordinate on the y axis.
 """
 
 from __future__ import annotations
@@ -26,10 +42,13 @@ from __future__ import annotations
 import dataclasses
 import inspect
 import logging
+import re
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, cast
 
 import typer
+from astropy import units as u
 from rich.table import Table
 
 import el_paso as ep
@@ -47,11 +66,12 @@ from el_paso.cli.recipe_cli import (
     check_strategy_factory,
     parse_docstring,
 )
+from el_paso.dataset.plot import DEFAULT_COLORMAP, check_panel_settings, count_panels, resolve_panel_settings
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
-    from datetime import datetime
+    from collections.abc import Callable, Mapping, Sequence
 
+    from matplotlib.axes import Axes
     from matplotlib.figure import Figure
 
     from el_paso.dataset import DataSet
@@ -68,7 +88,40 @@ TIME_PARAMETER_NAMES = ("start_time", "end_time")
 _SHARED_PARAMETER_NAMES = ("verbose", "quiet")
 """Universal recipe-command options the plot command shares; see `recipe_cli._universal_parameters`."""
 
-_PLOT_PARAMETER_NAMES = ("dry_run", "variables", "output", "show")
+PANELS_KEY = "panels"
+"""Key of the default panel list in a recipe's ``PLOT_DEFAULTS``; every other key is a variable's settings."""
+
+INDEX_PANELS = ("Kp", "Dst", "Vsw", "Nsw", "Pdyn", "BzIMF", "ByIMF", "G1", "G2", "G3", "W_params")
+"""Space-weather indices and solar wind parameters that can be requested like variables.
+
+These are the values of ``el_paso.load_indices_solar_wind_parameters.SW_Index`` (not imported here,
+since that module imports swvo, pandas and scipy). They are not part of any dataset: they are loaded,
+and downloaded if missing, for the plotted time range and drawn once at the top of the figure."""
+
+_STEP_INDICES = frozenset({"Kp", "Dst"})
+"""Indices that are averages over fixed intervals (3 h, 1 h) and are drawn as steps."""
+
+ALONG_OPTIONS: dict[str, tuple[str, InternalName]] = {
+    "along_l_star": ("--along-L-star", "L_star"),
+    "along_l_m": ("--along-L-m", "L_m"),
+    "along_r_eq": ("--along-R-eq", "R_Eq"),
+}
+"""Parameter name of each ``--along-*`` option, its flag, and the coordinate it puts on the y axis of the panels.
+
+The coordinates are those of :data:`el_paso.dataset.plot.ALONG_COORDINATES`."""
+
+_PLOT_PARAMETER_NAMES = (
+    "dry_run",
+    "variables",
+    "energies",
+    "pitch_angle",
+    "vmin",
+    "vmax",
+    "colormap",
+    *ALONG_OPTIONS,
+    "output",
+    "show",
+)
 """Options defined here: ``--dry-run`` is shared with processing in name only, the rest are plot-only."""
 
 
@@ -83,7 +136,8 @@ class PlotRequest:
         end_time: End of the time range to plot.
         strategy_kwargs: Arguments for `factory`, one set per value of a looped parameter
             (one per satellite).
-        variables: Internal names of the variables to plot, or ``None`` for the defaults.
+        variables: Internal names of the variables given with ``--variable``, or ``None`` for the
+            recipe's default panels (see `resolve_panels`).
         output: File to write the figure to, or ``None`` for the default file name.
         show: Open an interactive window.
         dry_run: Only report what would be plotted.
@@ -91,6 +145,15 @@ class PlotRequest:
         plot_defaults: The recipe's ``PLOT_DEFAULTS``.
         processing_command: The command that runs the recipe, e.g. ``el-paso rbsp mageis-electrons``,
             suggested when processed files are missing. ``None`` for ``python -m <recipe module>``.
+        energies: Energies to show for variables with an energy dimension (``--energy``), or
+            ``None`` for the defaults.
+        pitch_angle: Pitch angle at which variables with an energy and a pitch-angle dimension are
+            cut (``--pitch-angle``), or ``None`` for the defaults.
+        vmin: Lower colour limit of spectrograms (``--vmin``), in the plotted variable's unit.
+        vmax: Upper colour limit of spectrograms (``--vmax``), in the plotted variable's unit.
+        along: Coordinate on the y axis of scatter panels (``--along-L-star``, ``--along-L-m`` or
+            ``--along-R-eq``), or ``None`` for the usual plot types.
+        colormap: Colormap of spectrograms and scatter panels (``--colormap``).
     """
 
     recipe: Recipe
@@ -105,6 +168,12 @@ class PlotRequest:
     verbose: bool
     plot_defaults: dict[str, Any]
     processing_command: str | None = None
+    energies: u.Quantity | None = None
+    pitch_angle: u.Quantity | None = None
+    vmin: float | None = None
+    vmax: float | None = None
+    along: InternalName | None = None
+    colormap: str = DEFAULT_COLORMAP
 
 
 def _plot_parameters() -> list[inspect.Parameter]:
@@ -134,6 +203,90 @@ def _plot_parameters() -> list[inspect.Parameter]:
                 ),
             ],
             None,
+        ),
+        (
+            "energies",
+            Annotated[
+                list[str] | None,
+                typer.Option(
+                    "--energy",
+                    metavar="ENERGY",
+                    help="Energy to show for variables with an energy dimension (e.g. FEDU), with an optional "
+                    "unit; a bare number is in keV. Repeat for several: --energy 470 --energy 1MeV.",
+                ),
+            ],
+            None,
+        ),
+        (
+            "pitch_angle",
+            Annotated[
+                float | None,
+                typer.Option(
+                    "--pitch-angle",
+                    metavar="DEG",
+                    min=0.0,
+                    max=180.0,
+                    help="Pitch angle in degrees at which variables with an energy and a pitch-angle "
+                    "dimension (e.g. FEDU) are shown, defaulting to 90. If given, variables that only depend on "
+                    "pitch angle (e.g. L_star) are drawn as a line at this pitch angle.",
+                ),
+            ],
+            None,
+        ),
+        (
+            "vmin",
+            Annotated[
+                float | None,
+                typer.Option(
+                    "--vmin",
+                    help="Lower colour limit of spectrograms and --along-* scatter panels (y-limit of "
+                    "--energy line panels), in the unit of the plotted variable. Defaults to the 5th "
+                    "percentile of the data.",
+                ),
+            ],
+            None,
+        ),
+        (
+            "vmax",
+            Annotated[
+                float | None,
+                typer.Option(
+                    "--vmax",
+                    help="Upper colour limit of spectrograms and --along-* scatter panels (y-limit of "
+                    "--energy line panels), in the unit of the plotted variable. Defaults to the 95th "
+                    "percentile of the data.",
+                ),
+            ],
+            None,
+        ),
+        (
+            "colormap",
+            Annotated[
+                str,
+                typer.Option(
+                    "--colormap",
+                    help="Colormap of spectrograms and --along-* scatter panels: a colorcet name "
+                    "(e.g. rainbow4, fire, CET_L17) or a matplotlib colormap name (e.g. viridis).",
+                ),
+            ],
+            DEFAULT_COLORMAP,
+        ),
+        *(
+            (
+                parameter,
+                Annotated[
+                    bool,
+                    typer.Option(
+                        flag,
+                        help=f"Draw every variable as a scatter plot over time with {coordinate} on the y axis "
+                        "and the value as colour. Variables with an energy dimension get one panel per --energy, "
+                        "or per channel without --energy; pitch angles are cut at --pitch-angle (default 90). "
+                        "At most one --along-* option.",
+                    ),
+                ],
+                False,
+            )
+            for parameter, (flag, coordinate) in ALONG_OPTIONS.items()
         ),
         (
             "output",
@@ -178,6 +331,63 @@ def _factory_defaults(recipe: Recipe, factory: Callable[..., Any], defaults: dic
     return factory_defaults
 
 
+def panel_settings(plot_defaults: Mapping[str, Any]) -> dict[str, Any]:
+    """The per-variable settings of a recipe's ``PLOT_DEFAULTS``: everything but the panel list."""
+    return {name: settings for name, settings in plot_defaults.items() if name != PANELS_KEY}
+
+
+def check_plot_defaults(plot_defaults: Mapping[str, Any]) -> None:
+    """Validate a recipe's ``PLOT_DEFAULTS``, so that a mistake fails when the command is built.
+
+    Args:
+        plot_defaults (Mapping[str, Any]): The recipe's ``PLOT_DEFAULTS``: an optional ``"panels"``
+            list of internal names and settings per internal name (see
+            :func:`el_paso.dataset.plot.check_panel_settings`).
+
+    Raises:
+        TypeError: If ``PLOT_DEFAULTS`` is not a dict, its panel list is not a non-empty list of names,
+            or a setting is unknown or has the wrong type.
+        ValueError: If a setting is out of range, a variable's `vmin` is not below its `vmax`, or settings
+            are given for a variable that is not in the panel list (they would never be used, since
+            ``--variable`` switches ``PLOT_DEFAULTS`` off).
+    """
+    if not isinstance(plot_defaults, dict):
+        msg = f"PLOT_DEFAULTS must be a dict, got {type(plot_defaults).__name__}."
+        raise TypeError(msg)
+
+    panels = plot_defaults.get(PANELS_KEY)
+    if panels is not None and (
+        not isinstance(panels, (list, tuple))
+        or not panels
+        or not all(isinstance(name, str) and name for name in panels)
+    ):
+        msg = f"PLOT_DEFAULTS[{PANELS_KEY!r}] must be a non-empty list of internal variable names, got {panels!r}."
+        raise TypeError(msg)
+
+    settings = panel_settings(plot_defaults)
+    try:
+        check_panel_settings(settings)
+    except (TypeError, ValueError) as error:
+        msg = f"Invalid PLOT_DEFAULTS: {error}"
+        raise type(error)(msg) from error
+
+    unused = [name for name in settings if name not in (panels or ())]
+    if unused:
+        import difflib  # noqa: PLC0415
+
+        hints = [
+            f"{name!r} (did you mean {matches[0]!r}?)"
+            if (matches := difflib.get_close_matches(name, panels or (), n=1))
+            else repr(name)
+            for name in unused
+        ]
+        msg = (
+            f"Invalid PLOT_DEFAULTS: settings for {', '.join(hints)}, which is not in "
+            f"PLOT_DEFAULTS[{PANELS_KEY!r}] = {list(panels or ())!r}; they would never be used."
+        )
+        raise ValueError(msg)
+
+
 def build_plot_command(
     recipe: Recipe,
     factory: Callable[..., SavingStrategy],
@@ -201,7 +411,8 @@ def build_plot_command(
             its signature exactly as in the processing command.
         loop_over (Sequence[str] | None): Parameters that accept several values. Defaults to any
             parameter named in :data:`el_paso.cli.recipe_cli.LOOP_PARAMETER_NAMES`.
-        plot_defaults (dict[str, Any] | None): The recipe's ``PLOT_DEFAULTS``.
+        plot_defaults (dict[str, Any] | None): The recipe's ``PLOT_DEFAULTS``, checked with
+            :func:`check_plot_defaults`.
         processing_command (str | None): The command that runs the recipe, e.g.
             ``el-paso rbsp mageis-electrons``, suggested when processed files are missing.
             Defaults to ``python -m <recipe module>``.
@@ -210,12 +421,14 @@ def build_plot_command(
         Callable[..., None]: A callable ready to be registered with ``app.command()``.
 
     Raises:
-        TypeError: If the factory does not match the recipe, or if a factory parameter has the
-            same name as a shared or plot-only option.
+        TypeError: If the factory does not match the recipe, if a factory parameter has the
+            same name as a shared or plot-only option, or if `plot_defaults` is malformed.
+        ValueError: If a setting in `plot_defaults` is out of range.
     """
     defaults = dict(defaults or {})
     plot_defaults = dict(plot_defaults or {})
     check_strategy_factory(recipe, factory, loop_over=loop_over)
+    check_plot_defaults(plot_defaults)
 
     _, recipe_help = parse_docstring(recipe.__doc__)
     _, factory_help = parse_docstring(factory.__doc__)
@@ -247,6 +460,9 @@ def build_plot_command(
             msg = f"must be after --start-time ({start_time.isoformat()}), got {end_time.isoformat()}."
             raise typer.BadParameter(msg, param_hint="'--end-time'")
 
+        energies, pitch_angle = _check_selection_options(plot_options)
+        along = _check_along_options(plot_options)
+
         strategy_kwargs = _expand_loops(kwargs, loop_names)
         for call_kwargs in strategy_kwargs:
             # Fails loudly if the generated command ever drifts from the factory signature.
@@ -270,6 +486,12 @@ def build_plot_command(
                 verbose=shared["verbose"] >= 1,
                 plot_defaults=plot_defaults,
                 processing_command=processing_command,
+                energies=energies,
+                pitch_angle=pitch_angle,
+                vmin=plot_options["vmin"],
+                vmax=plot_options["vmax"],
+                along=along,
+                colormap=plot_options["colormap"],
             )
         )
 
@@ -280,9 +502,131 @@ def build_plot_command(
     )
     command.__doc__ = (
         f"Plot data processed by {_func_name(recipe)}.\n\n"
-        "Takes the same arguments as the processing command; nothing is processed or downloaded."
+        "Takes the same arguments as the processing command; nothing is processed. Only space-weather\n"
+        "indices and solar wind parameters (Kp, Dst, Vsw, ...) are downloaded if missing."
     )
     return command
+
+
+def _parse_energy(text: str) -> float:
+    """Parse an ``--energy`` value such as ``470``, ``100keV`` or ``1 MeV`` to keV; a bare number is in keV.
+
+    Raises:
+        typer.BadParameter: If the text is not a number with an optional energy unit.
+    """
+    match = re.fullmatch(r"\s*([-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?)\s*([^\d\s].*?)?\s*", text)
+    if match is None:
+        msg = f"{text!r} is not an energy; use a number with an optional unit, e.g. 470 or 1MeV."
+        raise typer.BadParameter(msg, param_hint="'--energy'")
+    number, unit_text = match.groups()
+    try:
+        unit = u.Unit(unit_text) if unit_text else u.keV
+    except ValueError as error:
+        msg = f"unknown unit {unit_text!r} in {text!r}."
+        raise typer.BadParameter(msg, param_hint="'--energy'") from error
+    if not unit.is_equivalent(u.keV):
+        msg = f"{text!r} is not an energy (unit {unit_text!r})."
+        raise typer.BadParameter(msg, param_hint="'--energy'")
+    return float((float(number) * unit).to_value(u.keV))
+
+
+def _check_selection_options(plot_options: dict[str, Any]) -> tuple[u.Quantity | None, u.Quantity | None]:
+    """Validate ``--energy``, ``--pitch-angle``, ``--vmin`` and ``--vmax``.
+
+    Returns:
+        tuple[u.Quantity | None, u.Quantity | None]: The energies in keV and the pitch angle in
+            degrees, or ``None`` where not given.
+
+    Raises:
+        typer.BadParameter: If an energy is not positive or ``--vmin`` is not below ``--vmax``.
+    """
+    energies = None
+    if plot_options["energies"]:
+        values = [_parse_energy(text) for text in plot_options["energies"]]
+        if any(value <= 0 for value in values):
+            msg = f"must be positive, got {', '.join(plot_options['energies'])}."
+            raise typer.BadParameter(msg, param_hint="'--energy'")
+        energies = u.Quantity(values, u.keV)
+
+    vmin, vmax = plot_options["vmin"], plot_options["vmax"]
+    if vmin is not None and vmax is not None and not vmin < vmax:
+        msg = f"must be below --vmax ({vmax:g}), got {vmin:g}."
+        raise typer.BadParameter(msg, param_hint="'--vmin'")
+
+    pitch_angle = None if plot_options["pitch_angle"] is None else plot_options["pitch_angle"] * u.deg
+    return energies, pitch_angle
+
+
+def _check_along_options(plot_options: dict[str, Any]) -> InternalName | None:
+    """The coordinate of the ``--along-*`` option given, or ``None`` without one.
+
+    Raises:
+        typer.BadParameter: If more than one ``--along-*`` option is given.
+    """
+    given = [(flag, coordinate) for parameter, (flag, coordinate) in ALONG_OPTIONS.items() if plot_options[parameter]]
+    if len(given) > 1:
+        flags = [flag for flag, _ in given]
+        msg = f"only one of {', '.join(flags)} can be given."
+        raise typer.BadParameter(msg, param_hint=" / ".join(f"'{flag}'" for flag in flags))
+    return given[0][1] if given else None
+
+
+def _format_quantity(value: u.Quantity) -> str:
+    """A quantity for the settings table, e.g. ``470, 1000 keV``."""
+    return f"{', '.join(f'{item:g}' for item in value.value.ravel())} {value.unit}"
+
+
+def resolve_panels(request: PlotRequest) -> list[InternalName] | None:
+    """The panel list: ``--variable`` if given, otherwise the recipe's default panels, otherwise ``None``."""
+    panels = request.variables or request.plot_defaults.get(PANELS_KEY)
+    return cast("list[InternalName]", list(panels)) if panels else None
+
+
+def split_panels(panels: Sequence[str] | None) -> tuple[list[str], list[InternalName]]:
+    """Split a panel list into space-weather indices (`INDEX_PANELS`) and dataset variables, keeping the order."""
+    indices = [name for name in panels or [] if name in INDEX_PANELS]
+    variables = [name for name in panels or [] if name not in INDEX_PANELS]
+    return indices, cast("list[InternalName]", variables)
+
+
+def _dataset_names(request: PlotRequest) -> list[InternalName] | None:
+    """Dataset variables a request reads: the non-index panels and the ``--along-*`` coordinate.
+
+    ``None`` if there are none, which `DataSet.get_file_coverage` takes as every output file.
+    """
+    names = split_panels(resolve_panels(request))[1]
+    recipe_settings = _recipe_settings(request)
+    coordinates = {request.along} if request.along else {recipe_settings.get(name, {}).get("along") for name in names}
+    names.extend(sorted(c for c in coordinates if c and c not in names))
+    return names or None
+
+
+def _recipe_settings(request: PlotRequest) -> dict[str, Any]:
+    """The recipe's per-variable settings: none if ``--variable`` is given, which ignores ``PLOT_DEFAULTS``."""
+    return {} if request.variables else panel_settings(request.plot_defaults)
+
+
+def _setting_overrides(request: PlotRequest) -> dict[str, Any]:
+    """The settings given on the command line, which override those of every panel (layer 3)."""
+    return {
+        "energies": request.energies,
+        "pitch_angle": request.pitch_angle,
+        "vmin": request.vmin,
+        "vmax": request.vmax,
+    }
+
+
+def _check_panel_settings(request: PlotRequest, panels: Sequence[str]) -> None:
+    """Fail early if the command-line settings clash with the recipe's (e.g. ``--vmin`` above its vmax).
+
+    Raises:
+        typer.BadParameter: If the layered settings of a panel are invalid.
+    """
+    try:
+        resolve_panel_settings(panels, _recipe_settings(request), _setting_overrides(request))
+    except (TypeError, ValueError) as error:
+        msg = f"conflicts with the recipe's plot defaults: {error}"
+        raise typer.BadParameter(msg, param_hint="'--vmin' / '--vmax'") from error
 
 
 def _report_settings(request: PlotRequest) -> None:
@@ -301,7 +645,31 @@ def _report_settings(request: PlotRequest) -> None:
     for name, values in loop_values.items():
         table.add_row(name.replace("_", " "), ", ".join(_format_value(name, value) for value in values))
 
-    table.add_row("variables", ", ".join(request.variables) if request.variables else "recipe defaults")
+    panels = resolve_panels(request)
+    if request.variables:
+        table.add_row("variables", ", ".join(request.variables))
+    elif panels:
+        table.add_row("variables", f"{', '.join(panels)} (recipe defaults)")
+    else:
+        table.add_row("variables", "none given")
+
+    # a setting not given on the command line comes from the recipe if it sets it for any panel
+    recipe_settings = _recipe_settings(request)
+    for key, value in _setting_overrides(request).items():
+        if value is not None:
+            text = _format_quantity(value) if isinstance(value, u.Quantity) else f"{value:g}"
+        elif any(key in recipe_settings.get(name, {}) for name in panels or []):
+            text = "recipe defaults"
+        else:
+            text = "default"
+        table.add_row(key.replace("_", " "), text)
+    if request.along:
+        along_text = request.along
+    elif any("along" in recipe_settings.get(name, {}) for name in panels or []):
+        along_text = "recipe defaults"
+    else:
+        along_text = "none (plot types by dimensions)"
+    table.add_row("along", along_text)
     table.add_row("output", _format_value("output", request.output) if request.output else "default file name")
     table.add_row("show", str(request.show))
     _log_table(table)
@@ -327,7 +695,7 @@ def _report_expected_files(request: PlotRequest) -> bool:
         bool: ``True`` if the files could be determined for every set of arguments.
     """
     # Not checked against the data standard here; get_file_coverage rejects unknown names.
-    names = cast("list[InternalName] | None", request.variables)
+    names = _dataset_names(request)
 
     ok = True
     for kwargs, label in zip(request.strategy_kwargs, _call_labels(request.strategy_kwargs), strict=True):
@@ -497,8 +865,7 @@ def _check_coverage(request: PlotRequest, kwargs: dict[str, Any], dataset: DataS
     Returns:
         bool: ``True`` if at least one expected file exists, so that there is something to plot.
     """
-    names = cast("list[InternalName]", request.variables)
-    coverage = dataset.get_file_coverage(names)
+    coverage = dataset.get_file_coverage(_dataset_names(request))
 
     found: list[tuple[datetime, datetime]] = []
     missing: list[tuple[datetime, datetime]] = []
@@ -569,39 +936,114 @@ def _new_figure(num_panels: int, *, show: bool) -> Figure:
     return Figure(figsize=size, layout="constrained")
 
 
+def _plot_index(ax: Axes, name: str, start_time: datetime, end_time: datetime) -> None:
+    """Draw a space-weather index or solar wind parameter into `ax`, downloading it first if it is not cached.
+
+    Kp and Dst are drawn as steps, vector parameters (``W_params``) as one line per component. A
+    failure to load the data is reported with a warning and leaves the panel empty.
+    """
+    import numpy as np  # noqa: PLC0415
+
+    try:
+        data, time = ep.load_indices_solar_wind_parameters(start_time, end_time, [name])[name]  # ty:ignore[invalid-argument-type]
+        times = np.asarray([datetime.fromtimestamp(t, tz=timezone.utc) for t in time.get_data(ep.units.posixtime)])
+        values = np.asarray(data.get_data(), dtype=float)
+        unit = data.metadata.unit
+    except Exception as error:  # noqa: BLE001 - swvo raises whatever its download or parsing raises
+        logger.warning(f"Could not load {name}: {error}")
+        times, values, unit = np.empty(0), np.empty(0), None
+
+    ax.set_ylabel(f"{name} [{unit}]" if unit is not None and str(unit) else name)
+    if times.size == 0 or not np.any(np.isfinite(values)):
+        ax.text(0.5, 0.5, f"{name}: no data", ha="center", va="center", transform=ax.transAxes)
+        return
+
+    ax.xaxis_date()
+    if name in _STEP_INDICES:
+        ax.step(times, values, where="post", linewidth=0.8)
+    elif values.ndim == 2:
+        n_components = values.shape[-1]
+        for component in range(n_components):
+            ax.plot(times, values[:, component], linewidth=0.8, label=f"W{component + 1}")
+        ax.legend(loc="upper right", fontsize="x-small", ncols=n_components)
+    else:
+        ax.plot(times, values, linewidth=0.8)
+
+
 def build_figure(
     datasets: Sequence[DataSet],
     variables: Sequence[InternalName],
     start_time: datetime,
     end_time: datetime,
     *,
+    indices: Sequence[str] = (),
     show: bool = False,
+    panel_settings: Mapping[str, Mapping[str, Any]] | None = None,
+    energies: u.Quantity | None = None,
+    pitch_angle: u.Quantity | None = None,
+    vmin: float | None = None,
+    vmax: float | None = None,
+    along: InternalName | None = None,
+    colormap: str = DEFAULT_COLORMAP,
 ) -> Figure:
     """Draw the variables of several datasets into one column of panels with a shared time axis.
 
     Panels are stacked in one block of rows per dataset (satellite), one panel per variable, in
-    the given order; nothing is overlaid. Each block is drawn by `DataSet.plot` and titled with
-    its dataset's name. Only the bottom panel shows time tick labels, covering
-    ``[start_time, end_time]``.
+    the given order; nothing is overlaid. With `along`, a variable with an energy dimension has one
+    panel per energy instead (see :func:`el_paso.dataset.plot.count_panels`). Each block is drawn by
+    `DataSet.plot` and titled with its dataset's name. Only the bottom panel shows time tick labels,
+    covering ``[start_time, end_time]``.
 
     Args:
         datasets (Sequence[DataSet]): The datasets to plot, one block of panels each.
         variables (Sequence[InternalName]): Internal names of the variables to plot per dataset.
         start_time (datetime): Start of the time axis.
         end_time (datetime): End of the time axis.
+        indices (Sequence[str]): Space-weather indices and solar wind parameters (from `INDEX_PANELS`)
+            to draw as panels at the top of the figure, once for all datasets. Missing data is downloaded.
         show (bool): Create the figure through pyplot, so that it can be shown in a window.
+        panel_settings (Mapping[str, Mapping[str, Any]] | None): Settings per variable, e.g. from the
+            recipe's ``PLOT_DEFAULTS``, passed to `DataSet.plot`; the arguments below override them.
+        energies (u.Quantity | None): Energies to show, passed to `DataSet.plot`.
+        pitch_angle (u.Quantity | None): Pitch-angle cut, passed to `DataSet.plot`.
+        vmin (float | None): Lower colour limit of spectrograms, passed to `DataSet.plot`.
+        vmax (float | None): Upper colour limit of spectrograms, passed to `DataSet.plot`.
+        along (InternalName | None): Coordinate on the y axis of scatter panels, passed to `DataSet.plot`.
+        colormap (str): Colormap of spectrograms and scatter panels, passed to `DataSet.plot`.
 
     Returns:
         Figure: The figure.
     """
     import matplotlib.dates as mdates  # noqa: PLC0415
 
-    figure = _new_figure(len(datasets) * len(variables), show=show)
-    axes = list(figure.subplots(len(datasets) * len(variables), 1, sharex=True, squeeze=False)[:, 0])
+    block_sizes = [
+        sum(count_panels(dataset, variables, along=along, panel_settings=panel_settings, energies=energies))
+        for dataset in datasets
+    ]
+    num_panels = len(indices) + sum(block_sizes)
+    figure = _new_figure(num_panels, show=show)
+    axes = list(figure.subplots(num_panels, 1, sharex=True, squeeze=False)[:, 0])
 
-    for index, dataset in enumerate(datasets):
-        block = axes[index * len(variables) : (index + 1) * len(variables)]
-        dataset.plot(variables, axes=block)
+    for ax, name in zip(axes, indices, strict=False):
+        _plot_index(ax, name, start_time, end_time)
+    if indices:
+        axes[0].set_title("Space weather", fontsize="medium")
+
+    first = len(indices)
+    for dataset, block_size in zip(datasets, block_sizes, strict=True):
+        block = axes[first : first + block_size]
+        first += block_size
+        dataset.plot(
+            variables,
+            axes=block,
+            panel_settings=panel_settings,
+            energies=energies,
+            pitch_angle=pitch_angle,
+            vmin=vmin,
+            vmax=vmax,
+            along=along,
+            colormap=colormap,
+        )
 
     bottom = axes[-1]
     bottom.xaxis_date()
@@ -623,32 +1065,47 @@ def _run_plot(request: PlotRequest) -> None:
     any are left out (see `_check_coverage`).
 
     Raises:
-        typer.BadParameter: If no variables are given.
+        typer.BadParameter: If no variables are given and the recipe has no default panels, or if
+            the command-line settings clash with the recipe's.
         typer.Exit: With code 1 if the expected files cannot be determined, if ``--show`` is
             given without an interactive backend, or if no satellite has any processed files.
     """
     _report_settings(request)
+    panels = resolve_panels(request)
+    indices, variables = split_panels(panels)
+    if panels:
+        _check_panel_settings(request, variables)
 
     if request.dry_run:
         if not _report_expected_files(request):
             raise typer.Exit(code=1)
         return
 
-    if not request.variables:
+    if not panels:
         msg = f"is required: {_func_name(request.recipe)} defines no default panels."
         raise typer.BadParameter(msg, param_hint="'--variable'")
-    variables = cast("list[InternalName]", request.variables)
 
     if request.show and (error := _interactive_backend_error()):
         logger.error(error)
         raise typer.Exit(code=1)
 
-    datasets = _load_datasets(request)
-    if not datasets:
+    datasets = _load_datasets(request) if variables else []
+    if variables and not datasets:
         raise typer.Exit(code=1)
 
     try:
-        figure = build_figure(datasets, variables, request.start_time, request.end_time, show=request.show)
+        figure = build_figure(
+            datasets,
+            variables,
+            request.start_time,
+            request.end_time,
+            indices=indices,
+            show=request.show,
+            panel_settings=_recipe_settings(request),
+            **_setting_overrides(request),
+            along=request.along,
+            colormap=request.colormap,
+        )
     except ValueError as error:
         logger.error(str(error))  # noqa: TRY400
         raise typer.Exit(code=1) from error

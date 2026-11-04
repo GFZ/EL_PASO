@@ -39,7 +39,7 @@ Options come from three sources:
 | --- | --- | --- |
 | Shared | `--start-time`, `--end-time`, `-v`/`--quiet`, `--dry-run` | Same parsing as processing (dateutil, naive = UTC). |
 | Strategy factory signature | e.g. `--satellite`, `--mag-field`, `--processed-data-path`, `--save-strategy` | Built by the same machinery as `run_recipe_cli`. `--satellite` can be repeated or set to `all`. |
-| Plot-only | `--variable`, `--energy`, `--pitch-angle`, `--vmin`, `--vmax`, `--output`, `--show` | `--variable` and `--energy` take one value and are repeated for several (`--variable FEDU --variable L_star`). `--variable` is required unless the recipe defines `PLOT_DEFAULTS`. |
+| Plot-only | `--variable`, `--energy`, `--pitch-angle`, `--vmin`, `--vmax`, `--colormap`, `--output`, `--show` | `--variable` and `--energy` take one value and are repeated for several (`--variable FEDU --variable L_star`). `--variable` is required unless the recipe defines `PLOT_DEFAULTS`. |
 
 Behaviour:
 
@@ -167,16 +167,16 @@ Flux-like variables get a log colour scale. Variables tied to a magnetic field m
 
 **Layer 2, recipe `PLOT_DEFAULTS`.** These hold only what is specific to the instrument: which panels make a good quick-look, which energies or pitch angles to show as line panels, colour limits for the instrument's dynamic range.
 
-**Layer 3, CLI flags.** `--variable` replaces the panel list; `--energy`, `--pitch-angle`, `--vmin` and `--vmax` override the matching settings for every panel they apply to.
+**Layer 3, CLI flags.** `--variable` replaces the panel list and switches layer 2 off entirely: the named variables get the type defaults plus any `--energy`/`--pitch-angle`/`--vmin`/`--vmax`, not the recipe's per-variable settings. `--energy`, `--pitch-angle`, `--vmin` and `--vmax` override the matching settings for every panel they apply to.
 
 **Selected energies are drawn as lines.** When energies are selected for a variable (from `--energy` or `PLOT_DEFAULTS`), that variable gets one line panel (log y) with one line per selected energy, and a legend gives the energy actually matched. In such a panel `--vmin`/`--vmax` set the y-limits; in a spectrogram they set the colour limits.
 
-**Kp and Dst** are internal names in both data standards, so they are requested like any other variable (`--variable Kp`, or in the `PLOT_DEFAULTS` panel list). They are read with swvo from its local cache only, never downloaded. If nothing is cached for the time range, the panel is skipped with a message saying how to fetch the data.
+**Space-weather indices and solar wind parameters** (every `SW_Index` of `el_paso/load_indices_solar_wind_parameters.py`: `Kp`, `Dst`, `Vsw`, `Nsw`, `Pdyn`, `BzIMF`, `ByIMF`, `G1`, `G2`, `G3`, `W_params`) are internal names in both data standards, so they are requested like any other variable (`--variable Kp`, or in the `PLOT_DEFAULTS` panel list). Kp and Dst are drawn as steps, `W_params` as one line per component (W1–W6), the rest as lines; the y label carries the unit. They are loaded with `ep.load_indices_solar_wind_parameters` (swvo) for the plotted time range and **are downloaded if they are missing from the local cache**; this is the only thing plotting downloads. If loading fails (e.g. offline), a warning is logged and the panel shows "no data".
 
 Two rules apply in every layer:
 
 - **Energies and pitch angles are matched per time step.** MagEIS energies vary between files (`Energy_FEDU` has a time dimension), so `--energy 470` selects the nearest channel at each time step, not a fixed index. The selected value is shown in the panel label; if the nearest channel is more than 10% away, those time steps are left blank.
-- **Missing variables are skipped, not fatal.** A default panel whose variable is not in the files (e.g. `B_total_obs` without `--add-B-obs`) is dropped with an info message. A variable named explicitly with `--variable` that is missing is an error.
+- **Missing variables are an error.** Any requested variable that is not in the files, whether from `--variable` or `PLOT_DEFAULTS` (e.g. `B_total_obs` without `--add-B-obs`), makes the command exit with an error naming it. Recipes therefore list in `PLOT_DEFAULTS` only variables their processing always saves.
 
 ## Errors and diagnostics
 
@@ -208,7 +208,7 @@ Out of scope for the first version:
 Open questions:
 
 - [x] Is matplotlib an optional extra (`pip install el-paso[plot]`) or a core dependency? -> core dependency
-- [x] Should solar wind indices (Kp, Dst) be available as extra panels? That needs a second `DataSet` from the solar wind recipe's strategy. -> use swvo to load them on the fly (Kp, Dst), from its local cache only (no downloads), requested by their internal names; planned in Phase 4
+- [x] Should solar wind indices (Kp, Dst) be available as extra panels? That needs a second `DataSet` from the solar wind recipe's strategy. -> use swvo to load them on the fly, downloaded if missing (revised 2026-11-04), requested by their internal names; every `SW_Index` is available, not only Kp and Dst (revised 2026-11-04); planned in Phase 4
 - [x] Should the plotting function be public (`ep.plot(dataset, ...)`) so notebooks and scripts get the same quick-look? -> yes, as the method `DataSet.plot(...)` (see Code layout)
 - [x] Should `--energy` / `--pitch-angle` use `DataSet.interp_flux` instead of nearest-channel matching? -> no, nearest-channel matching (revised 2026-11-03: `interp_flux` handles only FEDU, needs `Alpha_Eq` and is slow; see Loading)
 - [ ] Should `DataSet` support output files with empty `names_to_save`, or do recipes with plotting simply list their names? -> I don't understand
@@ -253,19 +253,21 @@ Done when: `el-paso plot rbsp mageis-electrons ... --variable FEDU --variable L_
 
 ### Phase 4: Recipe defaults and selection
 
-- [ ] Plot-only options `--energy`, `--pitch-angle`, `--vmin`, `--vmax`.
-- [ ] `PLOT_DEFAULTS` support and layering with CLI flags; `--variable` becomes optional for recipes that define `PLOT_DEFAULTS`.
-- [ ] `--energy` / `--pitch-angle` nearest-value matching per time step, with tolerance and labels (not `interp_flux`).
-- [ ] Selected energies drawn as one line panel per variable (log y), one line per energy, legend with the matched energy; `--vmin`/`--vmax` set y-limits there and colour limits in spectrograms.
-- [ ] Skip missing default panels; error on missing explicit `--variable`.
-- [ ] `PLOT_DEFAULTS` for RBSP MagEIS.
-- [ ] Solar wind indices (Kp, Dst) as extra panels, loaded with swvo for the plotted time range (as in `el_paso/load_indices_solar_wind_parameters.py`, no `DataSet`). Drawn once at the top of the figure and shared by all satellites, not repeated per satellite block. Requested by their internal names (`--variable Kp`, `--variable Dst`, or in `PLOT_DEFAULTS` panels). Read from swvo's local cache only, never downloaded; with nothing cached, the panel is skipped with a message saying how to fetch the data.
-- [ ] Tests: layering order; time-dependent energies with shifted channels; `B_total_obs` absent without `--add-B-obs`; with several satellites an index panel appears once, with swvo mocked (no network).
+- [x] Plot-only options `--energy`, `--pitch-angle`, `--vmin`, `--vmax`. (`--pitch-angle` picks the cut and `--vmin`/`--vmax` set spectrogram colour limits; `--energy` is parsed and passed to `DataSet.plot`, but only takes effect with the selection tasks below.)
+- [x] `PLOT_DEFAULTS` support and layering with CLI flags; `--variable` becomes optional for recipes that define `PLOT_DEFAULTS`. (Layering lives in `DataSet.plot(panel_settings=...)`; `PLOT_DEFAULTS` is validated when the command is built, and settings carry astropy units, e.g. `"pitch_angle": 90 * u.deg`.)
+- [x] `--energy` / `--pitch-angle` nearest-value matching per time step, with tolerance and labels (not `interp_flux`).
+- [x] Selected energies drawn as one line panel per variable (log y), one line per energy, legend with the matched energy; `--vmin`/`--vmax` set y-limits there and colour limits in spectrograms.
+- [x] Error on any requested variable that is missing from the files (`--variable` or `PLOT_DEFAULTS`); no skipping.
+- [x] `PLOT_DEFAULTS` for RBSP MagEIS.
+- [x] Solar wind indices and parameters (every `SW_Index`: Kp, Dst, Vsw, Nsw, Pdyn, BzIMF, ByIMF, G1–G3, W_params) as extra panels, loaded with swvo for the plotted time range (as in `el_paso/load_indices_solar_wind_parameters.py`, no `DataSet`). Drawn once at the top of the figure and shared by all satellites, not repeated per satellite block. Requested by their internal names (`--variable Kp`, `--variable Vsw`, ..., or in `PLOT_DEFAULTS` panels). Downloaded if missing from the local cache; if loading fails, a warning is logged and the panel is left empty.
+- [x] Plot-only option `--colormap` (colorcet name, else matplotlib name; default colorcet `rainbow4`) for spectrograms and `--along-*` scatter panels. It is a figure-wide setting, not part of `PLOT_DEFAULTS`; `colorcet` is a core dependency.
+- [x] Plot-only options `--along-L-star`, `--along-L-m` and `--along-R-eq`, mutually exclusive (at most one per call). Each variable still gets one panel with time on the x axis, but the panel is a scatter plot with the chosen coordinate (`L_star`, `L_m` or `R_Eq`, i.e. the satellite's radial distance mapped to the magnetic equator) on the y axis and the variable's value as colour, with a colour bar. Colour scale and `--vmin`/`--vmax` work as in spectrograms. Energy and pitch-angle selection apply as usual. The labels of `L_star` and `L_m` name the strategy's `mag_field`. (Revised 2026-11-04: a scatter panel colours one value per time step, so a variable with an energy dimension gets one panel per selected energy, or one per channel without a selection; `DataSet.plot(along=...)`, with `count_panels` to lay out the figure. Pitch angles of the variable and of `L_star`/`L_m` are cut at `--pitch-angle`, default 90°. Variables with other dimensions, e.g. vectors, are reported and left empty. A missing coordinate is an error, like a missing variable.)
+- [ ] Tests: layering order; time-dependent energies with shifted channels; `B_total_obs` absent without `--add-B-obs` is an error; with several satellites an index panel appears once, with swvo mocked (no network).
 
 ### Phase 5: Diagnostics, docs and rollout
 
 - [ ] Near-miss hint by varying `Literal` factory parameters.
 - [ ] Exit code 1 when any satellite has no data, matching processing.
-- [ ] Add a "Plotting" section to `command_line.md` and a short tutorial example.
+- [x] Add a "Plotting" section to `command_line.md` and a short tutorial example.
 - [ ] `PLOT_DEFAULTS` for further recipes, starting with the ones decided under Open questions.
-- [ ] Decide and implement the matplotlib dependency (optional extra vs core).
+- [x] Decide and implement the matplotlib dependency (optional extra vs core). -> core (already in `dependencies`, with `colorcet`); it is still imported lazily so `import el_paso` stays cheap.

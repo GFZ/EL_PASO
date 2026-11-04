@@ -935,19 +935,25 @@ def run_recipe_cli(
         strategy (Callable[..., Any] | None): The strategy factory the recipe builds its saving strategy
             with. It is checked against the recipe with :func:`check_strategy_factory`, so a mismatch
             fails at start-up. The ``el-paso plot`` command uses it to locate the processed data.
-        plot_defaults (dict[str, Any] | None): Recipe-specific plot settings for ``el-paso plot``.
-            Requires `strategy`.
+        plot_defaults (dict[str, Any] | None): Recipe-specific plot settings for ``el-paso plot``,
+            checked with :func:`el_paso.cli.plot_cli.check_plot_defaults`. Requires `strategy`.
         args (Sequence[str] | None): Command line arguments to parse. Defaults to
             `sys.argv`; mainly useful for testing.
 
     Raises:
-        ValueError: If `plot_defaults` is given without `strategy`.
+        ValueError: If `plot_defaults` is given without `strategy`, or holds a setting that is out
+            of range.
+        TypeError: If `strategy` does not match the recipe, or `plot_defaults` is malformed.
     """
     if plot_defaults is not None and strategy is None:
         msg = "plot_defaults requires a strategy factory."
         raise ValueError(msg)
     if strategy is not None:
         check_strategy_factory(func, strategy, loop_over=loop_over)
+    if plot_defaults is not None:
+        from el_paso.cli.plot_cli import check_plot_defaults  # noqa: PLC0415  (plot_cli imports this module)
+
+        check_plot_defaults(plot_defaults)
 
     app = typer.Typer(add_completion=False, pretty_exceptions_show_locals=False)
     app.command()(build_recipe_command(func, defaults=defaults, loop_over=loop_over))

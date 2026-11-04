@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 from unittest.mock import patch
 
+import astropy.units as u
 import click
 import el_paso as ep
 import pytest
@@ -141,6 +142,10 @@ def test_plot_command_takes_the_recipe_defaults(requests: list[PlotRequest]) -> 
     assert not request.dry_run
     assert not request.verbose
     assert request.plot_defaults == {}
+    assert request.energies is None
+    assert request.pitch_angle is None
+    assert request.vmin is None
+    assert request.vmax is None
 
 
 @pytest.mark.minimal
@@ -159,6 +164,86 @@ def test_plot_command_passes_plot_options_through(requests: list[PlotRequest]) -
     assert request.dry_run
     assert request.verbose
     assert request.plot_defaults == {"panels": ["FEDU"]}
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_plot_command_passes_selection_options_through(requests: list[PlotRequest]) -> None:
+    from astropy import units as u  # noqa: PLC0415
+
+    result = runner.invoke(
+        stub_app(),
+        [*TIME_ARGS, "--energy", "470", "--energy", "1000", "--pitch-angle", "45", "--vmin", "1", "--vmax", "1e6"],
+    )
+    assert result.exit_code == 0, result.output
+
+    (request,) = requests
+    assert request.energies is not None
+    assert request.energies.unit == u.keV
+    assert list(request.energies.value) == [470.0, 1000.0]
+    assert request.pitch_angle == 45 * u.deg
+    assert (request.vmin, request.vmax) == (1.0, 1e6)
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+@pytest.mark.parametrize(
+    ("args", "option"),
+    [
+        (["--energy", "0"], "--energy"),
+        (["--energy", "abc"], "--energy"),
+        (["--energy", "100deg"], "--energy"),
+        (["--energy", "100foo"], "--energy"),
+        (["--energy", "470", "--energy", "-1"], "--energy"),
+        (["--pitch-angle", "181"], "--pitch-angle"),
+        (["--pitch-angle", "-1"], "--pitch-angle"),
+        (["--vmin", "10", "--vmax", "10"], "--vmin"),
+        (["--vmin", "100", "--vmax", "10"], "--vmin"),
+    ],
+)
+def test_plot_command_rejects_invalid_selection_options(
+    requests: list[PlotRequest], args: list[str], option: str
+) -> None:
+    result = runner.invoke(stub_app(), [*TIME_ARGS, *args])
+    assert result.exit_code == 2, result.output
+    assert option in click.unstyle(result.output)
+    assert not requests
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+@pytest.mark.parametrize(
+    ("flag", "coordinate"),
+    [("--along-L-star", "L_star"), ("--along-L-m", "L_m"), ("--along-R-eq", "R_Eq"), (None, None)],
+)
+def test_plot_command_passes_the_along_option_through(
+    requests: list[PlotRequest], flag: str | None, coordinate: str | None
+) -> None:
+    result = runner.invoke(stub_app(), [*TIME_ARGS, *([flag] if flag else [])])
+    assert result.exit_code == 0, result.output
+
+    (request,) = requests
+    assert request.along == coordinate
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_along_options_are_mutually_exclusive(requests: list[PlotRequest]) -> None:
+    result = runner.invoke(stub_app(), [*TIME_ARGS, "--along-L-star", "--along-R-eq"])
+
+    assert result.exit_code == 2, result.output
+    output = click.unstyle(result.output)
+    assert "only one of" in output
+    assert "'--along-L-star' / '--along-R-eq'" in output
+    assert not requests
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_along_options_match_the_along_coordinates() -> None:
+    from el_paso.dataset.plot import ALONG_COORDINATES  # noqa: PLC0415
+
+    assert tuple(coordinate for _, coordinate in plot_cli.ALONG_OPTIONS.values()) == ALONG_COORDINATES
 
 
 @pytest.mark.minimal
@@ -253,11 +338,44 @@ def test_plot_group_lists_only_recipes_with_a_strategy_factory() -> None:
 @pytest.mark.minimal
 @pytest.mark.basic
 @pytest.mark.parametrize("entry", PLOTTABLE_RECIPES, ids=lambda e: f"{e.mission}-{e.command}")
+def test_every_recipe_declares_valid_plot_defaults(entry: RecipeEntry) -> None:
+    from el_paso.cli.app import load_plot_defaults  # noqa: PLC0415
+
+    plot_defaults = load_plot_defaults(entry)
+
+    plot_cli.check_plot_defaults(plot_defaults)
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+@pytest.mark.parametrize("entry", RECIPES, ids=lambda e: f"{e.mission}-{e.command}")
+def test_every_recipe_is_plottable_and_has_plot_defaults(entry: RecipeEntry) -> None:
+    from el_paso.cli.app import load_plot_defaults  # noqa: PLC0415
+
+    assert entry.strategy is not None, f"{entry.mission} {entry.command} registers no strategy factory"
+    assert load_plot_defaults(entry), f"{entry.mission} {entry.command} defines no PLOT_DEFAULTS"
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+@pytest.mark.parametrize("entry", PLOTTABLE_RECIPES, ids=lambda e: f"{e.mission}-{e.command}")
 def test_every_plottable_recipe_builds_a_plot_command(entry: RecipeEntry, requests: list[PlotRequest]) -> None:
     help_result = invoke_app(["plot", entry.mission, entry.command, "--help"])
     assert help_result.exit_code == 0, help_result.output
     help_text = click.unstyle(help_result.output)
-    for option in ("--start-time", "--end-time", "--dry-run", "--verbose", "--quiet", "--variable", "--output"):
+    for option in (
+        "--start-time",
+        "--end-time",
+        "--dry-run",
+        "--verbose",
+        "--quiet",
+        "--variable",
+        "--energy",
+        "--pitch-angle",
+        "--vmin",
+        "--vmax",
+        "--output",
+    ):
         assert option in help_text
 
     result = invoke_app(["plot", entry.mission, entry.command, *TIME_ARGS])
@@ -340,7 +458,8 @@ def test_dry_run_reports_settings_and_expected_files(tmp_path: Path, plot_log: p
     text = "\n".join(record.getMessage() for record in plot_log.records)
     assert "Would plot" in text
     assert "2017-10-15" in text
-    assert "recipe defaults" in text
+    assert "(recipe defaults)" in text  # MagEIS defines default panels
+    assert "energies" in text
     # labelled by the looped parameter only; the settings table shows the rest
     assert "Saving strategy (satellite=a): MonthlyRBStrategy(" in text
     assert "Saving strategy (satellite=b): MonthlyRBStrategy(" in text
@@ -386,6 +505,10 @@ def save_mageis_shaped_data(tmp_path: Path, satellite: str) -> None:
         "Energy_FEDU": ep.Variable(original_unit=u.keV, data=np.tile([100.0, 400.0, 1600.0], (time_size, 1))),
         "Alpha": ep.Variable(original_unit=u.deg, data=np.tile([10.0, 30.0, 60.0, 90.0], (time_size, 1))),
         "B_Eq": ep.Variable(original_unit=u.nT, data=np.linspace(40.0, 60.0, time_size)),
+        "L_star": ep.Variable(
+            original_unit=u.dimensionless_unscaled, data=np.tile(np.linspace(2.0, 6.0, time_size)[:, None], (1, 4))
+        ),
+        "MLT": ep.Variable(original_unit=u.hour, data=np.linspace(0.0, 23.5, time_size)),
     }
 
     entry = next(e for e in PLOTTABLE_RECIPES if (e.mission, e.command) == ("rbsp", "mageis-electrons"))
@@ -563,6 +686,208 @@ def test_plot_writes_the_figure_to_output(mageis_data: Path, plot_log: pytest.Lo
 
 @pytest.mark.minimal
 @pytest.mark.basic
+def test_plot_applies_pitch_angle_and_colour_limits(mageis_data: Path) -> None:
+    from astropy import units as u  # noqa: PLC0415
+
+    datasets = [mageis_dataset(mageis_data, "a")]
+    figure = plot_cli.build_figure(
+        datasets, ["FEDU", "B_Eq"], PLOT_START, PLOT_END, pitch_angle=30 * u.deg, vmin=2.0, vmax=50.0
+    )
+
+    spectrogram, line_panel = (ax for ax in figure.axes if ax.get_label() != "<colorbar>")
+    (mesh,) = spectrogram.collections
+    assert (mesh.norm.vmin, mesh.norm.vmax) == (2.0, 50.0)
+    assert [text.get_text() for text in spectrogram.texts] == ["pitch angle 30°"]
+    assert not line_panel.collections  # the colour limits do not touch the line panel
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_plot_with_selection_options_writes_the_figure(mageis_data: Path, plot_log: pytest.LogCaptureFixture) -> None:
+    output = mageis_data / "quicklook.png"
+    result = mageis_plot(
+        mageis_data,
+        "--satellite",
+        "a",
+        "--variable",
+        "FEDU",
+        "--pitch-angle",
+        "60",
+        "--vmin",
+        "5",
+        "--vmax",
+        "80",
+        "-o",
+        str(output),
+    )
+
+    assert result.exit_code == 0, result.output
+    assert output.read_bytes().startswith(b"\x89PNG")
+    assert "Could not plot" not in plot_log.text
+
+
+@pytest.fixture
+def mageis_plot_defaults(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
+    """Give the registered MagEIS recipe these ``PLOT_DEFAULTS``; fill the dict in the test."""
+    from el_paso.cli import app as app_module  # noqa: PLC0415
+
+    plot_defaults: dict[str, Any] = {}
+    monkeypatch.setattr(app_module, "load_plot_defaults", lambda entry: plot_defaults)
+    return plot_defaults
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_plot_defaults_make_variable_optional(
+    mageis_data: Path, mageis_plot_defaults: dict[str, Any], plot_log: pytest.LogCaptureFixture
+) -> None:
+    mageis_plot_defaults["panels"] = ["FEDU", "B_Eq"]
+    output = mageis_data / "defaults.png"
+
+    result = mageis_plot(mageis_data, "--satellite", "a", "-o", str(output))
+
+    assert result.exit_code == 0, result.output
+    assert output.read_bytes().startswith(b"\x89PNG")
+    assert "FEDU, B_Eq (recipe defaults)" in plot_log.text
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_mageis_plot_defaults_draw_fedu_along_l_star(
+    mageis_data: Path, monkeypatch: pytest.MonkeyPatch, plot_log: pytest.LogCaptureFixture
+) -> None:
+    figures: list[Any] = []
+    original = plot_cli.build_figure
+    monkeypatch.setattr(plot_cli, "build_figure", lambda *a, **k: figures.append(original(*a, **k)) or figures[-1])
+    output = mageis_data / "defaults.png"
+    # the synthetic data has no Kp, which would be downloaded
+    monkeypatch.setattr(plot_cli, "_plot_index", lambda *a, **k: None)
+
+    result = mageis_plot(mageis_data, "--satellite", "a", "-o", str(output))
+
+    assert result.exit_code == 0, result.output
+    assert output.read_bytes().startswith(b"\x89PNG")
+    assert "along" in plot_log.text
+    (figure,) = figures
+    panels = [ax for ax in figure.axes if ax.get_label() != "<colorbar>"]
+    # Kp, then one scatter panel per default energy with L_star on the y axis
+    assert len(panels) == 4  # noqa: PLR2004
+    assert all("L_star" in ax.get_ylabel() for ax in panels[1:])
+    # the synthetic channels (100, 400, 1600 keV) are within 10% of 108 and 1575 keV only; labels show the matches
+    assert [len(ax.collections) for ax in panels[1:]] == [1, 0, 1]
+    assert [ax.texts[0].get_text().split(",")[0] for ax in panels[1:]][::2] == ["0.1 MeV", "1.6 MeV"]
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_variable_replaces_the_default_panels(
+    mageis_data: Path, mageis_plot_defaults: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mageis_plot_defaults["panels"] = ["FEDU", "B_Eq"]
+    drawn: list[list[str]] = []
+    original = plot_cli.build_figure
+
+    def build_figure(datasets: Any, variables: Any, *args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
+        drawn.append(variables)
+        return original(datasets, variables, *args, **kwargs)
+
+    monkeypatch.setattr(plot_cli, "build_figure", build_figure)
+
+    result = mageis_plot(mageis_data, "--satellite", "a", "--variable", "B_Eq", "-o", str(mageis_data / "out.png"))
+
+    assert result.exit_code == 0, result.output
+    assert drawn == [["B_Eq"]]
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_cli_flags_override_plot_defaults_which_override_type_defaults(
+    mageis_data: Path, mageis_plot_defaults: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from astropy import units as u  # noqa: PLC0415
+
+    mageis_plot_defaults.update({"panels": ["FEDU"], "FEDU": {"pitch_angle": 30 * u.deg, "vmin": 2.0, "vmax": 50.0}})
+    figures: list[Any] = []
+    original = plot_cli.build_figure
+    monkeypatch.setattr(plot_cli, "build_figure", lambda *a, **k: figures.append(original(*a, **k)) or figures[-1])
+
+    result = mageis_plot(mageis_data, "--satellite", "a", "--vmax", "80", "-o", str(mageis_data / "out.png"))
+
+    assert result.exit_code == 0, result.output
+    (figure,) = figures
+    (mesh,) = figure.axes[0].collections
+    # vmin and the pitch angle from PLOT_DEFAULTS, vmax from the command line
+    assert (mesh.norm.vmin, mesh.norm.vmax) == (2.0, 80.0)
+    assert [text.get_text() for text in figure.axes[0].texts] == ["pitch angle 30°"]
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_settings_report_names_recipe_defaults(
+    tmp_path: Path, mageis_plot_defaults: dict[str, Any], plot_log: pytest.LogCaptureFixture
+) -> None:
+    mageis_plot_defaults.update({"panels": ["FEDU"], "FEDU": {"vmin": 2.0}})
+
+    result = mageis_dry_run(tmp_path, "--vmax", "80")
+
+    assert result.exit_code == 0, result.output
+    rows = {
+        cells[1].strip(): cells[2].strip()
+        for line in plot_log.text.splitlines()
+        if len(cells := line.split("│")) == 4  # noqa: PLR2004
+    }
+    assert rows["variables"] == "FEDU (recipe defaults)"
+    assert rows["vmin"] == "recipe defaults"
+    assert rows["vmax"] == "80"
+    assert rows["pitch angle"] == "default"
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_cli_flag_conflicting_with_plot_defaults_is_rejected(
+    mageis_data: Path, mageis_plot_defaults: dict[str, Any]
+) -> None:
+    mageis_plot_defaults.update({"panels": ["FEDU"], "FEDU": {"vmax": 50.0}})
+
+    result = mageis_plot(mageis_data, "--satellite", "a", "--vmin", "60")
+
+    assert result.exit_code == 2, result.output
+    output = click.unstyle(result.output)
+    assert "conflicts with the recipe's plot defaults" in output
+    assert "FEDU: vmin (60) must be below vmax (50)" in output
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+@pytest.mark.parametrize(
+    ("plot_defaults", "error", "match"),
+    [
+        ({"panels": "FEDU"}, TypeError, "non-empty list"),
+        ({"panels": []}, TypeError, "non-empty list"),
+        ({"FEDU": {"colour": 1}}, TypeError, "FEDU: unknown setting"),
+        ({"FEDU": 1.0}, TypeError, "FEDU: settings must be a mapping"),
+        ({"FEDU": {"pitch_angle": 90}}, TypeError, "pitch_angle needs a unit"),
+        ({"FEDU": {"vmin": 10.0, "vmax": 1.0}}, ValueError, "FEDU: vmin"),
+        ({"panels": ["L_star"], "Lstar": {"vmin": 1.0}}, ValueError, "'Lstar' \\(did you mean 'L_star'\\?\\)"),
+        ({"FEDU": {"vmin": 1.0}}, ValueError, "settings for 'FEDU', which is not in"),
+    ],
+)
+def test_malformed_plot_defaults_fail_when_the_command_is_built(
+    plot_defaults: dict[str, Any], error: type[Exception], match: str
+) -> None:
+    with pytest.raises(error, match=match):
+        build_plot_command(stub_recipe, stub_strategy, plot_defaults=plot_defaults)  # ty:ignore[invalid-argument-type]
+    with pytest.raises(error, match=match):
+        ep.run_recipe_cli(
+            stub_recipe,  # ty:ignore[invalid-argument-type]
+            strategy=stub_strategy,
+            plot_defaults=plot_defaults,
+            args=["--help"],
+        )
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
 def test_plot_writes_the_default_file_name(mageis_data: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     workdir = tmp_path / "work"
     workdir.mkdir()
@@ -576,7 +901,8 @@ def test_plot_writes_the_default_file_name(mageis_data: Path, tmp_path: Path, mo
 
 @pytest.mark.minimal
 @pytest.mark.basic
-def test_plot_requires_variables_without_defaults(mageis_data: Path) -> None:
+def test_plot_requires_variables_without_defaults(mageis_data: Path, mageis_plot_defaults: dict[str, Any]) -> None:
+    assert not mageis_plot_defaults  # MagEIS stripped of its PLOT_DEFAULTS
     result = mageis_plot(mageis_data, "--satellite", "a")
 
     assert result.exit_code == 2, result.output
@@ -627,23 +953,23 @@ def test_show_opens_a_window_and_writes_only_a_requested_file(
     assert [path.name for path in workdir.iterdir()] == (["requested.png"] if with_output else [])
 
 
+def mageis_dataset(processed_data_path: Path, satellite: str) -> ep.DataSet:
+    """The MagEIS `DataSet` of one satellite for the day of `save_mageis_shaped_data`."""
+    entry = next(e for e in PLOTTABLE_RECIPES if (e.mission, e.command) == ("rbsp", "mageis-electrons"))
+    factory = load_strategy_factory(entry)
+    assert factory is not None
+    strategy = factory(
+        processed_data_path=processed_data_path, mag_field="TS04", satellite=satellite, save_strategy="netcdf"
+    )
+    return ep.DataSet(strategy, PLOT_START, PLOT_END, verbose=False)
+
+
 @pytest.mark.minimal
 @pytest.mark.basic
 def test_build_figure_stacks_one_block_per_satellite(mageis_data: Path) -> None:
     import matplotlib.dates as mdates  # noqa: PLC0415
 
-    entry = next(e for e in PLOTTABLE_RECIPES if (e.mission, e.command) == ("rbsp", "mageis-electrons"))
-    factory = load_strategy_factory(entry)
-    assert factory is not None
-    datasets = [
-        ep.DataSet(
-            factory(processed_data_path=mageis_data, mag_field="TS04", satellite=satellite, save_strategy="netcdf"),
-            PLOT_START,
-            PLOT_END,
-            verbose=False,
-        )
-        for satellite in ("a", "b")
-    ]
+    datasets = [mageis_dataset(mageis_data, satellite) for satellite in ("a", "b")]
 
     figure = plot_cli.build_figure(datasets, ["FEDU", "B_Eq"], PLOT_START, PLOT_END)
 
@@ -658,6 +984,122 @@ def test_build_figure_stacks_one_block_per_satellite(mageis_data: Path) -> None:
     assert all(ax.get_shared_x_axes().joined(ax, panels[-1]) for ax in panels)
     assert [ax.xaxis.get_tick_params()["labelbottom"] for ax in panels] == [False, False, False, True]
     assert panels[-1].get_xlim() == pytest.approx((mdates.date2num(PLOT_START), mdates.date2num(PLOT_END)))
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_build_figure_along_l_star_has_one_panel_per_energy_and_satellite(mageis_data: Path) -> None:
+    datasets = [mageis_dataset(mageis_data, satellite) for satellite in ("a", "b")]
+
+    figure = plot_cli.build_figure(datasets, ["FEDU", "B_Eq"], PLOT_START, PLOT_END, along="L_star")
+
+    panels = [ax for ax in figure.axes if ax.get_label() != "<colorbar>"]
+    assert len(panels) == 8  # per satellite: three energy channels and B_Eq
+    assert [ax.get_title() for ax in panels][::4] == ["rbspa mageis", "rbspb mageis"]
+    assert all(ax.get_ylabel() == "L_star (TS04)" for ax in panels)
+    assert all(len(ax.collections) == 1 for ax in panels)
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_plot_along_l_star_writes_the_figure(mageis_data: Path, plot_log: pytest.LogCaptureFixture) -> None:
+    output = mageis_data / "along.png"
+    result = mageis_plot(
+        mageis_data, "--satellite", "a", "--variable", "FEDU", "--energy", "400", "--along-L-star", "-o", str(output)
+    )
+
+    assert result.exit_code == 0, result.output
+    assert output.read_bytes().startswith(b"\x89PNG")
+    assert "Could not plot" not in plot_log.text
+    assert "L_star" in plot_log.text  # the settings table names the coordinate
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_plot_along_a_coordinate_without_data_fails(mageis_data: Path, plot_log: pytest.LogCaptureFixture) -> None:
+    output = mageis_data / "along.png"
+    result = mageis_plot(mageis_data, "--satellite", "a", "--variable", "FEDU", "--along-R-eq", "-o", str(output))
+
+    assert result.exit_code == 1, result.output
+    assert not output.exists()
+    assert "'R_Eq' has no data" in plot_log.text
+
+
+FAKE_INDEX_UNITS = {"Dst": u.nT, "Vsw": u.km / u.s}
+
+
+def fake_indices(start_time: datetime, end_time: datetime, requested: list[str]) -> dict[str, Any]:
+    """Stand-in for `ep.load_indices_solar_wind_parameters` without a target time: (data, time) per index."""
+    import numpy as np  # noqa: PLC0415
+
+    posix = np.linspace(start_time.timestamp(), end_time.timestamp(), 9)
+    result = {}
+    for name in requested:
+        data = np.arange(9.0 * 6).reshape(9, 6) if name == "W_params" else np.arange(9.0)
+        result[name] = (
+            ep.Variable(data=data, original_unit=FAKE_INDEX_UNITS.get(name, u.dimensionless_unscaled)),
+            ep.Variable(data=posix, original_unit=ep.units.posixtime),
+        )
+    return result
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_build_figure_draws_indices_once_at_the_top(mageis_data: Path) -> None:
+    datasets = [mageis_dataset(mageis_data, satellite) for satellite in ("a", "b")]
+
+    with patch.object(ep, "load_indices_solar_wind_parameters", side_effect=fake_indices) as load:
+        figure = plot_cli.build_figure(datasets, ["B_Eq"], PLOT_START, PLOT_END, indices=["Kp", "Dst"])
+
+    panels = [ax for ax in figure.axes if ax.get_label() != "<colorbar>"]
+    assert [ax.get_ylabel() for ax in panels][:2] == ["Kp", "Dst [nT]"]
+    assert len(panels) == 4  # two indices once, plus one panel per satellite
+    assert [call.args[2] for call in load.call_args_list] == [["Kp"], ["Dst"]]
+    assert all(len(ax.lines) == 1 for ax in panels[:2])
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_index_panels_match_sw_index() -> None:
+    from typing import get_args  # noqa: PLC0415
+
+    from el_paso.load_indices_solar_wind_parameters import SW_Index  # noqa: PLC0415
+
+    assert set(plot_cli.INDEX_PANELS) == set(get_args(SW_Index))
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_build_figure_draws_every_solar_wind_parameter() -> None:
+    with patch.object(ep, "load_indices_solar_wind_parameters", side_effect=fake_indices):
+        figure = plot_cli.build_figure([], [], PLOT_START, PLOT_END, indices=list(plot_cli.INDEX_PANELS))
+
+    panels = {ax.get_ylabel(): ax for ax in figure.axes}
+    assert len(panels) == len(plot_cli.INDEX_PANELS)
+    assert {"Kp", "Dst [nT]", "Vsw [km / s]", "G1", "W_params"} <= set(panels)
+    assert all(not ax.texts for ax in panels.values())  # every panel has data
+    assert [line.get_label() for line in panels["W_params"].lines] == [f"W{i}" for i in range(1, 7)]
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_index_download_failure_warns_and_leaves_the_panel_empty(
+    mageis_data: Path, plot_log: pytest.LogCaptureFixture
+) -> None:
+    with patch.object(ep, "load_indices_solar_wind_parameters", side_effect=OSError("offline")):
+        figure = plot_cli.build_figure(
+            [mageis_dataset(mageis_data, "a")], ["B_Eq"], PLOT_START, PLOT_END, indices=["Kp"]
+        )
+
+    assert "Could not load Kp: offline" in plot_log.text
+    assert [text.get_text() for text in figure.axes[0].texts] == ["Kp: no data"]
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_split_panels_separates_indices_from_variables() -> None:
+    assert plot_cli.split_panels(["FEDU", "Kp", "B_Eq", "Dst"]) == (["Kp", "Dst"], ["FEDU", "B_Eq"])
+    assert plot_cli.split_panels(None) == ([], [])
 
 
 @pytest.mark.minimal
@@ -706,3 +1148,14 @@ def test_plot_command_rejects_end_time_not_after_start_time(requests: list[PlotR
     assert result.exit_code == 2, result.output
     assert "must be after --start-time" in click.unstyle(result.output)
     assert not requests
+
+
+@pytest.mark.minimal
+@pytest.mark.parametrize(
+    ("text", "kev"),
+    [("470", 470.0), ("100keV", 100.0), ("10 keV", 10.0), ("1MeV", 1000.0), ("1.5e2eV", 0.15), (".5MeV", 500.0)],
+)
+def test_energy_option_accepts_units(text: str, kev: float) -> None:
+    from el_paso.cli.plot_cli import _parse_energy
+
+    assert _parse_energy(text) == pytest.approx(kev)

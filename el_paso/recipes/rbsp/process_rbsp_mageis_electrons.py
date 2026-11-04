@@ -319,5 +319,20 @@ def _mageis_data_modifier(
     return variable_data
 
 
+PLOT_DEFAULTS = {
+    "panels": ["Kp", "FEDU"],
+    "FEDU": {
+        "pitch_angle": 90 * u.deg,
+        "energies": [108, 470, 1575] * u.keV,
+        "vmin": 1e0,
+        "vmax": 1e6,
+        "along": "L_star",
+    },
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_rbsp_mageis_electrons, strategy=rbsp_mageis_electron_strategy)
+    ep.run_recipe_cli(
+        process_rbsp_mageis_electrons,
+        strategy=rbsp_mageis_electron_strategy,
+        plot_defaults=PLOT_DEFAULTS,
+    )
