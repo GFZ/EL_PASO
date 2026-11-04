@@ -418,7 +418,7 @@ CLI_DEFAULTS = {
 }
 
 PLOT_DEFAULTS = {
-    "panels": ["Kp", "FEDU", "R_Eq", "MLT"],
+    "panels": ["Kp", "FEDU", "L_star", "MLT"],
     "FEDU": {"pitch_angle": 90 * u.deg},
 }
 
