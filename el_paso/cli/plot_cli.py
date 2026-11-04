@@ -48,7 +48,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, cast
 
 import typer
-from astropy import units as u
 from rich.table import Table
 
 import el_paso as ep
@@ -66,11 +65,15 @@ from el_paso.cli.recipe_cli import (
     check_strategy_factory,
     parse_docstring,
 )
-from el_paso.dataset.plot import DEFAULT_COLORMAP, check_panel_settings, count_panels, resolve_panel_settings
+
+# Kept in sync with `el_paso.dataset.plot.DEFAULT_COLORMAP`; that module imports numpy and astropy, which
+# the CLI must not load just to render `--help`.
+DEFAULT_COLORMAP = "rainbow4"
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
 
+    from astropy import units as u
     from matplotlib.axes import Axes
     from matplotlib.figure import Figure
 
@@ -366,6 +369,8 @@ def check_plot_defaults(plot_defaults: Mapping[str, Any]) -> None:
 
     settings = panel_settings(plot_defaults)
     try:
+        from el_paso.dataset.plot import check_panel_settings  # noqa: PLC0415
+
         check_panel_settings(settings)
     except (TypeError, ValueError) as error:
         msg = f"Invalid PLOT_DEFAULTS: {error}"
@@ -519,6 +524,8 @@ def _parse_energy(text: str) -> float:
         msg = f"{text!r} is not an energy; use a number with an optional unit, e.g. 470 or 1MeV."
         raise typer.BadParameter(msg, param_hint="'--energy'")
     number, unit_text = match.groups()
+    from astropy import units as u  # noqa: PLC0415
+
     try:
         unit = u.Unit(unit_text) if unit_text else u.keV
     except ValueError as error:
@@ -540,6 +547,8 @@ def _check_selection_options(plot_options: dict[str, Any]) -> tuple[u.Quantity |
     Raises:
         typer.BadParameter: If an energy is not positive or ``--vmin`` is not below ``--vmax``.
     """
+    from astropy import units as u  # noqa: PLC0415
+
     energies = None
     if plot_options["energies"]:
         values = [_parse_energy(text) for text in plot_options["energies"]]
@@ -622,6 +631,8 @@ def _check_panel_settings(request: PlotRequest, panels: Sequence[str]) -> None:
     Raises:
         typer.BadParameter: If the layered settings of a panel are invalid.
     """
+    from el_paso.dataset.plot import resolve_panel_settings  # noqa: PLC0415
+
     try:
         resolve_panel_settings(panels, _recipe_settings(request), _setting_overrides(request))
     except (TypeError, ValueError) as error:
@@ -657,7 +668,7 @@ def _report_settings(request: PlotRequest) -> None:
     recipe_settings = _recipe_settings(request)
     for key, value in _setting_overrides(request).items():
         if value is not None:
-            text = _format_quantity(value) if isinstance(value, u.Quantity) else f"{value:g}"
+            text = _format_quantity(value) if hasattr(value, "unit") else f"{value:g}"
         elif any(key in recipe_settings.get(name, {}) for name in panels or []):
             text = "recipe defaults"
         else:
@@ -1015,6 +1026,8 @@ def build_figure(
         Figure: The figure.
     """
     import matplotlib.dates as mdates  # noqa: PLC0415
+
+    from el_paso.dataset.plot import count_panels  # noqa: PLC0415
 
     block_sizes = [
         sum(count_panels(dataset, variables, along=along, panel_settings=panel_settings, energies=energies))
