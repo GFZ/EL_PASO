@@ -115,17 +115,20 @@ def no_live_logging(request: pytest.FixtureRequest) -> Iterator[None]:
 
 
 @pytest.fixture
-def plot_default(monkeypatch: pytest.MonkeyPatch, no_live_logging: None) -> Callable[..., None]:  # noqa: ARG001
-    """Return a function that runs ``el-paso plot <mission> <recipe>`` in-process and shows the default figure.
+def plot_default(
+    monkeypatch: pytest.MonkeyPatch,
+    request: pytest.FixtureRequest,
+    no_live_logging: None,  # noqa: ARG001
+) -> Callable[..., None]:
+    """Return a function that runs ``el-paso plot <mission> <recipe>`` in-process and saves the default figure.
 
     The command is invoked through typer's ``CliRunner`` instead of a subprocess, so failures surface as
-    assertion errors with the command output, no second interpreter has to start, and ``--show`` opens
-    the window of the test process. It needs an interactive matplotlib backend, so use it only in tests
-    marked ``visual``.
+    assertion errors with the command output and no second interpreter has to start.
 
     The returned function takes the mission, the recipe command, the processed data path, the time range
     and extra command line arguments (e.g. ``"--satellite", "a"``). No ``--variable`` is passed, so the
-    recipe's ``PLOT_DEFAULTS`` are used.
+    recipe's ``PLOT_DEFAULTS`` are used. The figure is never shown, only written to
+    ``tests/system/plots/<test name>.png`` for checking by eye.
     """
     import el_paso as ep  # noqa: PLC0415
     from el_paso.cli.app import app  # noqa: PLC0415
@@ -142,6 +145,8 @@ def plot_default(monkeypatch: pytest.MonkeyPatch, no_live_logging: None) -> Call
         end_time: datetime,
         *args: str,
     ) -> None:
+        output = Path(__file__).parent / "system" / "plots" / f"{request.node.name}.png"
+        output.parent.mkdir(exist_ok=True)
         command = [
             "plot",
             mission,
@@ -153,7 +158,8 @@ def plot_default(monkeypatch: pytest.MonkeyPatch, no_live_logging: None) -> Call
             "--processed-data-path",
             str(processed_data_path),
             *args,
-            "--show",
+            "--output",
+            str(output),
         ]
         with patch.object(typer.testing, "_get_command", side_effect=lambda instance: instance):
             result = runner.invoke(app, command, env={"COLUMNS": "200"})

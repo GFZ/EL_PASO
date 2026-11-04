@@ -74,7 +74,7 @@ def test_goes_realtime_snapshot(
 
 @pytest.mark.visual
 def test_goes_realtime_plot_default(plot_default: Callable[..., None]) -> None:
-    """Show the default figure of `el-paso plot goes realtime` for the reference data. Check it by eye."""
+    """Save the default figure of `el-paso plot goes realtime` for the reference data. Check it by eye."""
     start_time = datetime(2025, 12, 17, tzinfo=timezone.utc)
     end_time = start_time + timedelta(days=0.1)
 

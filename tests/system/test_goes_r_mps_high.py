@@ -61,7 +61,7 @@ def test_goes_r_mps_high_snapshot(
 
 @pytest.mark.visual
 def test_goes_r_mps_high_plot_default(plot_default: Callable[..., None]) -> None:
-    """Show the default figure of `el-paso plot goes mps-high` for the reference data. Check it by eye."""
+    """Save the default figure of `el-paso plot goes mps-high` for the reference data. Check it by eye."""
     start_time = datetime(2024, 5, 27, tzinfo=timezone.utc)
     end_time = start_time + timedelta(hours=2, seconds=-1)
 

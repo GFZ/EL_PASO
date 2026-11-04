@@ -88,7 +88,7 @@ def test_arase_mepe_snapshot(
 @pytest.mark.visual
 @pytest.mark.parametrize("mag_field", ["T89", "TS04"])
 def test_arase_mepe_plot_default(mag_field: str, plot_default: Callable[..., None]) -> None:
-    """Show the default figure of `el-paso plot arase mepe` for the reference data. Check it by eye."""
+    """Save the default figure of `el-paso plot arase mepe` for the reference data. Check it by eye."""
     start_time = datetime(2017, 9, 8, tzinfo=timezone.utc)
     end_time = start_time + timedelta(hours=4, seconds=-1)
 

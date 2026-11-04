@@ -137,7 +137,7 @@ def test_rbsp_ect_combined_snapshot(
 @pytest.mark.visual
 @pytest.mark.parametrize("save_strategy", ["gfz", "netcdf"])
 def test_rbsp_ect_combined_plot_default(save_strategy: str, plot_default: Callable[..., None]) -> None:
-    """Show the default figure of `el-paso plot rbsp ect-combined` for the reference data. Check it by eye."""
+    """Save the default figure of `el-paso plot rbsp ect-combined` for the reference data. Check it by eye."""
     start_time = datetime(2017, 9, 8, tzinfo=timezone.utc)
     end_time = start_time + timedelta(days=0.4, seconds=-1)
 

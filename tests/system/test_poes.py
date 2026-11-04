@@ -153,7 +153,7 @@ def test_poes_meped_electron(
 @pytest.mark.visual
 @pytest.mark.parametrize(("recipe", "satellite"), [("ted", "metop1"), ("meped", "noaa18")])
 def test_poes_plot_default(recipe: str, satellite: str, plot_default: Callable[..., None]) -> None:
-    """Show the default figure of `el-paso plot poes <recipe>` for the reference data. Check it by eye."""
+    """Save the default figure of `el-paso plot poes <recipe>` for the reference data. Check it by eye."""
     start_time = datetime(2013, 9, 8, tzinfo=timezone.utc)
     end_time = start_time + timedelta(hours=4)
 

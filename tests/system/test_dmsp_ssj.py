@@ -83,7 +83,7 @@ def test_dmsp_ssj(
 
 @pytest.mark.visual
 def test_dmsp_ssj_plot_default(plot_default: Callable[..., None]) -> None:
-    """Show the default figure of `el-paso plot dmsp ssj` for the reference data. Check it by eye."""
+    """Save the default figure of `el-paso plot dmsp ssj` for the reference data. Check it by eye."""
     start_time = datetime(2013, 9, 8, tzinfo=timezone.utc)
     end_time = start_time + timedelta(hours=4)
 

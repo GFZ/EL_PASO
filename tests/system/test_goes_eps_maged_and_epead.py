@@ -60,7 +60,7 @@ def test_goes_eps_maged_and_epead_snapshot(
 
 @pytest.mark.visual
 def test_goes_eps_maged_and_epead_plot_default(plot_default: Callable[..., None]) -> None:
-    """Show the default figure of `el-paso plot goes eps-maged-epead` for the reference data. Check it by eye."""
+    """Save the default figure of `el-paso plot goes eps-maged-epead` for the reference data. Check it by eye."""
     start_time = datetime(2017, 9, 20, tzinfo=timezone.utc)
     end_time = start_time + timedelta(hours=2, seconds=-1)
 

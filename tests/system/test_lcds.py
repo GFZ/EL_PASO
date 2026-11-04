@@ -67,7 +67,7 @@ def test_lcds(
 @pytest.mark.visual
 @pytest.mark.parametrize("mag_field", MAG_FIELDS)
 def test_lcds_plot_default(mag_field: MagneticFieldLiteral, plot_default: Callable[..., None]) -> None:
-    """Show the default figure of `el-paso plot model lcds` for the reference data. Check it by eye."""
+    """Save the default figure of `el-paso plot model lcds` for the reference data. Check it by eye."""
     start_time = datetime(2024, 5, 10, tzinfo=timezone.utc)
     end_time = datetime(2024, 5, 12, 12, tzinfo=timezone.utc)
 
