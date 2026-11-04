@@ -258,7 +258,7 @@ def process_rbsp_mageis_electrons(
         )
 
     strategy = rbsp_mageis_electron_strategy(processed_data_path, mag_field, satellite, save_strategy)
-    ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=False)
+    ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=True)
 
     if save_indices_sw:
         process_solar_wind_indices(

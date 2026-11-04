@@ -80,7 +80,7 @@ def process_dmsp_ssj_electrons(
     Args:
         start_time (datetime): Start of the time range to process.
         end_time (datetime): End of the time range to process.
-        satellite (DMSPSatellite): Identifier of the DMSP satellite to process (e.g. "f17").
+        satellite (DMSPSatellite): Identifier of the DMSP satellite to process ("f16", "f17" or "f18").
         mag_field (MagneticFieldLiteral): Magnetic field model used for the derived quantities.
         raw_data_path (str | Path): Base directory used for downloading and locating the raw SSM/SSJ CDF files.
         processed_data_path (str | Path): Base directory in which the processed output files are saved.
