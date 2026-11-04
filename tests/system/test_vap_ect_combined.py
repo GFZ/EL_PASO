@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import shutil
+from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
@@ -131,3 +132,25 @@ def test_rbsp_ect_combined_snapshot(
             )
 
     rbsp_proc.assert_equal(rbsp_true)
+
+
+@pytest.mark.visual
+@pytest.mark.parametrize("save_strategy", ["gfz", "netcdf"])
+def test_rbsp_ect_combined_plot_default(save_strategy: str, plot_default: Callable[..., None]) -> None:
+    """Show the default figure of `el-paso plot rbsp ect-combined` for the reference data. Check it by eye."""
+    start_time = datetime(2017, 9, 8, tzinfo=timezone.utc)
+    end_time = start_time + timedelta(days=0.4, seconds=-1)
+
+    plot_default(
+        "rbsp",
+        "ect-combined",
+        Path(__file__).parent / "data" / "processed",
+        start_time,
+        end_time,
+        "--satellite",
+        "a",
+        "--mag-field",
+        "T89",
+        "--save-strategy",
+        save_strategy,
+    )

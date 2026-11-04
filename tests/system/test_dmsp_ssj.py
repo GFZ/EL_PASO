@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import shutil
+from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -78,3 +79,14 @@ def test_dmsp_ssj(
     )
 
     dmsp_proc.assert_equal(dmsp_true)
+
+
+@pytest.mark.visual
+def test_dmsp_ssj_plot_default(plot_default: Callable[..., None]) -> None:
+    """Show the default figure of `el-paso plot dmsp ssj` for the reference data. Check it by eye."""
+    start_time = datetime(2013, 9, 8, tzinfo=timezone.utc)
+    end_time = start_time + timedelta(hours=4)
+
+    plot_default(
+        "dmsp", "ssj", Path(__file__).parent / "data" / "processed", start_time, end_time, "--satellite", "f17"
+    )

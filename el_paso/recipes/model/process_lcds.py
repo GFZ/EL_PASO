@@ -18,14 +18,23 @@ DEFAULT_ALPHA_EQ_DEG = [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0]
 
 
 def lcds_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
-    *,
-    file_format: ep.typing.MFSFormats = "nc",
+    save_strategy: Literal["gfz"] = "gfz",
 ) -> ep.SavingStrategy:
-    """Monthly LCDS saving strategy following the GFZ data standard."""
+    """Saving strategy of the LCDS recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
+        save_strategy (Literal["gfz"]): Saving strategy of the output files. Defaults to "gfz".
+
+    Returns:
+        ep.SavingStrategy: Monthly LCDS saving strategy following the GFZ data standard.
+    """
+    file_format: ep.typing.MFSFormats = {"gfz": "nc"}[save_strategy]
     return ep.saving_strategies.LCDSStrategy(
-        base_data_path,
+        processed_data_path,
         mag_field,
         ep.data_standards.GFZStandard(),
         file_format=file_format,
@@ -80,7 +89,7 @@ def process_lcds(
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
     """
-    del satellite, raw_data_path, save_strategy, skip_existing
+    del satellite, raw_data_path, skip_existing
 
     datetimes = []
     curr_time = start_time
@@ -113,7 +122,9 @@ def process_lcds(
         "InvK": inv_K_var,
     }
 
-    ep.save(variables_to_save, lcds_strategy(processed_data_path, mag_field), start_time, end_time, time_var)
+    ep.save(
+        variables_to_save, lcds_strategy(processed_data_path, mag_field, save_strategy), start_time, end_time, time_var
+    )
 
     if save_indices_sw:
         process_solar_wind_indices(
@@ -124,5 +135,9 @@ def process_lcds(
         )
 
 
+PLOT_DEFAULTS = {
+    "panels": ["LCDS"],
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_lcds)
+    ep.run_recipe_cli(process_lcds, strategy=lcds_strategy, plot_defaults=PLOT_DEFAULTS)

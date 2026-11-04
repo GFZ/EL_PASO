@@ -424,7 +424,11 @@ def _plot_variable(
 
     # (time, energy, pitch angle) -> (time, energy), cut at the pitch angle nearest the requested one at each time step
     selection_note = ""
-    if data.ndim == 3:
+    if data.ndim == 3 and data.shape[-1] == 1:
+        # a single pitch-angle bin (e.g. omnidirectional DMSP FEDO, whose coordinate is a min/max range): nothing to cut
+        data = data[..., 0]
+        coordinates = coordinates[:1]
+    elif data.ndim == 3:
         pitch_angle = _DEFAULT_PITCH_ANGLE if settings.pitch_angle is None else settings.pitch_angle
         data, matched = _cut_pitch_angle(dataset, data, dependencies[1], pitch_angle)
         selection_note = _pitch_angle_note(matched)

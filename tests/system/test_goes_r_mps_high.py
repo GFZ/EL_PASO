@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import shutil
+from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -56,3 +57,24 @@ def test_goes_r_mps_high_snapshot(
 
     # the invariant K (and V) is sensitive to floating-point differences of IRBEM on different hardware
     goes_true.assert_equal(goes_proc, rtol=1e-3)
+
+
+@pytest.mark.visual
+def test_goes_r_mps_high_plot_default(plot_default: Callable[..., None]) -> None:
+    """Show the default figure of `el-paso plot goes mps-high` for the reference data. Check it by eye."""
+    start_time = datetime(2024, 5, 27, tzinfo=timezone.utc)
+    end_time = start_time + timedelta(hours=2, seconds=-1)
+
+    plot_default(
+        "goes",
+        "mps-high",
+        Path(__file__).parent / "data" / "processed",
+        start_time,
+        end_time,
+        "--satellite",
+        "goes18",
+        "--mag-field",
+        "T96",
+        "--save-strategy",
+        "netcdf",
+    )

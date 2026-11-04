@@ -59,6 +59,29 @@ EPEAD_E1_THRESHOLD_MEV = 0.8
 EPEAD_E2_THRESHOLD_MEV = 2.0
 
 
+def goes_eps_maged_and_epead_strategy(
+    processed_data_path: str | Path,
+    mag_field: ep.typing.MagneticFieldLiteral,
+    satellite: GOESNOPSatellite,
+    save_strategy: Literal["gfz", "netcdf"] = "netcdf",
+) -> ep.SavingStrategy:
+    """Saving strategy of the GOES EPS MAGED and EPEAD recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
+        satellite (GOESNOPSatellite): Satellite the data belongs to.
+        save_strategy (Literal["gfz", "netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Legacy GFZ strategy for "gfz", otherwise a monthly or daily NetCDF strategy.
+    """
+    if save_strategy == "gfz":
+        return goes_eps_maged_and_epead_gfz_strategy(processed_data_path, mag_field, satellite)
+
+    return goes_eps_maged_and_epead_netcdf_strategy(processed_data_path, mag_field, satellite)
+
+
 def process_goes_eps_maged_and_epead(
     start_time: datetime,
     end_time: datetime,
@@ -259,10 +282,7 @@ def process_goes_eps_maged_and_epead(
             maged_vars["Energy"], pa_vars["AlphaLocal"], magn_vars["B_total_obs"], "electron"
         )
 
-    if save_strategy == "gfz":
-        saving_strategy = goes_eps_maged_and_epead_gfz_strategy(processed_data_path, mag_field, satellite)
-    else:
-        saving_strategy = goes_eps_maged_and_epead_netcdf_strategy(processed_data_path, mag_field, satellite)
+    saving_strategy = goes_eps_maged_and_epead_strategy(processed_data_path, mag_field, satellite, save_strategy)
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=maged_vars["Epoch"], append=True)
 
@@ -550,5 +570,15 @@ CLI_DEFAULTS = {
     "processed_data_path": "goes/processed/",
 }
 
+PLOT_DEFAULTS = {
+    "panels": ["Kp", "FEDU", "R_Eq", "MLT"],
+    "FEDU": {"pitch_angle": 90 * u.deg},
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_goes_eps_maged_and_epead, defaults=CLI_DEFAULTS)
+    ep.run_recipe_cli(
+        process_goes_eps_maged_and_epead,
+        defaults=CLI_DEFAULTS,
+        strategy=goes_eps_maged_and_epead_strategy,
+        plot_defaults=PLOT_DEFAULTS,
+    )

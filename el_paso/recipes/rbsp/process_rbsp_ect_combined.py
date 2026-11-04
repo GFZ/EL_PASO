@@ -43,6 +43,29 @@ def rbsp_ect_combined_netcdf_strategy(
     )
 
 
+def rbsp_ect_combined_strategy(
+    processed_data_path: str | Path,
+    mag_field: Literal["T89", "T96", "TS04", "OP77"],
+    satellite: RBSPSatellite,
+    save_strategy: Literal["gfz", "netcdf"] = "netcdf",
+) -> ep.SavingStrategy:
+    """Saving strategy of the RBSP ECT combined recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (Literal["T89", "T96", "TS04", "OP77"]): Magnetic field model the data was processed with.
+        satellite (RBSPSatellite): Satellite the data belongs to.
+        save_strategy (Literal["gfz", "netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Legacy GFZ strategy for "gfz", otherwise a monthly or daily NetCDF strategy.
+    """
+    if save_strategy == "gfz":
+        return rbsp_ect_combined_gfz_strategy(processed_data_path, mag_field, satellite)
+
+    return rbsp_ect_combined_netcdf_strategy(processed_data_path, mag_field, satellite)
+
+
 def process_rbsp_ect_combined(
     start_time: datetime,
     end_time: datetime,
@@ -246,10 +269,7 @@ def process_rbsp_ect_combined(
             "electron",
         )
 
-    if save_strategy == "gfz":
-        strategy = rbsp_ect_combined_gfz_strategy(processed_data_path, mag_field, satellite)
-    else:
-        strategy = rbsp_ect_combined_netcdf_strategy(processed_data_path, mag_field, satellite)
+    strategy = rbsp_ect_combined_strategy(processed_data_path, mag_field, satellite, save_strategy)
 
     ep.save(variables_to_save, strategy, start_time, end_time, binned_time_variable, append=True)
 
@@ -262,5 +282,14 @@ def process_rbsp_ect_combined(
         )
 
 
+PLOT_DEFAULTS = {
+    "panels": ["Kp", "FEDU"],
+    "FEDU": {
+        "pitch_angle": 90 * u.deg,
+        "energies": [100, 500, 2000] * u.keV,
+        "along": "L_star",
+    },
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_rbsp_ect_combined)
+    ep.run_recipe_cli(process_rbsp_ect_combined, strategy=rbsp_ect_combined_strategy, plot_defaults=PLOT_DEFAULTS)

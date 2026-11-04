@@ -815,4 +815,3 @@ def test_mageis_electrons_registers_its_strategy_factory() -> None:
     entry = next(e for e in RECIPES if e.command == "mageis-electrons")
 
     assert load_strategy_factory(entry) is not None
-    assert load_strategy_factory(next(e for e in RECIPES if e.command == "meped")) is None

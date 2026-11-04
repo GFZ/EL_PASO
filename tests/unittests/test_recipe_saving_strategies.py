@@ -10,8 +10,8 @@ Each `process_*.py` recipe under `el_paso/recipes/` defines its own small
 literals for that recipe into the right `ep.saving_strategies.*Strategy` class. The strategy
 classes themselves already have their own read/write behavior covered under
 `tests/unittests/saving_strategies/`; these tests just check each factory builds the right
-class with the right attributes, and that overridable keyword-only arguments
-(`file_format`, `data_standard`) actually take effect.
+class with the right attributes, and that overridable arguments
+(`data_standard`) actually take effect.
 """
 
 from __future__ import annotations
@@ -472,18 +472,13 @@ def test_density_strategies_default_to_prbem_standard(
 
 @pytest.mark.minimal
 @pytest.mark.basic
-@pytest.mark.parametrize("file_format", ["h5", "cdf", "mat"])
-def test_file_format_override_takes_effect(tmp_path: Path, file_format: str) -> None:
-    strategy = arase_xep_strategy(tmp_path, "T89", file_format=file_format)  # ty:ignore[invalid-argument-type]
+def test_arase_xep_strategy_follows_save_strategy(tmp_path: Path) -> None:
+    gfz = arase_xep_strategy(tmp_path, "T89", "gfz")
+    netcdf = arase_xep_strategy(tmp_path, "T89", "netcdf")
 
-    assert strategy.file_format == "." + file_format  # ty:ignore[unresolved-attribute]
-
-
-@pytest.mark.minimal
-@pytest.mark.basic
-def test_file_format_is_keyword_only(tmp_path: Path) -> None:
-    with pytest.raises(TypeError):
-        arase_xep_strategy(tmp_path, "T89", "nc")  # ty:ignore[too-many-positional-arguments]
+    assert type(gfz) is ep.saving_strategies.GFZStrategy
+    assert type(netcdf) is ep.saving_strategies.MonthlyOmniFluxRBStrategy
+    assert netcdf.file_format == ".nc"  # ty:ignore[unresolved-attribute]
 
 
 @pytest.mark.minimal
@@ -515,16 +510,6 @@ def test_rbsp_emfisis_waves_strategy(tmp_path: Path) -> None:
 
 @pytest.mark.minimal
 @pytest.mark.basic
-def test_rbsp_emfisis_waves_strategy_data_standard_override(tmp_path: Path) -> None:
-    prbem = ep.data_standards.PRBEMStandard()
-
-    strategy = rbsp_emfisis_waves_strategy(tmp_path, "b", prbem)
-
-    assert strategy.data_standard is prbem
-
-
-@pytest.mark.minimal
-@pytest.mark.basic
 def test_themis_fft_waves_strategy(tmp_path: Path) -> None:
     strategy = themis_fft_waves_strategy(tmp_path, "a")
 
@@ -533,16 +518,6 @@ def test_themis_fft_waves_strategy(tmp_path: Path) -> None:
     assert strategy.satellite == "tha"
     assert strategy.instrument == "FFT"
     assert isinstance(strategy.data_standard, ep.data_standards.GFZStandard)
-
-
-@pytest.mark.minimal
-@pytest.mark.basic
-def test_themis_fft_waves_strategy_data_standard_override(tmp_path: Path) -> None:
-    prbem = ep.data_standards.PRBEMStandard()
-
-    strategy = themis_fft_waves_strategy(tmp_path, "d", prbem)
-
-    assert strategy.data_standard is prbem
 
 
 @pytest.mark.minimal

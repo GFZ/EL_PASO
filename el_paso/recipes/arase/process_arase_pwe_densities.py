@@ -21,11 +21,23 @@ from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import proces
 
 
 def arase_pwe_densities_strategy(
-    base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral
+    processed_data_path: str | Path,
+    mag_field: Literal["T89", "TS04", "OP77Q"],
+    save_strategy: Literal["netcdf"] = "netcdf",
 ) -> ep.SavingStrategy:
-    """Monthly NetCDF density saving strategy for Arase PWE."""
+    """Saving strategy of the Arase PWE density recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (Literal["T89", "TS04", "OP77Q"]): Magnetic field model the data was processed with.
+        save_strategy (Literal["netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Monthly NetCDF density saving strategy.
+    """
+    del save_strategy
     return ep.saving_strategies.MonthlyDensityStrategy(
-        base_data_path=base_data_path,
+        base_data_path=processed_data_path,
         mission="Arase",
         satellite="arase",
         instrument="PWE",
@@ -80,7 +92,6 @@ def process_arase_pwe_density(
             independent of this recipe's own output. Defaults to False.
     """
     del satellite
-    del save_strategy
 
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
@@ -183,7 +194,7 @@ def process_arase_pwe_density(
         pwe_variables["Density"], pos_geo_var, magnetic_field_variables["xGEO_Eq_" + mag_field], method="Denton_average"
     )
 
-    saving_strategy = arase_pwe_densities_strategy(processed_data_path, mag_field)
+    saving_strategy = arase_pwe_densities_strategy(processed_data_path, mag_field, save_strategy)
 
     variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
         "Epoch": binned_time_variable,
@@ -211,5 +222,15 @@ CLI_DEFAULTS = {
     "processed_data_path": "./data",
 }
 
+PLOT_DEFAULTS = {
+    "panels": ["Number_density_spectrogram", "MLT"],
+    "Number_density_spectrogram": {"along": "R_Eq"},
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_arase_pwe_density, defaults=CLI_DEFAULTS)
+    ep.run_recipe_cli(
+        process_arase_pwe_density,
+        defaults=CLI_DEFAULTS,
+        strategy=arase_pwe_densities_strategy,
+        plot_defaults=PLOT_DEFAULTS,
+    )

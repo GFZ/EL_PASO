@@ -25,13 +25,25 @@ _MINIMUM_PHYSICAL_DENSITY = 1e-21
 
 
 def themis_scpot_density_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     satellite: ThemisProbe,
-    mag_field: ep.typing.MagneticFieldLiteral,
+    mag_field: Literal["T89", "T96", "TS04"],
+    save_strategy: Literal["netcdf"] = "netcdf",
 ) -> ep.SavingStrategy:
-    """Monthly NetCDF density saving strategy for the THEMIS spacecraft-potential density."""
+    """Saving strategy of the THEMIS spacecraft-potential density recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        satellite (ThemisProbe): THEMIS probe the data belongs to.
+        mag_field (Literal["T89", "T96", "TS04"]): Magnetic field model the data was processed with.
+        save_strategy (Literal["netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Monthly NetCDF density saving strategy.
+    """
+    del save_strategy
     return ep.saving_strategies.MonthlyDensityStrategy(
-        base_data_path=base_data_path,
+        base_data_path=processed_data_path,
         mission="THEMIS",
         satellite="th" + satellite,
         instrument="SCPOT",
@@ -86,7 +98,6 @@ def process_themis_scpot_density(
             independent of this recipe's own output. Defaults to False.
     """
     del skip_existing
-    del save_strategy
 
     set_pyspedas_data_dir("themis", raw_data_path)
     use_spdf_for_themis_downloads()
@@ -139,7 +150,7 @@ def process_themis_scpot_density(
         method="Denton_average",
     )
 
-    saving_strategy = themis_scpot_density_strategy(processed_data_path, satellite, mag_field)
+    saving_strategy = themis_scpot_density_strategy(processed_data_path, satellite, mag_field, save_strategy)
 
     variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
         "Epoch": binned_time_variable,
@@ -167,5 +178,15 @@ CLI_DEFAULTS = {
     "processed_data_path": "./data",
 }
 
+PLOT_DEFAULTS = {
+    "panels": ["Number_density_scpot", "MLT"],
+    "Number_density_scpot": {"along": "R_Eq"},
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_themis_scpot_density, defaults=CLI_DEFAULTS)
+    ep.run_recipe_cli(
+        process_themis_scpot_density,
+        defaults=CLI_DEFAULTS,
+        strategy=themis_scpot_density_strategy,
+        plot_defaults=PLOT_DEFAULTS,
+    )

@@ -45,6 +45,29 @@ def rbsp_hope_proton_netcdf_strategy(
     )
 
 
+def rbsp_hope_proton_strategy(
+    processed_data_path: str | Path,
+    mag_field: Literal["T89", "T96", "TS04"],
+    satellite: RBSPSatellite,
+    save_strategy: Literal["gfz", "netcdf"] = "netcdf",
+) -> ep.SavingStrategy:
+    """Saving strategy of the RBSP HOPE proton recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (Literal["T89", "T96", "TS04"]): Magnetic field model the data was processed with.
+        satellite (RBSPSatellite): Satellite the data belongs to.
+        save_strategy (Literal["gfz", "netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Legacy GFZ strategy for "gfz", otherwise a monthly or daily NetCDF strategy.
+    """
+    if save_strategy == "gfz":
+        return rbsp_hope_proton_gfz_strategy(processed_data_path, mag_field, satellite)
+
+    return rbsp_hope_proton_netcdf_strategy(processed_data_path, mag_field, satellite)
+
+
 def process_rbsp_hope_protons(
     start_time: datetime,
     end_time: datetime,
@@ -236,10 +259,7 @@ def process_rbsp_hope_protons(
             "proton",
         )
 
-    if save_strategy == "gfz":
-        strategy = rbsp_hope_proton_gfz_strategy(processed_data_path, mag_field, satellite)
-    else:
-        strategy = rbsp_hope_proton_netcdf_strategy(processed_data_path, mag_field, satellite)
+    strategy = rbsp_hope_proton_strategy(processed_data_path, mag_field, satellite, save_strategy)
 
     ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=True)
 
@@ -257,5 +277,15 @@ CLI_DEFAULTS = {
     "processed_data_path": "processed_hope",
 }
 
+PLOT_DEFAULTS = {
+    "panels": ["Kp", "FPDU", "R_Eq", "MLT"],
+    "FPDU": {"pitch_angle": 90 * u.deg},
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_rbsp_hope_protons, defaults=CLI_DEFAULTS)
+    ep.run_recipe_cli(
+        process_rbsp_hope_protons,
+        defaults=CLI_DEFAULTS,
+        strategy=rbsp_hope_proton_strategy,
+        plot_defaults=PLOT_DEFAULTS,
+    )

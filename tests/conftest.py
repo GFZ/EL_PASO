@@ -7,9 +7,13 @@ import logging
 import socket
 import typing
 from collections.abc import Callable, Iterator
+from datetime import datetime
+from pathlib import Path
+from unittest.mock import patch
 from urllib.parse import urlparse
 
 import pytest
+import typer.testing
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -108,3 +112,52 @@ def no_live_logging(request: pytest.FixtureRequest) -> Iterator[None]:
     finally:
         if attached:
             root_logger.addHandler(plugin.log_cli_handler)
+
+
+@pytest.fixture
+def plot_default(monkeypatch: pytest.MonkeyPatch, no_live_logging: None) -> Callable[..., None]:  # noqa: ARG001
+    """Return a function that runs ``el-paso plot <mission> <recipe>`` in-process and shows the default figure.
+
+    The command is invoked through typer's ``CliRunner`` instead of a subprocess, so failures surface as
+    assertion errors with the command output, no second interpreter has to start, and ``--show`` opens
+    the window of the test process. It needs an interactive matplotlib backend, so use it only in tests
+    marked ``visual``.
+
+    The returned function takes the mission, the recipe command, the processed data path, the time range
+    and extra command line arguments (e.g. ``"--satellite", "a"``). No ``--variable`` is passed, so the
+    recipe's ``PLOT_DEFAULTS`` are used.
+    """
+    import el_paso as ep  # noqa: PLC0415
+    from el_paso.cli.app import app  # noqa: PLC0415
+
+    # console logging set up inside a command would outlive CliRunner's captured streams
+    monkeypatch.setattr(ep, "setup_logging", lambda *_args, **_kwargs: None)
+    runner = typer.testing.CliRunner()
+
+    def _plot_default(
+        mission: str,
+        recipe: str,
+        processed_data_path: str | Path,
+        start_time: datetime,
+        end_time: datetime,
+        *args: str,
+    ) -> None:
+        command = [
+            "plot",
+            mission,
+            recipe,
+            "--start-time",
+            start_time.isoformat(),
+            "--end-time",
+            end_time.isoformat(),
+            "--processed-data-path",
+            str(processed_data_path),
+            *args,
+            "--show",
+        ]
+        with patch.object(typer.testing, "_get_command", side_effect=lambda instance: instance):
+            result = runner.invoke(app, command, env={"COLUMNS": "200"})
+
+        assert result.exit_code == 0, f"{' '.join(command)}\n{result.output}"
+
+    return _plot_default

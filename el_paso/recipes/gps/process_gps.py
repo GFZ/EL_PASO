@@ -110,15 +110,25 @@ def extract_data_from_lanl_gps_ascii(file_path, extraction_infos):  # noqa: ANN0
 
 
 def gps_cxd_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     satellite: LANLSatellite,
-    *,
-    file_format: ep.typing.MFSFormats = "nc",
+    save_strategy: Literal["netcdf"] = "netcdf",
 ) -> ep.SavingStrategy:
-    """Monthly NetCDF saving strategy for LANL GPS CXD."""
+    """Saving strategy of the GPS CXD recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
+        satellite (LANLSatellite): Satellite the data belongs to.
+        save_strategy (Literal["netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Monthly NetCDF saving strategy.
+    """
+    file_format: ep.typing.MFSFormats = {"netcdf": "nc"}[save_strategy]
     return ep.saving_strategies.MonthlyRBStrategy(
-        Path(base_data_path),
+        Path(processed_data_path),
         "GPS",
         satellite,
         "cxd",
@@ -178,8 +188,6 @@ def process_gps_data(
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
     """
-    del save_strategy
-
     data_path_stem = f"{raw_data_path}/GPS/{satellite}/YY/MM/DD"
     url = f"https://www.ngdc.noaa.gov/stp/space-weather/satellite-data/satellite-systems/lanl_gps/version_v1.10r2/{satellite}"
     file_name_stem = satellite + "_YYMMDD_v1.10.ascii"
@@ -336,7 +344,7 @@ def process_gps_data(
         "InvK": magnetic_field_variables[f"InvK_{mag_field}"],
     }
 
-    saving_strategy = gps_cxd_strategy(processed_data_path, mag_field, satellite)
+    saving_strategy = gps_cxd_strategy(processed_data_path, mag_field, satellite, save_strategy)
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var)
 
@@ -349,5 +357,14 @@ def process_gps_data(
         )
 
 
+PLOT_DEFAULTS = {
+    "panels": ["Kp", "FEDU"],
+    "FEDU": {
+        "pitch_angle": 90 * u.deg,
+        "energies": [100, 500, 1000] * u.keV,  # placeholder energies, to be replaced by the instrument channels
+        "along": "L_star",
+    },
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_gps_data)
+    ep.run_recipe_cli(process_gps_data, strategy=gps_cxd_strategy, plot_defaults=PLOT_DEFAULTS)

@@ -18,15 +18,25 @@ from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import proces
 
 
 def poes_ted_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     satellite: POESSatellite,
-    *,
-    file_format: ep.typing.MFSFormats = "nc",
+    save_strategy: Literal["netcdf"] = "netcdf",
 ) -> ep.SavingStrategy:
-    """Daily LEO/RB saving strategy for POES TED."""
+    """Saving strategy of the POES TED recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
+        satellite (POESSatellite): Satellite the data belongs to.
+        save_strategy (Literal["netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Daily NetCDF saving strategy.
+    """
+    file_format: ep.typing.MFSFormats = {"netcdf": "nc"}[save_strategy]
     return ep.saving_strategies.DailyLEORBStrategy(
-        Path(base_data_path),
+        Path(processed_data_path),
         "POES",
         satellite,
         "TED",
@@ -81,8 +91,6 @@ def process_poes_ted_electron(
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
     """
-    del save_strategy
-
     data_path_stem = f"{raw_data_path}/POES/{satellite}/YYYY/MM/"
     url = f"https://spdf.gsfc.nasa.gov/pub/data/noaa/{satellite}/sem2_fluxes-2sec/YYYY/"
     file_name_stem = satellite + "_poes-sem2_fluxes-2sec_YYYYMMDD_.{3}.cdf"
@@ -246,7 +254,7 @@ def process_poes_ted_electron(
             "L_star": magnetic_field_variables[f"L_star_{mag_field}"],
         }
 
-    saving_strategy = poes_ted_strategy(processed_data_path, mag_field, satellite)
+    saving_strategy = poes_ted_strategy(processed_data_path, mag_field, satellite, save_strategy)
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var)
 
@@ -263,5 +271,16 @@ CLI_DEFAULTS = {
     "bin_cadence": timedelta(seconds=10),
 }
 
+PLOT_DEFAULTS = {
+    "panels": ["Kp", "FEDU"],
+    "FEDU": {
+        "pitch_angle": 90 * u.deg,
+        "energies": [100, 500, 1000] * u.keV,  # placeholder energies, to be replaced by the instrument channels
+        "along": "R_Eq",
+    },
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_poes_ted_electron, defaults=CLI_DEFAULTS)
+    ep.run_recipe_cli(
+        process_poes_ted_electron, defaults=CLI_DEFAULTS, strategy=poes_ted_strategy, plot_defaults=PLOT_DEFAULTS
+    )

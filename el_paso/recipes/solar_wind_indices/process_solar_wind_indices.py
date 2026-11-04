@@ -14,13 +14,21 @@ from el_paso.saving_strategies.solar_wind_indices_strategy import ALL_SW_INDICES
 
 
 def solar_wind_indices_strategy(
-    base_data_path: str | Path,
-    *,
-    file_format: ep.typing.MFSFormats = "nc",
+    processed_data_path: str | Path,
+    save_strategy: Literal["gfz"] = "gfz",
 ) -> ep.SavingStrategy:
-    """Monthly solar wind indices saving strategy following the GFZ data standard."""
+    """Saving strategy of the solar wind indices recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        save_strategy (Literal["gfz"]): Saving strategy of the output files. Defaults to "gfz".
+
+    Returns:
+        ep.SavingStrategy: Monthly solar wind indices saving strategy following the GFZ data standard.
+    """
+    file_format: ep.typing.MFSFormats = {"gfz": "nc"}[save_strategy]
     return ep.saving_strategies.SolarWindIndicesStrategy(
-        base_data_path,
+        processed_data_path,
         ep.data_standards.GFZStandard(),
         file_format=file_format,
     )
@@ -69,7 +77,7 @@ def process_solar_wind_indices(
             filled. If False, those edge gaps are left as NaN. Defaults to False; turn it on
             explicitly via the CLI or in a script.
     """
-    del satellite, mag_field, raw_data_path, num_cores, save_strategy, skip_existing, save_indices_sw
+    del satellite, mag_field, raw_data_path, num_cores, skip_existing, save_indices_sw
 
     timestamps = []
     curr_time = start_time
@@ -91,12 +99,16 @@ def process_solar_wind_indices(
 
     ep.save(
         variables_to_save,
-        solar_wind_indices_strategy(processed_data_path),
+        solar_wind_indices_strategy(processed_data_path, save_strategy),
         start_time,
         end_time,
         time_var,
     )
 
 
+PLOT_DEFAULTS = {
+    "panels": ["Kp", "Dst", "Vsw", "Pdyn"],
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_solar_wind_indices)
+    ep.run_recipe_cli(process_solar_wind_indices, strategy=solar_wind_indices_strategy, plot_defaults=PLOT_DEFAULTS)

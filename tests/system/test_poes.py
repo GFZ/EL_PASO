@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import shutil
+from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -147,3 +148,15 @@ def test_poes_meped_electron(
     )
 
     poes_proc.assert_equal(poes_true)
+
+
+@pytest.mark.visual
+@pytest.mark.parametrize(("recipe", "satellite"), [("ted", "metop1"), ("meped", "noaa18")])
+def test_poes_plot_default(recipe: str, satellite: str, plot_default: Callable[..., None]) -> None:
+    """Show the default figure of `el-paso plot poes <recipe>` for the reference data. Check it by eye."""
+    start_time = datetime(2013, 9, 8, tzinfo=timezone.utc)
+    end_time = start_time + timedelta(hours=4)
+
+    plot_default(
+        "poes", recipe, Path(__file__).parent / "data" / "processed", start_time, end_time, "--satellite", satellite
+    )

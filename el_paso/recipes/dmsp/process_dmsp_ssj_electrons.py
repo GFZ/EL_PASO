@@ -25,15 +25,25 @@ TELE_BETA_ANGLES = np.array([-180.0, 90.0])
 
 
 def dmsp_ssj_electron_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     satellite: DMSPSatellite,
-    *,
-    file_format: ep.typing.MFSFormats = "nc",
+    save_strategy: Literal["netcdf"] = "netcdf",
 ) -> ep.SavingStrategy:
-    """Daily LEO/RB saving strategy for DMSP SSJ electrons."""
+    """Saving strategy of the DMSP SSJ electron recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
+        satellite (DMSPSatellite): Satellite the data belongs to.
+        save_strategy (Literal["netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Daily NetCDF saving strategy.
+    """
+    file_format: ep.typing.MFSFormats = {"netcdf": "nc"}[save_strategy]
     return ep.saving_strategies.DailyLEORBStrategy(
-        Path(base_data_path),
+        Path(processed_data_path),
         "DMSP",
         satellite,
         "SSJ",
@@ -84,8 +94,6 @@ def process_dmsp_ssj_electrons(
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
     """
-    del save_strategy
-
     data_path_stem = f"{raw_data_path}/DMSP/{satellite}/YYYY/MM/"
 
     ssm_url = f"https://cdaweb.gsfc.nasa.gov/pub/data/dmsp/dmsp{satellite}/ssm/magnetometer/YYYY/"
@@ -242,7 +250,7 @@ def process_dmsp_ssj_electrons(
         "Alpha_LC_Eq": magnetic_field_variables[f"Alpha_LC_Eq_{mag_field}"],
     }
 
-    saving_strategy = dmsp_ssj_electron_strategy(processed_data_path, mag_field, satellite)
+    saving_strategy = dmsp_ssj_electron_strategy(processed_data_path, mag_field, satellite, save_strategy)
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var)
 
@@ -289,7 +297,9 @@ def _get_ssj_variables(
             unit=u.eV * (u.cm**2 * u.s * u.eV * u.sr) ** (-1),
             result_key="diff_energy_flux",
         ),
-        ep.ExtractionInfo(name_or_column="CHANNEL_ENERGIES", unit=u.eV, result_key="diff_energy"),
+        ep.ExtractionInfo(
+            name_or_column="CHANNEL_ENERGIES", unit=u.eV, result_key="diff_energy", is_time_dependent=False
+        ),
         ep.ExtractionInfo(name_or_column="SC_GEOCENTRIC_R", unit=u.km, result_key="R_geo"),
         ep.ExtractionInfo(name_or_column="SC_GEOCENTRIC_LAT", unit=u.deg, result_key="lat_geo"),
         ep.ExtractionInfo(name_or_column="SC_GEOCENTRIC_LON", unit=u.deg, result_key="lon_geo"),
@@ -310,5 +320,14 @@ CLI_DEFAULTS = {
     "processed_data_path": "dmsp/processed/",
 }
 
+PLOT_DEFAULTS = {
+    "panels": ["Kp", "FEDO", "R_Eq", "MLT"],
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_dmsp_ssj_electrons, defaults=CLI_DEFAULTS)
+    ep.run_recipe_cli(
+        process_dmsp_ssj_electrons,
+        defaults=CLI_DEFAULTS,
+        strategy=dmsp_ssj_electron_strategy,
+        plot_defaults=PLOT_DEFAULTS,
+    )
