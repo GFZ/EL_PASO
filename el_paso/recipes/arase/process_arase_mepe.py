@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 
 import numpy as np
 from astropy import units as u
@@ -74,7 +74,7 @@ def process_arase_mepe(
     start_time: datetime,
     end_time: datetime,
     satellite: Literal["arase"] = "arase",
-    mag_field: Literal["T89", "TS04", "OP77Q"] = "T89",
+    mag_field: ep.typing.MagneticFieldLiteral = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=5),
@@ -86,6 +86,7 @@ def process_arase_mepe(
     skip_existing: bool = True,
     add_B_obs: bool = False,
     save_indices_sw: bool = False,
+    append: bool = False,
 ) -> None:
     """Process Arase MEP-e Level 3 electron flux data and save derived products.
 
@@ -104,7 +105,7 @@ def process_arase_mepe(
         end_time (datetime): End of the time range to process.
         satellite (Literal["arase"]): Identifier of the satellite to process. Arase is a
                                                     single-satellite mission, so this has only one value.
-        mag_field (Literal["T89", "TS04", "OP77Q"]): The magnetic field model used for the
+        mag_field (ep.typing.MagneticFieldLiteral): The magnetic field model used for the
                                                     magnetic-field-related output variables.
         raw_data_path (str | Path): Directory where downloaded raw data files are
                                             stored. Defaults to ".".
@@ -131,6 +132,8 @@ def process_arase_mepe(
                                 from it. Only supported with the "gfz" data standard. Defaults to False.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to False.
 
     Raises:
         ValueError: If `add_B_obs` is set together with the "prbem" data standard, which does not
@@ -165,7 +168,11 @@ def process_arase_mepe(
 
     if use_level_3_orbit_data:
         orb_variables = get_arase_orbit_level_3_variables(
-            start_time, end_time, mag_field, raw_data_path=raw_data_path, skip_existing=skip_existing
+            start_time,
+            end_time,
+            cast("Literal['OP77Q', 'T89', 'TS04']", mag_field),
+            raw_data_path=raw_data_path,
+            skip_existing=skip_existing,
         )
     else:
         orb_variables = get_arase_orbit_level_2_variables(
@@ -370,7 +377,7 @@ def process_arase_mepe(
         case "netcdf":
             saving_strategy = arase_mepe_netcdf_strategy(processed_data_path, mag_field_save, data_standard_instance)
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable, append=append)
 
     if save_indices_sw:
         process_solar_wind_indices(

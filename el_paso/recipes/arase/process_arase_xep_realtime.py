@@ -69,7 +69,9 @@ def process_arase_xep_real_time(
     download: bool = True,
     skip_existing: bool = True,
     do_xep_extraction: bool = True,
+    calculate_Lstar: bool = True,
     save_indices_sw: bool = False,
+    append: bool = True,
 ) -> None:
     """Process Arase XEP real-time electron flux data and save derived products.
 
@@ -102,8 +104,12 @@ def process_arase_xep_real_time(
         skip_existing (bool): Whether to skip downloading files that already exist locally.
         do_xep_extraction (bool): Whether to extract the XEP flux product. If False, only the
             orbit data is processed.
+        calculate_Lstar (bool): If True, also compute the L* magnetic field quantity.
+            Defaults to True.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to True.
 
     Raises:
         ValueError: If `erg_user` is not provided and the ``ERG_USER`` environment variable is
@@ -187,11 +193,19 @@ def process_arase_xep_real_time(
         ("MLT", mag_field),
         ("R_Eq", mag_field),
         ("Alpha_Eq", mag_field),
-        ("L_star", mag_field),
         ("L_m", mag_field),
         ("InvMu", mag_field),
         ("InvK", mag_field),
     ]
+
+    if calculate_Lstar:
+        variables_to_compute.append(("L_star", mag_field))
+
+    irbem_options = ep.processing.magnetic_field_utils.IrbemOptions(
+        lstar_quantity=ep.processing.magnetic_field_utils.LstarQuantity.LSTAR
+        if calculate_Lstar
+        else ep.processing.magnetic_field_utils.LstarQuantity.NONE,
+    )
 
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
         time_var=binned_time_var,
@@ -200,7 +214,7 @@ def process_arase_xep_real_time(
         pa_local_var=variables_combined["PA_local_FEDU"],
         particle_species="electron",
         variables_to_compute=variables_to_compute,
-        irbem_options=ep.processing.magnetic_field_utils.IrbemOptions(),
+        irbem_options=irbem_options,
         num_cores=num_cores,
     )
 
@@ -231,7 +245,6 @@ def process_arase_xep_real_time(
         "Alpha_Eq": magnetic_field_variables[f"Alpha_Eq_{mag_field}"],
         "R_Eq": magnetic_field_variables[f"R_Eq_{mag_field}"],
         "MLT": magnetic_field_variables[f"MLT_{mag_field}"],
-        "L_star": magnetic_field_variables[f"L_star_{mag_field}"],
         "B_Calc": magnetic_field_variables[f"B_Calc_{mag_field}"],
         "B_Eq": magnetic_field_variables[f"B_Eq_{mag_field}"],
         "PSD": psd_var,
@@ -239,6 +252,9 @@ def process_arase_xep_real_time(
         "InvK": magnetic_field_variables[f"InvK_{mag_field}"],
         "Position": variables_combined["xGEO"],
     }
+
+    if calculate_Lstar:
+        variables_to_save["L_star"] = magnetic_field_variables[f"L_star_{mag_field}"]
 
     if save_strategy == "gfz":
         saving_strategy = arase_xep_realtime_gfz_strategy(processed_data_path, mag_field)
@@ -251,7 +267,7 @@ def process_arase_xep_real_time(
         start_time,
         end_time,
         time_var=binned_time_var,
-        append=True,
+        append=append,
     )
 
     if save_indices_sw:

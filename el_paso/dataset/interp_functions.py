@@ -38,6 +38,9 @@ class TargetType(Enum):
 
 TARGETS: TypeAlias = list[tuple[float | int, float | int]]
 
+FluxName: TypeAlias = Literal["FEDU", "FEDO", "FEIU", "FPDU"]
+"""Internal names of the flux variables `interp_flux` can interpolate."""
+
 
 def _linear_interp(
     flux_left: float,
@@ -105,53 +108,128 @@ def _interp_flux_parallel(
     return result
 
 
+def _interp_omni_flux_parallel(
+    flux: NDArray[np.float64],
+    energy: NDArray[np.float64],
+    target_en: list[float],
+    it: int,
+) -> list[float]:
+    """Interpolate an energy-only (omnidirectional or spin-averaged) flux at time index `it`.
+
+    Shapes: `flux` is `(time, n_energy)`, `energy` is `(time, n_energy)`.
+    """
+    finite = np.isfinite(energy[it, :]) & np.isfinite(flux[it, :])
+    if np.count_nonzero(finite) < 2:
+        return [np.nan] * len(target_en)
+
+    energy_interp = energy[it, finite]
+    flux_interp = flux[it, finite]
+    assert np.all(np.diff(energy_interp) > 0)
+
+    return [float(np.interp(target, energy_interp, flux_interp, left=np.nan, right=np.nan)) for target in target_en]
+
+
 def interp_flux(
     self: DataSet,
     target_en: float | list[float] | NDArray[np.float64],
-    target_al: float | list[float],
-    target_type: TargetType | Literal["TargetPairs", "TargetMeshGrid"],
+    target_al: float | list[float] | None = None,
+    target_type: TargetType | Literal["TargetPairs", "TargetMeshGrid"] | None = None,
     n_threads: int = 10,
+    flux_name: FluxName = "FEDU",
 ) -> NDArray[np.float64]:
-    """Interpolate flux to requested (energy, pitch angle) targets for every time.
+    """Interpolate a flux variable to requested energy (and pitch angle) targets for every time.
 
-    For each time step, `self.Flux` is interpolated in energy at the two pitch angles
-    (from `self.alpha_eq_model`) bracketing each target pitch angle, and the two
-    resulting flux values are then linearly interpolated in pitch angle to the target.
+    The flux to interpolate is selected by `flux_name`; its energy grid is read from the
+    matching `Energy_<flux_name>` variable. How the flux is interpolated depends on its shape:
+
+    - Pitch-angle resolved fluxes, shape `(time, energy, pitch angle)` (e.g. `FEDU`, `FPDU`):
+      for each time step, the flux is interpolated in energy at the two pitch angles
+      (from `Alpha_Eq`) bracketing each target pitch angle, and the two resulting flux
+      values are then linearly interpolated in pitch angle to the target.
+    - Omnidirectional or spin-averaged fluxes, shape `(time, energy)` (e.g. `FEDO`), or
+      `(time, energy, 1)` with a single pitch-angle bin: for each time step, the flux is
+      linearly interpolated in energy only. `target_al` and `target_type` must not be given.
 
     Args:
         self (DataSet): The DataSet instance this method operates on.
         target_en (float | list[float] | NDArray[np.float64]): Target energy value(s)
             to interpolate to.
-        target_al (float | list[float]): Target equatorial pitch angle value(s) to
-            interpolate to.
-        target_type (TargetType | Literal["TargetPairs", "TargetMeshGrid"]): How to combine
-            `target_en` and `target_al`. `TargetPairs` interpolates each
+        target_al (float | list[float] | None, optional): Target equatorial pitch angle
+            value(s) to interpolate to. Required for pitch-angle resolved fluxes, must be
+            `None` for omnidirectional or spin-averaged fluxes. Defaults to `None`.
+        target_type (TargetType | Literal["TargetPairs", "TargetMeshGrid"] | None, optional):
+            How to combine `target_en` and `target_al`. `TargetPairs` interpolates each
             `(energy, pitch angle)` pair (the two vectors must have the same length),
             producing a result of shape `(time, N)`. `TargetMeshGrid` interpolates
             every combination of the two vectors, producing a result of shape
-            `(time, n_en, n_al)`.
+            `(time, n_en, n_al)`. Required for pitch-angle resolved fluxes, ignored
+            otherwise. Defaults to `None`.
         n_threads (int, optional): Number of worker processes used to parallelize the
             interpolation over time. Defaults to `10`.
+        flux_name (FluxName, optional): Internal name of the flux variable to interpolate,
+            one of `"FEDU"`, `"FEDO"`, `"FEIU"`, `"FPDU"`. Defaults to `"FEDU"`.
 
     Returns:
-        NDArray[np.float64]: The interpolated flux values, with shape `(time, N)` for
-        `TargetType.TargetPairs` or `(time, n_en, n_al)` for `TargetType.TargetMeshGrid`.
+        NDArray[np.float64]: The interpolated flux values. For pitch-angle resolved fluxes,
+        shape `(time, N)` for `TargetType.TargetPairs` or `(time, n_en, n_al)` for
+        `TargetType.TargetMeshGrid`. For omnidirectional or spin-averaged fluxes, shape
+        `(time, n_en)`.
 
     Raises:
+        ValueError: If the flux is pitch-angle resolved and `target_al` or `target_type`
+            is missing, if the flux is omnidirectional/spin-averaged and `target_al` is
+            given, or if the flux has an unsupported number of dimensions.
         AssertionError: If `target_type` is `TargetType.TargetPairs` and `target_en`
             and `target_al` do not have the same length.
     """
     if not isinstance(target_en, Iterable):
         target_en = [target_en]
+
+    epoch = self.get_by_internal_name("Epoch")
+    flux = np.asarray(self.get_by_internal_name(flux_name))
+    energy = np.asarray(self.get_by_internal_name(f"Energy_{flux_name}"))  # ty:ignore[invalid-argument-type]
+
+    if energy.ndim == 1:  # time-independent energy grid
+        energy = np.broadcast_to(energy, (len(epoch), energy.shape[0]))
+
+    if flux.ndim == 3 and flux.shape[2] == 1:
+        flux = flux[:, :, 0]  # single pitch-angle bin -> treat as spin-averaged
+
+    if flux.ndim == 2:
+        if target_al is not None:
+            msg = (
+                f"{flux_name} has no pitch-angle dimension (omnidirectional or spin-averaged); "
+                "`target_al` must not be given."
+            )
+            raise ValueError(msg)
+
+        target_en_list = [float(e) for e in target_en]
+        omni_func = partial(_interp_omni_flux_parallel, flux, energy, target_en_list)
+        chunksize = max(1, len(epoch) // n_threads // 4)
+        omni_results = p_map(
+            omni_func,
+            range(len(epoch)),
+            num_cpus=n_threads,
+            chunksize=chunksize,
+            desc=f"Interpolating {flux_name}",
+            disable=not self._verbose,
+        )
+        return np.asarray(omni_results, dtype=np.float64).reshape(len(epoch), len(target_en_list))
+
+    if flux.ndim != 3:
+        msg = f"Unsupported number of dimensions for {flux_name}: {flux.ndim} (expected 2 or 3)."
+        raise ValueError(msg)
+
+    if target_al is None or target_type is None:
+        msg = f"{flux_name} is pitch-angle resolved; `target_al` and `target_type` are required."
+        raise ValueError(msg)
+
     if not isinstance(target_al, Iterable):
         target_al = [target_al]
 
     if isinstance(target_type, str):
         target_type = TargetType[target_type]
 
-    epoch = self.get_by_internal_name("Epoch")
-    flux = self.get_by_internal_name("FEDU")
-    energy = self.get_by_internal_name("Energy_FEDU")
     alpha_eq = self.get_by_internal_name("Alpha_Eq")
 
     if target_type == TargetType.TargetPairs:
@@ -179,7 +257,7 @@ def interp_flux(
         range(len(epoch)),
         num_cpus=n_threads,
         chunksize=chunksize,
-        desc="Interpolating flux",
+        desc=f"Interpolating {flux_name}",
         disable=not self._verbose,
     )
 

@@ -32,7 +32,7 @@ def test_poes_ted_electron(
         raw_data_path=Path(__file__).parent / "data" / "raw",
         processed_data_path=processed_data_path,
         num_cores=32,
-        calculate_Lm_Lstar=True,
+        calculate_Lstar=True,
     )
 
     out_path = processed_data_path / "POES" / "metop1" / f"metop1_ted_{start_time:%Y%m%d}_T89.nc"
