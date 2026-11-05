@@ -152,10 +152,17 @@ class GFZMetaData(DatasetMetadata):
         BzIMF (VariableMetadata): GSM z-component of the interplanetary magnetic field.
         Dst (VariableMetadata): Disturbance storm time index.
         FEDO (VariableMetadata): Electron differential omnidirectional flux.
+        FEDU_SA (VariableMetadata): Electron differential flux, spin-averaged over the look directions (no pitch
+            angle resolution).
         FEIU (VariableMetadata): Electron integral unidirectional flux.
         FEIU_SA (VariableMetadata): Electron integral flux, spin-averaged over the look directions (no pitch angle
             resolution).
+        FIDU (VariableMetadata): Ion (total, all species) differential unidirectional flux.
+        FIDU_SA (VariableMetadata): Ion (total, all species) differential flux, spin-averaged over the look
+            directions (no pitch angle resolution).
         FPDU (VariableMetadata): Proton differential unidirectional flux.
+        FPDU_SA (VariableMetadata): Proton differential flux, spin-averaged over the look directions (no pitch angle
+            resolution).
         Flux (VariableMetadata): Electron differential unidirectional flux.
         G1 (VariableMetadata): Tsyganenko G1 parameter.
         G2 (VariableMetadata): Tsyganenko G2 parameter.
@@ -198,6 +205,7 @@ class GFZMetaData(DatasetMetadata):
         ellipticity (VariableMetadata): Frequency of the power spectral density.
         energy_FEDO (VariableMetadata): Central energy of measured omnidirecitonal flux.
         energy_FEIU (VariableMetadata): Central energy of measured integral flux.
+        energy_FIDU (VariableMetadata): Central energy of measured ion differential flux.
         energy_FPDU (VariableMetadata): Central energy of measured proton differential flux.
         energy_channels (VariableMetadata): Central energy of measured differential flux.
         fce (VariableMetadata): Electron gyrofrequency at the satellite location.
@@ -224,9 +232,13 @@ class GFZMetaData(DatasetMetadata):
     BzIMF: VariableMetadata
     Dst: VariableMetadata
     FEDO: VariableMetadata
+    FEDU_SA: VariableMetadata
     FEIU: VariableMetadata
     FEIU_SA: VariableMetadata
+    FIDU: VariableMetadata
+    FIDU_SA: VariableMetadata
     FPDU: VariableMetadata
+    FPDU_SA: VariableMetadata
     Flux: VariableMetadata
     G1: VariableMetadata
     G2: VariableMetadata
@@ -264,6 +276,7 @@ class GFZMetaData(DatasetMetadata):
     ellipticity: VariableMetadata
     energy_FEDO: VariableMetadata  # noqa: N815
     energy_FEIU: VariableMetadata  # noqa: N815
+    energy_FIDU: VariableMetadata  # noqa: N815
     energy_FPDU: VariableMetadata  # noqa: N815
     energy_channels: VariableMetadata
     fce: VariableMetadata

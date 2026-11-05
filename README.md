@@ -47,6 +47,11 @@ Color code: ${\color{#4A8A4F}\textsf{publication ready}}$, ${\color{#E6D753}\tex
     - ${\color{#E6D753}\textsf{MPS-High (archived and real-time)}}$
 - **GPS**
     - ${\color{#E6D753}\textsf{GPS processing}}$
+- **LANL GeoGrid**
+    - ${\color{#E67D53}\textsf{SOPA and ESP (electrons)}}$
+    - ${\color{#E67D53}\textsf{SOPA (protons)}}$
+    - ${\color{#E67D53}\textsf{MPA (electrons)}}$
+    - ${\color{#E67D53}\textsf{MPA (ions)}}$
 - **ESA**
     - ${\color{#E67D53}\textsf{NGRM satellites}}$
     - ${\color{#E67D53}\textsf{GSSC EMU (electrons and protons)}}$

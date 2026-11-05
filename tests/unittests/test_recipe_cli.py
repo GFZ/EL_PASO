@@ -706,13 +706,14 @@ def test_the_time_range_is_mandatory_for_every_recipe() -> None:
 @pytest.mark.parametrize("entry", RECIPES, ids=lambda e: f"{e.mission}-{e.command}")
 def test_every_recipe_is_exported_from_its_mission_package(entry: RecipeEntry) -> None:
     """A recipe must be importable as el_paso.recipes.<mission>.<function>."""
-    mission = importlib.import_module(f"el_paso.recipes.{entry.mission}")
+    # the package is taken from the module path, since a command group may be kebab-case (e.g. lanl-geogrid)
+    package_name = entry.module.rsplit(".", 1)[0]
+    package_path = package_name.replace(".", "/")
+    mission = importlib.import_module(package_name)
 
-    assert hasattr(mission, entry.function), (
-        f"{entry.function} is missing from el_paso/recipes/{entry.mission}/__init__.py"
-    )
+    assert hasattr(mission, entry.function), f"{entry.function} is missing from {package_path}/__init__.py"
     assert entry.function in getattr(mission, "__all__", ()), (
-        f"{entry.function} is missing from the __all__ of el_paso/recipes/{entry.mission}/__init__.py"
+        f"{entry.function} is missing from the __all__ of {package_path}/__init__.py"
     )
 
 

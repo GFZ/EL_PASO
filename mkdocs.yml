@@ -104,6 +104,7 @@ nav:
           - ESA (NGRM): API_reference/recipes/esa.md
           - GOES: API_reference/recipes/goes.md
           - GPS: API_reference/recipes/gps.md
+          - LANL GeoGrid: API_reference/recipes/lanl_geogrid.md
           - LCDS: API_reference/recipes/lcds.md
           - POES: API_reference/recipes/poes.md
           - ProbaV: API_reference/recipes/probav.md
