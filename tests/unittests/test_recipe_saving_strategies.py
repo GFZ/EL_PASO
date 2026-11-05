@@ -359,14 +359,20 @@ CASES: list[
         ("T89", "b"),
         {},
         ep.saving_strategies.GFZStrategy,
-        {"mission": "RBSP", "satellite": "rbspb", "instrument": "hope", "mag_field": "T89"},
+        {"mission": "RBSP", "satellite": "rbspb", "instrument": "hope_protons", "mag_field": "T89"},
     ),
     (
         rbsp_hope_proton_netcdf_strategy,
         ("T89", "b"),
         {},
         ep.saving_strategies.MonthlyRBStrategy,
-        {"mission": "RBSP", "satellite": "rbspb", "instrument": "hope", "mag_field": "T89", "file_format": ".nc"},
+        {
+            "mission": "RBSP",
+            "satellite": "rbspb",
+            "instrument": "hope_protons",
+            "mag_field": "T89",
+            "file_format": ".nc",
+        },
     ),
     (
         rbsp_mageis_electron_strategy,
