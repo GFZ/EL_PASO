@@ -52,7 +52,7 @@ def process_rbsp_efw_emfisis_density_combined(
     save_strategy: Literal["netcdf", "mat"] = "netcdf",
     *,
     skip_existing: bool = True,
-    add_hiss_derived_densitites: bool = True,
+    add_hiss_derived_densitites: bool = False,
     hiss_derived_densities_data_path: str | Path = ".",
     save_indices_sw: bool = False,
     append: bool = False,
@@ -350,6 +350,11 @@ def _get_and_time_bin_hiss_derived_densities(
             unit=u.cm**-3,
         ),
     ]
+
+    hiss_derived_densities_file_path = Path(hiss_derived_densities_data_path) / file_name_stem
+    if not hiss_derived_densities_file_path.exists():
+        msg = f"Hiss-derived density file does not exist: {hiss_derived_densities_file_path}"
+        raise FileNotFoundError(msg)
 
     hiss_derived_vars = ep.extract_variables_from_files(
         start_time=start_time,
