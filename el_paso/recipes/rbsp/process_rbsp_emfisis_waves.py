@@ -43,7 +43,7 @@ def process_rbsp_emfisis_waves(
     start_time: datetime,
     end_time: datetime,
     satellite: RBSPSatellite = "a",
-    mag_field: Literal["T89", "T96", "TS04"] = "T89",
+    mag_field: ep.typing.MagneticFieldLiteral = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=5),
@@ -69,7 +69,7 @@ def process_rbsp_emfisis_waves(
         start_time (datetime): Start of the time range to process.
         end_time (datetime): End of the time range to process.
         satellite (Literal["a", "b"]): RBSP satellite identifier ("a" or "b").
-        mag_field (Literal["T89", "T96", "TS04"]): Unused by this recipe; accepted only for
+        mag_field (ep.typing.MagneticFieldLiteral): Unused by this recipe; accepted only for
             interface consistency with other EL-PASO recipes, since EMFISIS wave processing
             derives its orbital quantities (L-shell, MLAT, MLT, electron cyclotron frequency)
             directly from the magnetometer data without using a magnetic field model.

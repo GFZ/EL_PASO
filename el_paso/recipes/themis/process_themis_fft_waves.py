@@ -55,7 +55,7 @@ def process_themis_fft_waves(
     start_time: datetime,
     end_time: datetime,
     satellite: ThemisProbe = "a",
-    mag_field: Literal["T89", "T96", "TS04"] = "T89",
+    mag_field: ep.typing.MagneticFieldLiteral = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=5),
@@ -81,7 +81,7 @@ def process_themis_fft_waves(
         start_time (datetime): Start of the time range to process.
         end_time (datetime): End of the time range to process.
         satellite (Literal["a", "b", "c", "d", "e"]): THEMIS probe identifier.
-        mag_field (Literal["T89", "T96", "TS04"]): The magnetic field model used to compute the
+        mag_field (ep.typing.MagneticFieldLiteral): The magnetic field model used to compute the
             magnetic local time and the mapped equatorial radial distance.
         raw_data_path (str | Path): Base directory pyspedas downloads the raw THEMIS files into
             and reads them from. Defaults to ".".
@@ -276,7 +276,7 @@ def _get_orbit_vars(
     end_time: datetime,
     satellite: ThemisProbe,
     target_time_var: ep.Variable,
-    mag_field: Literal["T89", "T96", "TS04"],
+    mag_field: ep.typing.MagneticFieldLiteral,
     num_cores: int,
 ) -> dict[str, ep.Variable]:
     """Interpolate the position onto the FFT cadence and derive the orbital quantities."""

@@ -37,7 +37,7 @@ def process_arase_pwe_density(
     start_time: datetime,
     end_time: datetime,
     satellite: Literal["arase"] = "arase",
-    mag_field: Literal["T89", "TS04", "OP77Q"] = "T89",
+    mag_field: ep.typing.MagneticFieldLiteral = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=5),
@@ -61,7 +61,7 @@ def process_arase_pwe_density(
         end_time (datetime): End of the time range to process.
         satellite (Literal["arase"]): Identifier of the satellite to process. Arase is a
                                                     single-satellite mission, so this has only one value.
-        mag_field (Literal["T89", "TS04", "OP77Q"]): The magnetic field model used for the
+        mag_field (ep.typing.MagneticFieldLiteral): The magnetic field model used for the
                                                     magnetic-field-related output variables and
                                                     the equatorial density mapping.
         raw_data_path (str | Path): Directory where downloaded raw data files are

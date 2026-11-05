@@ -59,7 +59,7 @@ def process_rbsp_mageis_electrons(
     start_time: datetime,
     end_time: datetime,
     satellite: RBSPSatellite = "a",
-    mag_field: Literal["T89", "T96", "TS04"] = "T89",
+    mag_field: ep.typing.MagneticFieldLiteral = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=5),
@@ -90,7 +90,7 @@ def process_rbsp_mageis_electrons(
         start_time (datetime): Start of the time range to process.
         end_time (datetime): End of the time range to process.
         satellite (Literal["a", "b"]): RBSP satellite identifier ("a" or "b").
-        mag_field (Literal["T89", "T96", "TS04"]): Magnetic field model used to compute the
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model used to compute the
             magnetic-field-related variables.
         raw_data_path (str | Path): Directory where raw CDF files are downloaded to and
             read from. Defaults to ".".
