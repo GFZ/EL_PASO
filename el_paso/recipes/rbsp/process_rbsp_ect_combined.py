@@ -57,6 +57,7 @@ def process_rbsp_ect_combined(
     *,
     add_B_obs: bool = False,
     save_indices_sw: bool = False,
+    append: bool = True,
 ) -> None:
     """Process combined RBSP ECT (REPT/MagEIS) electron flux data into the EL-PASO data standard.
 
@@ -88,6 +89,8 @@ def process_rbsp_ect_combined(
             magnetic field magnitude (B_total_obs) and InvMu_obs computed from it. Defaults to False.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to True.
     """
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
@@ -251,7 +254,7 @@ def process_rbsp_ect_combined(
     else:
         strategy = rbsp_ect_combined_netcdf_strategy(processed_data_path, mag_field, satellite)
 
-    ep.save(variables_to_save, strategy, start_time, end_time, binned_time_variable, append=True)
+    ep.save(variables_to_save, strategy, start_time, end_time, binned_time_variable, append=append)
 
     if save_indices_sw:
         process_solar_wind_indices(

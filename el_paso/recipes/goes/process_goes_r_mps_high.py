@@ -67,6 +67,7 @@ def process_goes_r_mps_high(
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
     *,
     save_indices_sw: bool = False,
+    append: bool = True,
 ) -> None:
     """Process GOES-R MPS-HI MAGED electron data into pitch-angle resolved phase space densities.
 
@@ -92,6 +93,8 @@ def process_goes_r_mps_high(
         skip_existing (bool): If True, skip downloading files that already exist on disk.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to True.
     """
     data_path_stem = f"{raw_data_path}/YYYY/MM/{satellite}/"
 
@@ -303,7 +306,7 @@ def process_goes_r_mps_high(
     else:
         saving_strategy = goes_r_mps_high_netcdf_strategy(processed_data_path, mag_field, satellite)
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=True)
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=append)
 
     if save_indices_sw:
         process_solar_wind_indices(

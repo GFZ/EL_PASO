@@ -46,6 +46,7 @@ def process_arase_pwe_density(
     *,
     skip_existing: bool = True,
     save_indices_sw: bool = False,
+    append: bool = False,
 ) -> None:
     """Process Arase PWE/HFA electron density data and save the mapped equatorial density.
 
@@ -78,6 +79,8 @@ def process_arase_pwe_density(
                                             Defaults to True.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to False.
     """
     del satellite
     del save_strategy
@@ -195,7 +198,7 @@ def process_arase_pwe_density(
         "xGEO_Eq": magnetic_field_variables["xGEO_Eq_" + mag_field],
     }
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable, append=append)
 
     if save_indices_sw:
         process_solar_wind_indices(

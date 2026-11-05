@@ -73,6 +73,7 @@ def process_goes_eps_maged_and_epead(
     *,
     add_B_obs: bool = False,
     save_indices_sw: bool = False,
+    append: bool = True,
 ) -> None:
     """Process combined GOES-13/15 EPS MAGED and EPEAD electron data into phase space densities.
 
@@ -105,6 +106,8 @@ def process_goes_eps_maged_and_epead(
             observed magnetic field magnitude (B_total_obs) and InvMu_obs computed from it. Defaults to False.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to True.
     """
     data_path_stem = f"{raw_data_path}/YYYY/MM/{satellite}/"
 
@@ -264,7 +267,7 @@ def process_goes_eps_maged_and_epead(
     else:
         saving_strategy = goes_eps_maged_and_epead_netcdf_strategy(processed_data_path, mag_field, satellite)
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=maged_vars["Epoch"], append=True)
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=maged_vars["Epoch"], append=append)
 
     if save_indices_sw:
         process_solar_wind_indices(

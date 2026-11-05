@@ -141,6 +141,7 @@ def process_gps_data(
     *,
     skip_existing: bool = True,
     save_indices_sw: bool = False,
+    append: bool = False,
 ) -> None:
     """Process LANL GPS electron flux data into magnetic-field-resolved data products.
 
@@ -177,6 +178,8 @@ def process_gps_data(
                                             Defaults to True.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to False.
     """
     del save_strategy
 
@@ -338,7 +341,7 @@ def process_gps_data(
 
     saving_strategy = gps_cxd_strategy(processed_data_path, mag_field, satellite)
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var)
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=append)
 
     if save_indices_sw:
         process_solar_wind_indices(

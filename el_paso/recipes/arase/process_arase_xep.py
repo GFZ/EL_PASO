@@ -71,6 +71,7 @@ def process_arase_xep(
     skip_existing: bool = True,
     add_B_obs: bool = False,
     save_indices_sw: bool = False,
+    append: bool = False,
 ) -> None:
     """Process Arase XEP Level 2 omnidirectional electron flux data and save derived products.
 
@@ -117,6 +118,8 @@ def process_arase_xep(
                                 from it. Defaults to False.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to False.
     """
     del satellite
 
@@ -367,7 +370,7 @@ def process_arase_xep(
         case "netcdf":
             saving_strategy = arase_xep_strategy(processed_data_path, mag_field)
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable, append=append)
 
     if save_indices_sw:
         process_solar_wind_indices(

@@ -70,6 +70,7 @@ def process_arase_xep_real_time(
     skip_existing: bool = True,
     do_xep_extraction: bool = True,
     save_indices_sw: bool = False,
+    append: bool = True,
 ) -> None:
     """Process Arase XEP real-time electron flux data and save derived products.
 
@@ -104,6 +105,8 @@ def process_arase_xep_real_time(
             orbit data is processed.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to True.
 
     Raises:
         ValueError: If `erg_user` is not provided and the ``ERG_USER`` environment variable is
@@ -251,7 +254,7 @@ def process_arase_xep_real_time(
         start_time,
         end_time,
         time_var=binned_time_var,
-        append=True,
+        append=append,
     )
 
     if save_indices_sw:

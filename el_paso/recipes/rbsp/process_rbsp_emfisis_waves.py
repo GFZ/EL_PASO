@@ -52,6 +52,7 @@ def process_rbsp_emfisis_waves(
     *,
     skip_existing: bool = True,
     save_indices_sw: bool = False,
+    append: bool = False,
 ) -> None:
     """Process RBSP EMFISIS wave, density, and magnetometer data and save derived wave properties.
 
@@ -90,6 +91,8 @@ def process_rbsp_emfisis_waves(
             Defaults to True.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to False.
     """
     del mag_field
     del bin_cadence
@@ -191,7 +194,7 @@ def process_rbsp_emfisis_waves(
 
     saving_strat = rbsp_emfisis_waves_strategy(processed_data_path, satellite)
 
-    ep.save(vars_to_save, saving_strat, start_time, end_time, target_time_var)
+    ep.save(vars_to_save, saving_strat, start_time, end_time, target_time_var, append=append)
 
     if save_indices_sw:
         process_solar_wind_indices(

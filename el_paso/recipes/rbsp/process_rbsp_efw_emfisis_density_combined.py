@@ -55,6 +55,7 @@ def process_rbsp_efw_emfisis_density_combined(
     add_hiss_derived_densitites: bool = True,
     hiss_derived_densities_data_path: str | Path = ".",
     save_indices_sw: bool = False,
+    append: bool = False,
 ) -> None:
     """Process and combine RBSP EFW and EMFISIS electron density data.
 
@@ -86,6 +87,8 @@ def process_rbsp_efw_emfisis_density_combined(
             hiss-derived density text files.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to False.
     """
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
@@ -222,7 +225,7 @@ def process_rbsp_efw_emfisis_density_combined(
         file_format="mat" if save_strategy == "mat" else "nc",
     )
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable, append=append)
 
     if save_indices_sw:
         process_solar_wind_indices(

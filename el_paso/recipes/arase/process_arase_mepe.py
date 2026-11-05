@@ -86,6 +86,7 @@ def process_arase_mepe(
     skip_existing: bool = True,
     add_B_obs: bool = False,
     save_indices_sw: bool = False,
+    append: bool = False,
 ) -> None:
     """Process Arase MEP-e Level 3 electron flux data and save derived products.
 
@@ -131,6 +132,8 @@ def process_arase_mepe(
                                 from it. Only supported with the "gfz" data standard. Defaults to False.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to False.
 
     Raises:
         ValueError: If `add_B_obs` is set together with the "prbem" data standard, which does not
@@ -374,7 +377,7 @@ def process_arase_mepe(
         case "netcdf":
             saving_strategy = arase_mepe_netcdf_strategy(processed_data_path, mag_field_save, data_standard_instance)
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable, append=append)
 
     if save_indices_sw:
         process_solar_wind_indices(

@@ -80,6 +80,7 @@ def process_goes_real_time(
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
     *,
     save_indices_sw: bool = False,
+    append: bool = True,
 ) -> None:
     """Process GOES real-time differential electron flux data into pitch-angle resolved phase space densities.
 
@@ -107,6 +108,8 @@ def process_goes_real_time(
         skip_existing (bool): If True, skip downloading files that already exist on disk.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to True.
     """
     # Part 1: specify source files to extract variables
     data_path_stem = f"{raw_data_path}/GOES/YYYY/MM/{satellite}/"
@@ -257,7 +260,7 @@ def process_goes_real_time(
     else:
         strategy = goes_realtime_netcdf_strategy(processed_data_path, mag_field, satellite)
 
-    ep.save(vars_to_save, strategy, start_time, end_time, time_var=binned_time_var, append=True)
+    ep.save(vars_to_save, strategy, start_time, end_time, time_var=binned_time_var, append=append)
 
     if save_indices_sw:
         process_solar_wind_indices(
