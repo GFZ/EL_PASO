@@ -47,7 +47,7 @@ def process_poes_ted_electron(
     num_cores: int = 16,
     save_strategy: Literal["netcdf"] = "netcdf",
     *,
-    calculate_Lm_Lstar: bool = False,
+    calculate_Lstar: bool = False,
     skip_existing: bool = True,
     save_indices_sw: bool = False,
     append: bool = False,
@@ -72,7 +72,7 @@ def process_poes_ted_electron(
         processed_data_path (str | Path): Directory where the processed output files are saved.
         bin_cadence (timedelta): Time cadence used to bin the extracted variables.
         num_cores (int): Number of CPU cores used for the magnetic field computations.
-        calculate_Lm_Lstar (bool): If True, additionally compute and save the L_m and
+        calculate_Lstar (bool): If True, additionally compute and save the L_m and
             L_star magnetic field quantities.
         save_strategy (Literal["netcdf"]): The saving strategy used to write the processed
                                                     data. POES TED data only supports a single
@@ -209,7 +209,7 @@ def process_poes_ted_electron(
         ("Alpha_LC_Eq", mag_field),
     ]
 
-    if calculate_Lm_Lstar:
+    if calculate_Lstar:
         variables_to_compute.extend([("L_star", mag_field), ("L_m", mag_field)])
 
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
@@ -243,7 +243,7 @@ def process_poes_ted_electron(
         "Alpha_LC_Eq": magnetic_field_variables[f"Alpha_LC_Eq_{mag_field}"],
     }
 
-    if calculate_Lm_Lstar:
+    if calculate_Lstar:
         variables_to_save |= {
             "L_m": magnetic_field_variables[f"L_m_{mag_field}"],
             "L_star": magnetic_field_variables[f"L_star_{mag_field}"],

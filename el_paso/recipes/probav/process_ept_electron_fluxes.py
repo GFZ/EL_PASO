@@ -66,6 +66,7 @@ def process_ept_electron_fluxes(
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
     *,
     apply_correction_factors: bool = False,
+    calculate_Lstar: bool = False,
     save_indices_sw: bool = False,
     append: bool = True,
 ) -> None:
@@ -100,6 +101,8 @@ def process_ept_electron_fluxes(
             strategies) to use for the processed output.
         skip_existing (bool): If True, skip downloading files that already exist locally.
         apply_correction_factors (bool): Flag whether to apply correction factors to fluxes.
+        calculate_Lstar (bool): If True, also compute the L* magnetic field quantity.
+            Defaults to False.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
         append (bool): If True, append to existing output files instead of overwriting them.
@@ -283,6 +286,9 @@ def process_ept_electron_fluxes(
         ("L_m", mag_field),
     ]
 
+    if calculate_Lstar:
+        variables_to_compute.append(("L_star", mag_field))
+
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
         time_var=binned_time_var,
         xgeo_var=variables["xGEO"],
@@ -291,7 +297,9 @@ def process_ept_electron_fluxes(
         particle_species="electron",
         variables_to_compute=variables_to_compute,
         irbem_options=ep.processing.magnetic_field_utils.IrbemOptions(
-            lstar_quantity=ep.processing.magnetic_field_utils.LstarQuantity.NONE,
+            lstar_quantity=ep.processing.magnetic_field_utils.LstarQuantity.LSTAR
+            if calculate_Lstar
+            else ep.processing.magnetic_field_utils.LstarQuantity.NONE,
         ),
         num_cores=num_cores,
     )
@@ -311,6 +319,9 @@ def process_ept_electron_fluxes(
         "B_Eq": magnetic_field_variables[f"B_Eq_{mag_field}"],
         "Position": variables["xGEO"],
     }
+
+    if calculate_Lstar:
+        variables_to_save["L_star"] = magnetic_field_variables[f"L_star_{mag_field}"]
 
     if save_strategy == "gfz":
         strategy = probav_ept_electron_gfz_strategy(processed_data_path, mag_field)

@@ -70,6 +70,7 @@ def process_arase_xep(
     use_level_3_orbit_data: bool = True,
     skip_existing: bool = True,
     add_B_obs: bool = False,
+    calculate_Lstar: bool = True,
     save_indices_sw: bool = False,
     append: bool = False,
 ) -> None:
@@ -116,6 +117,8 @@ def process_arase_xep(
         add_B_obs (bool): If True, also download the MGF Level 2 8-second magnetometer data and save
                                 the observed magnetic field magnitude (B_total_obs) and InvMu_obs computed
                                 from it. Defaults to False.
+        calculate_Lstar (bool): If True, also compute (or, when `use_level_3_orbit_data` is True,
+            interpolate and save) the L* magnetic field quantity. Defaults to True.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
         append (bool): If True, append to existing output files instead of overwriting them.
@@ -220,10 +223,11 @@ def process_arase_xep(
             "B_local": ep.TimeBinMethod.NanMedian,
             "B_eq": ep.TimeBinMethod.NanMedian,
             "Lm": ep.TimeBinMethod.NanMean,
-            "Lstar": ep.TimeBinMethod.NanMean,
             "MLT": ep.TimeBinMethod.NanMean,
             "R0": ep.TimeBinMethod.NanMean,
         }
+        if calculate_Lstar:
+            time_bin_methods["Lstar"] = ep.TimeBinMethod.NanMean
 
         binned_time_variable = ep.processing.bin_by_time(
             orb_variables["Epoch"],
@@ -243,7 +247,8 @@ def process_arase_xep(
 
         pa_local_deg = xep_variables["AlphaLocal"].get_data(u.deg)
         orb_variables["Lm"] = interpolate_level_3_to_pitch_angles(orb_variables["Lm"], pa_local_deg)
-        orb_variables["Lstar"] = interpolate_level_3_to_pitch_angles(orb_variables["Lstar"], pa_local_deg)
+        if calculate_Lstar:
+            orb_variables["Lstar"] = interpolate_level_3_to_pitch_angles(orb_variables["Lstar"], pa_local_deg)
 
     else:
         time_bin_methods = {
@@ -271,7 +276,11 @@ def process_arase_xep(
         )
         pos_geo_var = ep.Variable(data=geo_data, original_unit=ep.units.RE)
 
-        irbem_options = ep.processing.magnetic_field_utils.IrbemOptions()
+        irbem_options = ep.processing.magnetic_field_utils.IrbemOptions(
+            lstar_quantity=ep.processing.magnetic_field_utils.LstarQuantity.LSTAR
+            if calculate_Lstar
+            else ep.processing.magnetic_field_utils.LstarQuantity.NONE,
+        )
 
         variables_to_compute: ep.processing.VariableRequest = [
             ("B_Calc", mag_field),
@@ -280,10 +289,12 @@ def process_arase_xep(
             ("R_Eq", mag_field),
             ("Alpha_Eq", mag_field),
             ("L_m", mag_field),
-            ("L_star", mag_field),
             ("InvK", mag_field),
             ("InvMu", mag_field),
         ]
+
+        if calculate_Lstar:
+            variables_to_compute.append(("L_star", mag_field))
 
         magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
             time_var=binned_time_variable,
@@ -300,7 +311,8 @@ def process_arase_xep(
         orb_variables["MLT"] = magnetic_field_variables["MLT_" + mag_field]
         xep_variables["Alpha_eq"] = magnetic_field_variables["Alpha_Eq_" + mag_field]
         orb_variables["Lm"] = magnetic_field_variables["L_m_" + mag_field]
-        orb_variables["Lstar"] = magnetic_field_variables["L_star_" + mag_field]
+        if calculate_Lstar:
+            orb_variables["Lstar"] = magnetic_field_variables["L_star_" + mag_field]
         orb_variables["InvK"] = magnetic_field_variables["InvK_" + mag_field]
         orb_variables["InvMu"] = magnetic_field_variables["InvMu_" + mag_field]
 
@@ -342,9 +354,11 @@ def process_arase_xep(
         "R_Eq": orb_variables["R0"],
         "MLT": orb_variables["MLT"],
         "L_m": orb_variables["Lm"],
-        "L_star": orb_variables["Lstar"],
         "PSD": psd_var,
     }
+    if calculate_Lstar:
+        variables_to_save["L_star"] = orb_variables["Lstar"]
+
     # Level 3 orbit data does not provide the adiabatic invariants
     if not use_level_3_orbit_data:
         variables_to_save |= {
