@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 from el_paso.saving_strategies.monthly_rb_strategy import MonthlyRBStrategy
 
 if TYPE_CHECKING:
+    from el_paso.one_of import OneOf
     from el_paso.typing import InternalName
 
 
@@ -20,6 +21,6 @@ class MonthlyOmniFluxRBStrategy(MonthlyRBStrategy):
     flux (FEDO) together with its energy and local pitch-angle range.
     """
 
-    def _get_output_file_entries(self) -> list[InternalName | tuple[InternalName, ...]]:
+    def _get_output_file_entries(self) -> list[InternalName | OneOf]:
         """Return the monthly variable list plus FEDO and its energy and pitch-angle range."""
         return [*super()._get_output_file_entries(), "FEDO", "Energy_FEDO", "Alpha_range"]

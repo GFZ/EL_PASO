@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from el_paso.one_of import OneOf
 from el_paso.saving_strategy import OutputFile, SavingStrategy
 from el_paso.utils import write_netcdf_file
 
@@ -69,13 +70,13 @@ class DailyWaveStrategy(SavingStrategy):
             OutputFile("full", self._get_output_file_entries(), save_incomplete=True),
         ]
 
-    def _get_output_file_entries(self) -> list[InternalName | tuple[InternalName, ...]]:
+    def _get_output_file_entries(self) -> list[InternalName | OneOf]:
         """Return the standard variable list plus user-defined custom variables."""
         return [
             "Epoch",
             "Wave_frequency",
             # whichever density type the recipe provides
-            ("Number_density_scpot", "Number_density_spectrogram", "Number_density_other"),
+            OneOf("Number_density_scpot", "Number_density_spectrogram", "Number_density_other"),
             "Wave_ellipticity",
             "Wave_normal_angle",
             "Wave_planarity",
@@ -139,7 +140,7 @@ class DailyWaveStrategy(SavingStrategy):
         internal_name: InternalName,
         *,
         first_call_of_interval: bool,
-        available_keys: set[InternalName] | None = None,
+        available_keys: set[InternalName],
     ) -> Variable:
         """Standardize a variable through the configured data standard."""
         return self.data_standard.standardize_variable(

@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, get_args
 import numpy as np
 
 import el_paso as ep
+from el_paso.one_of import alternatives_of
 from el_paso.typing import InternalName, Variable
 from el_paso.utils import enforce_utc_timezone, timed_function
 
@@ -66,6 +67,8 @@ def save(
         If an output file is missing one or more of its required variables, a
         warning is logged and that output file is skipped (no exception is raised).
     """
+    # after this step, we know that all required dependencies are present for the
+    # full set of variables
     if not ignore_validation:
         _validate_variables_dict(variables_dict)
         saving_strategy.data_standard.validate(variables_dict)
@@ -121,7 +124,7 @@ def _warn_about_unsaved_variables(
             return
 
         for name in output_file.names_to_save:
-            names_to_save.update(name if isinstance(name, tuple) else (name,))
+            names_to_save.update(alternatives_of(name))
 
     unsaved_names = [name for name in variables_dict if name not in names_to_save]
     if unsaved_names:

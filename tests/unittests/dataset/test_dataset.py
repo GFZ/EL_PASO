@@ -19,6 +19,7 @@ from astropy import units as u
 from el_paso.dataset import DataSet, GFZDataSet
 from el_paso.dataset.dataset import _describe_difference
 from el_paso.dataset.utils import python2matlab
+from el_paso.one_of import alternatives_of
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -358,7 +359,7 @@ class TestDataSet:  # noqa: D101
             # Pick a name unique to this output file: shared names (e.g. "Epoch") resolve back
             # to whichever output file lists them first, not necessarily this one.
             for name in output_file.names_to_save:
-                internal_name = name[0] if isinstance(name, tuple) else name
+                internal_name = alternatives_of(name)[0]
                 standard_name = strategy.data_standard.get_standard_name(internal_name)
                 if strategy.get_output_file(standard_name=standard_name) is output_file:
                     mock_dataset._load_variable(standard_name)

@@ -7,12 +7,14 @@ from __future__ import annotations
 
 import inspect
 import logging
+import warnings
 from abc import ABC
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Generic, Literal, NamedTuple, Never, TypeVar, get_args
 
 import numpy as np
 
+from el_paso.one_of import OneOf, describe, resolve_name
 from el_paso.typing import FixedDimensionName, InternalName
 from el_paso.utils import assert_n_dim
 
@@ -32,14 +34,19 @@ T_co = TypeVar("T_co", bound=str, covariant=True)
 SortOrder = tuple[InternalName, Literal["ascending", "descending"]]
 
 
-class VariableInfo(NamedTuple, Generic[T_co]):
-    """A named tuple to store information about a variable in a data standard.
+Dependency = InternalName | FixedDimensionName | OneOf
+
+
+@dataclass(init=False)
+class VariableInfo(Generic[T_co]):
+    """Information about a variable in a data standard.
 
     Attributes:
         standard_name: The canonical name used by this data standard.
         description: Human-readable description of the variable.
         unit: The physical unit the data must be stored in.
-        dependencies: Ordered list of dimension names or tuple of dimension names for this variable.
+        dependencies: Ordered list of the variable's dimensions. Each entry is a dimension
+            name, or a `OneOf` when any one of several dimensions satisfies it.
         sorted_along: Optional ``(dimension_name, "ascending" | "descending")``
             tuple.  When set, :meth:`DataStandard.standardize_variable` will
             verify that the data is monotonically sorted along the given
@@ -49,8 +56,39 @@ class VariableInfo(NamedTuple, Generic[T_co]):
     standard_name: T_co
     description: str
     unit: u.UnitBase
-    dependencies: list[InternalName | FixedDimensionName | tuple[InternalName, ...]]
-    sorted_along: SortOrder | None = None
+    dependencies: list[Dependency]
+    sorted_along: SortOrder | None
+
+    def __init__(
+        self,
+        standard_name: T_co,
+        description: str,
+        unit: u.UnitBase,
+        dependencies: Sequence[Dependency | tuple[InternalName, ...]],
+        sorted_along: SortOrder | None = None,
+    ) -> None:
+        """Initializes the variable info.
+
+        Args:
+            standard_name (T_co): The canonical name used by this data standard.
+            description (str): Human-readable description of the variable.
+            unit (u.UnitBase): The physical unit the data must be stored in.
+            dependencies (Sequence[Dependency | tuple[InternalName, ...]]): The variable's dimensions.
+                A tuple of alternatives is converted to a `OneOf` (deprecated; pass a `OneOf`).
+            sorted_along (SortOrder | None): Dimension along which the data must be sorted, if any.
+        """
+        if any(isinstance(dep, tuple) for dep in dependencies):
+            warnings.warn(
+                "Passing alternatives in dependencies as a tuple is deprecated; use OneOf(...) instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        self.standard_name = standard_name
+        self.description = description
+        self.unit = unit
+        self.dependencies = [OneOf(*dep) if isinstance(dep, tuple) else dep for dep in dependencies]
+        self.sorted_along = sorted_along
 
 
 class DataStandard(ABC, Generic[T_co]):
@@ -111,16 +149,15 @@ class DataStandard(ABC, Generic[T_co]):
 
         return self.variable_infos[internal_name].standard_name
 
-    def get_dependencies(
-        self, internal_name: InternalName
-    ) -> list[InternalName | FixedDimensionName | tuple[InternalName, ...]]:
-        """Returns the ordered dimension names that a variable depends on.
+    def get_dependencies(self, internal_name: InternalName) -> list[Dependency]:
+        """Returns the ordered dimensions that a variable depends on.
 
         Args:
             internal_name (InternalName): The internal name of the variable.
 
         Returns:
-            list[InternalName | FixedDimensionName]: The ordered list of dimension names.
+            list[Dependency]: The ordered list of dimension names, with a `OneOf` where any one
+                of several dimensions satisfies the entry.
 
         Raises:
             ValueError: If ``internal_name`` is not part of this data standard.
@@ -133,24 +170,55 @@ class DataStandard(ABC, Generic[T_co]):
 
     @staticmethod
     def resolve_dependencies(
-        dependencies: list[InternalName | FixedDimensionName | tuple[InternalName, ...]],
-        available_keys: set[InternalName] | None,
-    ) -> list[InternalName | FixedDimensionName]:
-        """Resolves alternative-name dependency entries to a single concrete name.
+        dependencies: list[Dependency],
+        available_keys: set[InternalName],
+    ) -> list[InternalName | FixedDimensionName | None]:
+        """Resolves `OneOf` dependency entries to a single concrete name.
 
-        For each dependency entry that is a tuple of alternatives, picks whichever
-        alternative is present in `available_keys`. If `available_keys` is not
-        provided, or none of the alternatives are present, falls back to the first
-        alternative so downstream shape/consistency checks still have a name to use.
+        For each `OneOf` entry, picks the first alternative present in `available_keys`.
+        Plain names are returned unchanged, whether present or not; checking for missing
+        dimensions is the job of :meth:`validate`.
+
+        Args:
+            dependencies (list[Dependency]): The dependencies to resolve.
+            available_keys (set[InternalName]): The internal names being saved together.
+
+        Returns:
+            list[InternalName | FixedDimensionName | None]: One entry per dependency: the
+                resolved dimension name, or None for a `OneOf` entry with no alternative in
+                `available_keys`.
         """
-        resolved: list[InternalName | FixedDimensionName] = []
-        for dep in dependencies:
-            if isinstance(dep, tuple):
-                match = next((alt for alt in dep if available_keys and alt in available_keys), None)
-                resolved.append(match if match is not None else dep[0])
-            else:
-                resolved.append(dep)
-        return resolved
+        return [dep.resolve(available_keys) if isinstance(dep, OneOf) else dep for dep in dependencies]
+
+    def get_resolved_dependencies(
+        self, internal_name: InternalName, available_keys: set[InternalName]
+    ) -> list[InternalName | FixedDimensionName]:
+        """Returns a variable's dimensions, with each `OneOf` resolved against `available_keys`.
+
+        Args:
+            internal_name (InternalName): The internal name of the variable.
+            available_keys (set[InternalName]): The internal names being saved together.
+
+        Returns:
+            list[InternalName | FixedDimensionName]: The resolved dimension names.
+
+        Raises:
+            ValueError: If ``internal_name`` is not part of this data standard, or if none of
+                the alternatives of one of its `OneOf` dimensions is in `available_keys`.
+        """
+        dependencies = self.get_dependencies(internal_name)
+        resolved = self.resolve_dependencies(dependencies, available_keys)
+
+        unresolved = [describe(dep) for dep, name in zip(dependencies, resolved, strict=True) if name is None]
+        if unresolved:
+            msg = (
+                f"Cannot resolve the dimensions of {internal_name}: none of "
+                f"{'; '.join(unresolved)} is present among the variables saved together with it."
+            )
+            raise ValueError(msg)
+
+        # no None is left at this point; the comprehension narrows the type for the type checker
+        return [name for name in resolved if name is not None]
 
     def validate(self, variables_dict: Mapping[InternalName, Variable]) -> None:
         """Checks that a set of variables can be saved together under this data standard.
@@ -174,17 +242,9 @@ class DataStandard(ABC, Generic[T_co]):
         missing: dict[str, list[str]] = {}
         for name in variables_dict:
             for dep in self.get_dependencies(name):
-                # a tuple entry means "any one of these alternative dimension names satisfies it"
-                if isinstance(dep, tuple):
-                    if any(alt in available_keys for alt in dep):
-                        continue
-                    dim_label = " or ".join(dep)
-                    missing.setdefault(dim_label, []).append(name)
+                if dep in get_args(FixedDimensionName) or resolve_name(dep, available_keys) is not None:
                     continue
-
-                if dep in get_args(FixedDimensionName) or dep in available_keys:
-                    continue
-                missing.setdefault(dep, []).append(name)
+                missing.setdefault(describe(dep), []).append(name)
 
         if len(missing) > 0:
             missing_details = "; ".join(
@@ -199,7 +259,7 @@ class DataStandard(ABC, Generic[T_co]):
         variable: Variable,
         *,
         reset_consistency_check: bool,
-        available_keys: set[InternalName] | None = None,
+        available_keys: set[InternalName],
     ) -> Variable:
         """Standardizes a variable according to the data standard's rules.
 
@@ -207,11 +267,15 @@ class DataStandard(ABC, Generic[T_co]):
             internal_name (str): The internal name of the variable to be standardized.
             variable (Variable): The variable to be standardized.
             reset_consistency_check (bool): If set to true, the consistency check will be reseted.
-            available_keys (set[InternalName] | None): The full set of internal names being
+            available_keys (set[InternalName]): The full set of internal names being
                 saved together in this call.
 
         Returns:
             Variable: The standardized variable.
+
+        Raises:
+            ValueError: If none of the alternatives of one of the variable's `OneOf`
+                dimensions is in `available_keys`.
         """
         if reset_consistency_check:
             self.consistency_check = ConsistencyCheck()
@@ -221,7 +285,7 @@ class DataStandard(ABC, Generic[T_co]):
             return variable
 
         variable_info = self.variable_infos[internal_name]
-        resolved_dependencies = self.resolve_dependencies(variable_info.dependencies, available_keys)
+        resolved_dependencies = self.get_resolved_dependencies(internal_name, available_keys)
 
         variable.convert_to_unit(variable_info.unit)
         if len(variable.metadata.description) == 0:
@@ -261,7 +325,7 @@ class NullDataStandard(DataStandard[Never]):
         variable: Variable,
         *,
         reset_consistency_check: bool,  # noqa: ARG002
-        available_keys: set[InternalName] | None = None,  # noqa: ARG002
+        available_keys: set[InternalName],  # noqa: ARG002
     ) -> Variable:
         """Returns the variable unchanged."""
         return variable

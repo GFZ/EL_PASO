@@ -30,7 +30,7 @@ def test_validate_raises_for_missing_dimension() -> None:
 
 @pytest.mark.minimal
 @pytest.mark.basic
-def test_validate_accepts_any_alternative_of_tuple_dependency() -> None:
+def test_validate_accepts_any_alternative_of_one_of_dependency() -> None:
     ep.data_standards.GFZStandard().validate({"Epoch": _var(), "Alpha": _var(), "Energy_FPDU": _var(), "PSD": _var()})
 
 
@@ -51,5 +51,7 @@ def test_null_data_standard_accepts_anything() -> None:
 @pytest.mark.basic
 def test_null_data_standard_leaves_variable_unchanged() -> None:
     variable = _var()
-    result = NullDataStandard().standardize_variable("FEDU", variable, reset_consistency_check=True)
+    result = NullDataStandard().standardize_variable(
+        "FEDU", variable, reset_consistency_check=True, available_keys={"FEDU"}
+    )
     assert result is variable

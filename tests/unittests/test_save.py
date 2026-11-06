@@ -192,3 +192,33 @@ def test_variable_not_in_data_standard_raises_descriptive_error(tmp_path: Path) 
 
     with pytest.raises(ValueError, match=r"not part of PRBEMStandard: \['Wave_frequency'\]"):
         ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=variables_to_save["Epoch"])
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+@pytest.mark.parametrize("file_format", ["mat", "nc"])
+def test_unresolvable_one_of_dimension_raises_even_without_validation(tmp_path: Path, file_format: str) -> None:
+    """PSD needs Energy_FEDU or Energy_FPDU; skipping validation must not let it be saved without either."""
+    start_time = datetime(2024, 5, 1, tzinfo=timezone.utc)
+    end_time = datetime(2024, 5, 2, tzinfo=timezone.utc)
+    times = np.array([start_time.timestamp() + 3600 * i for i in range(4)])
+
+    variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+        "Epoch": ep.Variable(ep.units.posixtime, data=times),
+        "Alpha": ep.Variable(u.deg, data=np.tile([10.0, 20.0], (4, 1))),
+        "PSD": ep.Variable(ep.units.psd_natural_unit, data=np.ones((4, 3, 2))),
+    }
+
+    saving_strategy = ep.saving_strategies.MonthlyRBStrategy(
+        tmp_path, "TEST", "sat", "inst", "T89", data_standard=ep.data_standards.GFZStandard(), file_format=file_format
+    )
+
+    with pytest.raises(ValueError, match=r"dimensions of PSD: none of Energy_FEDU or Energy_FPDU is present"):
+        ep.save(
+            variables_to_save,
+            saving_strategy,
+            start_time,
+            end_time,
+            time_var=variables_to_save["Epoch"],
+            ignore_validation=True,
+        )

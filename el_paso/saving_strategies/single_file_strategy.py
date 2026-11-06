@@ -172,7 +172,7 @@ class SingleFileStrategy(SavingStrategy):
         internal_name: InternalName,  # noqa: ARG002
         *,
         first_call_of_interval: bool,  # noqa: ARG002
-        available_keys: set[InternalName] | None = None,  # noqa: ARG002
+        available_keys: set[InternalName],  # noqa: ARG002
     ) -> Variable:
         """Does not modify the variable.
 
@@ -182,7 +182,7 @@ class SingleFileStrategy(SavingStrategy):
             variable (Variable): The variable instance to be standardized.
             internal_name (InternalName): The internal name of the variable (ignored).
             first_call_of_interval (bool): Flag to indicate if it is the first call of a time interval
-            available_keys (set(InternalName) | None): The full set of internal names being
+            available_keys (set[InternalName]): The full set of internal names being
                 saved together in this call.
 
         Returns:
