@@ -64,6 +64,7 @@ Color code: ${\color{#4A8A4F}\textsf{publication ready}}$, ${\color{#E6D753}\tex
     - ${\color{#4A8A4F}\textsf{MagEIS (electrons)}}$
     - ${\color{#E67D53}\textsf{MagEIS (protons)}}$
     - ${\color{#E67D53}\textsf{RBSPICE (protons)}}$
+    - ${\color{#4A8A4F}\textsf{REPT (electrons)}}$
     - ${\color{#4A8A4F}\textsf{ECT-combined}}$
     - ${\color{#4A8A4F}\textsf{EMFISIS waves}}$
     - ${\color{#4A8A4F}\textsf{EMFISIS and EFW density}}$

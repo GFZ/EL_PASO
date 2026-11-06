@@ -116,6 +116,9 @@ RECIPES: tuple[RecipeEntry, ...] = (
         "rbsp", "mageis-protons", "el_paso.recipes.rbsp.process_rbsp_mageis_protons", "process_rbsp_mageis_protons"
     ),
     RecipeEntry(
+        "rbsp", "rept-electrons", "el_paso.recipes.rbsp.process_rbsp_rept_electrons", "process_rbsp_rept_electrons"
+    ),
+    RecipeEntry(
         "rbsp", "rbspice-protons", "el_paso.recipes.rbsp.process_rbsp_rbspice_protons", "process_rbsp_rbspice_protons"
     ),
     RecipeEntry(
