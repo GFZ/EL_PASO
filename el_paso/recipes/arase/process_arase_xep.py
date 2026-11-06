@@ -27,20 +27,32 @@ from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import proces
 
 
 def arase_xep_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
-    *,
-    file_format: ep.typing.MFSFormats = "nc",
+    save_strategy: Literal["gfz", "netcdf"] = "netcdf",
 ) -> ep.SavingStrategy:
-    """Monthly saving strategy for Arase XEP, which also saves the omnidirectional flux (FEDO)."""
+    """Saving strategy of the Arase XEP recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
+        save_strategy (Literal["gfz", "netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Legacy GFZ strategy for "gfz", otherwise a monthly NetCDF strategy that also saves
+            the omnidirectional flux (FEDO).
+    """
+    if save_strategy == "gfz":
+        return arase_xep_gfz_strategy(processed_data_path, mag_field)
+
     return ep.saving_strategies.MonthlyOmniFluxRBStrategy(
-        Path(base_data_path),
+        Path(processed_data_path),
         "Arase",
         "arase",
         "xep",
         mag_field,
         data_standard=ep.data_standards.GFZStandard(),
-        file_format=file_format,
+        file_format="nc",
     )
 
 
@@ -378,11 +390,7 @@ def process_arase_xep(
             "electron",
         )
 
-    match save_strategy:
-        case "gfz":
-            saving_strategy = arase_xep_gfz_strategy(processed_data_path, mag_field)
-        case "netcdf":
-            saving_strategy = arase_xep_strategy(processed_data_path, mag_field)
+    saving_strategy = arase_xep_strategy(processed_data_path, mag_field, save_strategy)
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable, append=append)
 
@@ -399,5 +407,16 @@ CLI_DEFAULTS = {
     "use_level_3_orbit_data": False,
 }
 
+PLOT_DEFAULTS = {
+    "panels": ["Kp", "FEDU"],
+    "FEDU": {
+        "pitch_angle": 90 * u.deg,
+        "energies": [500, 1000, 2000] * u.keV,
+        "along": "L_m",
+    },
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_arase_xep, defaults=CLI_DEFAULTS)
+    ep.run_recipe_cli(
+        process_arase_xep, defaults=CLI_DEFAULTS, strategy=arase_xep_strategy, plot_defaults=PLOT_DEFAULTS
+    )

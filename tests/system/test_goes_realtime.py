@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import shutil
+from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -69,3 +70,22 @@ def test_goes_realtime_snapshot(
     )
 
     goes_true.assert_equal(goes_proc)
+
+
+@pytest.mark.visual
+def test_goes_realtime_plot_default(plot_default: Callable[..., None]) -> None:
+    """Save the default figure of `el-paso plot goes realtime` for the reference data. Check it by eye."""
+    start_time = datetime(2025, 12, 17, tzinfo=timezone.utc)
+    end_time = start_time + timedelta(days=0.1)
+
+    plot_default(
+        "goes",
+        "realtime",
+        Path(__file__).parent / "data" / "processed",
+        start_time,
+        end_time,
+        "--satellite",
+        "primary",
+        "--save-strategy",
+        "netcdf",
+    )

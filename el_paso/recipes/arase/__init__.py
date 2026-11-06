@@ -16,6 +16,7 @@ __getattr__, _lazy_dir, _lazy_all = lazy.attach(
             "arase_mepe_gfz_strategy",
             "arase_mepe_h5_strategy",
             "arase_mepe_netcdf_strategy",
+            "arase_mepe_strategy",
             "process_arase_mepe",
         ],
         "process_arase_pwe_densities": ["arase_pwe_densities_strategy", "process_arase_pwe_density"],
@@ -44,6 +45,7 @@ if TYPE_CHECKING:
         arase_mepe_gfz_strategy,
         arase_mepe_h5_strategy,
         arase_mepe_netcdf_strategy,
+        arase_mepe_strategy,
         process_arase_mepe,
     )
     from el_paso.recipes.arase.process_arase_pwe_densities import (
@@ -61,6 +63,7 @@ if TYPE_CHECKING:
         "arase_mepe_gfz_strategy",
         "arase_mepe_h5_strategy",
         "arase_mepe_netcdf_strategy",
+        "arase_mepe_strategy",
         "arase_pwe_densities_strategy",
         "arase_xep_gfz_strategy",
         "arase_xep_realtime_gfz_strategy",

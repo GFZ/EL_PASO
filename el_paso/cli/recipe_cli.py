@@ -32,6 +32,7 @@ Typical use at the bottom of a recipe module::
 
 from __future__ import annotations
 
+import collections
 import enum
 import inspect
 import io
@@ -409,10 +410,51 @@ def build_recipe_command(
         TypeError: If a parameter that has no default cannot be exposed on the command
             line, which would make the command impossible to invoke.
     """
+    summary, _ = parse_docstring(func.__doc__)
+    specs, skipped = _build_parameter_specs(func, defaults=defaults, loop_over=loop_over)
+
+    command = _make_command(func, specs, skipped, summary)
+    command.__doc__ = summary or func.__doc__
+    command.__name__ = _func_name(func)
+    return command
+
+
+def _build_parameter_specs(
+    func: Callable[..., Any],
+    *,
+    defaults: dict[str, Any] | None = None,
+    loop_over: Sequence[str] | None = None,
+    arg_help: dict[str, str] | None = None,
+    names: Sequence[str] | None = None,
+) -> tuple[list[_ParameterSpec], dict[str, Any]]:
+    """Map the parameters of `func` onto command line options.
+
+    This is the signature-to-option machinery shared by every generated command: the recipe
+    commands expose a recipe's parameters with it, and ``el-paso plot`` exposes a strategy
+    factory's parameters.
+
+    Args:
+        func (Callable[..., Any]): The function whose signature is exposed.
+        defaults (dict[str, Any] | None): Overrides for the defaults taken from the signature.
+        loop_over (Sequence[str] | None): Parameters that accept several values. Defaults to any
+            parameter named in :data:`LOOP_PARAMETER_NAMES`.
+        arg_help (dict[str, str] | None): Help text per parameter. Defaults to the ``Args:``
+            section of the docstring of `func`.
+        names (Sequence[str] | None): Only expose these parameters. Defaults to all of them.
+
+    Returns:
+        tuple[list[_ParameterSpec], dict[str, Any]]: The exposed options, in signature order, and
+        the parameters that cannot be exposed but have a value in `defaults`, which the command
+        has to pass on itself.
+
+    Raises:
+        TypeError: If a parameter that has no default cannot be exposed on the command line.
+    """
     defaults = dict(defaults or {})
     signature = inspect.signature(func)
     hints = typing.get_type_hints(func)
-    summary, arg_help = parse_docstring(func.__doc__)
+    if arg_help is None:
+        _, arg_help = parse_docstring(func.__doc__)
 
     loop_names = (
         set(loop_over)
@@ -425,6 +467,8 @@ def build_recipe_command(
 
     for name, parameter in signature.parameters.items():
         if parameter.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
+            continue
+        if names is not None and name not in names:
             continue
 
         has_default = name in defaults or parameter.default is not inspect.Parameter.empty
@@ -453,10 +497,67 @@ def build_recipe_command(
 
         specs.append(spec)
 
-    command = _make_command(func, specs, skipped, summary)
-    command.__doc__ = summary or func.__doc__
-    command.__name__ = _func_name(func)
-    return command
+    return specs, skipped
+
+
+def _restore_parsed_values(kwargs: dict[str, Any], specs: Sequence[_ParameterSpec]) -> None:
+    """Convert the values Typer parsed for `specs` back into the types the wrapped function expects.
+
+    Choice parameters come back as plain strings instead of Enum members, ``all`` in a looped
+    choice parameter expands to every choice, and repeated options come back as lists instead of
+    tuples. `kwargs` is modified in place.
+    """
+    for spec in specs:
+        value = kwargs.get(spec.name)
+
+        # Typer hands back Enum members for choice parameters; recipes expect plain strings.
+        if spec.choice_enum is not None:
+            if isinstance(value, spec.choice_enum):
+                value = value.value
+            elif isinstance(value, list):
+                value = [item.value if isinstance(item, spec.choice_enum) else item for item in value]
+
+        # `all` stands for every choice of a looped parameter, e.g. `--satellite all`
+        if spec.loop_values is not None and isinstance(value, list) and ALL_VALUES in value:
+            value = list(spec.loop_values)
+
+        # Typer hands back a tuple for options that take several values; recipes annotate them as lists.
+        if spec.is_list and isinstance(value, tuple):
+            value = list(value)
+
+        if spec.name in kwargs:
+            kwargs[spec.name] = value
+
+
+def _spec_parameters(specs: Sequence[_ParameterSpec]) -> list[inspect.Parameter]:
+    """Turn option specs into the keyword-only parameters of a synthesised command signature."""
+    return [
+        inspect.Parameter(
+            spec.name,
+            inspect.Parameter.KEYWORD_ONLY,
+            default=_typer_default(spec),
+            annotation=spec.annotation,
+        )
+        for spec in specs
+    ]
+
+
+def _attach_signature(command: Callable[..., Any], parameters: Sequence[inspect.Parameter]) -> None:
+    """Give a ``**kwargs`` wrapper the signature Typer builds its options from.
+
+    Raises:
+        TypeError: If two parameters share a name, which would make two options collide.
+    """
+    counts = collections.Counter(parameter.name for parameter in parameters)
+    duplicates = [name for name, count in counts.items() if count > 1]
+    if duplicates:
+        msg = f"Command {_func_name(command)} defines these options more than once: {', '.join(sorted(duplicates))}"
+        raise TypeError(msg)
+
+    # Typer reads parameters from __signature__ but resolves types from __annotations__,
+    # so both have to be set and agree.
+    command.__signature__ = inspect.Signature(parameters)  # ty:ignore[unresolved-attribute]
+    command.__annotations__ = {parameter.name: parameter.annotation for parameter in parameters}
 
 
 def _make_command(
@@ -466,10 +567,7 @@ def _make_command(
     summary: str,
 ) -> Any:  # noqa: ANN401
     """Assemble the wrapper callable and attach the synthesised signature."""
-    choice_enums = {spec.name: spec.choice_enum for spec in specs if spec.choice_enum is not None}
     loop_names = [spec.name for spec in specs if spec.is_loop]
-    list_names = [spec.name for spec in specs if spec.is_list]
-    loop_values = {spec.name: spec.loop_values for spec in specs if spec.loop_values is not None}
 
     def command(**kwargs: Any) -> None:  # noqa: ANN401
         # The universal options belong to the command, not to the recipe, so they are
@@ -483,27 +581,7 @@ def _make_command(
 
         dry_run = universal["dry_run"]
 
-        # Typer hands back Enum members for choice parameters; recipes expect plain strings.
-        for name, choice_enum in choice_enums.items():
-            value = kwargs.get(name)
-            if isinstance(value, choice_enum):
-                kwargs[name] = value.value
-            elif isinstance(value, list):
-                kwargs[name] = [item.value if isinstance(item, choice_enum) else item for item in value]
-
-        # `all` stands for every choice of a looped parameter, e.g. `--satellite all`
-        for name, values in loop_values.items():
-            selected = kwargs.get(name)
-            if isinstance(selected, list) and ALL_VALUES in selected:
-                kwargs[name] = list(values)
-
-        # Typer hands back a tuple for options that take several values; recipes annotate them
-        # as lists.
-        for name in list_names:
-            value = kwargs.get(name)
-            if isinstance(value, tuple):
-                kwargs[name] = list(value)
-
+        _restore_parsed_values(kwargs, specs)
         kwargs.update(skipped)
 
         calls = _expand_loops(kwargs, loop_names)
@@ -548,23 +626,8 @@ def _make_command(
                 logger.error(f"{len(failed_calls)} of {len(calls)} calls failed: {'; '.join(failed_calls)}")
             raise typer.Exit(code=1)
 
-    parameters = [
-        inspect.Parameter(
-            spec.name,
-            inspect.Parameter.KEYWORD_ONLY,
-            default=_typer_default(spec),
-            annotation=spec.annotation,
-        )
-        for spec in specs
-    ]
-    parameters.extend(_universal_parameters())
-
-    annotations = {parameter.name: parameter.annotation for parameter in parameters}
-
-    # Typer reads parameters from __signature__ but resolves types from __annotations__,
-    # so both have to be set and agree.
-    command.__signature__ = inspect.Signature(parameters)  # ty:ignore[unresolved-attribute]
-    command.__annotations__ = annotations
+    command.__name__ = _func_name(func)
+    _attach_signature(command, [*_spec_parameters(specs), *_universal_parameters()])
     command.__doc__ = summary
 
     return command
@@ -587,8 +650,16 @@ def _typer_default(spec: _ParameterSpec) -> Any:  # noqa: ANN401
     return spec.default
 
 
-def _universal_parameters() -> list[inspect.Parameter]:
-    """Options every recipe command gets, independent of its signature."""
+def _universal_parameters(names: Sequence[str] = _UNIVERSAL_PARAMETER_NAMES) -> list[inspect.Parameter]:
+    """Options every recipe command gets, independent of its signature.
+
+    Args:
+        names (Sequence[str]): Only return these options, for commands that share only some of
+            them. Defaults to all of :data:`_UNIVERSAL_PARAMETER_NAMES`.
+
+    Returns:
+        list[inspect.Parameter]: The options, as keyword-only parameters.
+    """
     definitions: list[tuple[str, Any, Any]] = [
         (
             "verbose",
@@ -643,6 +714,7 @@ def _universal_parameters() -> list[inspect.Parameter]:
     return [
         inspect.Parameter(name, inspect.Parameter.KEYWORD_ONLY, default=default, annotation=annotation)
         for name, annotation, default in definitions
+        if name in names
     ]
 
 
@@ -683,6 +755,15 @@ def _resolve_log_file(logs_path: Path, func: Recipe, satellite: str | None) -> P
     return log_file
 
 
+def _log_level(*, verbose: int, quiet: bool) -> int:
+    """Map ``-v``/``--quiet`` onto a logging level."""
+    if quiet:
+        return logging.WARNING
+    if verbose >= 1:
+        return logging.DEBUG
+    return logging.INFO
+
+
 def _configure_logging(
     *,
     verbose: int,
@@ -693,12 +774,7 @@ def _configure_logging(
     configure_console: bool,
 ) -> None:
     """Set up logging for one recipe call."""
-    if quiet:
-        level = logging.WARNING
-    elif verbose >= 1:
-        level = logging.DEBUG
-    else:
-        level = logging.INFO
+    level = _log_level(verbose=verbose, quiet=quiet)
 
     if configure_console:
         ep.setup_logging(level)
@@ -771,10 +847,66 @@ def _report_call(
 
     for name, value in call_kwargs.items():
         table.add_row(name.replace("_", " "), _format_value(name, value))
+    _log_table(table)
+
+
+def _log_table(table: Table) -> None:
+    """Log a rich table line by line, so that it reaches the console and the log file alike."""
     buffer = io.StringIO()
     Console(file=buffer).print(table)
     for line in buffer.getvalue().splitlines():
         logger.info(line)
+
+
+def check_strategy_factory(
+    recipe: Recipe, factory: Callable[..., Any], *, loop_over: Sequence[str] | None = None
+) -> None:
+    """Check that a strategy factory can be exposed on the command line next to its recipe.
+
+    The ``el-paso plot`` command takes the factory's parameters as its data options, so each of them has
+    to mean the same thing as in the recipe. Every parameter of `factory` must
+
+    - exist in the signature of `recipe`,
+    - have the same type annotation there, with the same allowed values for a ``Literal``, and
+    - have a type the command line builder supports.
+
+    Args:
+        recipe (Recipe): The recipe function.
+        factory (Callable[..., Any]): The strategy factory the recipe uses to build its saving strategy.
+        loop_over (Sequence[str] | None): Parameters of the recipe that accept several values. Defaults to
+            any parameter named in :data:`LOOP_PARAMETER_NAMES`.
+
+    Raises:
+        TypeError: If any parameter violates the rules above. The message lists all violations.
+    """
+    recipe_parameters = inspect.signature(recipe).parameters
+    recipe_hints = typing.get_type_hints(recipe)
+    factory_hints = typing.get_type_hints(factory)
+    loop_names = set(loop_over) if loop_over is not None else set(LOOP_PARAMETER_NAMES)
+
+    problems: list[str] = []
+    for name, parameter in inspect.signature(factory).parameters.items():
+        if parameter.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
+            problems.append(f"{name!r}: variadic parameters cannot be exposed on the command line")
+            continue
+
+        factory_hint = factory_hints.get(name, parameter.annotation)
+
+        if name not in recipe_parameters:
+            problems.append(f"{name!r}: not a parameter of {_func_name(recipe)}")
+        elif recipe_hints.get(name, recipe_parameters[name].annotation) != factory_hint:
+            problems.append(
+                f"{name!r}: annotated {factory_hint!r} in the factory but "
+                f"{recipe_hints.get(name, recipe_parameters[name].annotation)!r} in {_func_name(recipe)}"
+            )
+
+        if _build_parameter_spec(name, factory_hint, parameter.default, "", is_loop=name in loop_names) is None:
+            problems.append(f"{name!r}: unsupported annotation {factory_hint!r}")
+
+    if problems:
+        details = "\n  - ".join(problems)
+        msg = f"Strategy factory {_func_name(factory)} does not match recipe {_func_name(recipe)}:\n  - {details}"
+        raise TypeError(msg)
 
 
 def run_recipe_cli(
@@ -782,6 +914,8 @@ def run_recipe_cli(
     *,
     defaults: dict[str, Any] | None = None,
     loop_over: Sequence[str] | None = None,
+    strategy: Callable[..., Any] | None = None,
+    plot_defaults: dict[str, Any] | None = None,
     args: Sequence[str] | None = None,
 ) -> None:
     """Run a recipe as a standalone command line program.
@@ -798,9 +932,29 @@ def run_recipe_cli(
         loop_over (Sequence[str] | None): Parameters that accept several values, causing
             one call to `func` per value. Defaults to any parameter named in
             :data:`LOOP_PARAMETER_NAMES`.
+        strategy (Callable[..., Any] | None): The strategy factory the recipe builds its saving strategy
+            with. It is checked against the recipe with :func:`check_strategy_factory`, so a mismatch
+            fails at start-up. The ``el-paso plot`` command uses it to locate the processed data.
+        plot_defaults (dict[str, Any] | None): Recipe-specific plot settings for ``el-paso plot``,
+            checked with :func:`el_paso.cli.plot_cli.check_plot_defaults`. Requires `strategy`.
         args (Sequence[str] | None): Command line arguments to parse. Defaults to
             `sys.argv`; mainly useful for testing.
+
+    Raises:
+        ValueError: If `plot_defaults` is given without `strategy`, or holds a setting that is out
+            of range.
+        TypeError: If `strategy` does not match the recipe, or `plot_defaults` is malformed.
     """
+    if plot_defaults is not None and strategy is None:
+        msg = "plot_defaults requires a strategy factory."
+        raise ValueError(msg)
+    if strategy is not None:
+        check_strategy_factory(func, strategy, loop_over=loop_over)
+    if plot_defaults is not None:
+        from el_paso.cli.plot_cli import check_plot_defaults  # noqa: PLC0415  (plot_cli imports this module)
+
+        check_plot_defaults(plot_defaults)
+
     app = typer.Typer(add_completion=False, pretty_exceptions_show_locals=False)
     app.command()(build_recipe_command(func, defaults=defaults, loop_over=loop_over))
     app(args=args)

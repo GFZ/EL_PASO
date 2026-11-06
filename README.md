@@ -39,7 +39,7 @@ Color code: ${\color{#4A8A4F}\textsf{publication ready}}$, ${\color{#E6D753}\tex
     - ${\color{#E6D753}\textsf{MEPe}}$
     - ${\color{#4A8A4F}\textsf{XEP (archived and real-time)}}$
     - ${\color{#4A8A4F}\textsf{PWE density}}$
-- **DMSP**
+- **DMSP (F16, F17, F18)**
     - ${\color{#E6D753}\textsf{SSJ (electrons)}}$
 - **GOES (13 and 15)**
     - ${\color{#4A8A4F}\textsf{EPS MAGED and EPEAD combined}}$
@@ -170,6 +170,20 @@ check `--help`.
 
 See the [command line documentation](docs/getting_started/command_line.md) for
 the full list.
+
+### Plotting processed data
+
+`el-paso plot <mission> <recipe>` draws a quick-look figure of data you have
+already processed. Pass the same arguments you used for processing, so the same
+files are located again:
+
+```bash
+el-paso plot rbsp mageis-electrons \
+    --start-time 2017-10-15 --end-time 2017-10-16T23:59:59 \
+    --satellite a --mag-field T89 \
+    --processed-data-path ./processed
+```
+See the [plotting section](docs/getting_started/command_line.md#plotting) of the command line documentation for details.
 
 ## Testing
 

@@ -54,6 +54,29 @@ TELE_ALPHA_ANGLES = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
 TELE_BETA_ANGLES = np.array([-35.0, 35.0, -70.0, 0, 70.0])
 
 
+def goes_r_mps_high_strategy(
+    processed_data_path: str | Path,
+    mag_field: ep.typing.MagneticFieldLiteral,
+    satellite: GOESRSatellite,
+    save_strategy: Literal["gfz", "netcdf"] = "netcdf",
+) -> ep.SavingStrategy:
+    """Saving strategy of the GOES-R MPS-HI recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
+        satellite (GOESRSatellite): Satellite the data belongs to.
+        save_strategy (Literal["gfz", "netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Legacy GFZ strategy for "gfz", otherwise a monthly or daily NetCDF strategy.
+    """
+    if save_strategy == "gfz":
+        return goes_r_mps_high_gfz_strategy(processed_data_path, mag_field, satellite)
+
+    return goes_r_mps_high_netcdf_strategy(processed_data_path, mag_field, satellite)
+
+
 def process_goes_r_mps_high(
     start_time: datetime,
     end_time: datetime,
@@ -314,10 +337,7 @@ def process_goes_r_mps_high(
     if calculate_Lstar:
         variables_to_save["L_star"] = magnetic_field_variables[f"L_star_{mag_field}"]
 
-    if save_strategy == "gfz":
-        saving_strategy = goes_r_mps_high_gfz_strategy(processed_data_path, mag_field, satellite)
-    else:
-        saving_strategy = goes_r_mps_high_netcdf_strategy(processed_data_path, mag_field, satellite)
+    saving_strategy = goes_r_mps_high_strategy(processed_data_path, mag_field, satellite, save_strategy)
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=append)
 
@@ -413,5 +433,12 @@ CLI_DEFAULTS = {
     "processed_data_path": "goes/processed/",
 }
 
+PLOT_DEFAULTS = {
+    "panels": ["Kp", "FEDU", "L_star", "MLT"],
+    "FEDU": {"pitch_angle": 90 * u.deg},
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_goes_r_mps_high, defaults=CLI_DEFAULTS)
+    ep.run_recipe_cli(
+        process_goes_r_mps_high, defaults=CLI_DEFAULTS, strategy=goes_r_mps_high_strategy, plot_defaults=PLOT_DEFAULTS
+    )

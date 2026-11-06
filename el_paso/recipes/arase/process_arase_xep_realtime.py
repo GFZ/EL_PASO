@@ -35,20 +35,31 @@ def arase_xep_realtime_gfz_strategy(
 
 
 def arase_xep_realtime_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
-    *,
-    file_format: ep.typing.MFSFormats = "nc",
+    save_strategy: Literal["gfz", "netcdf"] = "netcdf",
 ) -> ep.SavingStrategy:
-    """Monthly saving strategy for Arase XEP."""
+    """Saving strategy of the Arase XEP real-time recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
+        save_strategy (Literal["gfz", "netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Legacy GFZ strategy for "gfz", otherwise a monthly NetCDF strategy.
+    """
+    if save_strategy == "gfz":
+        return arase_xep_realtime_gfz_strategy(processed_data_path, mag_field)
+
     return ep.saving_strategies.MonthlyRBStrategy(
-        Path(base_data_path),
+        Path(processed_data_path),
         "Arase",
         "arase",
         "xep",
         mag_field,
         data_standard=ep.data_standards.GFZStandard(),
-        file_format=file_format,
+        file_format="nc",
     )
 
 
@@ -256,10 +267,7 @@ def process_arase_xep_real_time(
     if calculate_Lstar:
         variables_to_save["L_star"] = magnetic_field_variables[f"L_star_{mag_field}"]
 
-    if save_strategy == "gfz":
-        saving_strategy = arase_xep_realtime_gfz_strategy(processed_data_path, mag_field)
-    else:
-        saving_strategy = arase_xep_realtime_strategy(processed_data_path, mag_field)
+    saving_strategy = arase_xep_realtime_strategy(processed_data_path, mag_field, save_strategy)
 
     ep.save(
         variables_to_save,
@@ -432,5 +440,19 @@ CLI_DEFAULTS = {
     "download": False,
 }
 
+PLOT_DEFAULTS = {
+    "panels": ["Kp", "FEDU"],
+    "FEDU": {
+        "pitch_angle": 90 * u.deg,
+        "energies": [500, 1000, 2000] * u.keV,
+        "along": "L_star",
+    },
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_arase_xep_real_time, defaults=CLI_DEFAULTS)
+    ep.run_recipe_cli(
+        process_arase_xep_real_time,
+        defaults=CLI_DEFAULTS,
+        strategy=arase_xep_realtime_strategy,
+        plot_defaults=PLOT_DEFAULTS,
+    )

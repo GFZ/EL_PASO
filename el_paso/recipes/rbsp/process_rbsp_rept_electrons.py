@@ -42,6 +42,29 @@ def rbsp_rept_electron_netcdf_strategy(
     )
 
 
+def rbsp_rept_electron_strategy(
+    processed_data_path: str | Path,
+    mag_field: ep.typing.MagneticFieldLiteral,
+    satellite: RBSPSatellite,
+    save_strategy: Literal["gfz", "netcdf"] = "netcdf",
+) -> ep.SavingStrategy:
+    """Saving strategy of the RBSP REPT electron recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
+        satellite (RBSPSatellite): Satellite the data belongs to.
+        save_strategy (Literal["gfz", "netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Legacy GFZ strategy for "gfz", otherwise a monthly NetCDF strategy.
+    """
+    if save_strategy == "gfz":
+        return rbsp_rept_electron_gfz_strategy(processed_data_path, mag_field, satellite)
+
+    return rbsp_rept_electron_netcdf_strategy(processed_data_path, mag_field, satellite)
+
+
 def process_rbsp_rept_electrons(
     start_time: datetime,
     end_time: datetime,
@@ -259,10 +282,7 @@ def process_rbsp_rept_electrons(
             "electron",
         )
 
-    if save_strategy == "gfz":
-        strategy = rbsp_rept_electron_gfz_strategy(processed_data_path, mag_field, satellite)
-    else:
-        strategy = rbsp_rept_electron_netcdf_strategy(processed_data_path, mag_field, satellite)
+    strategy = rbsp_rept_electron_strategy(processed_data_path, mag_field, satellite, save_strategy)
 
     ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=append)
 
@@ -275,5 +295,20 @@ def process_rbsp_rept_electrons(
         )
 
 
+PLOT_DEFAULTS = {
+    "panels": ["Kp", "FEDU"],
+    "FEDU": {
+        "pitch_angle": 90 * u.deg,
+        "energies": [2.1, 3.4, 5.2] * u.MeV,
+        "vmin": 1e-2,
+        "vmax": 1e4,
+        "along": "L_star",
+    },
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_rbsp_rept_electrons)
+    ep.run_recipe_cli(
+        process_rbsp_rept_electrons,
+        strategy=rbsp_rept_electron_strategy,
+        plot_defaults=PLOT_DEFAULTS,
+    )

@@ -130,6 +130,107 @@ if __name__ == "__main__":
     ep.run_recipe_cli(process_poes_meped_electron, defaults=CLI_DEFAULTS)
 ```
 
+## Plotting
+
+`el-paso plot <mission> <recipe>` draws a quick-look figure of data you have already
+processed. It takes the same arguments as the processing command, so the settings that
+located the files when you processed them locate them again:
+
+```bash
+# 1. process
+el-paso rbsp mageis-electrons \
+    --start-time 2017-10-15 --end-time 2017-10-16T23:59:59 \
+    --satellite a --mag-field T89 \
+    --raw-data-path ~/ep/raw --processed-data-path ~/ep/processed
+
+# 2. plot (same time range, satellite, mag field and processed data path)
+el-paso plot rbsp mageis-electrons \
+    --start-time 2017-10-15 --end-time 2017-10-16T23:59:59 \
+    --satellite a --mag-field T89 \
+    --processed-data-path ~/ep/processed
+```
+
+Plotting never processes anything. The only thing it downloads are space-weather
+indices and solar wind parameters (`Kp`, `Dst`, `Vsw`, ...), and only if they are
+missing from the local cache. Raw-data and processing options such as
+`--raw-data-path` or `--num-cores` are therefore not accepted. Use
+`el-paso plot <mission> <recipe> --help` to see the options of one recipe.
+
+Run `--dry-run` first to see which files are expected and which of them exist. If
+files are missing, the command stops and prints the processing command that would
+create them.
+
+### Choosing what to plot
+
+Variables are named by their *internal* names (`FEDU`, `L_star`, `Energy_FEDU`, `Kp`),
+so the same command works for the GFZ and the PRBEM data standard. Each `--variable`
+gets its own panel, and the plot type follows from the variable's dimensions: a line for
+time series, a spectrogram for variables with an energy dimension.
+
+```bash
+el-paso plot rbsp mageis-electrons \
+    --start-time 2017-10-15 --end-time 2017-10-16T23:59:59 \
+    --processed-data-path ~/ep/processed \
+    --variable Kp --variable FEDU --variable L_star
+```
+
+A recipe can define default panels (`PLOT_DEFAULTS`, as RBSP MagEIS does), in which case
+`--variable` is optional. Settings are layered: defaults per plot type, then the recipe's
+`PLOT_DEFAULTS`, then the command-line flags, which win.
+
+| Option | Meaning |
+| --- | --- |
+| `--variable` | Internal name of a variable to plot. Repeat for several panels. Any space-weather index or solar wind parameter can be requested too; these are drawn once at the top of the figure, shared by all satellites. A variable missing from the files is an error. |
+| `--energy` | Energy to show for variables with an energy dimension, e.g. `470` (keV) or `1MeV`. Repeat for several; each is drawn as one line, labelled with the matched energy. |
+| `--pitch-angle` | Pitch angle in degrees at which to cut (default 90). |
+| `--vmin`, `--vmax` | Colour limits of spectrograms and scatter panels, or y-limits of `--energy` line panels. Default: the 5th and 95th percentile of the data. |
+| `--colormap` | A [colorcet](https://colorcet.holoviz.org) or matplotlib colormap name. Default `rainbow4`. |
+| `--along-L-star`, `--along-L-m`, `--along-R-eq` | Draw each variable as a scatter plot over time with that coordinate on the y axis and the value as colour. At most one of them per call. |
+| `--output`, `-o` | File to write; the format follows the suffix (`.png`, `.pdf`, ...). |
+| `--show` | Open the figure in an interactive window instead of only writing a file. |
+
+For example, electron flux at three energies against `L_star`, written as a PDF:
+
+```bash
+el-paso plot rbsp mageis-electrons \
+    --start-time 2017-10-15 --end-time 2017-10-16T23:59:59 \
+    --processed-data-path ~/ep/processed \
+    --variable FEDU --energy 108 --energy 470 --energy 1575 \
+    --along-L-star --vmin 1 --vmax 1e6 \
+    -o fedu_lstar.pdf
+```
+
+With several `--satellite` options the figure holds one block of panels per satellite
+on a shared time axis. The plot runs headless by default (it writes a file, so it works
+on a cluster).
+
+### From Python
+
+The same plots are available on a loaded dataset. Build the saving strategy the
+recipe uses, load it with `ep.DataSet`, and call `plot`:
+
+```python
+from datetime import datetime, timezone
+from pathlib import Path
+
+import astropy.units as u
+import el_paso as ep
+from el_paso.recipes.rbsp.process_rbsp_mageis_electrons import rbsp_mageis_electron_strategy
+
+start = datetime(2017, 10, 15, tzinfo=timezone.utc)
+end = datetime(2017, 10, 16, 23, 59, 59, tzinfo=timezone.utc)
+
+strategy = rbsp_mageis_electron_strategy(
+    processed_data_path=Path("~/ep/processed").expanduser(), satellite="a", mag_field="T89", save_strategy="netcdf"
+)
+ds = ep.DataSet(strategy, start, end)
+
+fig = ds.plot(["FEDU", "L_star"], energies=[470, 1575] * u.keV, pitch_angle=90 * u.deg)
+fig.savefig("quicklook.png")
+```
+
+Importing `el_paso` does not import matplotlib; it is loaded the first time you plot.
+
 ## Shell completion
 
 ```bash

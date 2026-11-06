@@ -3,12 +3,17 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+import logging
 import socket
 import typing
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from datetime import datetime
+from pathlib import Path
+from unittest.mock import patch
 from urllib.parse import urlparse
 
 import pytest
+import typer.testing
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -79,3 +84,86 @@ def skip_if_unreachable() -> Callable[..., None]:
                 pytest.skip(f"External resource '{url}' is not reachable; skipping test that requires network access.")
 
     return _skip_if_unreachable
+
+
+@pytest.fixture
+def no_live_logging(request: pytest.FixtureRequest) -> Iterator[None]:
+    """Detach pytest's live-log handler for the duration of a test that invokes a CLI command.
+
+    CLI commands report their run settings and failures through the standard `logging`
+    module rather than printing straight to stdout, so a `CliRunner.invoke()`
+    in a test can trigger a real log emission mid-command. Combined with `log_cli = 1` in pytest.ini,
+    such an emission makes pytest's own live-log handler try to interleave output with
+    Click's captured stdout, which raises "ValueError: I/O operation on closed file" (a known
+    pytest/Click incompatibility, unrelated to whether the command itself is correct).
+    Detaching it here does not affect `caplog`, which is backed by its own separate handler.
+    """
+    plugin = request.config.pluginmanager.get_plugin("logging-plugin")
+    if plugin is None:
+        yield
+        return
+
+    root_logger = logging.getLogger()
+    attached = plugin.log_cli_handler in root_logger.handlers
+    if attached:
+        root_logger.removeHandler(plugin.log_cli_handler)
+    try:
+        yield
+    finally:
+        if attached:
+            root_logger.addHandler(plugin.log_cli_handler)
+
+
+@pytest.fixture
+def plot_default(
+    monkeypatch: pytest.MonkeyPatch,
+    request: pytest.FixtureRequest,
+    no_live_logging: None,  # noqa: ARG001
+) -> Callable[..., None]:
+    """Return a function that runs ``el-paso plot <mission> <recipe>`` in-process and saves the default figure.
+
+    The command is invoked through typer's ``CliRunner`` instead of a subprocess, so failures surface as
+    assertion errors with the command output and no second interpreter has to start.
+
+    The returned function takes the mission, the recipe command, the processed data path, the time range
+    and extra command line arguments (e.g. ``"--satellite", "a"``). No ``--variable`` is passed, so the
+    recipe's ``PLOT_DEFAULTS`` are used. The figure is never shown, only written to
+    ``tests/system/plots/<test name>.png`` for checking by eye.
+    """
+    import el_paso as ep  # noqa: PLC0415
+    from el_paso.cli.app import app  # noqa: PLC0415
+
+    # console logging set up inside a command would outlive CliRunner's captured streams
+    monkeypatch.setattr(ep, "setup_logging", lambda *_args, **_kwargs: None)
+    runner = typer.testing.CliRunner()
+
+    def _plot_default(
+        mission: str,
+        recipe: str,
+        processed_data_path: str | Path,
+        start_time: datetime,
+        end_time: datetime,
+        *args: str,
+    ) -> None:
+        output = Path(__file__).parent / "system" / "plots" / f"{request.node.name}.png"
+        output.parent.mkdir(exist_ok=True)
+        command = [
+            "plot",
+            mission,
+            recipe,
+            "--start-time",
+            start_time.isoformat(),
+            "--end-time",
+            end_time.isoformat(),
+            "--processed-data-path",
+            str(processed_data_path),
+            *args,
+            "--output",
+            str(output),
+        ]
+        with patch.object(typer.testing, "_get_command", side_effect=lambda instance: instance):
+            result = runner.invoke(app, command, env={"COLUMNS": "200"})
+
+        assert result.exit_code == 0, f"{' '.join(command)}\n{result.output}"
+
+    return _plot_default

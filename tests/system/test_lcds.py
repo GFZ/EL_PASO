@@ -5,6 +5,7 @@
 
 import shutil
 import typing
+from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -61,3 +62,21 @@ def test_lcds(
     )
 
     lcds_proc.assert_equal(lcds_true)
+
+
+@pytest.mark.visual
+@pytest.mark.parametrize("mag_field", MAG_FIELDS)
+def test_lcds_plot_default(mag_field: MagneticFieldLiteral, plot_default: Callable[..., None]) -> None:
+    """Save the default figure of `el-paso plot model lcds` for the reference data. Check it by eye."""
+    start_time = datetime(2024, 5, 10, tzinfo=timezone.utc)
+    end_time = datetime(2024, 5, 12, 12, tzinfo=timezone.utc)
+
+    plot_default(
+        "model",
+        "lcds",
+        Path(__file__).parent / "data" / "processed" / "LCDS",
+        start_time,
+        end_time,
+        "--mag-field",
+        mag_field,
+    )
