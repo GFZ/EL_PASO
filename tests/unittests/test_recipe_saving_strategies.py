@@ -85,6 +85,10 @@ from el_paso.recipes.rbsp.process_rbsp_rbspice_protons import (
     rbsp_rbspice_proton_gfz_strategy,
     rbsp_rbspice_proton_netcdf_strategy,
 )
+from el_paso.recipes.rbsp.process_rbsp_rept_electrons import (
+    rbsp_rept_electron_gfz_strategy,
+    rbsp_rept_electron_netcdf_strategy,
+)
 from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import solar_wind_indices_strategy
 from el_paso.recipes.themis.process_themis_fft_waves import themis_fft_waves_strategy
 from el_paso.recipes.themis.process_themis_scpot_density import themis_scpot_density_strategy
@@ -394,6 +398,20 @@ CASES: list[
         {},
         ep.saving_strategies.MonthlyRBStrategy,
         {"mission": "RBSP", "satellite": "rbspb", "instrument": "mageis", "mag_field": "T89", "file_format": ".nc"},
+    ),
+    (
+        rbsp_rept_electron_gfz_strategy,
+        ("T89", "a"),
+        {},
+        ep.saving_strategies.GFZStrategy,
+        {"mission": "RBSP", "satellite": "rbspa", "instrument": "rept", "mag_field": "T89"},
+    ),
+    (
+        rbsp_rept_electron_netcdf_strategy,
+        ("T89", "a"),
+        {},
+        ep.saving_strategies.MonthlyRBStrategy,
+        {"mission": "RBSP", "satellite": "rbspa", "instrument": "rept", "mag_field": "T89", "file_format": ".nc"},
     ),
     (
         rbsp_rbspice_proton_gfz_strategy,
