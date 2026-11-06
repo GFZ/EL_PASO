@@ -295,5 +295,20 @@ def process_rbsp_rept_electrons(
         )
 
 
+PLOT_DEFAULTS = {
+    "panels": ["Kp", "FEDU"],
+    "FEDU": {
+        "pitch_angle": 90 * u.deg,
+        "energies": [2.1, 3.4, 5.2] * u.MeV,
+        "vmin": 1e-2,
+        "vmax": 1e4,
+        "along": "L_star",
+    },
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_rbsp_rept_electrons, strategy=rbsp_rept_electron_strategy)
+    ep.run_recipe_cli(
+        process_rbsp_rept_electrons,
+        strategy=rbsp_rept_electron_strategy,
+        plot_defaults=PLOT_DEFAULTS,
+    )
