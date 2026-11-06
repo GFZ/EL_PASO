@@ -162,6 +162,7 @@ def _run_arase_hep(
     use_level_3_orbit_data: bool,
     skip_existing: bool,
     add_B_obs: bool,
+    calculate_Lstar: bool,
     save_indices_sw: bool,
     append: bool,
 ) -> None:
@@ -270,10 +271,11 @@ def _run_arase_hep(
             "B_local": ep.TimeBinMethod.NanMedian,
             "B_eq": ep.TimeBinMethod.NanMedian,
             "Lm": ep.TimeBinMethod.NanMean,
-            "Lstar": ep.TimeBinMethod.NanMean,
             "MLT": ep.TimeBinMethod.NanMean,
             "R0": ep.TimeBinMethod.NanMean,
         }
+        if calculate_Lstar:
+            time_bin_methods["Lstar"] = ep.TimeBinMethod.NanMean
 
         binned_time_variable = ep.processing.bin_by_time(
             orb_variables["Epoch"],
@@ -299,6 +301,10 @@ def _run_arase_hep(
         orb_variables["Lm"] = interpolate_level_3_to_pitch_angles(
             orb_variables["Lm"], hep_variables["Pitch_angle"].get_data(u.deg)
         )
+        if calculate_Lstar:
+            orb_variables["Lstar"] = interpolate_level_3_to_pitch_angles(
+                orb_variables["Lstar"], hep_variables["Pitch_angle"].get_data(u.deg)
+            )
 
     else:
         time_bin_methods = {
@@ -326,7 +332,11 @@ def _run_arase_hep(
         )
         pos_geo_var = ep.Variable(data=geo_data, original_unit=ep.units.RE)
 
-        irbem_options = ep.processing.magnetic_field_utils.IrbemOptions()
+        irbem_options = ep.processing.magnetic_field_utils.IrbemOptions(
+            lstar_quantity=ep.processing.magnetic_field_utils.LstarQuantity.LSTAR
+            if calculate_Lstar
+            else ep.processing.magnetic_field_utils.LstarQuantity.NONE,
+        )
 
         variables_to_compute: ep.processing.VariableRequest = [
             ("B_Calc", mag_field),
@@ -338,6 +348,9 @@ def _run_arase_hep(
             ("InvK", mag_field),
             ("InvMu", mag_field),
         ]
+
+        if calculate_Lstar:
+            variables_to_compute.append(("L_star", mag_field))
 
         magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
             time_var=binned_time_variable,
@@ -354,6 +367,8 @@ def _run_arase_hep(
         orb_variables["MLT"] = magnetic_field_variables["MLT_" + mag_field]
         hep_variables["Pa_eq"] = magnetic_field_variables["Alpha_Eq_" + mag_field]
         orb_variables["Lm"] = magnetic_field_variables["L_m_" + mag_field]
+        if calculate_Lstar:
+            orb_variables["Lstar"] = magnetic_field_variables["L_star_" + mag_field]
         hep_variables["InvMu"] = magnetic_field_variables["InvMu_" + mag_field]
         hep_variables["InvK"] = magnetic_field_variables["InvK_" + mag_field]
 
@@ -377,6 +392,9 @@ def _run_arase_hep(
         "InvMu": hep_variables["InvMu"],
         "PSD": psd_var,
     }
+
+    if calculate_Lstar:
+        variables_to_save["L_star"] = orb_variables["Lstar"]
 
     # Level 3 orbit data does not provide the second adiabatic invariant
     if not use_level_3_orbit_data:
@@ -430,6 +448,7 @@ def process_arase_hep_l(
     use_level_3_orbit_data: bool = True,
     skip_existing: bool = True,
     add_B_obs: bool = False,
+    calculate_Lstar: bool = True,
     save_indices_sw: bool = False,
     append: bool = False,
 ) -> None:
@@ -478,6 +497,8 @@ def process_arase_hep_l(
         add_B_obs (bool): If True, also download the MGF Level 2 8-second magnetometer data and save
             the observed magnetic field magnitude (B_total_obs) and InvMu_obs computed
             from it. Only supported with the "gfz" data standard. Defaults to False.
+        calculate_Lstar (bool): If True, also compute (or, when `use_level_3_orbit_data` is True,
+            interpolate and save) the L* magnetic field quantity. Defaults to True.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
         append (bool): If True, append to existing output files instead of overwriting them.
@@ -504,6 +525,7 @@ def process_arase_hep_l(
         use_level_3_orbit_data=use_level_3_orbit_data,
         skip_existing=skip_existing,
         add_B_obs=add_B_obs,
+        calculate_Lstar=calculate_Lstar,
         save_indices_sw=save_indices_sw,
         append=append,
     )
@@ -524,6 +546,7 @@ def process_arase_hep_h(
     use_level_3_orbit_data: bool = True,
     skip_existing: bool = True,
     add_B_obs: bool = False,
+    calculate_Lstar: bool = True,
     save_indices_sw: bool = False,
     append: bool = False,
 ) -> None:
@@ -571,6 +594,8 @@ def process_arase_hep_h(
         add_B_obs (bool): If True, also download the MGF Level 2 8-second magnetometer data and save
             the observed magnetic field magnitude (B_total_obs) and InvMu_obs computed
             from it. Only supported with the "gfz" data standard. Defaults to False.
+        calculate_Lstar (bool): If True, also compute (or, when `use_level_3_orbit_data` is True,
+            interpolate and save) the L* magnetic field quantity. Defaults to True.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
         append (bool): If True, append to existing output files instead of overwriting them.
@@ -597,6 +622,7 @@ def process_arase_hep_h(
         use_level_3_orbit_data=use_level_3_orbit_data,
         skip_existing=skip_existing,
         add_B_obs=add_B_obs,
+        calculate_Lstar=calculate_Lstar,
         save_indices_sw=save_indices_sw,
         append=append,
     )
