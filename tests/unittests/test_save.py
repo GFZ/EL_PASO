@@ -169,8 +169,39 @@ def test_variable_not_saved_by_strategy_is_warned_about(tmp_path: Path, caplog: 
         ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=variables_to_save["Epoch"])
 
     warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
-    assert any("Energy_FEDO are not saved by MonthlyRBStrategy" in message for message in warnings)
-    assert not any("MLT" in message and "not saved by" in message for message in warnings)
+    assert "Variable(s) Energy_FEDO will be dropped!" in warnings
+    assert not any("MLT" in message and "will be dropped" in message for message in warnings)
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_alternative_losing_one_of_is_warned_about(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """Of `OneOf("FEDU", "FPDU")` only FEDU is written, so passing FPDU too drops it, and `save` says why."""
+    start_time = datetime(2024, 5, 10, tzinfo=timezone.utc)
+    end_time = datetime(2024, 5, 10, 23, 59, tzinfo=timezone.utc)
+    times = np.array([start_time.timestamp() + 3600 * i for i in range(6)])
+    flux_unit = (u.cm**2 * u.s * u.sr * u.keV) ** (-1)
+
+    variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+        "Epoch": ep.Variable(ep.units.posixtime, data=times),
+        "Alpha": ep.Variable(u.deg, data=np.tile([10.0, 20.0], (times.size, 1))),
+        "Energy_FEDU": ep.Variable(u.MeV, data=np.tile([1.0, 2.0, 3.0], (times.size, 1))),
+        "Energy_FPDU": ep.Variable(u.MeV, data=np.tile([1.0, 2.0, 3.0], (times.size, 1))),
+        "FEDU": ep.Variable(flux_unit, data=np.ones((times.size, 3, 2))),
+        "FPDU": ep.Variable(flux_unit, data=np.ones((times.size, 3, 2))),
+    }
+
+    saving_strategy = ep.saving_strategies.GFZStrategy(tmp_path, "TEST", "sat", "inst", "T89")
+
+    with caplog.at_level(logging.WARNING, logger="ep"):
+        ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=variables_to_save["Epoch"])
+
+    warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+    unsaved_warnings = [message for message in warnings if "will be dropped" in message]
+    assert unsaved_warnings == [
+        "Variable(s) Energy_FPDU, FPDU will be dropped! "
+        "(Energy_FEDU or Energy_FPDU resolved to Energy_FEDU; FEDU or FPDU resolved to FEDU)"
+    ]
 
 
 @pytest.mark.minimal

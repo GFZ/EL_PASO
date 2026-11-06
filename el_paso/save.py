@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any, get_args
 import numpy as np
 
 import el_paso as ep
-from el_paso.one_of import alternatives_of
+from el_paso.one_of import alternatives_of, describe, resolve_name
 from el_paso.typing import InternalName, Variable
 from el_paso.utils import enforce_utc_timezone, timed_function
 
@@ -113,25 +113,38 @@ def _warn_about_unsaved_variables(
 ) -> None:
     """Logs a warning for passed variables that no output file of the saving strategy writes.
 
+    Entries are resolved like the strategy resolves them when writing, so of a `OneOf` only the
+    first present alternative counts as saved. A passed variable that lost a `OneOf` to an earlier
+    alternative is dropped too, and the warning names the alternative that won.
+
     Args:
         variables_dict (dict[str, Variable]): The variables passed to ``save``.
         saving_strategy (SavingStrategy): The strategy whose output files define what is written.
     """
     names_to_save: set[str] = set()
+    lost_one_of: dict[str, str] = {}
     for output_file in saving_strategy.output_files:
         # an output file without names saves every variable
         if len(output_file.names_to_save) == 0:
             return
 
-        for name in output_file.names_to_save:
-            names_to_save.update(alternatives_of(name))
+        for entry in output_file.names_to_save:
+            resolved = resolve_name(entry, variables_dict)
+            if resolved is None:
+                continue
+
+            names_to_save.add(resolved)
+            for alternative in alternatives_of(entry):
+                if alternative != resolved and alternative in variables_dict:
+                    lost_one_of.setdefault(alternative, f"{describe(entry)} resolved to {resolved}")
 
     unsaved_names = [name for name in variables_dict if name not in names_to_save]
     if unsaved_names:
-        logger.warning(
-            f"Variable(s) {', '.join(unsaved_names)} are not saved by {type(saving_strategy).__name__} "
-            "and will be dropped!"
-        )
+        message = f"Variable(s) {', '.join(unsaved_names)} will be dropped!"
+        reasons = [lost_one_of[name] for name in unsaved_names if name in lost_one_of]
+        if reasons:
+            message += f" ({'; '.join(reasons)})"
+        logger.warning(message)
 
 
 def _has_records_in_interval(time_var: Variable, interval_start: datetime, interval_end: datetime) -> bool:
