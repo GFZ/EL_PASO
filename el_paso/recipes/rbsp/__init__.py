@@ -50,6 +50,12 @@ __getattr__, _lazy_dir, _lazy_all = lazy.attach(
             "rbsp_rbspice_proton_netcdf_strategy",
             "rbsp_rbspice_proton_strategy",
         ],
+        "process_rbsp_rept_electrons": [
+            "process_rbsp_rept_electrons",
+            "rbsp_rept_electron_gfz_strategy",
+            "rbsp_rept_electron_netcdf_strategy",
+            "rbsp_rept_electron_strategy",
+        ],
     },
 )
 
@@ -100,6 +106,12 @@ if TYPE_CHECKING:
         rbsp_rbspice_proton_netcdf_strategy,
         rbsp_rbspice_proton_strategy,
     )
+    from el_paso.recipes.rbsp.process_rbsp_rept_electrons import (
+        process_rbsp_rept_electrons,
+        rbsp_rept_electron_gfz_strategy,
+        rbsp_rept_electron_netcdf_strategy,
+        rbsp_rept_electron_strategy,
+    )
 
     __all__ = [
         "RBSPSatellite",
@@ -111,6 +123,7 @@ if TYPE_CHECKING:
         "process_rbsp_mageis_electrons",
         "process_rbsp_mageis_protons",
         "process_rbsp_rbspice_protons",
+        "process_rbsp_rept_electrons",
         "rbsp_ect_combined_gfz_strategy",
         "rbsp_ect_combined_netcdf_strategy",
         "rbsp_ect_combined_strategy",
@@ -129,4 +142,7 @@ if TYPE_CHECKING:
         "rbsp_rbspice_proton_gfz_strategy",
         "rbsp_rbspice_proton_netcdf_strategy",
         "rbsp_rbspice_proton_strategy",
+        "rbsp_rept_electron_gfz_strategy",
+        "rbsp_rept_electron_netcdf_strategy",
+        "rbsp_rept_electron_strategy",
     ]

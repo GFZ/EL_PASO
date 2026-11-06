@@ -27,7 +27,7 @@ _MINIMUM_PHYSICAL_DENSITY = 1e-21
 def themis_scpot_density_strategy(
     processed_data_path: str | Path,
     satellite: ThemisProbe,
-    mag_field: Literal["T89", "T96", "TS04"],
+    mag_field: ep.typing.MagneticFieldLiteral,
     save_strategy: Literal["netcdf"] = "netcdf",
 ) -> ep.SavingStrategy:
     """Saving strategy of the THEMIS spacecraft-potential density recipe.
@@ -35,7 +35,7 @@ def themis_scpot_density_strategy(
     Args:
         processed_data_path (str | Path): Base directory of the processed data.
         satellite (ThemisProbe): THEMIS probe the data belongs to.
-        mag_field (Literal["T89", "T96", "TS04"]): Magnetic field model the data was processed with.
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
         save_strategy (Literal["netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
 
     Returns:
@@ -55,7 +55,7 @@ def process_themis_scpot_density(
     start_time: datetime,
     end_time: datetime,
     satellite: ThemisProbe = "a",
-    mag_field: Literal["T89", "T96", "TS04"] = "T89",
+    mag_field: ep.typing.MagneticFieldLiteral = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=5),
@@ -64,6 +64,7 @@ def process_themis_scpot_density(
     *,
     skip_existing: bool = True,
     save_indices_sw: bool = False,
+    append: bool = False,
 ) -> None:
     """Process the THEMIS spacecraft-potential electron density and save the mapped equatorial density.
 
@@ -79,7 +80,7 @@ def process_themis_scpot_density(
         start_time (datetime): Start of the time range to process.
         end_time (datetime): End of the time range to process.
         satellite (Literal["a", "b", "c", "d", "e"]): THEMIS probe identifier.
-        mag_field (Literal["T89", "T96", "TS04"]): The magnetic field model used for the
+        mag_field (ep.typing.MagneticFieldLiteral): The magnetic field model used for the
             magnetic-field-related output variables and the equatorial density mapping.
         raw_data_path (str | Path): Base directory pyspedas downloads the raw THEMIS files into
             and reads them from. Defaults to ".".
@@ -96,6 +97,8 @@ def process_themis_scpot_density(
             cached THEMIS file is still current. Defaults to True.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to False.
     """
     del skip_existing
 
@@ -162,7 +165,7 @@ def process_themis_scpot_density(
         "xGEO_Eq": magnetic_field_variables["xGEO_Eq_" + mag_field],
     }
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable, append=append)
 
     if save_indices_sw:
         process_solar_wind_indices(

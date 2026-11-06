@@ -223,6 +223,13 @@ RECIPES: tuple[RecipeEntry, ...] = (
     ),
     RecipeEntry(
         "rbsp",
+        "rept-electrons",
+        "el_paso.recipes.rbsp.process_rbsp_rept_electrons",
+        "process_rbsp_rept_electrons",
+        strategy="rbsp_rept_electron_strategy",
+    ),
+    RecipeEntry(
+        "rbsp",
         "rbspice-protons",
         "el_paso.recipes.rbsp.process_rbsp_rbspice_protons",
         "process_rbsp_rbspice_protons",

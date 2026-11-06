@@ -76,6 +76,7 @@ def process_gssc_emu_protons(
     *,
     calculate_Lstar: bool = True,
     save_indices_sw: bool = False,
+    append: bool = True,
 ) -> None:
     """Process ESA GSSC EMU (Galileo) proton data into pitch-angle resolved flux and PSD.
 
@@ -115,6 +116,8 @@ def process_gssc_emu_protons(
             Defaults to True.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to True.
 
     Raises:
         ValueError: If `username` or `password` is not provided and not available via the
@@ -287,7 +290,7 @@ def process_gssc_emu_protons(
         start_time,
         end_time,
         time_var=binned_time_var,
-        append=True,
+        append=append,
     )
 
     if save_indices_sw:

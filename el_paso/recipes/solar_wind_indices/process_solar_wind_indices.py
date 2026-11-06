@@ -48,6 +48,7 @@ def process_solar_wind_indices(
     skip_existing: bool = True,
     save_indices_sw: bool = False,
     fill_sw: bool = False,
+    append: bool = False,
 ) -> None:
     """Save every solar wind and geomagnetic index EL-PASO can load over a time range.
 
@@ -76,6 +77,8 @@ def process_solar_wind_indices(
             whether leading/trailing gaps that linear interpolation cannot reach are forward/backward
             filled. If False, those edge gaps are left as NaN. Defaults to False; turn it on
             explicitly via the CLI or in a script.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to False.
     """
     del satellite, mag_field, raw_data_path, num_cores, skip_existing, save_indices_sw
 
@@ -103,6 +106,7 @@ def process_solar_wind_indices(
         start_time,
         end_time,
         time_var,
+        append=append,
     )
 
 

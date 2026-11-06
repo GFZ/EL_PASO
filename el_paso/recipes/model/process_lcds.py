@@ -56,6 +56,7 @@ def process_lcds(
     *,
     skip_existing: bool = True,
     save_indices_sw: bool = False,
+    append: bool = False,
 ) -> None:
     """Compute the Last Closed Drift Shell (LCDS) over a time range and save it to disk.
 
@@ -88,6 +89,8 @@ def process_lcds(
         skip_existing (bool): Unused. The recipe downloads no files.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to False.
     """
     del satellite, raw_data_path, skip_existing
 
@@ -123,7 +126,12 @@ def process_lcds(
     }
 
     ep.save(
-        variables_to_save, lcds_strategy(processed_data_path, mag_field, save_strategy), start_time, end_time, time_var
+        variables_to_save,
+        lcds_strategy(processed_data_path, mag_field, save_strategy),
+        start_time,
+        end_time,
+        time_var,
+        append=append,
     )
 
     if save_indices_sw:

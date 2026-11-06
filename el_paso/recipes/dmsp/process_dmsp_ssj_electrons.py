@@ -66,6 +66,7 @@ def process_dmsp_ssj_electrons(
     *,
     skip_existing: bool = True,
     save_indices_sw: bool = False,
+    append: bool = False,
 ) -> None:
     """Process DMSP SSJ precipitating electron data into omnidirectional fluxes with magnetic field coordinates.
 
@@ -93,6 +94,8 @@ def process_dmsp_ssj_electrons(
                                                     netCDF-based strategy.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to False.
     """
     data_path_stem = f"{raw_data_path}/DMSP/{satellite}/YYYY/MM/"
 
@@ -252,7 +255,7 @@ def process_dmsp_ssj_electrons(
 
     saving_strategy = dmsp_ssj_electron_strategy(processed_data_path, mag_field, satellite, save_strategy)
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var)
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=append)
 
     if save_indices_sw:
         process_solar_wind_indices(

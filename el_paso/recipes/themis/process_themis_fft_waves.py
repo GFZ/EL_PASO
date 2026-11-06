@@ -65,7 +65,7 @@ def process_themis_fft_waves(
     start_time: datetime,
     end_time: datetime,
     satellite: ThemisProbe = "a",
-    mag_field: Literal["T89", "T96", "TS04"] = "T89",
+    mag_field: ep.typing.MagneticFieldLiteral = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=5),
@@ -74,6 +74,7 @@ def process_themis_fft_waves(
     *,
     skip_existing: bool = True,
     save_indices_sw: bool = False,
+    append: bool = False,
 ) -> None:
     """Process THEMIS FFT wave data and save the magnetic power spectral density.
 
@@ -91,7 +92,7 @@ def process_themis_fft_waves(
         start_time (datetime): Start of the time range to process.
         end_time (datetime): End of the time range to process.
         satellite (Literal["a", "b", "c", "d", "e"]): THEMIS probe identifier.
-        mag_field (Literal["T89", "T96", "TS04"]): The magnetic field model used to compute the
+        mag_field (ep.typing.MagneticFieldLiteral): The magnetic field model used to compute the
             magnetic local time and the mapped equatorial radial distance.
         raw_data_path (str | Path): Base directory pyspedas downloads the raw THEMIS files into
             and reads them from. Defaults to ".".
@@ -110,6 +111,8 @@ def process_themis_fft_waves(
             cached THEMIS file is still current. Defaults to True.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to False.
     """
     del bin_cadence
     del skip_existing
@@ -146,7 +149,7 @@ def process_themis_fft_waves(
 
     saving_strat = themis_fft_waves_strategy(processed_data_path, satellite, save_strategy)
 
-    ep.save(vars_to_save, saving_strat, start_time, end_time, time_var=target_time_var)
+    ep.save(vars_to_save, saving_strat, start_time, end_time, time_var=target_time_var, append=append)
 
     if save_indices_sw:
         process_solar_wind_indices(
@@ -285,7 +288,7 @@ def _get_orbit_vars(
     end_time: datetime,
     satellite: ThemisProbe,
     target_time_var: ep.Variable,
-    mag_field: Literal["T89", "T96", "TS04"],
+    mag_field: ep.typing.MagneticFieldLiteral,
     num_cores: int,
 ) -> dict[str, ep.Variable]:
     """Interpolate the position onto the FFT cadence and derive the orbital quantities."""
