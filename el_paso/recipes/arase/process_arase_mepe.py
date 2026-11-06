@@ -95,10 +95,12 @@ def process_arase_mepe(
     files for the requested time range, then sorts energies into ascending order, time-bins the
     flux, position and pitch-angle variables onto a common cadence, folds the pitch-angle
     distribution, applies a lower flux threshold, and computes the equatorial pitch angle and
-    magnetic-field-related quantities (Lm, MLT, R0, InvMu) either from the Level 3 orbit data directly
-    or via IRBEM using the SM position from Level 2 orbit data. If `add_B_obs` is set, the observed
-    magnetic field magnitude from the MGF magnetometer and the first adiabatic invariant computed from
-    it are added. The resulting variables are saved using the requested saving strategy.
+    magnetic-field-related quantities (Lm, MLT, R0, InvMu, and InvK when using Level 2 orbit data)
+    either from the Level 3 orbit data directly or via IRBEM using the SM position from Level 2
+    orbit data. The phase space density (PSD) is computed from the flux. If `add_B_obs` is set,
+    the observed magnetic field magnitude from the MGF magnetometer and the first adiabatic
+    invariant computed from it are added. The resulting variables are saved using the requested
+    saving strategy.
 
     Args:
         start_time (datetime): Start of the time range to process.
@@ -136,6 +138,7 @@ def process_arase_mepe(
             Defaults to False.
 
     Raises:
+        ValueError: If `use_level_3_orbit_data` is set and `mag_field` is not one of "OP77Q", "T89" or "TS04".
         ValueError: If `add_B_obs` is set together with the "prbem" data standard, which does not
             define B_total_obs and InvMu_obs.
     """
@@ -143,6 +146,13 @@ def process_arase_mepe(
 
     if add_B_obs and data_standard == "prbem":
         msg = "add_B_obs requires the gfz data standard; the prbem standard does not define B_total_obs and InvMu_obs."
+        raise ValueError(msg)
+
+    if use_level_3_orbit_data and mag_field not in ("OP77Q", "T89", "TS04"):
+        msg = (
+            f"Invalid mag_field '{mag_field}' for Arase Level 3 orbit data. "
+            "Valid options are OP77Q, T89 and TS04, or set use_level_3_orbit_data=False."
+        )
         raise ValueError(msg)
 
     raw_data_path = Path(raw_data_path)
@@ -228,7 +238,7 @@ def process_arase_mepe(
         "Pitch_angle": ep.TimeBinMethod.Repeat,
     }
 
-    binned_time_variable = ep.processing.bin_by_time(
+    _ = ep.processing.bin_by_time(
         mepe_variables["Epoch"],
         variables=mepe_variables,
         time_bin_method_dict=time_bin_methods,
@@ -311,6 +321,7 @@ def process_arase_mepe(
             ("R_Eq", mag_field),
             ("Alpha_Eq", mag_field),
             ("L_m", mag_field),
+            ("InvK", mag_field),
             ("InvMu", mag_field),
         ]
 
@@ -330,14 +341,11 @@ def process_arase_mepe(
         mepe_variables["Pa_eq"] = magnetic_field_variables["Alpha_Eq_" + mag_field]
         orb_variables["Lm"] = magnetic_field_variables["L_m_" + mag_field]
         mepe_variables["InvMu"] = magnetic_field_variables["InvMu_" + mag_field]
+        mepe_variables["InvK"] = magnetic_field_variables["InvK_" + mag_field]
 
-    match mag_field:
-        case "T89":
-            mag_field_save = "T89"
-        case "TS04":
-            mag_field_save = "T04s" if save_strategy == "gfz" else mag_field
-        case "OP77Q":
-            mag_field_save = "OP77"
+    psd_var = ep.processing.compute_phase_space_density(
+        mepe_variables["FEDU"], mepe_variables["Energy"], particle_species="electron"
+    )
 
     data_standard_instance = (
         ep.data_standards.GFZStandard() if data_standard == "gfz" else ep.data_standards.PRBEMStandard()
@@ -353,7 +361,12 @@ def process_arase_mepe(
         "MLT": orb_variables["MLT"],
         "L_m": orb_variables["Lm"],
         "InvMu": mepe_variables["InvMu"],
+        "PSD": psd_var,
     }
+
+    # Level 3 orbit data does not provide the second adiabatic invariant
+    if not use_level_3_orbit_data:
+        variables_to_save["InvK"] = mepe_variables["InvK"]
 
     if add_B_obs:
         variables_to_save |= compute_observed_B_variables(
@@ -369,13 +382,13 @@ def process_arase_mepe(
 
     match save_strategy:
         case "gfz":
-            saving_strategy = arase_mepe_gfz_strategy(processed_data_path, mag_field_save, data_standard_instance)
+            saving_strategy = arase_mepe_gfz_strategy(processed_data_path, mag_field, data_standard_instance)
 
         case "h5":
-            saving_strategy = arase_mepe_h5_strategy(processed_data_path, mag_field_save, data_standard_instance)
+            saving_strategy = arase_mepe_h5_strategy(processed_data_path, mag_field, data_standard_instance)
 
         case "netcdf":
-            saving_strategy = arase_mepe_netcdf_strategy(processed_data_path, mag_field_save, data_standard_instance)
+            saving_strategy = arase_mepe_netcdf_strategy(processed_data_path, mag_field, data_standard_instance)
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable, append=append)
 

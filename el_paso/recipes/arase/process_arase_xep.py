@@ -123,8 +123,18 @@ def process_arase_xep(
             independent of this recipe's own output. Defaults to False.
         append (bool): If True, append to existing output files instead of overwriting them.
             Defaults to False.
+
+    Raises:
+        ValueError: If `use_level_3_orbit_data` is set and `mag_field` is not one of "OP77Q", "T89" or "TS04".
     """
     del satellite
+
+    if use_level_3_orbit_data and mag_field not in ("OP77Q", "T89", "TS04"):
+        msg = (
+            f"Invalid mag_field '{mag_field}' for Arase Level 3 orbit data. "
+            "Valid options are OP77Q, T89 and TS04, or set use_level_3_orbit_data=False."
+        )
+        raise ValueError(msg)
 
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
