@@ -23,6 +23,11 @@ from typing import TYPE_CHECKING, Any
 
 import el_paso as ep
 import pytest
+from el_paso.recipes.arase.process_arase_hep import (
+    arase_hep_gfz_strategy,
+    arase_hep_h5_strategy,
+    arase_hep_netcdf_strategy,
+)
 from el_paso.recipes.arase.process_arase_mepe import (
     arase_mepe_gfz_strategy,
     arase_mepe_h5_strategy,
@@ -126,6 +131,45 @@ CASES: list[
         ep.saving_strategies.MonthlyRBStrategy,
         {"mission": "Arase", "satellite": "arase", "instrument": "xep", "mag_field": "T89", "file_format": ".nc"},
     ),
+    *[
+        case
+        for sensor, instrument in (("L", "hepl"), ("H", "heph"))
+        for case in (
+            (
+                arase_hep_gfz_strategy,
+                ("T89", sensor),
+                {},
+                ep.saving_strategies.GFZStrategy,
+                {"mission": "ARASE", "satellite": "arase", "instrument": instrument, "mag_field": "T89"},
+            ),
+            (
+                arase_hep_h5_strategy,
+                ("T89", sensor),
+                {},
+                ep.saving_strategies.MonthlyRBStrategy,
+                {
+                    "mission": "Arase",
+                    "satellite": "arase",
+                    "instrument": instrument,
+                    "mag_field": "T89",
+                    "file_format": ".h5",
+                },
+            ),
+            (
+                arase_hep_netcdf_strategy,
+                ("T89", sensor),
+                {},
+                ep.saving_strategies.MonthlyRBStrategy,
+                {
+                    "mission": "Arase",
+                    "satellite": "arase",
+                    "instrument": instrument,
+                    "mag_field": "T89",
+                    "file_format": ".nc",
+                },
+            ),
+        )
+    ],
     (
         arase_mepe_gfz_strategy,
         ("T89",),
