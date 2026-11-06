@@ -9,19 +9,19 @@ import inspect
 import logging
 from abc import ABC
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Generic, Literal, NamedTuple, TypeVar
+from typing import TYPE_CHECKING, Generic, Literal, NamedTuple, Never, TypeVar, get_args
 
 import numpy as np
 
-from el_paso.typing import InternalName
+from el_paso.typing import FixedDimensionName, InternalName
 from el_paso.utils import assert_n_dim
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Mapping, Sequence
 
     from astropy import units as u
 
-    from el_paso.typing import FixedDimensionName, StandardName, Variable
+    from el_paso.typing import StandardName, Variable
 
 
 logger = logging.getLogger(__name__)
@@ -152,6 +152,47 @@ class DataStandard(ABC, Generic[T_co]):
                 resolved.append(dep)
         return resolved
 
+    def validate(self, variables_dict: Mapping[InternalName, Variable]) -> None:
+        """Checks that a set of variables can be saved together under this data standard.
+
+        Args:
+            variables_dict (Mapping[InternalName, Variable]): The variables to be saved together.
+
+        Raises:
+            ValueError: If a variable is not part of this data standard, or if data for a
+                dimension that one of the variables depends on is missing.
+        """
+        unknown_names = [name for name in variables_dict if name not in self.variable_infos]
+        if unknown_names:
+            msg = (
+                f"The following variables are not part of {type(self).__name__}: {unknown_names}. "
+                f"Add them to the data standard's variable_infos or use a data standard that defines them."
+            )
+            raise ValueError(msg)
+
+        available_keys = set(variables_dict.keys())
+        missing: dict[str, list[str]] = {}
+        for name in variables_dict:
+            for dep in self.get_dependencies(name):
+                # a tuple entry means "any one of these alternative dimension names satisfies it"
+                if isinstance(dep, tuple):
+                    if any(alt in available_keys for alt in dep):
+                        continue
+                    dim_label = " or ".join(dep)
+                    missing.setdefault(dim_label, []).append(name)
+                    continue
+
+                if dep in get_args(FixedDimensionName) or dep in available_keys:
+                    continue
+                missing.setdefault(dep, []).append(name)
+
+        if len(missing) > 0:
+            missing_details = "; ".join(
+                f"'{dim}' (required by: {', '.join(required_by)})" for dim, required_by in missing.items()
+            )
+            msg = f"Data for the following dimensions is not saved: {missing_details}"
+            raise ValueError(msg)
+
     def standardize_variable(
         self,
         internal_name: InternalName,
@@ -197,6 +238,33 @@ class DataStandard(ABC, Generic[T_co]):
         if not isinstance(other, DataStandard):
             return NotImplemented
         return type(self) is type(other) and self.variable_infos == other.variable_infos
+
+
+class NullDataStandard(DataStandard[Never]):
+    """A data standard that defines no variables and imposes no rules.
+
+    Used by saving strategies that write variables as they are, without
+    renaming, unit conversion or validation (e.g. `SingleFileStrategy`).
+    Name lookups raise, because no variable is part of this standard.
+    """
+
+    def __init__(self) -> None:
+        """Initializes the standard with no variables."""
+        self.variable_infos = {}
+
+    def validate(self, variables_dict: Mapping[InternalName, Variable]) -> None:
+        """Accepts any set of variables."""
+
+    def standardize_variable(
+        self,
+        internal_name: InternalName,  # noqa: ARG002
+        variable: Variable,
+        *,
+        reset_consistency_check: bool,  # noqa: ARG002
+        available_keys: set[InternalName] | None = None,  # noqa: ARG002
+    ) -> Variable:
+        """Returns the variable unchanged."""
+        return variable
 
 
 def _assert_sorted(

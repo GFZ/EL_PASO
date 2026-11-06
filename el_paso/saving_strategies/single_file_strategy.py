@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, Callable  # noqa: UP035
 
 import numpy as np
 
+from el_paso.data_standard import NullDataStandard
 from el_paso.saving_strategy import OutputFile, SavingStrategy
 
 if TYPE_CHECKING:
@@ -86,6 +87,7 @@ class SingleFileStrategy(SavingStrategy):
         """
         self.file_path = Path(file_path)
         self.output_files = [OutputFile(self.file_path.name, [])]
+        self.data_standard = NullDataStandard()
 
         # Build the dispatch table with built-in writers
         self._writers: dict[str, SingleFileFormatWriter] = {
