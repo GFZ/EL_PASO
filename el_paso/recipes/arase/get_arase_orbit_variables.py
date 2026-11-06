@@ -139,7 +139,7 @@ def get_arase_orbit_level_3_variables(
         case "TS04":
             mag_field_label = "ts04"
         case _:
-            msg = "Encountered invalid mag field for Arase orbit: {mag_field}!"
+            msg = f"Encountered invalid mag field for Arase orbit: {mag_field}! Valid options are OP77Q, T89 and TS04."
             raise ValueError(msg)
 
     url = f"https://ergsc.isee.nagoya-u.ac.jp/data/ergsc/satellite/erg/orb/l3/{mag_field_label}/YYYY/MM/"
@@ -169,7 +169,7 @@ def get_arase_orbit_level_3_variables(
         case "TS04":
             mag_field_label = "TS04"
         case _:
-            msg = "Encountered invalid mag field for Arase orbit: {mag_field}!"
+            msg = f"Encountered invalid mag field for Arase orbit: {mag_field}! Valid options are OP77Q, T89 and TS04."
             raise ValueError(msg)
 
     extraction_infos = [
