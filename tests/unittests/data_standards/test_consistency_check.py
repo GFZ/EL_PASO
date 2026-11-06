@@ -3,6 +3,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+import dataclasses
 from typing import Literal
 
 import el_paso as ep
@@ -182,7 +183,8 @@ def test_standardize_variable_checks_sorting() -> None:
     """standardize_variable must raise when sorted_along is violated."""
     standard = ep.data_standards.GFZStandard()
 
-    standard.variable_infos["Epoch"] = standard.variable_infos["Epoch"]._replace(
+    standard.variable_infos["Epoch"] = dataclasses.replace(
+        standard.variable_infos["Epoch"],
         sorted_along=("Epoch", "ascending"),
     )
 
@@ -190,4 +192,4 @@ def test_standardize_variable_checks_sorting() -> None:
     var = ep.Variable(original_unit=ep.units.posixtime, data=unsorted_data)
 
     with pytest.raises(ValueError, match="must be sorted ascending"):
-        standard.standardize_variable("Epoch", var, reset_consistency_check=True)
+        standard.standardize_variable("Epoch", var, reset_consistency_check=True, available_keys={"Epoch"})

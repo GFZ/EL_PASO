@@ -20,6 +20,7 @@ import numpy as np
 import el_paso as ep
 from el_paso.dataset.metadata import DatasetMetadata
 from el_paso.dataset.utils import is_xr_variable, join_var
+from el_paso.one_of import alternatives_of
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -550,8 +551,7 @@ class DataSet:
         # another output file (e.g. "Epoch") may already hold real data loaded from that other,
         # existing file, so it must be left untouched rather than clobbered with an empty array.
         for internal_name in output_file.names_to_save:
-            alt_names = internal_name if isinstance(internal_name, tuple) else (internal_name,)
-            for alt in alt_names:
+            for alt in alternatives_of(internal_name):
                 standard_name = self.saving_strategy.data_standard.get_standard_name(alt)
                 if standard_name not in var_names_stored and standard_name not in self.__dict__:
                     setattr(self, standard_name, np.asarray([]))
