@@ -27,6 +27,8 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from astropy import units as u
 
+from el_paso.one_of import alternatives_of
+
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
@@ -35,10 +37,9 @@ if TYPE_CHECKING:
     from matplotlib.figure import Figure
     from numpy.typing import NDArray
 
+    from el_paso.data_standard import Dependency
     from el_paso.dataset import DataSet
     from el_paso.typing import FixedDimensionName, InternalName
-
-    Dependency = InternalName | FixedDimensionName | tuple[InternalName, ...]
 
 logger = logging.getLogger(__name__)
 
@@ -257,14 +258,14 @@ def _resolve_dependency(
     Args:
         dataset (DataSet): The dataset to load the coordinate from.
         dependency (Dependency): One entry of ``data_standard.get_dependencies(...)[1:]``: an internal
-            name, a tuple of alternative internal names, or a fixed dimension name (such as
+            name, a `OneOf` of alternative internal names, or a fixed dimension name (such as
             ``"Position_components"``, which has no coordinate variable and gives empty values).
 
     Returns:
         tuple[InternalName | FixedDimensionName, NDArray[np.float64]]: The name of the variable the
         values were taken from, and the values with shape ``(n_channels,)`` or ``(n_times, n_channels)``.
     """
-    alternatives = dependency if isinstance(dependency, tuple) else (dependency,)
+    alternatives = alternatives_of(dependency)
     values = np.asarray([])
     name = alternatives[0]
     for name in alternatives:
@@ -332,7 +333,7 @@ def match_nearest(
 
 def _is_dimension(dependency: Dependency, prefix: str) -> bool:
     """Whether a dimension's coordinate variable (every alternative of it) starts with `prefix`, e.g. ``"Energy"``."""
-    alternatives = dependency if isinstance(dependency, tuple) else (dependency,)
+    alternatives = alternatives_of(dependency)
     return all(name.startswith(prefix) for name in alternatives)
 
 
