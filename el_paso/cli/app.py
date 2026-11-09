@@ -190,39 +190,14 @@ def _summary(entry: RecipeEntry) -> str:
 
     Importing a recipe pulls in its whole scientific stack, which is far too
     expensive to do merely to render a help listing.
-
-    Args:
-        entry (RecipeEntry): The registry entry to describe.
-
-    Returns:
-        str: The first line of the recipe's docstring, or an empty string if it
-        cannot be read.
     """
     return _summary_from_source(entry.module, entry.function)
 
 
-def _complete_lazily(
-    group: TyperGroup,
-    ctx: typer._click.Context,
-    incomplete: str,
-    summaries: dict[str, str],
-) -> list[CompletionItem]:
-    """Complete sub-command names from pre-read summaries, then the group's own options.
-
-    Typer's `TyperGroup.shell_complete` calls `get_command` for every matching
-    sub-command just to show its help, which would import every recipe on TAB.
-    """
-    results = [
-        CompletionItem(name, help=make_default_short_help(summary))
-        for name, summary in summaries.items()
-        if name.startswith(incomplete)
-    ]
-    results.extend(super(TyperGroup, group).shell_complete(ctx, incomplete))
-    return results
-
-
-def _single_command_from_typer_app(name: str, built: typer.Typer) -> typer._click.Command:
-    """Convert a single-command Typer app into its underlying click-compatible command."""
+def _to_click_command(name: str, func: Callable[..., Any], *, no_args_is_help: bool = True) -> typer._click.Command:
+    """Wrap a function in a single-command Typer app and return its click-compatible command."""
+    built = typer.Typer(add_completion=False)
+    built.command(name=name, no_args_is_help=no_args_is_help)(func)
     command = typer.main.get_command(built)
     # Typer collapses a single-command app into a plain Command rather than a Group.
     if isinstance(command, TyperGroup):
@@ -231,17 +206,10 @@ def _single_command_from_typer_app(name: str, built: typer.Typer) -> typer._clic
     return command
 
 
-def _as_click_command(name: str, recipe: Recipe, defaults: dict[str, object]) -> typer._click.Command:
-    """Build the Typer command for one recipe."""
-    built = typer.Typer(add_completion=False)
-    built.command(name=name, no_args_is_help=True)(build_recipe_command(recipe, defaults=defaults))
-    return _single_command_from_typer_app(name, built)
-
-
 def _recipe_command(name: str, entry: RecipeEntry) -> typer._click.Command:
     """Build the processing command for one registry entry."""
     recipe, defaults = load_recipe(entry)
-    return _as_click_command(name, recipe, defaults)
+    return _to_click_command(name, build_recipe_command(recipe, defaults=defaults))
 
 
 def load_plot_defaults(entry: RecipeEntry) -> dict[str, Any]:
@@ -264,17 +232,16 @@ def _plot_command(name: str, entry: RecipeEntry) -> typer._click.Command:
         msg = f"{entry.module}.{entry.function} does not register a strategy factory, so it cannot be plotted."
         raise ValueError(msg)
 
-    built = typer.Typer(add_completion=False)
-    built.command(name=name, no_args_is_help=True)(
+    return _to_click_command(
+        name,
         build_plot_command(
             recipe,
             factory,
             defaults=defaults,
             plot_defaults=load_plot_defaults(entry),
             processing_command=f"el-paso {entry.mission} {entry.command}",
-        )
+        ),
     )
-    return _single_command_from_typer_app(name, built)
 
 
 def _plot_summary(entry: RecipeEntry) -> str:
@@ -303,6 +270,35 @@ class _LazyHelpGroup(TyperGroup):
     """
 
     _rendering_help: bool = False
+
+    def _summaries(self, ctx: typer._click.Context) -> dict[str, str]:
+        """Return each visible sub-command's short help, without building the lazy ones."""
+        raise NotImplementedError
+
+    def format_commands(self, ctx: typer._click.Context, formatter: typer._click.HelpFormatter) -> None:
+        """Render the command list from `_summaries`.
+
+        click's own implementation calls `get_command` for every sub-command just to read its
+        short help, which would import every recipe on ``--help``.
+        """
+        rows = list(self._summaries(ctx).items())
+        if rows:
+            with formatter.section("Commands"):
+                formatter.write_dl(rows)
+
+    def shell_complete(self, ctx: typer._click.Context, incomplete: str) -> list[CompletionItem]:
+        """Complete sub-command names from `_summaries`, then the group's own options.
+
+        Typer's `TyperGroup.shell_complete` calls `get_command` for every matching
+        sub-command just to show its help, which would import every recipe on TAB.
+        """
+        results = [
+            CompletionItem(name, help=make_default_short_help(summary))
+            for name, summary in self._summaries(ctx).items()
+            if name.startswith(incomplete)
+        ]
+        results.extend(super(TyperGroup, self).shell_complete(ctx, incomplete))
+        return results
 
     def format_help(self, ctx: typer._click.Context, formatter: typer._click.HelpFormatter) -> None:
         """Render `--help`, flagging `get_command` calls made purely for that."""
@@ -363,21 +359,9 @@ class LazyRecipeGroup(_LazyHelpGroup):
             return _stub_command(cmd_name, self._summary(entry))
         return self._command_builder(cmd_name, entry)
 
-    def format_commands(self, ctx: typer._click.Context, formatter: typer._click.HelpFormatter) -> None:
-        """Render the command list from source summaries.
-
-        click's own implementation calls `get_command` for every sub-command just
-        to read its short help, which would import every recipe on ``--help``.
-        """
-        rows = [(name, self._summary(self._entries[name])) for name in self.list_commands(ctx)]
-        if rows:
-            with formatter.section("Commands"):
-                formatter.write_dl(rows)
-
-    def shell_complete(self, ctx: typer._click.Context, incomplete: str) -> list[CompletionItem]:
-        """Complete recipe names without importing any recipe."""
-        summaries = {name: self._summary(self._entries[name]) for name in self.list_commands(ctx)}
-        return _complete_lazily(self, ctx, incomplete, summaries)
+    def _summaries(self, ctx: typer._click.Context) -> dict[str, str]:
+        """Return each recipe's one-line help, read from source."""
+        return {name: self._summary(self._entries[name]) for name in self.list_commands(ctx)}
 
 
 class _RootGroup(_LazyHelpGroup):
@@ -392,27 +376,12 @@ class _RootGroup(_LazyHelpGroup):
         if cmd_name == "omm":
             if self._rendering_help:
                 return _stub_command("omm", _summary_from_source("el_paso.download_omm", "download_omm"))
-            return _as_click_command("omm", el_paso.download_omm, {})  # ty: ignore[invalid-argument-type]
+            return _to_click_command("omm", build_recipe_command(el_paso.download_omm))  # ty: ignore[invalid-argument-type]
         return super().get_command(ctx, cmd_name)
 
     def list_commands(self, ctx: typer._click.Context) -> list[str]:
         """Return all sub-command names, including the deferred ``omm``."""
         return sorted({*super().list_commands(ctx), "omm"})
-
-    def format_commands(self, ctx: typer._click.Context, formatter: typer._click.HelpFormatter) -> None:
-        """Render the command list without building the ``omm`` command.
-
-        As in `LazyRecipeGroup`, click's own implementation would call
-        `get_command` for every entry, which for ``omm`` means an import.
-        """
-        rows = list(self._summaries(ctx).items())
-        if rows:
-            with formatter.section("Commands"):
-                formatter.write_dl(rows)
-
-    def shell_complete(self, ctx: typer._click.Context, incomplete: str) -> list[CompletionItem]:
-        """Complete sub-command names without building the ``omm`` command."""
-        return _complete_lazily(self, ctx, incomplete, self._summaries(ctx))
 
     def _summaries(self, ctx: typer._click.Context) -> dict[str, str]:
         """Return each visible sub-command's short help, reading ``omm``'s from source."""
@@ -483,9 +452,7 @@ def list_recipes() -> None:
     Console().print(table)
 
 
-_list_app = typer.Typer(add_completion=False)
-_list_app.command(name="list")(list_recipes)
-app.add_command(_single_command_from_typer_app("list", _list_app))
+app.add_command(_to_click_command("list", list_recipes, no_args_is_help=False))
 
 
 def main() -> None:
