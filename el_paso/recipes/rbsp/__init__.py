@@ -18,6 +18,7 @@ __getattr__, _lazy_dir, _lazy_all = lazy.attach(
             "process_rbsp_ect_combined",
             "rbsp_ect_combined_gfz_strategy",
             "rbsp_ect_combined_netcdf_strategy",
+            "rbsp_ect_combined_strategy",
         ],
         "process_rbsp_efw_emfisis_density_combined": [
             "process_rbsp_efw_emfisis_density_combined",
@@ -28,27 +29,32 @@ __getattr__, _lazy_dir, _lazy_all = lazy.attach(
             "process_rbsp_hope_electrons",
             "rbsp_hope_electron_gfz_strategy",
             "rbsp_hope_electron_netcdf_strategy",
+            "rbsp_hope_electron_strategy",
         ],
         "process_rbsp_hope_protons": [
             "process_rbsp_hope_protons",
             "rbsp_hope_proton_gfz_strategy",
             "rbsp_hope_proton_netcdf_strategy",
+            "rbsp_hope_proton_strategy",
         ],
         "process_rbsp_mageis_electrons": ["process_rbsp_mageis_electrons", "rbsp_mageis_electron_strategy"],
         "process_rbsp_mageis_protons": [
             "process_rbsp_mageis_protons",
             "rbsp_mageis_proton_gfz_strategy",
             "rbsp_mageis_proton_netcdf_strategy",
+            "rbsp_mageis_proton_strategy",
         ],
         "process_rbsp_rbspice_protons": [
             "process_rbsp_rbspice_protons",
             "rbsp_rbspice_proton_gfz_strategy",
             "rbsp_rbspice_proton_netcdf_strategy",
+            "rbsp_rbspice_proton_strategy",
         ],
         "process_rbsp_rept_electrons": [
             "process_rbsp_rept_electrons",
             "rbsp_rept_electron_gfz_strategy",
             "rbsp_rept_electron_netcdf_strategy",
+            "rbsp_rept_electron_strategy",
         ],
     },
 )
@@ -65,6 +71,7 @@ if TYPE_CHECKING:
         process_rbsp_ect_combined,
         rbsp_ect_combined_gfz_strategy,
         rbsp_ect_combined_netcdf_strategy,
+        rbsp_ect_combined_strategy,
     )
     from el_paso.recipes.rbsp.process_rbsp_efw_emfisis_density_combined import (
         process_rbsp_efw_emfisis_density_combined,
@@ -75,11 +82,13 @@ if TYPE_CHECKING:
         process_rbsp_hope_electrons,
         rbsp_hope_electron_gfz_strategy,
         rbsp_hope_electron_netcdf_strategy,
+        rbsp_hope_electron_strategy,
     )
     from el_paso.recipes.rbsp.process_rbsp_hope_protons import (
         process_rbsp_hope_protons,
         rbsp_hope_proton_gfz_strategy,
         rbsp_hope_proton_netcdf_strategy,
+        rbsp_hope_proton_strategy,
     )
     from el_paso.recipes.rbsp.process_rbsp_mageis_electrons import (
         process_rbsp_mageis_electrons,
@@ -89,16 +98,19 @@ if TYPE_CHECKING:
         process_rbsp_mageis_protons,
         rbsp_mageis_proton_gfz_strategy,
         rbsp_mageis_proton_netcdf_strategy,
+        rbsp_mageis_proton_strategy,
     )
     from el_paso.recipes.rbsp.process_rbsp_rbspice_protons import (
         process_rbsp_rbspice_protons,
         rbsp_rbspice_proton_gfz_strategy,
         rbsp_rbspice_proton_netcdf_strategy,
+        rbsp_rbspice_proton_strategy,
     )
     from el_paso.recipes.rbsp.process_rbsp_rept_electrons import (
         process_rbsp_rept_electrons,
         rbsp_rept_electron_gfz_strategy,
         rbsp_rept_electron_netcdf_strategy,
+        rbsp_rept_electron_strategy,
     )
 
     __all__ = [
@@ -114,17 +126,23 @@ if TYPE_CHECKING:
         "process_rbsp_rept_electrons",
         "rbsp_ect_combined_gfz_strategy",
         "rbsp_ect_combined_netcdf_strategy",
+        "rbsp_ect_combined_strategy",
         "rbsp_efw_emfisis_density_combined_strategy",
         "rbsp_emfisis_waves_strategy",
         "rbsp_hope_electron_gfz_strategy",
         "rbsp_hope_electron_netcdf_strategy",
+        "rbsp_hope_electron_strategy",
         "rbsp_hope_proton_gfz_strategy",
         "rbsp_hope_proton_netcdf_strategy",
+        "rbsp_hope_proton_strategy",
         "rbsp_mageis_electron_strategy",
         "rbsp_mageis_proton_gfz_strategy",
         "rbsp_mageis_proton_netcdf_strategy",
+        "rbsp_mageis_proton_strategy",
         "rbsp_rbspice_proton_gfz_strategy",
         "rbsp_rbspice_proton_netcdf_strategy",
+        "rbsp_rbspice_proton_strategy",
         "rbsp_rept_electron_gfz_strategy",
         "rbsp_rept_electron_netcdf_strategy",
+        "rbsp_rept_electron_strategy",
     ]

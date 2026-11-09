@@ -66,6 +66,29 @@ def _remove_unit_from_energy_channels(energy_channels: NDArray[np.generic]) -> N
     return np.asarray([int(i.replace(" keV", "")) for i in energy_channels if "keV" in i])  # ty:ignore[invalid-return-type]
 
 
+def goes_realtime_strategy(
+    processed_data_path: str | Path,
+    mag_field: ep.typing.MagneticFieldLiteral,
+    satellite: GOESRealtimeSatellite,
+    save_strategy: Literal["gfz", "netcdf"] = "netcdf",
+) -> ep.SavingStrategy:
+    """Saving strategy of the GOES real-time recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
+        satellite (GOESRealtimeSatellite): Satellite the data belongs to.
+        save_strategy (Literal["gfz", "netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Legacy GFZ strategy for "gfz", otherwise a monthly or daily NetCDF strategy.
+    """
+    if save_strategy == "gfz":
+        return goes_realtime_gfz_strategy(processed_data_path, mag_field, satellite)
+
+    return goes_realtime_netcdf_strategy(processed_data_path, mag_field, satellite)
+
+
 @timed_function("process_goes_real_time")
 def process_goes_real_time(
     start_time: datetime,
@@ -268,10 +291,7 @@ def process_goes_real_time(
     if calculate_Lstar:
         vars_to_save["L_star"] = magnetic_field_variables[f"L_star_{mag_field}"]
 
-    if save_strategy == "gfz":
-        strategy = goes_realtime_gfz_strategy(processed_data_path, mag_field, satellite)
-    else:
-        strategy = goes_realtime_netcdf_strategy(processed_data_path, mag_field, satellite)
+    strategy = goes_realtime_strategy(processed_data_path, mag_field, satellite, save_strategy)
 
     ep.save(vars_to_save, strategy, start_time, end_time, time_var=binned_time_var, append=append)
 
@@ -289,5 +309,12 @@ CLI_DEFAULTS = {
     "processed_data_path": "goes/processed/",
 }
 
+PLOT_DEFAULTS = {
+    "panels": ["Kp", "FEDU", "L_star", "MLT"],
+    "FEDU": {"pitch_angle": 90 * u.deg},
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_goes_real_time, defaults=CLI_DEFAULTS)
+    ep.run_recipe_cli(
+        process_goes_real_time, defaults=CLI_DEFAULTS, strategy=goes_realtime_strategy, plot_defaults=PLOT_DEFAULTS
+    )

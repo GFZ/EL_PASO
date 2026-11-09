@@ -43,6 +43,29 @@ def rbsp_hope_electron_netcdf_strategy(
     )
 
 
+def rbsp_hope_electron_strategy(
+    processed_data_path: str | Path,
+    mag_field: ep.typing.MagneticFieldLiteral,
+    satellite: RBSPSatellite,
+    save_strategy: Literal["gfz", "netcdf"] = "netcdf",
+) -> ep.SavingStrategy:
+    """Saving strategy of the RBSP HOPE electron recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
+        satellite (RBSPSatellite): Satellite the data belongs to.
+        save_strategy (Literal["gfz", "netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Legacy GFZ strategy for "gfz", otherwise a monthly or daily NetCDF strategy.
+    """
+    if save_strategy == "gfz":
+        return rbsp_hope_electron_gfz_strategy(processed_data_path, mag_field, satellite)
+
+    return rbsp_hope_electron_netcdf_strategy(processed_data_path, mag_field, satellite)
+
+
 def process_rbsp_hope_electrons(
     start_time: datetime,
     end_time: datetime,
@@ -241,10 +264,7 @@ def process_rbsp_hope_electrons(
             "electron",
         )
 
-    if save_strategy == "gfz":
-        strategy = rbsp_hope_electron_gfz_strategy(processed_data_path, mag_field, satellite)
-    else:
-        strategy = rbsp_hope_electron_netcdf_strategy(processed_data_path, mag_field, satellite)
+    strategy = rbsp_hope_electron_strategy(processed_data_path, mag_field, satellite, save_strategy)
 
     ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=append)
 
@@ -257,5 +277,10 @@ def process_rbsp_hope_electrons(
         )
 
 
+PLOT_DEFAULTS = {
+    "panels": ["Kp", "FEDU", "R_Eq", "MLT"],
+    "FEDU": {"pitch_angle": 90 * u.deg},
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_rbsp_hope_electrons)
+    ep.run_recipe_cli(process_rbsp_hope_electrons, strategy=rbsp_hope_electron_strategy, plot_defaults=PLOT_DEFAULTS)

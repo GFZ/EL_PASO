@@ -50,6 +50,27 @@ def probav_ept_electron_netcdf_strategy(
 load_dotenv()
 
 
+def probav_ept_electron_strategy(
+    processed_data_path: str | Path,
+    mag_field: ep.typing.MagneticFieldLiteral,
+    save_strategy: typing.Literal["gfz", "netcdf"] = "netcdf",
+) -> ep.SavingStrategy:
+    """Saving strategy of the PROBA-V EPT electron recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
+        save_strategy (typing.Literal["gfz", "netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Legacy GFZ strategy for "gfz", otherwise a monthly or daily NetCDF strategy.
+    """
+    if save_strategy == "gfz":
+        return probav_ept_electron_gfz_strategy(processed_data_path, mag_field)
+
+    return probav_ept_electron_netcdf_strategy(processed_data_path, mag_field)
+
+
 @timed_function("process_ept_electron_fluxes")
 def process_ept_electron_fluxes(
     start_time: datetime,
@@ -323,11 +344,7 @@ def process_ept_electron_fluxes(
     if calculate_Lstar:
         variables_to_save["L_star"] = magnetic_field_variables[f"L_star_{mag_field}"]
 
-    if save_strategy == "gfz":
-        strategy = probav_ept_electron_gfz_strategy(processed_data_path, mag_field)
-
-    else:
-        strategy = probav_ept_electron_netcdf_strategy(processed_data_path, mag_field)
+    strategy = probav_ept_electron_strategy(processed_data_path, mag_field, save_strategy)
 
     ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_var, append=append)
 
@@ -340,5 +357,14 @@ def process_ept_electron_fluxes(
         )
 
 
+PLOT_DEFAULTS = {
+    "panels": ["Kp", "FEDU"],
+    "FEDU": {
+        "pitch_angle": 90 * u.deg,
+        "energies": [500, 1000, 2000] * u.keV,
+        "along": "L_m",
+    },
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_ept_electron_fluxes)
+    ep.run_recipe_cli(process_ept_electron_fluxes, strategy=probav_ept_electron_strategy, plot_defaults=PLOT_DEFAULTS)

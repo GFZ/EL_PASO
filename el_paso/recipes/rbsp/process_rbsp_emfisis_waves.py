@@ -25,17 +25,27 @@ if TYPE_CHECKING:
 
 
 def rbsp_emfisis_waves_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     satellite: RBSPSatellite,
-    data_standard: ep.typing.DataStandard[ep.typing.StandardName] | None = None,
+    save_strategy: Literal["netcdf"] = "netcdf",
 ) -> ep.SavingStrategy:
-    """Daily NetCDF wave saving strategy for RBSP EMFISIS."""
+    """Saving strategy of the RBSP EMFISIS wave recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        satellite (RBSPSatellite): RBSP satellite, "a" or "b".
+        save_strategy (Literal["netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Daily NetCDF wave saving strategy following the GFZ data standard.
+    """
+    del save_strategy
     return ep.saving_strategies.DailyWaveStrategy(
-        Path(base_data_path),
+        Path(processed_data_path),
         "RBSP",
         "rbsp" + satellite,
         "EMFISIS",
-        data_standard or ep.data_standards.GFZStandard(),
+        ep.data_standards.GFZStandard(),
     )
 
 
@@ -97,7 +107,6 @@ def process_rbsp_emfisis_waves(
     del mag_field
     del bin_cadence
     del num_cores
-    del save_strategy
 
     wfr_url = (
         f"https://cdaweb.gsfc.nasa.gov/pub/data/rbsp/rbsp{satellite}/l2/emfisis/wfr/spectral-matrix-diagonal/YYYY/"
@@ -192,7 +201,7 @@ def process_rbsp_emfisis_waves(
         "f_ce_Eq": orbit_vars["f_ce_Eq"],
     }
 
-    saving_strat = rbsp_emfisis_waves_strategy(processed_data_path, satellite)
+    saving_strat = rbsp_emfisis_waves_strategy(processed_data_path, satellite, save_strategy)
 
     ep.save(vars_to_save, saving_strat, start_time, end_time, target_time_var, append=append)
 
@@ -526,5 +535,9 @@ def _plot_wna(wna_vars: dict[str, ep.Variable]) -> None:
     plt.savefig("wna.png")
 
 
+PLOT_DEFAULTS = {
+    "panels": ["Magnetic_Power_Spectral_Density"],
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_rbsp_emfisis_waves)
+    ep.run_recipe_cli(process_rbsp_emfisis_waves, strategy=rbsp_emfisis_waves_strategy, plot_defaults=PLOT_DEFAULTS)

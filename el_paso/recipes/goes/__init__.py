@@ -18,16 +18,19 @@ __getattr__, _lazy_dir, _lazy_all = lazy.attach(
         "process_goes_eps_maged_and_epead": [
             "goes_eps_maged_and_epead_gfz_strategy",
             "goes_eps_maged_and_epead_netcdf_strategy",
+            "goes_eps_maged_and_epead_strategy",
             "process_goes_eps_maged_and_epead",
         ],
         "process_goes_r_mps_high": [
             "goes_r_mps_high_gfz_strategy",
             "goes_r_mps_high_netcdf_strategy",
+            "goes_r_mps_high_strategy",
             "process_goes_r_mps_high",
         ],
         "process_goes_realtime": [
             "goes_realtime_gfz_strategy",
             "goes_realtime_netcdf_strategy",
+            "goes_realtime_strategy",
             "process_goes_real_time",
         ],
     },
@@ -44,16 +47,19 @@ if TYPE_CHECKING:
     from el_paso.recipes.goes.process_goes_eps_maged_and_epead import (
         goes_eps_maged_and_epead_gfz_strategy,
         goes_eps_maged_and_epead_netcdf_strategy,
+        goes_eps_maged_and_epead_strategy,
         process_goes_eps_maged_and_epead,
     )
     from el_paso.recipes.goes.process_goes_r_mps_high import (
         goes_r_mps_high_gfz_strategy,
         goes_r_mps_high_netcdf_strategy,
+        goes_r_mps_high_strategy,
         process_goes_r_mps_high,
     )
     from el_paso.recipes.goes.process_goes_realtime import (
         goes_realtime_gfz_strategy,
         goes_realtime_netcdf_strategy,
+        goes_realtime_strategy,
         process_goes_real_time,
     )
 
@@ -63,10 +69,13 @@ if TYPE_CHECKING:
         "GOESRealtimeSatellite",
         "goes_eps_maged_and_epead_gfz_strategy",
         "goes_eps_maged_and_epead_netcdf_strategy",
+        "goes_eps_maged_and_epead_strategy",
         "goes_r_mps_high_gfz_strategy",
         "goes_r_mps_high_netcdf_strategy",
+        "goes_r_mps_high_strategy",
         "goes_realtime_gfz_strategy",
         "goes_realtime_netcdf_strategy",
+        "goes_realtime_strategy",
         "process_goes_eps_maged_and_epead",
         "process_goes_r_mps_high",
         "process_goes_real_time",

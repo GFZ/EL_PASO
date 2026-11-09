@@ -10,8 +10,8 @@ Each `process_*.py` recipe under `el_paso/recipes/` defines its own small
 literals for that recipe into the right `ep.saving_strategies.*Strategy` class. The strategy
 classes themselves already have their own read/write behavior covered under
 `tests/unittests/saving_strategies/`; these tests just check each factory builds the right
-class with the right attributes, and that overridable keyword-only arguments
-(`file_format`, `data_standard`) actually take effect.
+class with the right attributes, and that overridable arguments
+(`data_standard`) actually take effect.
 """
 
 from __future__ import annotations
@@ -23,6 +23,13 @@ from typing import TYPE_CHECKING, Any
 
 import el_paso as ep
 import pytest
+from el_paso.recipes.arase.process_arase_hep import (
+    arase_hep_gfz_strategy,
+    arase_hep_h5_strategy,
+    arase_hep_h_strategy,
+    arase_hep_l_strategy,
+    arase_hep_netcdf_strategy,
+)
 from el_paso.recipes.arase.process_arase_mepe import (
     arase_mepe_gfz_strategy,
     arase_mepe_h5_strategy,
@@ -126,6 +133,45 @@ CASES: list[
         ep.saving_strategies.MonthlyRBStrategy,
         {"mission": "Arase", "satellite": "arase", "instrument": "xep", "mag_field": "T89", "file_format": ".nc"},
     ),
+    *[
+        case
+        for sensor, instrument in (("L", "hepl"), ("H", "heph"))
+        for case in (
+            (
+                arase_hep_gfz_strategy,
+                ("T89", sensor),
+                {},
+                ep.saving_strategies.GFZStrategy,
+                {"mission": "ARASE", "satellite": "arase", "instrument": instrument, "mag_field": "T89"},
+            ),
+            (
+                arase_hep_h5_strategy,
+                ("T89", sensor),
+                {},
+                ep.saving_strategies.MonthlyRBStrategy,
+                {
+                    "mission": "Arase",
+                    "satellite": "arase",
+                    "instrument": instrument,
+                    "mag_field": "T89",
+                    "file_format": ".h5",
+                },
+            ),
+            (
+                arase_hep_netcdf_strategy,
+                ("T89", sensor),
+                {},
+                ep.saving_strategies.MonthlyRBStrategy,
+                {
+                    "mission": "Arase",
+                    "satellite": "arase",
+                    "instrument": instrument,
+                    "mag_field": "T89",
+                    "file_format": ".nc",
+                },
+            ),
+        )
+    ],
     (
         arase_mepe_gfz_strategy,
         ("T89",),
@@ -496,18 +542,31 @@ def test_density_strategies_default_to_prbem_standard(
 
 @pytest.mark.minimal
 @pytest.mark.basic
-@pytest.mark.parametrize("file_format", ["h5", "cdf", "mat"])
-def test_file_format_override_takes_effect(tmp_path: Path, file_format: str) -> None:
-    strategy = arase_xep_strategy(tmp_path, "T89", file_format=file_format)  # ty:ignore[invalid-argument-type]
+@pytest.mark.parametrize(
+    ("factory", "instrument"), [(arase_hep_l_strategy, "hepl"), (arase_hep_h_strategy, "heph")], ids=["hep-l", "hep-h"]
+)
+def test_arase_hep_strategy_follows_save_strategy_and_sensor(
+    tmp_path: Path, factory: Callable[..., SavingStrategy], instrument: str
+) -> None:
+    gfz = factory(tmp_path, "T89", "gfz")
+    netcdf = factory(tmp_path, "T89", "netcdf", "prbem")
 
-    assert strategy.file_format == "." + file_format  # ty:ignore[unresolved-attribute]
+    assert type(gfz) is ep.saving_strategies.GFZStrategy
+    assert type(netcdf) is ep.saving_strategies.MonthlyRBStrategy
+    assert gfz.instrument == instrument  # ty:ignore[unresolved-attribute]
+    assert netcdf.instrument == instrument  # ty:ignore[unresolved-attribute]
+    assert isinstance(netcdf.data_standard, ep.data_standards.PRBEMStandard)
 
 
 @pytest.mark.minimal
 @pytest.mark.basic
-def test_file_format_is_keyword_only(tmp_path: Path) -> None:
-    with pytest.raises(TypeError):
-        arase_xep_strategy(tmp_path, "T89", "nc")  # ty:ignore[too-many-positional-arguments]
+def test_arase_xep_strategy_follows_save_strategy(tmp_path: Path) -> None:
+    gfz = arase_xep_strategy(tmp_path, "T89", "gfz")
+    netcdf = arase_xep_strategy(tmp_path, "T89", "netcdf")
+
+    assert type(gfz) is ep.saving_strategies.GFZStrategy
+    assert type(netcdf) is ep.saving_strategies.MonthlyOmniFluxRBStrategy
+    assert netcdf.file_format == ".nc"  # ty:ignore[unresolved-attribute]
 
 
 @pytest.mark.minimal
@@ -539,16 +598,6 @@ def test_rbsp_emfisis_waves_strategy(tmp_path: Path) -> None:
 
 @pytest.mark.minimal
 @pytest.mark.basic
-def test_rbsp_emfisis_waves_strategy_data_standard_override(tmp_path: Path) -> None:
-    prbem = ep.data_standards.PRBEMStandard()
-
-    strategy = rbsp_emfisis_waves_strategy(tmp_path, "b", prbem)
-
-    assert strategy.data_standard is prbem
-
-
-@pytest.mark.minimal
-@pytest.mark.basic
 def test_themis_fft_waves_strategy(tmp_path: Path) -> None:
     strategy = themis_fft_waves_strategy(tmp_path, "a")
 
@@ -557,16 +606,6 @@ def test_themis_fft_waves_strategy(tmp_path: Path) -> None:
     assert strategy.satellite == "tha"
     assert strategy.instrument == "FFT"
     assert isinstance(strategy.data_standard, ep.data_standards.GFZStandard)
-
-
-@pytest.mark.minimal
-@pytest.mark.basic
-def test_themis_fft_waves_strategy_data_standard_override(tmp_path: Path) -> None:
-    prbem = ep.data_standards.PRBEMStandard()
-
-    strategy = themis_fft_waves_strategy(tmp_path, "d", prbem)
-
-    assert strategy.data_standard is prbem
 
 
 @pytest.mark.minimal

@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Literal
 
 import lazy_loader as lazy
 
-DMSPSatellite = Literal["f17"]
+DMSPSatellite = Literal["f16", "f17", "f18"]
 
 __getattr__, _lazy_dir, _lazy_all = lazy.attach(
     __name__,

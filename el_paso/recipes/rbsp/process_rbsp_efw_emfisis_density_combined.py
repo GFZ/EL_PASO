@@ -21,21 +21,29 @@ logger = logging.getLogger(__name__)
 
 
 def rbsp_efw_emfisis_density_combined_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     satellite: RBSPSatellite,
     mag_field: ep.typing.MagneticFieldLiteral,
-    data_standard: ep.typing.DataStandard[ep.typing.StandardName] | None = None,
-    *,
-    file_format: ep.typing.MFSFormats = "nc",
+    save_strategy: Literal["netcdf", "mat"] = "netcdf",
 ) -> ep.SavingStrategy:
-    """Monthly density saving strategy for the combined RBSP EFW/EMFISIS densities."""
+    """Saving strategy of the combined RBSP EFW/EMFISIS density recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        satellite (RBSPSatellite): RBSP satellite, "a" or "b".
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
+        save_strategy (Literal["netcdf", "mat"]): File format of the monthly output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Monthly density saving strategy.
+    """
+    file_format: ep.typing.MFSFormats = {"netcdf": "nc", "mat": "mat"}[save_strategy]
     return ep.saving_strategies.RBSPDensityStrategy(
-        base_data_path=base_data_path,
+        base_data_path=processed_data_path,
         mission="RBSP",
         satellite="rbsp" + satellite,
         instrument="densities_combined",
         mag_field=mag_field,
-        data_standard=data_standard,
         file_format=file_format,
     )
 
@@ -222,7 +230,7 @@ def process_rbsp_efw_emfisis_density_combined(
         processed_data_path,
         satellite,
         mag_field,
-        file_format="mat" if save_strategy == "mat" else "nc",
+        save_strategy,
     )
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable, append=append)
@@ -391,5 +399,16 @@ CLI_DEFAULTS = {
     "add_hiss_derived_densitites": True,
 }
 
+PLOT_DEFAULTS = {
+    "panels": ["Number_density_scpot", "Number_density_spectrogram", "MLT"],
+    "Number_density_scpot": {"along": "R_Eq"},
+    "Number_density_spectrogram": {"along": "R_Eq"},
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_rbsp_efw_emfisis_density_combined, defaults=CLI_DEFAULTS)
+    ep.run_recipe_cli(
+        process_rbsp_efw_emfisis_density_combined,
+        defaults=CLI_DEFAULTS,
+        strategy=rbsp_efw_emfisis_density_combined_strategy,
+        plot_defaults=PLOT_DEFAULTS,
+    )

@@ -21,7 +21,7 @@ Files that can't hold a comment header, or whose header would get in the way (JS
 - Never push, open a PR, or comment on a PR/issue without the user's explicit go-ahead for that specific action. Draft the title and body, show them, and wait.
 - PRs target `main` on `GFZ/EL_PASO`, from a topic branch (`feature-...` / `fix-...`).
 - `.venv/bin/pre-commit run --all-files` is clean.
-- Tests pass, scoped per the `build-test-verify` skill (not the full suite). New tests carry `@pytest.mark.basic`, since CI runs only `-m basic`.
+- Tests pass, scoped per the `build-test-verify` skill (not the full suite). New tests carry `@pytest.mark.basic`, since CI runs only `-m basic`; tests that download real data carry `@pytest.mark.network` instead (run on a PR via the `/run-network-tests` comment, from a branch in `GFZ/EL_PASO` so secrets are available).
 - `README.md` / `CONTRIBUTING.md` updated if this changes install steps, usage, or the "Available processing scripts" list.
 
 ## PR template

@@ -70,6 +70,36 @@ def arase_mepe_netcdf_strategy(
     )
 
 
+def arase_mepe_strategy(
+    processed_data_path: str | Path,
+    mag_field: ep.typing.MagneticFieldLiteral,
+    save_strategy: Literal["gfz", "h5", "netcdf"] = "gfz",
+    data_standard: Literal["gfz", "prbem"] = "gfz",
+) -> ep.SavingStrategy:
+    """Saving strategy of the Arase MEP-e recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
+        save_strategy (Literal["gfz", "h5", "netcdf"]): Saving strategy of the output files. Defaults to "gfz".
+        data_standard (Literal["gfz", "prbem"]): Data standard of the output files. Defaults to "gfz".
+
+    Returns:
+        ep.SavingStrategy: Saving strategy for the given arguments.
+    """
+    data_standard_instance = (
+        ep.data_standards.GFZStandard() if data_standard == "gfz" else ep.data_standards.PRBEMStandard()
+    )
+
+    match save_strategy:
+        case "gfz":
+            return arase_mepe_gfz_strategy(processed_data_path, mag_field, data_standard_instance)
+        case "h5":
+            return arase_mepe_h5_strategy(processed_data_path, mag_field, data_standard_instance)
+        case "netcdf":
+            return arase_mepe_netcdf_strategy(processed_data_path, mag_field, data_standard_instance)
+
+
 def process_arase_mepe(
     start_time: datetime,
     end_time: datetime,
@@ -85,6 +115,7 @@ def process_arase_mepe(
     use_level_3_orbit_data: bool = True,
     skip_existing: bool = True,
     add_B_obs: bool = False,
+    calculate_Lstar: bool = False,
     save_indices_sw: bool = False,
     append: bool = False,
 ) -> None:
@@ -132,6 +163,8 @@ def process_arase_mepe(
         add_B_obs (bool): If True, also download the MGF Level 2 8-second magnetometer data and save
                                 the observed magnetic field magnitude (B_total_obs) and InvMu_obs computed
                                 from it. Only supported with the "gfz" data standard. Defaults to False.
+        calculate_Lstar (bool): If True, also compute (or, when `use_level_3_orbit_data` is True,
+            interpolate and save) the L* magnetic field quantity. Defaults to True.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
         append (bool): If True, append to existing output files instead of overwriting them.
@@ -256,10 +289,11 @@ def process_arase_mepe(
             "B_local": ep.TimeBinMethod.NanMedian,
             "B_eq": ep.TimeBinMethod.NanMedian,
             "Lm": ep.TimeBinMethod.NanMean,
-            "Lstar": ep.TimeBinMethod.NanMean,
             "MLT": ep.TimeBinMethod.NanMean,
             "R0": ep.TimeBinMethod.NanMean,
         }
+        if calculate_Lstar:
+            time_bin_methods["Lstar"] = ep.TimeBinMethod.NanMean
 
         binned_time_variable = ep.processing.bin_by_time(
             orb_variables["Epoch"],
@@ -285,6 +319,10 @@ def process_arase_mepe(
         orb_variables["Lm"] = interpolate_level_3_to_pitch_angles(
             orb_variables["Lm"], mepe_variables["Pitch_angle"].get_data(u.deg)
         )
+        if calculate_Lstar:
+            orb_variables["Lstar"] = interpolate_level_3_to_pitch_angles(
+                orb_variables["Lstar"], mepe_variables["Pitch_angle"].get_data(u.deg)
+            )
 
     else:
         time_bin_methods = {
@@ -312,7 +350,11 @@ def process_arase_mepe(
         )
         pos_geo_var = ep.Variable(data=geo_data, original_unit=ep.units.RE)
 
-        irbem_options = ep.processing.magnetic_field_utils.IrbemOptions()
+        irbem_options = ep.processing.magnetic_field_utils.IrbemOptions(
+            lstar_quantity=ep.processing.magnetic_field_utils.LstarQuantity.LSTAR
+            if calculate_Lstar
+            else ep.processing.magnetic_field_utils.LstarQuantity.NONE,
+        )
 
         variables_to_compute: ep.processing.VariableRequest = [
             ("B_Calc", mag_field),
@@ -324,6 +366,9 @@ def process_arase_mepe(
             ("InvK", mag_field),
             ("InvMu", mag_field),
         ]
+
+        if calculate_Lstar:
+            variables_to_compute.append(("L_star", mag_field))
 
         magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
             time_var=binned_time_variable,
@@ -340,15 +385,13 @@ def process_arase_mepe(
         orb_variables["MLT"] = magnetic_field_variables["MLT_" + mag_field]
         mepe_variables["Pa_eq"] = magnetic_field_variables["Alpha_Eq_" + mag_field]
         orb_variables["Lm"] = magnetic_field_variables["L_m_" + mag_field]
+        if calculate_Lstar:
+            orb_variables["Lstar"] = magnetic_field_variables["L_star_" + mag_field]
         mepe_variables["InvMu"] = magnetic_field_variables["InvMu_" + mag_field]
         mepe_variables["InvK"] = magnetic_field_variables["InvK_" + mag_field]
 
     psd_var = ep.processing.compute_phase_space_density(
         mepe_variables["FEDU"], mepe_variables["Energy"], particle_species="electron"
-    )
-
-    data_standard_instance = (
-        ep.data_standards.GFZStandard() if data_standard == "gfz" else ep.data_standards.PRBEMStandard()
     )
 
     variables_to_save: ep.typing.VariablesDict = {
@@ -363,6 +406,9 @@ def process_arase_mepe(
         "InvMu": mepe_variables["InvMu"],
         "PSD": psd_var,
     }
+
+    if calculate_Lstar:
+        variables_to_save["L_star"] = orb_variables["Lstar"]
 
     # Level 3 orbit data does not provide the second adiabatic invariant
     if not use_level_3_orbit_data:
@@ -380,15 +426,7 @@ def process_arase_mepe(
             "electron",
         )
 
-    match save_strategy:
-        case "gfz":
-            saving_strategy = arase_mepe_gfz_strategy(processed_data_path, mag_field, data_standard_instance)
-
-        case "h5":
-            saving_strategy = arase_mepe_h5_strategy(processed_data_path, mag_field, data_standard_instance)
-
-        case "netcdf":
-            saving_strategy = arase_mepe_netcdf_strategy(processed_data_path, mag_field, data_standard_instance)
+    saving_strategy = arase_mepe_strategy(processed_data_path, mag_field, save_strategy, data_standard)
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable, append=append)
 
@@ -401,5 +439,10 @@ def process_arase_mepe(
         )
 
 
+PLOT_DEFAULTS = {
+    "panels": ["Kp", "FEDU", "R_Eq", "MLT"],
+    "FEDU": {"pitch_angle": 90 * u.deg},
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_arase_mepe)
+    ep.run_recipe_cli(process_arase_mepe, strategy=arase_mepe_strategy, plot_defaults=PLOT_DEFAULTS)
