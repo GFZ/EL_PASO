@@ -186,7 +186,8 @@ A recipe can define default panels (`PLOT_DEFAULTS`, as RBSP MagEIS does), in wh
 | `--vmin`, `--vmax` | Colour limits of spectrograms and scatter panels, or y-limits of `--energy` line panels. Default: the 5th and 95th percentile of the data. |
 | `--colormap` | A [colorcet](https://colorcet.holoviz.org) or matplotlib colormap name. Default `rainbow4`. |
 | `--along-L-star`, `--along-L-m`, `--along-R-eq` | Draw each variable as a scatter plot over time with that coordinate on the y axis and the value as colour. At most one of them per call. |
-| `--output`, `-o` | File to write; the format follows the suffix (`.png`, `.pdf`, ...). |
+| `--output-dir` | Directory to write the figure to, created if missing. Default: the current directory. |
+| `--filename` | Name of the file; the format follows the suffix (`.png`, `.pdf`, ...). Default: `<recipe>_<satellite>_<start>_<end>.png`. |
 | `--show` | Open the figure in an interactive window instead of only writing a file. |
 
 For example, electron flux at three energies against `L_star`, written as a PDF:
@@ -197,7 +198,7 @@ el-paso plot rbsp mageis-electrons \
     --processed-data-path ~/ep/processed \
     --variable FEDU --energy 108 --energy 470 --energy 1575 \
     --along-L-star --vmin 1 --vmax 1e6 \
-    -o fedu_lstar.pdf
+    --output-dir ~/ep/figures --filename fedu_lstar.pdf
 ```
 
 With several `--satellite` options the figure holds one block of panels per satellite

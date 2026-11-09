@@ -138,7 +138,8 @@ def test_plot_command_takes_the_recipe_defaults(requests: list[PlotRequest]) -> 
         {"processed_data_path": Path("processed"), "mag_field": "TS04", "satellite": "a"}
     ]
     assert request.variables is None
-    assert request.output is None
+    assert request.output_dir is None
+    assert request.filename is None
     assert not request.show
     assert not request.dry_run
     assert not request.verbose
@@ -160,7 +161,9 @@ def test_plot_command_passes_plot_options_through(requests: list[PlotRequest]) -
             "FEDU",
             "--variable",
             "L_star",
-            "-o",
+            "--output-dir",
+            "figures",
+            "--filename",
             "out.pdf",
             "--show",
             "--dry-run",
@@ -171,7 +174,8 @@ def test_plot_command_passes_plot_options_through(requests: list[PlotRequest]) -
 
     (request,) = requests
     assert request.variables == ["FEDU", "L_star"]
-    assert request.output == Path("out.pdf")
+    assert request.output_dir == Path("figures")
+    assert request.filename == "out.pdf"
     assert request.show
     assert request.dry_run
     assert request.verbose
@@ -311,19 +315,19 @@ def test_plot_command_rejects_mismatching_factory() -> None:
 @pytest.mark.minimal
 @pytest.mark.basic
 def test_plot_command_rejects_factory_parameters_named_like_plot_options() -> None:
-    def recipe(start_time: datetime, end_time: datetime, output: str = "x") -> None:
+    def recipe(start_time: datetime, end_time: datetime, filename: str = "x") -> None:
         """Process.
 
         Args:
             start_time (datetime): Start.
             end_time (datetime): End.
-            output (str): Output.
+            filename (str): File name.
         """
 
-    def strategy(output: str) -> ep.SavingStrategy:
+    def strategy(filename: str) -> ep.SavingStrategy:
         raise NotImplementedError
 
-    with pytest.raises(TypeError, match="output"):
+    with pytest.raises(TypeError, match="filename"):
         build_plot_command(recipe, strategy)
 
 
@@ -386,7 +390,8 @@ def test_every_plottable_recipe_builds_a_plot_command(entry: RecipeEntry, reques
         "--pitch-angle",
         "--vmin",
         "--vmax",
-        "--output",
+        "--output-dir",
+        "--filename",
     ):
         assert option in help_text
 
@@ -530,6 +535,11 @@ def save_mageis_shaped_data(tmp_path: Path, satellite: str) -> None:
     ep.save(variables, strategy, start_time=PLOT_START, end_time=PLOT_END, time_var=variables["Epoch"])  # ty:ignore[invalid-argument-type]
 
 
+def output_args(path: Path) -> list[str]:
+    """The ``--output-dir`` and ``--filename`` options that write a figure to `path`."""
+    return ["--output-dir", str(path.parent), "--filename", path.name]
+
+
 def mageis_plot(tmp_path: Path, *args: str, end_time: datetime = PLOT_END) -> Result:
     """Run ``el-paso plot rbsp mageis-electrons`` from the day of `save_mageis_shaped_data` to `end_time`."""
     return invoke_app(
@@ -564,8 +574,7 @@ def test_partial_coverage_plots_what_exists_and_names_the_gap(
         "a",
         "--variable",
         "B_Eq",
-        "-o",
-        str(output),
+        *output_args(output),
         end_time=datetime(2017, 11, 2, tzinfo=timezone.utc),
     )
 
@@ -581,7 +590,7 @@ def test_no_coverage_fails_with_the_expected_path_and_processing_command(
 ) -> None:
     output = tmp_path / "out.png"
 
-    result = mageis_plot(tmp_path, "--satellite", "a", "--variable", "B_Eq", "-o", str(output))
+    result = mageis_plot(tmp_path, "--satellite", "a", "--variable", "B_Eq", *output_args(output))
 
     assert result.exit_code == 1, result.output
     assert not output.exists()
@@ -601,7 +610,7 @@ def test_satellite_without_files_is_left_out(tmp_path: Path, plot_log: pytest.Lo
     output = tmp_path / "out.png"
 
     with patch.object(plot_cli, "build_figure", wraps=plot_cli.build_figure) as build_figure:
-        result = mageis_plot(tmp_path, "--satellite", "all", "--variable", "B_Eq", "-o", str(output))
+        result = mageis_plot(tmp_path, "--satellite", "all", "--variable", "B_Eq", *output_args(output))
 
     # the exit code for a missing satellite is settled in Phase 5, so it is not checked here
     assert output.exists(), result.output
@@ -652,7 +661,8 @@ def test_processing_command_line_spells_out_every_argument() -> None:
         end_time=PLOT_START + timedelta(hours=12),
         strategy_kwargs=[],
         variables=None,
-        output=None,
+        output_dir=None,
+        filename=None,
         show=False,
         dry_run=False,
         verbose=False,
@@ -688,7 +698,7 @@ def pyplot_figures() -> Iterator[None]:
 def test_plot_writes_the_figure_to_output(mageis_data: Path, plot_log: pytest.LogCaptureFixture) -> None:
     output = mageis_data / "quicklook.png"
     result = mageis_plot(
-        mageis_data, "--satellite", "all", "--variable", "FEDU", "--variable", "B_Eq", "-o", str(output)
+        mageis_data, "--satellite", "all", "--variable", "FEDU", "--variable", "B_Eq", *output_args(output)
     )
 
     assert result.exit_code == 0, result.output
@@ -729,8 +739,7 @@ def test_plot_with_selection_options_writes_the_figure(mageis_data: Path, plot_l
         "5",
         "--vmax",
         "80",
-        "-o",
-        str(output),
+        *output_args(output),
     )
 
     assert result.exit_code == 0, result.output
@@ -756,7 +765,7 @@ def test_plot_defaults_make_variable_optional(
     mageis_plot_defaults["panels"] = ["FEDU", "B_Eq"]
     output = mageis_data / "defaults.png"
 
-    result = mageis_plot(mageis_data, "--satellite", "a", "-o", str(output))
+    result = mageis_plot(mageis_data, "--satellite", "a", *output_args(output))
 
     assert result.exit_code == 0, result.output
     assert output.read_bytes().startswith(b"\x89PNG")
@@ -775,7 +784,7 @@ def test_mageis_plot_defaults_draw_fedu_along_l_star(
     # the synthetic data has no Kp, which would be downloaded
     monkeypatch.setattr(plot_figure, "_plot_index", lambda *a, **k: None)
 
-    result = mageis_plot(mageis_data, "--satellite", "a", "-o", str(output))
+    result = mageis_plot(mageis_data, "--satellite", "a", *output_args(output))
 
     assert result.exit_code == 0, result.output
     assert output.read_bytes().startswith(b"\x89PNG")
@@ -805,7 +814,7 @@ def test_variable_replaces_the_default_panels(
 
     monkeypatch.setattr(plot_cli, "build_figure", build_figure)
 
-    result = mageis_plot(mageis_data, "--satellite", "a", "--variable", "B_Eq", "-o", str(mageis_data / "out.png"))
+    result = mageis_plot(mageis_data, "--satellite", "a", "--variable", "B_Eq", *output_args(mageis_data / "out.png"))
 
     assert result.exit_code == 0, result.output
     assert drawn == [["B_Eq"]]
@@ -823,7 +832,7 @@ def test_cli_flags_override_plot_defaults_which_override_type_defaults(
     original = plot_cli.build_figure
     monkeypatch.setattr(plot_cli, "build_figure", lambda *a, **k: figures.append(original(*a, **k)) or figures[-1])
 
-    result = mageis_plot(mageis_data, "--satellite", "a", "--vmax", "80", "-o", str(mageis_data / "out.png"))
+    result = mageis_plot(mageis_data, "--satellite", "a", "--vmax", "80", *output_args(mageis_data / "out.png"))
 
     assert result.exit_code == 0, result.output
     (figure,) = figures
@@ -933,7 +942,7 @@ def test_show_fails_clearly_without_a_display(
     monkeypatch.chdir(tmp_path)
     output = tmp_path / "out.png"
 
-    result = mageis_plot(mageis_data, "--satellite", "a", "--variable", "B_Eq", "--show", "-o", str(output))
+    result = mageis_plot(mageis_data, "--satellite", "a", "--variable", "B_Eq", "--show", *output_args(output))
 
     assert result.exit_code == 1, result.output
     assert "--show needs an interactive matplotlib backend, but 'Agg' is in use" in plot_log.text
@@ -956,8 +965,8 @@ def test_show_opens_a_window_and_writes_only_a_requested_file(
     shown: list[list[int]] = []
     monkeypatch.setattr(plt, "show", lambda: shown.append(plt.get_fignums()))
 
-    output_args = ["-o", "requested.png"] if with_output else []
-    result = mageis_plot(mageis_data, "--satellite", "a", "--variable", "B_Eq", "--show", *output_args)
+    file_args = ["--filename", "requested.png"] if with_output else []
+    result = mageis_plot(mageis_data, "--satellite", "a", "--variable", "B_Eq", "--show", *file_args)
 
     assert result.exit_code == 0, result.output
     assert len(shown) == 1
@@ -1017,7 +1026,7 @@ def test_build_figure_along_l_star_has_one_panel_per_energy_and_satellite(mageis
 def test_plot_along_l_star_writes_the_figure(mageis_data: Path, plot_log: pytest.LogCaptureFixture) -> None:
     output = mageis_data / "along.png"
     result = mageis_plot(
-        mageis_data, "--satellite", "a", "--variable", "FEDU", "--energy", "400", "--along-L-star", "-o", str(output)
+        mageis_data, "--satellite", "a", "--variable", "FEDU", "--energy", "400", "--along-L-star", *output_args(output)
     )
 
     assert result.exit_code == 0, result.output
@@ -1030,7 +1039,7 @@ def test_plot_along_l_star_writes_the_figure(mageis_data: Path, plot_log: pytest
 @pytest.mark.basic
 def test_plot_along_a_coordinate_without_data_fails(mageis_data: Path, plot_log: pytest.LogCaptureFixture) -> None:
     output = mageis_data / "along.png"
-    result = mageis_plot(mageis_data, "--satellite", "a", "--variable", "FEDU", "--along-R-eq", "-o", str(output))
+    result = mageis_plot(mageis_data, "--satellite", "a", "--variable", "FEDU", "--along-R-eq", *output_args(output))
 
     assert result.exit_code == 1, result.output
     assert not output.exists()
@@ -1130,7 +1139,7 @@ def test_split_panels_separates_indices_from_variables() -> None:
     ],
     ids=["one-satellite", "two-satellites-with-time", "no-satellite-parameter"],
 )
-def test_default_output_path(
+def test_default_filename(
     strategy_kwargs: list[dict[str, Any]], start_time: datetime, end_time: datetime, expected: str
 ) -> None:
     from el_paso.recipes.rbsp.process_rbsp_mageis_electrons import process_rbsp_mageis_electrons  # noqa: PLC0415
@@ -1142,14 +1151,15 @@ def test_default_output_path(
         end_time=end_time,
         strategy_kwargs=strategy_kwargs,
         variables=None,
-        output=None,
+        output_dir=None,
+        filename=None,
         show=False,
         dry_run=False,
         verbose=False,
         plot_defaults={},
     )
 
-    assert plot_cli.default_output_path(request) == Path(expected)
+    assert plot_cli.default_filename(request) == expected
 
 
 @pytest.mark.minimal
@@ -1171,3 +1181,27 @@ def test_energy_option_accepts_units(text: str, kev: float) -> None:
     from el_paso.cli.plot_cli import _parse_energy
 
     assert _parse_energy(text) == pytest.approx(kev)
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_plot_creates_the_output_dir_and_uses_the_default_filename(
+    mageis_data: Path, plot_log: pytest.LogCaptureFixture
+) -> None:
+    output_dir = mageis_data / "figures" / "nested"
+
+    result = mageis_plot(mageis_data, "--satellite", "a", "--variable", "B_Eq", "--output-dir", str(output_dir))
+
+    assert result.exit_code == 0, result.output
+    [figure] = output_dir.iterdir()
+    assert figure.name.startswith("rbsp_mageis_electrons_a_")
+    assert figure.read_bytes().startswith(b"\x89PNG")
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_plot_filename_must_not_contain_a_directory(requests: list[PlotRequest]) -> None:
+    result = invoke_app(["plot", "rbsp", "mageis-electrons", *TIME_ARGS, "--filename", "sub/out.png"])
+
+    assert result.exit_code == 2, result.output
+    assert "Use --output-dir" in click.unstyle(result.output)

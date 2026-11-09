@@ -17,7 +17,7 @@ three sources:
   ``--processed-data-path``, with the recipe's defaults, so that the same arguments find the
   files a processing run wrote;
 - plot-only options: ``--variable``, ``--energy``, ``--pitch-angle``, ``--vmin``, ``--vmax``,
-  ``--along-L-star``/``--along-L-m``/``--along-R-eq`` (at most one), ``--output`` and ``--show``.
+  ``--along-L-star``/``--along-L-m``/``--along-R-eq`` (at most one), ``--output-dir``, ``--filename`` and ``--show``.
 
 Processing-only options such as ``--num-cores`` or ``--raw-data-path`` are not part of the
 factory's signature and so are rejected.
@@ -101,7 +101,8 @@ _PLOT_PARAMETER_NAMES = (
     "vmax",
     "colormap",
     *ALONG_OPTIONS,
-    "output",
+    "output_dir",
+    "filename",
     "show",
 )
 """Options defined here: ``--dry-run`` is shared with processing in name only, the rest are plot-only."""
@@ -120,7 +121,8 @@ class PlotRequest:
             (one per satellite).
         variables: Internal names of the variables given with ``--variable``, or ``None`` for the
             recipe's default panels (see `resolve_panels`).
-        output: File to write the figure to, or ``None`` for the default file name.
+        output_dir: Directory to write the figure to, or ``None`` for the current directory.
+        filename: Name of the figure's file, or ``None`` for the default name (see `default_filename`).
         show: Open an interactive window.
         dry_run: Only report what would be plotted.
         verbose: Log every file that is loaded.
@@ -144,7 +146,8 @@ class PlotRequest:
     end_time: datetime
     strategy_kwargs: list[dict[str, Any]]
     variables: list[str] | None
-    output: Path | None
+    output_dir: Path | None
+    filename: str | None
     show: bool
     dry_run: bool
     verbose: bool
@@ -261,14 +264,25 @@ def _plot_parameters() -> list[inspect.Parameter]:
             for parameter, (flag, coordinate) in ALONG_OPTIONS.items()
         ),
         (
-            "output",
+            "output_dir",
             Annotated[
                 Path | None,
                 typer.Option(
-                    "--output",
-                    "-o",
-                    help="File to write the figure to; the format follows its suffix. "
-                    "Defaults to <recipe>_<satellite>_<start>_<end>.png unless --show is given.",
+                    "--output-dir",
+                    help="Directory to write the figure to, created if missing. Defaults to the current directory.",
+                ),
+            ],
+            None,
+        ),
+        (
+            "filename",
+            Annotated[
+                str | None,
+                typer.Option(
+                    "--filename",
+                    help="Name of the figure's file; the format follows its suffix. "
+                    "Defaults to <recipe>_<satellite>_<start>_<end>.png. "
+                    "The figure is only written if this or --output-dir is given, or if --show is not.",
                 ),
             ],
             None,
@@ -531,6 +545,11 @@ def _parse_plot_options(plot_options: dict[str, Any]) -> dict[str, Any]:
         msg = f"only one of {', '.join(flags)} can be given."
         raise typer.BadParameter(msg, param_hint=" / ".join(f"'{flag}'" for flag in flags))
 
+    filename = plot_options["filename"]
+    if filename is not None and Path(filename).name != filename:
+        msg = f"must be a file name without a directory, got {filename!r}. Use --output-dir for the directory."
+        raise typer.BadParameter(msg, param_hint="'--filename'")
+
     pitch_angle = None if plot_options["pitch_angle"] is None else plot_options["pitch_angle"] * u.deg
     return {
         **{name: value for name, value in plot_options.items() if name not in ALONG_OPTIONS},
@@ -642,7 +661,12 @@ def _report_settings(request: PlotRequest) -> None:
     else:
         along_text = "none (plot types by dimensions)"
     table.add_row("along", along_text)
-    table.add_row("output", _format_value("output", request.output) if request.output else "default file name")
+    output_path = _output_path(request)
+    if output_path is None:
+        table.add_row("output", "none (shown only)")
+    else:
+        table.add_row("output dir", str(output_path.parent.resolve()))
+        table.add_row("filename", output_path.name)
     table.add_row("show", str(request.show))
     _log_table(table)
 
@@ -698,10 +722,10 @@ def _format_time_for_file_name(time: datetime) -> str:
     return time.strftime("%Y%m%dT%H%M%S")
 
 
-def default_output_path(request: PlotRequest) -> Path:
-    """File the figure is written to when neither ``--output`` nor ``--show`` is given.
+def default_filename(request: PlotRequest) -> str:
+    """File name of the figure when ``--filename`` is not given.
 
-    The name is ``<recipe>_<satellite>_<start>_<end>.png`` in the current directory, where
+    The name is ``<recipe>_<satellite>_<start>_<end>.png``, where
     ``<recipe>`` is the recipe function's name without its ``process_`` prefix and ``<satellite>``
     joins all plotted satellites with ``-``. Recipes without a ``satellite`` parameter leave it out.
 
@@ -709,7 +733,7 @@ def default_output_path(request: PlotRequest) -> Path:
         request (PlotRequest): The resolved plot request.
 
     Returns:
-        Path: The default output file, relative to the current directory.
+        str: The default file name.
     """
     recipe_name = _func_name(request.recipe).removeprefix("process_")
     satellites: list[str] = []
@@ -723,7 +747,17 @@ def default_output_path(request: PlotRequest) -> Path:
     if satellites:
         parts.append("-".join(satellites))
     parts += [_format_time_for_file_name(request.start_time), _format_time_for_file_name(request.end_time)]
-    return Path("_".join(parts) + ".png")
+    return "_".join(parts) + ".png"
+
+
+def _output_path(request: PlotRequest) -> Path | None:
+    """File the figure is written to, or ``None`` if it is only shown.
+
+    The figure is written if ``--filename`` or ``--output-dir`` is given, or if ``--show`` is not.
+    """
+    if request.filename is None and request.output_dir is None and request.show:
+        return None
+    return (request.output_dir or Path()) / (request.filename or default_filename(request))
 
 
 def _interactive_backend_error() -> str | None:
@@ -739,7 +773,7 @@ def _interactive_backend_error() -> str | None:
     if backend.lower() in backend_registry.list_builtin(BackendFilter.NON_INTERACTIVE):
         return (
             f"--show needs an interactive matplotlib backend, but '{backend}' is in use "
-            "(no display available?). Use --output to write the figure to a file instead, "
+            "(no display available?). Use --output-dir or --filename to write the figure to a file instead, "
             "or set MPLBACKEND to an interactive backend."
         )
     return None
@@ -893,8 +927,8 @@ def _load_datasets(request: PlotRequest) -> list[DataSet]:
 def _run_plot(request: PlotRequest) -> None:
     """Plot the processed data a request describes.
 
-    The figure is written to ``--output``, or shown with ``--show``, or both. With neither, it is
-    written to :func:`default_output_path`.
+    The figure is written to ``--output-dir``/``--filename``, or shown with ``--show``, or both. With
+    neither, it is written to the current directory under :func:`default_filename`.
 
     Satellites with only some of the expected files are plotted with gaps; satellites without
     any are left out (see `_check_coverage`).
@@ -945,10 +979,9 @@ def _run_plot(request: PlotRequest) -> None:
         logger.error(str(error))  # noqa: TRY400
         raise typer.Exit(code=1) from error
 
-    output = request.output
-    if output is None and not request.show:
-        output = default_output_path(request)
+    output = _output_path(request)
     if output is not None:
+        output.parent.mkdir(parents=True, exist_ok=True)
         figure.savefig(output)
         logger.info(f"Saved the figure to {output}.")
 
