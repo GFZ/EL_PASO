@@ -10,8 +10,8 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from astropy import units as u
-from astropy.constants import e as elementary_charge  # ty:ignore[import-not-found]
-from astropy.constants import m_e as electron_mass  # ty:ignore[import-not-found]
+from astropy.constants import e as elementary_charge  # ty: ignore[import-not-found]
+from astropy.constants import m_e as electron_mass  # ty: ignore[import-not-found]
 
 import el_paso as ep
 
