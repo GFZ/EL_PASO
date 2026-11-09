@@ -158,8 +158,10 @@ def plot_default(
             "--processed-data-path",
             str(processed_data_path),
             *args,
-            "--output",
-            str(output),
+            "--output-dir",
+            str(output.parent),
+            "--filename",
+            output.name,
         ]
         with patch.object(typer.testing, "_get_command", side_effect=lambda instance: instance):
             result = runner.invoke(app, command, env={"COLUMNS": "200"})

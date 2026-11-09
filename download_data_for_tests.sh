@@ -7,7 +7,7 @@
 set -e
 
 REPO_ID="spsw/EL-PASO-Test-Data"
-REVISION="d72656e5d1b126cfb87cee186b39747524b25714"   # bump when the data changes
+REVISION="5221e5ccc2995910e3c17e86a9de28cec80bb929"   # bump when the data changes
 OUTPUT_DIR="./tests/system/"
 
 echo "Downloading ${REPO_ID}@${REVISION}..."
