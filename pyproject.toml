@@ -42,6 +42,7 @@ dependencies = [
     "xarray>=2026.4.0",
     "pyspedas>=2.1.5",
     "lazy-loader>=0.6",
+    "colorcet>=3.2.1",
 ]
 license = "(Apache-2.0 OR LGPL-3.0-only)"
 license-files = ["LICENSES/*"]

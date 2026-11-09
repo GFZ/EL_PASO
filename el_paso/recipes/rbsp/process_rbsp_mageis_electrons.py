@@ -37,15 +37,25 @@ STANDARD_ENERGIES_KEV = np.array(
 
 
 def rbsp_mageis_electron_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     satellite: RBSPSatellite,
-    *,
-    file_format: ep.typing.MFSFormats = "nc",
+    save_strategy: Literal["netcdf"] = "netcdf",
 ) -> ep.SavingStrategy:
-    """Monthly NetCDF saving strategy for RBSP MagEIS electrons."""
+    """Saving strategy of the RBSP MagEIS electron recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
+        satellite (RBSPSatellite): RBSP satellite, "a" or "b".
+        save_strategy (Literal["netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Monthly NetCDF saving strategy.
+    """
+    file_format: ep.typing.MFSFormats = {"netcdf": "nc"}[save_strategy]
     return ep.saving_strategies.MonthlyRBStrategy(
-        Path(base_data_path),
+        Path(processed_data_path),
         "RBSP",
         "rbsp" + satellite,
         "mageis",
@@ -114,7 +124,6 @@ def process_rbsp_mageis_electrons(
         append (bool): If True, append to existing output files instead of overwriting them.
             Defaults to False.
     """
-    del save_strategy
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
 
@@ -264,7 +273,7 @@ def process_rbsp_mageis_electrons(
             "electron",
         )
 
-    strategy = rbsp_mageis_electron_strategy(processed_data_path, mag_field, satellite)
+    strategy = rbsp_mageis_electron_strategy(processed_data_path, mag_field, satellite, save_strategy)
     ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=append)
 
     if save_indices_sw:
@@ -326,5 +335,20 @@ def _mageis_data_modifier(
     return variable_data
 
 
+PLOT_DEFAULTS = {
+    "panels": ["Kp", "FEDU"],
+    "FEDU": {
+        "pitch_angle": 90 * u.deg,
+        "energies": [108, 470, 1575] * u.keV,
+        "vmin": 1e0,
+        "vmax": 1e6,
+        "along": "L_star",
+    },
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_rbsp_mageis_electrons)
+    ep.run_recipe_cli(
+        process_rbsp_mageis_electrons,
+        strategy=rbsp_mageis_electron_strategy,
+        plot_defaults=PLOT_DEFAULTS,
+    )

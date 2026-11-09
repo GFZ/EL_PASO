@@ -31,15 +31,25 @@ _GSSC_EMU_SATELLITE_TO_ID: dict[ESAGSSCSatellite, str] = {
 
 
 def gssc_emu_proton_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     satellite: ESAGSSCSatellite,
-    *,
-    file_format: ep.typing.MFSFormats = ".nc",
+    save_strategy: Literal["netcdf"] = "netcdf",
 ) -> ep.SavingStrategy:
-    """Monthly RB saving strategy for GSSC EMU protons."""
+    """Saving strategy of the ESA GSSC EMU proton recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
+        satellite (ESAGSSCSatellite): Satellite the data belongs to.
+        save_strategy (Literal["netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Monthly NetCDF saving strategy.
+    """
+    file_format: ep.typing.MFSFormats = {"netcdf": "nc"}[save_strategy]
     return ep.saving_strategies.MonthlyRBStrategy(
-        Path(base_data_path),
+        Path(processed_data_path),
         "ESA",
         satellite,
         "emu-proton",
@@ -115,8 +125,6 @@ def process_gssc_emu_protons(
             (`SPACETRACK_USER`/`SPACETRACK_PASS`) are missing while OMM data is needed.
         FileNotFoundError: If OMM data is needed but Space-Track has no element sets for the satellite.
     """
-    del save_strategy
-
     if username is None:
         username = os.environ.get("GSSC_USER")
     if password is None:
@@ -274,7 +282,7 @@ def process_gssc_emu_protons(
     if calculate_Lstar:
         variables_to_save["L_star"] = magnetic_field_variables[f"L_star_{mag_field}"]
 
-    saving_strategy = gssc_emu_proton_strategy(processed_data_path, mag_field, satellite)
+    saving_strategy = gssc_emu_proton_strategy(processed_data_path, mag_field, satellite, save_strategy)
 
     ep.save(
         variables_to_save,
@@ -299,5 +307,16 @@ CLI_DEFAULTS = {
     "processed_data_path": "processed_GSSC_EMU",
 }
 
+PLOT_DEFAULTS = {
+    "panels": ["Kp", "FEDU"],
+    "FEDU": {
+        "pitch_angle": 90 * u.deg,
+        "energies": [100, 500, 1000] * u.keV,  # placeholder energies, to be replaced by the instrument channels
+        "along": "L_m",
+    },
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_gssc_emu_protons, defaults=CLI_DEFAULTS)
+    ep.run_recipe_cli(
+        process_gssc_emu_protons, defaults=CLI_DEFAULTS, strategy=gssc_emu_proton_strategy, plot_defaults=PLOT_DEFAULTS
+    )

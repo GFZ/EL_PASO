@@ -115,6 +115,66 @@ def arase_hep_netcdf_strategy(
     )
 
 
+def _select_hep_saver(
+    sensor: HepSensor,
+    processed_data_path: str | Path,
+    mag_field: ep.typing.MagneticFieldLiteral,
+    save_strategy: Literal["gfz", "h5", "netcdf"],
+    data_standard: Literal["gfz", "prbem"],
+) -> ep.SavingStrategy:
+    """Pick the saving strategy of a HEP sensor for the requested format and data standard."""
+    data_standard_instance = (
+        ep.data_standards.GFZStandard() if data_standard == "gfz" else ep.data_standards.PRBEMStandard()
+    )
+    match save_strategy:
+        case "gfz":
+            return arase_hep_gfz_strategy(processed_data_path, mag_field, sensor, data_standard_instance)
+        case "h5":
+            return arase_hep_h5_strategy(processed_data_path, mag_field, sensor, data_standard_instance)
+        case "netcdf":
+            return arase_hep_netcdf_strategy(processed_data_path, mag_field, sensor, data_standard_instance)
+
+
+def arase_hep_l_strategy(
+    processed_data_path: str | Path,
+    mag_field: ep.typing.MagneticFieldLiteral,
+    save_strategy: Literal["gfz", "h5", "netcdf"] = "gfz",
+    data_standard: Literal["gfz", "prbem"] = "gfz",
+) -> ep.SavingStrategy:
+    """Saving strategy of the Arase HEP-L recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
+        save_strategy (Literal["gfz", "h5", "netcdf"]): Saving strategy of the output files. Defaults to "gfz".
+        data_standard (Literal["gfz", "prbem"]): Data standard of the output files. Defaults to "gfz".
+
+    Returns:
+        ep.SavingStrategy: Saving strategy for the given arguments.
+    """
+    return _select_hep_saver("L", processed_data_path, mag_field, save_strategy, data_standard)
+
+
+def arase_hep_h_strategy(
+    processed_data_path: str | Path,
+    mag_field: ep.typing.MagneticFieldLiteral,
+    save_strategy: Literal["gfz", "h5", "netcdf"] = "gfz",
+    data_standard: Literal["gfz", "prbem"] = "gfz",
+) -> ep.SavingStrategy:
+    """Saving strategy of the Arase HEP-H recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
+        save_strategy (Literal["gfz", "h5", "netcdf"]): Saving strategy of the output files. Defaults to "gfz".
+        data_standard (Literal["gfz", "prbem"]): Data standard of the output files. Defaults to "gfz".
+
+    Returns:
+        ep.SavingStrategy: Saving strategy for the given arguments.
+    """
+    return _select_hep_saver("H", processed_data_path, mag_field, save_strategy, data_standard)
+
+
 def _download_hep(start_time: datetime, end_time: datetime, raw_data_path: Path, *, skip_existing: bool) -> None:
     ep.download(
         start_time,
@@ -376,10 +436,6 @@ def _run_arase_hep(
         hep_variables["FEDU"], hep_variables["Energy"], particle_species="electron"
     )
 
-    data_standard_instance = (
-        ep.data_standards.GFZStandard() if data_standard == "gfz" else ep.data_standards.PRBEMStandard()
-    )
-
     variables_to_save: ep.typing.VariablesDict = {
         "Epoch": binned_time_variable,
         "FEDU": hep_variables["FEDU"],
@@ -412,15 +468,8 @@ def _run_arase_hep(
             "electron",
         )
 
-    match save_strategy:
-        case "gfz":
-            saving_strategy = arase_hep_gfz_strategy(processed_data_path, mag_field, sensor, data_standard_instance)
-
-        case "h5":
-            saving_strategy = arase_hep_h5_strategy(processed_data_path, mag_field, sensor, data_standard_instance)
-
-        case "netcdf":
-            saving_strategy = arase_hep_netcdf_strategy(processed_data_path, mag_field, sensor, data_standard_instance)
+    strategy_factory = arase_hep_l_strategy if sensor == "L" else arase_hep_h_strategy
+    saving_strategy = strategy_factory(processed_data_path, mag_field, save_strategy, data_standard)
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable, append=append)
 
@@ -628,5 +677,10 @@ def process_arase_hep_h(
     )
 
 
+PLOT_DEFAULTS = {
+    "panels": ["Kp", "FEDU"],
+    "FEDU": {"pitch_angle": 90 * u.deg},
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_arase_hep_l)
+    ep.run_recipe_cli(process_arase_hep_l, strategy=arase_hep_l_strategy, plot_defaults=PLOT_DEFAULTS)

@@ -13,11 +13,13 @@ __getattr__, _lazy_dir, _lazy_all = lazy.attach(
         "process_ept_electron_fluxes": [
             "probav_ept_electron_gfz_strategy",
             "probav_ept_electron_netcdf_strategy",
+            "probav_ept_electron_strategy",
             "process_ept_electron_fluxes",
         ],
         "process_ept_proton_fluxes": [
             "probav_ept_proton_gfz_strategy",
             "probav_ept_proton_netcdf_strategy",
+            "probav_ept_proton_strategy",
             "process_ept_proton_fluxes",
         ],
     },
@@ -34,19 +36,23 @@ if TYPE_CHECKING:
     from el_paso.recipes.probav.process_ept_electron_fluxes import (
         probav_ept_electron_gfz_strategy,
         probav_ept_electron_netcdf_strategy,
+        probav_ept_electron_strategy,
         process_ept_electron_fluxes,
     )
     from el_paso.recipes.probav.process_ept_proton_fluxes import (
         probav_ept_proton_gfz_strategy,
         probav_ept_proton_netcdf_strategy,
+        probav_ept_proton_strategy,
         process_ept_proton_fluxes,
     )
 
     __all__ = [
         "probav_ept_electron_gfz_strategy",
         "probav_ept_electron_netcdf_strategy",
+        "probav_ept_electron_strategy",
         "probav_ept_proton_gfz_strategy",
         "probav_ept_proton_netcdf_strategy",
+        "probav_ept_proton_strategy",
         "process_ept_electron_fluxes",
         "process_ept_proton_fluxes",
     ]

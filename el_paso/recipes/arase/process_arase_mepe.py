@@ -70,6 +70,36 @@ def arase_mepe_netcdf_strategy(
     )
 
 
+def arase_mepe_strategy(
+    processed_data_path: str | Path,
+    mag_field: ep.typing.MagneticFieldLiteral,
+    save_strategy: Literal["gfz", "h5", "netcdf"] = "gfz",
+    data_standard: Literal["gfz", "prbem"] = "gfz",
+) -> ep.SavingStrategy:
+    """Saving strategy of the Arase MEP-e recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
+        save_strategy (Literal["gfz", "h5", "netcdf"]): Saving strategy of the output files. Defaults to "gfz".
+        data_standard (Literal["gfz", "prbem"]): Data standard of the output files. Defaults to "gfz".
+
+    Returns:
+        ep.SavingStrategy: Saving strategy for the given arguments.
+    """
+    data_standard_instance = (
+        ep.data_standards.GFZStandard() if data_standard == "gfz" else ep.data_standards.PRBEMStandard()
+    )
+
+    match save_strategy:
+        case "gfz":
+            return arase_mepe_gfz_strategy(processed_data_path, mag_field, data_standard_instance)
+        case "h5":
+            return arase_mepe_h5_strategy(processed_data_path, mag_field, data_standard_instance)
+        case "netcdf":
+            return arase_mepe_netcdf_strategy(processed_data_path, mag_field, data_standard_instance)
+
+
 def process_arase_mepe(
     start_time: datetime,
     end_time: datetime,
@@ -364,10 +394,6 @@ def process_arase_mepe(
         mepe_variables["FEDU"], mepe_variables["Energy"], particle_species="electron"
     )
 
-    data_standard_instance = (
-        ep.data_standards.GFZStandard() if data_standard == "gfz" else ep.data_standards.PRBEMStandard()
-    )
-
     variables_to_save: ep.typing.VariablesDict = {
         "Epoch": binned_time_variable,
         "FEDU": mepe_variables["FEDU"],
@@ -400,15 +426,7 @@ def process_arase_mepe(
             "electron",
         )
 
-    match save_strategy:
-        case "gfz":
-            saving_strategy = arase_mepe_gfz_strategy(processed_data_path, mag_field, data_standard_instance)
-
-        case "h5":
-            saving_strategy = arase_mepe_h5_strategy(processed_data_path, mag_field, data_standard_instance)
-
-        case "netcdf":
-            saving_strategy = arase_mepe_netcdf_strategy(processed_data_path, mag_field, data_standard_instance)
+    saving_strategy = arase_mepe_strategy(processed_data_path, mag_field, save_strategy, data_standard)
 
     ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable, append=append)
 
@@ -421,5 +439,10 @@ def process_arase_mepe(
         )
 
 
+PLOT_DEFAULTS = {
+    "panels": ["Kp", "FEDU", "R_Eq", "MLT"],
+    "FEDU": {"pitch_angle": 90 * u.deg},
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_arase_mepe)
+    ep.run_recipe_cli(process_arase_mepe, strategy=arase_mepe_strategy, plot_defaults=PLOT_DEFAULTS)

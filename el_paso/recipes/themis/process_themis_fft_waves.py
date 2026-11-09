@@ -37,17 +37,27 @@ logger = logging.getLogger(__name__)
 
 
 def themis_fft_waves_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     satellite: ThemisProbe,
-    data_standard: ep.typing.DataStandard[ep.typing.StandardName] | None = None,
+    save_strategy: Literal["netcdf"] = "netcdf",
 ) -> ep.SavingStrategy:
-    """Daily NetCDF wave saving strategy for THEMIS FFT."""
+    """Saving strategy of the THEMIS FFT wave recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        satellite (ThemisProbe): THEMIS probe the data belongs to.
+        save_strategy (Literal["netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Daily NetCDF wave saving strategy following the GFZ data standard.
+    """
+    del save_strategy
     return ep.saving_strategies.DailyWaveStrategy(
-        Path(base_data_path),
+        Path(processed_data_path),
         "THEMIS",
         "th" + satellite,
         "FFT",
-        data_standard or ep.data_standards.GFZStandard(),
+        ep.data_standards.GFZStandard(),
     )
 
 
@@ -105,7 +115,6 @@ def process_themis_fft_waves(
             Defaults to False.
     """
     del bin_cadence
-    del save_strategy
     del skip_existing
 
     set_pyspedas_data_dir("themis", raw_data_path)
@@ -138,7 +147,7 @@ def process_themis_fft_waves(
         "f_ce_Eq": gyro_vars["f_ce_Eq"],
     }
 
-    saving_strat = themis_fft_waves_strategy(processed_data_path, satellite)
+    saving_strat = themis_fft_waves_strategy(processed_data_path, satellite, save_strategy)
 
     ep.save(vars_to_save, saving_strat, start_time, end_time, time_var=target_time_var, append=append)
 
@@ -320,5 +329,11 @@ CLI_DEFAULTS = {
     "processed_data_path": "./data",
 }
 
+PLOT_DEFAULTS = {
+    "panels": ["Magnetic_Power_Spectral_Density"],
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_themis_fft_waves, defaults=CLI_DEFAULTS)
+    ep.run_recipe_cli(
+        process_themis_fft_waves, defaults=CLI_DEFAULTS, strategy=themis_fft_waves_strategy, plot_defaults=PLOT_DEFAULTS
+    )

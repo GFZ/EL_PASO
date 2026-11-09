@@ -771,3 +771,109 @@ def test_describe_difference_respects_tolerance() -> None:
 
     assert _describe_difference("InvK", reference, other).startswith("InvK: 1 of 2 elements differ")
     assert _describe_difference("InvK", reference, other, rtol=1e-3).startswith("InvK: 0 of 2 elements differ")
+
+
+def _two_month_variables() -> dict[InternalName, ep.Variable]:
+    """Mocked variables spanning 2013-01-31 12:00 to 2013-02-01 12:00 with time-dependent energy channels."""
+    time_size = 48
+    start = datetime(2013, 1, 31, 12, tzinfo=timezone.utc)
+    datetimes = [start + timedelta(minutes=30 * i) for i in range(time_size)]
+    energy = np.tile(np.asarray([0.5, 1.0, 2.0]), (time_size, 1)) * (1 + np.arange(time_size)[:, None] / 100)
+    return {
+        "Epoch": ep.Variable(original_unit=ep.units.datenum, data=np.array([python2matlab(d) for d in datetimes])),
+        "Energy_FEDU": ep.Variable(original_unit=u.MeV, data=energy),
+        "MLT": ep.Variable(original_unit=u.hour, data=np.arange(time_size, dtype=float)),
+    }
+
+
+def _two_month_strategy(tmp_path: Path) -> ep.saving_strategies.MonthlyRBStrategy:
+    return ep.saving_strategies.MonthlyRBStrategy(
+        tmp_path, "TEST", "sat", "inst", "T89", data_standard=ep.data_standards.GFZStandard(), file_format="nc"
+    )
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_round_trip_across_month_boundary_keeps_time_dependent_energy(tmp_path: Path) -> None:
+    """Saving data over two months and loading it back reproduces the time-dependent energy channels."""
+    variables = _two_month_variables()
+    expected_energy = variables["Energy_FEDU"].get_data(u.MeV).copy()
+    strategy = _two_month_strategy(tmp_path)
+    start_time = datetime(2013, 1, 31, tzinfo=timezone.utc)
+    end_time = datetime(2013, 2, 2, tzinfo=timezone.utc)
+    ep.save(variables, strategy, start_time=start_time, end_time=end_time, time_var=variables["Epoch"])
+
+    dataset = DataSet(strategy, start_time, end_time, verbose=False)
+    energy = dataset.get_by_internal_name("Energy_FEDU")
+
+    assert len(dataset.datetime) == expected_energy.shape[0]
+    assert energy.shape == expected_energy.shape
+    np.testing.assert_allclose(energy, expected_energy)
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_file_coverage_reports_missing_month(tmp_path: Path) -> None:
+    variables = _two_month_variables()
+    strategy = _two_month_strategy(tmp_path)
+    ep.save(
+        variables,
+        strategy,
+        start_time=datetime(2013, 1, 31, tzinfo=timezone.utc),
+        end_time=datetime(2013, 2, 2, tzinfo=timezone.utc),
+        time_var=variables["Epoch"],
+    )
+
+    # March was never processed
+    dataset = DataSet(
+        strategy, datetime(2013, 2, 1, tzinfo=timezone.utc), datetime(2013, 3, 2, tzinfo=timezone.utc), verbose=False
+    )
+    coverage = dataset.get_file_coverage(["MLT"])
+
+    assert [c.interval_start.month for c in coverage] == [2, 3]
+    assert [c.exists for c in coverage] == [True, False]
+    assert all(c.output_file_name == coverage[0].output_file_name for c in coverage)
+    assert coverage[0].path.exists()
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_file_coverage_without_any_files(tmp_path: Path) -> None:
+    strategy = _two_month_strategy(tmp_path)
+    dataset = DataSet(
+        strategy, datetime(2013, 1, 1, tzinfo=timezone.utc), datetime(2013, 1, 2, tzinfo=timezone.utc), verbose=False
+    )
+
+    coverage = dataset.get_file_coverage()
+
+    assert len(coverage) == len(strategy.output_files)
+    assert not any(c.exists for c in coverage)
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_file_coverage_range_inside_one_file(tmp_path: Path) -> None:
+    variables = _two_month_variables()
+    strategy = _two_month_strategy(tmp_path)
+    ep.save(
+        variables,
+        strategy,
+        start_time=datetime(2013, 1, 31, tzinfo=timezone.utc),
+        end_time=datetime(2013, 2, 2, tzinfo=timezone.utc),
+        time_var=variables["Epoch"],
+    )
+
+    dataset = DataSet(
+        strategy, datetime(2013, 1, 31, 13, tzinfo=timezone.utc), datetime(2013, 1, 31, 15, tzinfo=timezone.utc)
+    )
+    coverage = dataset.get_file_coverage(["MLT"])
+
+    assert len(coverage) == 1
+    assert coverage[0].exists
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_file_coverage_unknown_name_raises(gfz_dataset: DataSet) -> None:
+    with pytest.raises(ValueError, match="not part of the chosen saving strategy"):
+        gfz_dataset.get_file_coverage(["NotAVariable"])  # ty:ignore[invalid-argument-type]
