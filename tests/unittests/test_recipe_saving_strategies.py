@@ -23,6 +23,11 @@ from typing import TYPE_CHECKING, Any
 
 import el_paso as ep
 import pytest
+from el_paso.recipes.arase.process_arase_hep import (
+    arase_hep_gfz_strategy,
+    arase_hep_h5_strategy,
+    arase_hep_netcdf_strategy,
+)
 from el_paso.recipes.arase.process_arase_mepe import (
     arase_mepe_gfz_strategy,
     arase_mepe_h5_strategy,
@@ -85,6 +90,10 @@ from el_paso.recipes.rbsp.process_rbsp_rbspice_protons import (
     rbsp_rbspice_proton_gfz_strategy,
     rbsp_rbspice_proton_netcdf_strategy,
 )
+from el_paso.recipes.rbsp.process_rbsp_rept_electrons import (
+    rbsp_rept_electron_gfz_strategy,
+    rbsp_rept_electron_netcdf_strategy,
+)
 from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import solar_wind_indices_strategy
 from el_paso.recipes.themis.process_themis_fft_waves import themis_fft_waves_strategy
 from el_paso.recipes.themis.process_themis_scpot_density import themis_scpot_density_strategy
@@ -122,6 +131,45 @@ CASES: list[
         ep.saving_strategies.MonthlyRBStrategy,
         {"mission": "Arase", "satellite": "arase", "instrument": "xep", "mag_field": "T89", "file_format": ".nc"},
     ),
+    *[
+        case
+        for sensor, instrument in (("L", "hepl"), ("H", "heph"))
+        for case in (
+            (
+                arase_hep_gfz_strategy,
+                ("T89", sensor),
+                {},
+                ep.saving_strategies.GFZStrategy,
+                {"mission": "ARASE", "satellite": "arase", "instrument": instrument, "mag_field": "T89"},
+            ),
+            (
+                arase_hep_h5_strategy,
+                ("T89", sensor),
+                {},
+                ep.saving_strategies.MonthlyRBStrategy,
+                {
+                    "mission": "Arase",
+                    "satellite": "arase",
+                    "instrument": instrument,
+                    "mag_field": "T89",
+                    "file_format": ".h5",
+                },
+            ),
+            (
+                arase_hep_netcdf_strategy,
+                ("T89", sensor),
+                {},
+                ep.saving_strategies.MonthlyRBStrategy,
+                {
+                    "mission": "Arase",
+                    "satellite": "arase",
+                    "instrument": instrument,
+                    "mag_field": "T89",
+                    "file_format": ".nc",
+                },
+            ),
+        )
+    ],
     (
         arase_mepe_gfz_strategy,
         ("T89",),
@@ -359,14 +407,20 @@ CASES: list[
         ("T89", "b"),
         {},
         ep.saving_strategies.GFZStrategy,
-        {"mission": "RBSP", "satellite": "rbspb", "instrument": "hope", "mag_field": "T89"},
+        {"mission": "RBSP", "satellite": "rbspb", "instrument": "hope_protons", "mag_field": "T89"},
     ),
     (
         rbsp_hope_proton_netcdf_strategy,
         ("T89", "b"),
         {},
         ep.saving_strategies.MonthlyRBStrategy,
-        {"mission": "RBSP", "satellite": "rbspb", "instrument": "hope", "mag_field": "T89", "file_format": ".nc"},
+        {
+            "mission": "RBSP",
+            "satellite": "rbspb",
+            "instrument": "hope_protons",
+            "mag_field": "T89",
+            "file_format": ".nc",
+        },
     ),
     (
         rbsp_mageis_electron_strategy,
@@ -388,6 +442,20 @@ CASES: list[
         {},
         ep.saving_strategies.MonthlyRBStrategy,
         {"mission": "RBSP", "satellite": "rbspb", "instrument": "mageis", "mag_field": "T89", "file_format": ".nc"},
+    ),
+    (
+        rbsp_rept_electron_gfz_strategy,
+        ("T89", "a"),
+        {},
+        ep.saving_strategies.GFZStrategy,
+        {"mission": "RBSP", "satellite": "rbspa", "instrument": "rept", "mag_field": "T89"},
+    ),
+    (
+        rbsp_rept_electron_netcdf_strategy,
+        ("T89", "a"),
+        {},
+        ep.saving_strategies.MonthlyRBStrategy,
+        {"mission": "RBSP", "satellite": "rbspa", "instrument": "rept", "mag_field": "T89", "file_format": ".nc"},
     ),
     (
         rbsp_rbspice_proton_gfz_strategy,

@@ -60,6 +60,8 @@ class RecipeEntry(NamedTuple):
 
 
 RECIPES: tuple[RecipeEntry, ...] = (
+    RecipeEntry("arase", "hep-h", "el_paso.recipes.arase.process_arase_hep", "process_arase_hep_h"),
+    RecipeEntry("arase", "hep-l", "el_paso.recipes.arase.process_arase_hep", "process_arase_hep_l"),
     RecipeEntry("arase", "mepe", "el_paso.recipes.arase.process_arase_mepe", "process_arase_mepe"),
     RecipeEntry(
         "arase", "pwe-density", "el_paso.recipes.arase.process_arase_pwe_densities", "process_arase_pwe_density"
@@ -114,6 +116,9 @@ RECIPES: tuple[RecipeEntry, ...] = (
     ),
     RecipeEntry(
         "rbsp", "mageis-protons", "el_paso.recipes.rbsp.process_rbsp_mageis_protons", "process_rbsp_mageis_protons"
+    ),
+    RecipeEntry(
+        "rbsp", "rept-electrons", "el_paso.recipes.rbsp.process_rbsp_rept_electrons", "process_rbsp_rept_electrons"
     ),
     RecipeEntry(
         "rbsp", "rbspice-protons", "el_paso.recipes.rbsp.process_rbsp_rbspice_protons", "process_rbsp_rbspice_protons"

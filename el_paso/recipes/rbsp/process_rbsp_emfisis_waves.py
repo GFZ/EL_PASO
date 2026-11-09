@@ -43,7 +43,7 @@ def process_rbsp_emfisis_waves(
     start_time: datetime,
     end_time: datetime,
     satellite: RBSPSatellite = "a",
-    mag_field: Literal["T89", "T96", "TS04"] = "T89",
+    mag_field: ep.typing.MagneticFieldLiteral = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=5),
@@ -52,6 +52,7 @@ def process_rbsp_emfisis_waves(
     *,
     skip_existing: bool = True,
     save_indices_sw: bool = False,
+    append: bool = False,
 ) -> None:
     """Process RBSP EMFISIS wave, density, and magnetometer data and save derived wave properties.
 
@@ -69,7 +70,7 @@ def process_rbsp_emfisis_waves(
         start_time (datetime): Start of the time range to process.
         end_time (datetime): End of the time range to process.
         satellite (Literal["a", "b"]): RBSP satellite identifier ("a" or "b").
-        mag_field (Literal["T89", "T96", "TS04"]): Unused by this recipe; accepted only for
+        mag_field (ep.typing.MagneticFieldLiteral): Unused by this recipe; accepted only for
             interface consistency with other EL-PASO recipes, since EMFISIS wave processing
             derives its orbital quantities (L-shell, MLAT, MLT, electron cyclotron frequency)
             directly from the magnetometer data without using a magnetic field model.
@@ -90,6 +91,8 @@ def process_rbsp_emfisis_waves(
             Defaults to True.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to False.
     """
     del mag_field
     del bin_cadence
@@ -191,7 +194,7 @@ def process_rbsp_emfisis_waves(
 
     saving_strat = rbsp_emfisis_waves_strategy(processed_data_path, satellite)
 
-    ep.save(vars_to_save, saving_strat, start_time, end_time, target_time_var)
+    ep.save(vars_to_save, saving_strat, start_time, end_time, target_time_var, append=append)
 
     if save_indices_sw:
         process_solar_wind_indices(

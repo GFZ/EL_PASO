@@ -64,7 +64,9 @@ def process_ept_proton_fluxes(
     save_strategy: typing.Literal["gfz", "netcdf"] = "netcdf",
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
     *,
+    calculate_Lstar: bool = False,
     save_indices_sw: bool = False,
+    append: bool = True,
 ) -> None:
     """Process PROBA-V EPT proton flux data into pitch-angle-resolved fluxes with magnetic field coordinates.
 
@@ -96,8 +98,12 @@ def process_ept_proton_fluxes(
         save_strategy (typing.Literal["gfz", "netcdf"]): Which saving strategy (or
             strategies) to use for the processed output.
         skip_existing (bool): If True, skip downloading files that already exist locally.
+        calculate_Lstar (bool): If True, also compute the L* magnetic field quantity.
+            Defaults to False.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to True.
 
     Raises:
         ValueError: If `client_id` or `client_secret` is not provided and not available via the
@@ -276,6 +282,9 @@ def process_ept_proton_fluxes(
         ("L_m", mag_field),
     ]
 
+    if calculate_Lstar:
+        variables_to_compute.append(("L_star", mag_field))
+
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
         time_var=binned_time_var,
         xgeo_var=variables["xGEO"],
@@ -284,7 +293,9 @@ def process_ept_proton_fluxes(
         particle_species="proton",
         variables_to_compute=variables_to_compute,
         irbem_options=ep.processing.magnetic_field_utils.IrbemOptions(
-            lstar_quantity=ep.processing.magnetic_field_utils.LstarQuantity.NONE,
+            lstar_quantity=ep.processing.magnetic_field_utils.LstarQuantity.LSTAR
+            if calculate_Lstar
+            else ep.processing.magnetic_field_utils.LstarQuantity.NONE,
         ),
         num_cores=num_cores,
     )
@@ -305,13 +316,16 @@ def process_ept_proton_fluxes(
         "Position": variables["xGEO"],
     }
 
+    if calculate_Lstar:
+        variables_to_save["L_star"] = magnetic_field_variables[f"L_star_{mag_field}"]
+
     if save_strategy == "gfz":
         strategy = probav_ept_proton_gfz_strategy(processed_data_path, mag_field)
 
     else:
         strategy = probav_ept_proton_netcdf_strategy(processed_data_path, mag_field)
 
-    ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_var, append=True)
+    ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_var, append=append)
 
     if save_indices_sw:
         process_solar_wind_indices(

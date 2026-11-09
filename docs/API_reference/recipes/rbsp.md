@@ -20,3 +20,5 @@ SPDX-License-Identifier: Apache-2.0
 ::: el_paso.recipes.rbsp.process_rbsp_mageis_protons.process_rbsp_mageis_protons
 
 ::: el_paso.recipes.rbsp.process_rbsp_rbspice_protons.process_rbsp_rbspice_protons
+
+::: el_paso.recipes.rbsp.process_rbsp_rept_electrons.process_rbsp_rept_electrons

@@ -77,6 +77,7 @@ def process_ngrm_electron_fluxes(
     *,
     calculate_Lstar: bool = True,
     save_indices_sw: bool = False,
+    append: bool = True,
 ) -> None:
     """Process ESA NGRM electron flux data for the given satellite into omnidirectional fluxes and PSD.
 
@@ -111,6 +112,8 @@ def process_ngrm_electron_fluxes(
         calculate_Lstar (bool): If True, also compute the L* magnetic field quantity.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to True.
 
     Raises:
         ValueError: If `client_id` or `client_secret` is not provided and not available via the
@@ -328,7 +331,7 @@ def process_ngrm_electron_fluxes(
 
     saving_strategy = esa_ngrm_strategy(processed_data_path, mag_field, satellite)
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=True)
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=append)
 
     if save_indices_sw:
         process_solar_wind_indices(

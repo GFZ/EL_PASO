@@ -140,7 +140,9 @@ def process_gps_data(
     save_strategy: Literal["netcdf"] = "netcdf",
     *,
     skip_existing: bool = True,
+    calculate_Lstar: bool = True,
     save_indices_sw: bool = False,
+    append: bool = False,
 ) -> None:
     """Process LANL GPS electron flux data into magnetic-field-resolved data products.
 
@@ -175,8 +177,12 @@ def process_gps_data(
                                                     netCDF-based strategy.
         skip_existing (bool): If True, skip downloading files that already exist locally.
                                             Defaults to True.
+        calculate_Lstar (bool): If True, also compute the L* magnetic field quantity.
+            Defaults to True.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to False.
     """
     del save_strategy
 
@@ -291,11 +297,19 @@ def process_gps_data(
         ("MLT", mag_field),
         ("R_Eq", mag_field),
         ("L_m", mag_field),
-        ("L_star", mag_field),
         ("Alpha_Eq", mag_field),
         ("InvMu", mag_field),
         ("InvK", mag_field),
     ]
+
+    if calculate_Lstar:
+        variables_to_compute.append(("L_star", mag_field))
+
+    irbem_options = ep.processing.magnetic_field_utils.IrbemOptions(
+        lstar_quantity=ep.processing.magnetic_field_utils.LstarQuantity.LSTAR
+        if calculate_Lstar
+        else ep.processing.magnetic_field_utils.LstarQuantity.NONE,
+    )
 
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
         time_var=binned_time_var,
@@ -304,7 +318,7 @@ def process_gps_data(
         pa_local_var=variables["PA_local_FEDO"],
         particle_species="electron",
         variables_to_compute=variables_to_compute,
-        irbem_options=ep.processing.magnetic_field_utils.IrbemOptions(),
+        irbem_options=irbem_options,
         num_cores=num_cores,
     )
 
@@ -328,7 +342,6 @@ def process_gps_data(
         "B_Calc": magnetic_field_variables[f"B_Calc_{mag_field}"],
         "B_Eq": magnetic_field_variables[f"B_Eq_{mag_field}"],
         "L_m": magnetic_field_variables[f"L_m_{mag_field}"],
-        "L_star": magnetic_field_variables[f"L_star_{mag_field}"],
         "Alpha_Eq": magnetic_field_variables[f"Alpha_Eq_{mag_field}"],
         "Position": variables["xGEO"],
         "PSD": psd_var,
@@ -336,9 +349,12 @@ def process_gps_data(
         "InvK": magnetic_field_variables[f"InvK_{mag_field}"],
     }
 
+    if calculate_Lstar:
+        variables_to_save["L_star"] = magnetic_field_variables[f"L_star_{mag_field}"]
+
     saving_strategy = gps_cxd_strategy(processed_data_path, mag_field, satellite)
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var)
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=append)
 
     if save_indices_sw:
         process_solar_wind_indices(

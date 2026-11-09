@@ -47,7 +47,7 @@ def process_rbsp_ect_combined(
     start_time: datetime,
     end_time: datetime,
     satellite: RBSPSatellite = "a",
-    mag_field: Literal["T89", "T96", "TS04", "OP77"] = "T89",
+    mag_field: ep.typing.MagneticFieldLiteral = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=5),
@@ -56,7 +56,9 @@ def process_rbsp_ect_combined(
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
     *,
     add_B_obs: bool = False,
+    calculate_Lstar: bool = True,
     save_indices_sw: bool = False,
+    append: bool = True,
 ) -> None:
     """Process combined RBSP ECT (REPT/MagEIS) electron flux data into the EL-PASO data standard.
 
@@ -72,7 +74,7 @@ def process_rbsp_ect_combined(
         start_time (datetime): Start of the time range to process.
         end_time (datetime): End of the time range to process.
         satellite (Literal["a", "b"]): RBSP satellite identifier ("a" or "b").
-        mag_field (Literal["T89", "T96", "TS04", "OP77"]): Magnetic field model used to compute the
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model used to compute the
             magnetic-field-related variables.
         raw_data_path (str | Path): Directory where raw CDF files are downloaded to and
             read from. Defaults to ".".
@@ -86,8 +88,12 @@ def process_rbsp_ect_combined(
         skip_existing (bool): If True, skip downloading files that already exist on disk.
         add_B_obs (bool): If True, also download the EMFISIS magnetometer data and save the observed
             magnetic field magnitude (B_total_obs) and InvMu_obs computed from it. Defaults to False.
+        calculate_Lstar (bool): If True, also compute the L* magnetic field quantity.
+            Defaults to True.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to True.
     """
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
@@ -186,7 +192,11 @@ def process_rbsp_ect_combined(
     del variables["Epoch"]
 
     # Calculate magnetic field variables
-    irbem_options = ep.processing.magnetic_field_utils.IrbemOptions()
+    irbem_options = ep.processing.magnetic_field_utils.IrbemOptions(
+        lstar_quantity=ep.processing.magnetic_field_utils.LstarQuantity.LSTAR
+        if calculate_Lstar
+        else ep.processing.magnetic_field_utils.LstarQuantity.NONE,
+    )
 
     variables_to_compute: ep.processing.VariableRequest = [
         ("B_Calc", mag_field),
@@ -194,11 +204,13 @@ def process_rbsp_ect_combined(
         ("MLT", mag_field),
         ("R_Eq", mag_field),
         ("Alpha_Eq", mag_field),
-        ("L_star", mag_field),
         ("L_m", mag_field),
         ("InvMu", mag_field),
         ("InvK", mag_field),
     ]
+
+    if calculate_Lstar:
+        variables_to_compute.append(("L_star", mag_field))
 
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
         time_var=binned_time_variable,
@@ -224,7 +236,6 @@ def process_rbsp_ect_combined(
         "R_Eq": magnetic_field_variables["R_Eq_" + mag_field],
         "MLT": magnetic_field_variables["MLT_" + mag_field],
         "L_m": magnetic_field_variables["L_m_" + mag_field],
-        "L_star": magnetic_field_variables["L_star_" + mag_field],
         "B_Calc": magnetic_field_variables["B_Calc_" + mag_field],
         "B_Eq": magnetic_field_variables["B_Eq_" + mag_field],
         "PSD": psd_variable,
@@ -232,6 +243,9 @@ def process_rbsp_ect_combined(
         "InvK": magnetic_field_variables["InvK_" + mag_field],
         "Position": variables["xGEO"],
     }
+
+    if calculate_Lstar:
+        variables_to_save["L_star"] = magnetic_field_variables["L_star_" + mag_field]
 
     if add_B_obs:
         variables_to_save |= compute_observed_B_variables(
@@ -251,7 +265,7 @@ def process_rbsp_ect_combined(
     else:
         strategy = rbsp_ect_combined_netcdf_strategy(processed_data_path, mag_field, satellite)
 
-    ep.save(variables_to_save, strategy, start_time, end_time, binned_time_variable, append=True)
+    ep.save(variables_to_save, strategy, start_time, end_time, binned_time_variable, append=append)
 
     if save_indices_sw:
         process_solar_wind_indices(
