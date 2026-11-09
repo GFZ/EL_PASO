@@ -560,6 +560,61 @@ def _attach_signature(command: Callable[..., Any], parameters: Sequence[inspect.
     command.__annotations__ = {parameter.name: parameter.annotation for parameter in parameters}
 
 
+def _run_calls(
+    func: Recipe,
+    calls: list[dict[str, Any]],
+    loop_names: list[str],
+    universal: dict[str, Any],
+) -> None:
+    """Run `func` once per set of keyword arguments, reporting each call first.
+
+    A failing call does not stop the remaining ones; the run fails at the end.
+
+    Raises:
+        typer.Exit: With code 1 if any call failed.
+    """
+    dry_run = universal["dry_run"]
+    failed_calls: list[str] = []
+
+    for index, call_kwargs in enumerate(calls, start=1):
+        # Fails loudly if the generated command ever drifts from the recipe signature.
+        inspect.signature(func).bind(**call_kwargs)
+
+        _configure_logging(
+            verbose=universal["verbose"],
+            quiet=universal["quiet"],
+            logs_path=universal["logs"],
+            func=func,
+            satellite=call_kwargs.get("satellite"),
+            configure_console=index == 1,
+        )
+
+        if not universal["quiet"]:
+            counter = f" ({index}/{len(calls)})" if len(calls) > 1 else ""
+            _report_call(func, call_kwargs, title_suffix=counter, dry_run=dry_run)
+
+        if dry_run:
+            continue
+
+        call_label = ", ".join(f"{name}={call_kwargs[name]}" for name in loop_names) or _func_name(func)
+        try:
+            func(**call_kwargs)
+        except SystemExit as exit_signal:
+            # `ep.exit_if_download_only` ends a call with code 0 once its downloads are done
+            if exit_signal.code not in (0, None):
+                logger.exception(f"{_func_name(func)} ({call_label}) exited with code {exit_signal.code}.")
+                failed_calls.append(call_label)
+        except Exception:
+            logger.exception(f"{_func_name(func)} ({call_label}) failed.")
+            failed_calls.append(call_label)
+
+    if failed_calls:
+        mark_run_failed()
+        if len(calls) > 1:
+            logger.error(f"{len(failed_calls)} of {len(calls)} calls failed: {'; '.join(failed_calls)}")
+        raise typer.Exit(code=1)
+
+
 def _make_command(
     func: Recipe,
     specs: list[_ParameterSpec],
@@ -579,52 +634,10 @@ def _make_command(
         if universal["exit_after_download"]:
             ep.exit_after_download = True
 
-        dry_run = universal["dry_run"]
-
         _restore_parsed_values(kwargs, specs)
         kwargs.update(skipped)
 
-        calls = _expand_loops(kwargs, loop_names)
-        failed_calls: list[str] = []
-
-        for index, call_kwargs in enumerate(calls, start=1):
-            # Fails loudly if the generated command ever drifts from the recipe signature.
-            inspect.signature(func).bind(**call_kwargs)
-
-            _configure_logging(
-                verbose=universal["verbose"],
-                quiet=universal["quiet"],
-                logs_path=universal["logs"],
-                func=func,
-                satellite=call_kwargs.get("satellite"),
-                configure_console=index == 1,
-            )
-
-            if not universal["quiet"]:
-                counter = f" ({index}/{len(calls)})" if len(calls) > 1 else ""
-                _report_call(func, call_kwargs, title_suffix=counter, dry_run=dry_run)
-
-            if dry_run:
-                continue
-
-            # A failing call does not stop the remaining looped calls; the run fails at the end.
-            call_label = ", ".join(f"{name}={call_kwargs[name]}" for name in loop_names) or _func_name(func)
-            try:
-                func(**call_kwargs)
-            except SystemExit as exit_signal:
-                # `ep.exit_if_download_only` ends a call with code 0 once its downloads are done
-                if exit_signal.code not in (0, None):
-                    logger.exception(f"{_func_name(func)} ({call_label}) exited with code {exit_signal.code}.")
-                    failed_calls.append(call_label)
-            except Exception:
-                logger.exception(f"{_func_name(func)} ({call_label}) failed.")
-                failed_calls.append(call_label)
-
-        if failed_calls:
-            mark_run_failed()
-            if len(calls) > 1:
-                logger.error(f"{len(failed_calls)} of {len(calls)} calls failed: {'; '.join(failed_calls)}")
-            raise typer.Exit(code=1)
+        _run_calls(func, _expand_loops(kwargs, loop_names), loop_names, universal)
 
     command.__name__ = _func_name(func)
     _attach_signature(command, [*_spec_parameters(specs), *_universal_parameters()])
