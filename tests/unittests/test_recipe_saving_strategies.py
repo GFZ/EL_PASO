@@ -26,6 +26,8 @@ import pytest
 from el_paso.recipes.arase.process_arase_hep import (
     arase_hep_gfz_strategy,
     arase_hep_h5_strategy,
+    arase_hep_h_strategy,
+    arase_hep_l_strategy,
     arase_hep_netcdf_strategy,
 )
 from el_paso.recipes.arase.process_arase_mepe import (
@@ -536,6 +538,24 @@ def test_density_strategies_default_to_prbem_standard(
     strategy = factory(tmp_path, *extra_args)
 
     assert isinstance(strategy.data_standard, ep.data_standards.PRBEMStandard)
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+@pytest.mark.parametrize(
+    ("factory", "instrument"), [(arase_hep_l_strategy, "hepl"), (arase_hep_h_strategy, "heph")], ids=["hep-l", "hep-h"]
+)
+def test_arase_hep_strategy_follows_save_strategy_and_sensor(
+    tmp_path: Path, factory: Callable[..., SavingStrategy], instrument: str
+) -> None:
+    gfz = factory(tmp_path, "T89", "gfz")
+    netcdf = factory(tmp_path, "T89", "netcdf", "prbem")
+
+    assert type(gfz) is ep.saving_strategies.GFZStrategy
+    assert type(netcdf) is ep.saving_strategies.MonthlyRBStrategy
+    assert gfz.instrument == instrument  # ty:ignore[unresolved-attribute]
+    assert netcdf.instrument == instrument  # ty:ignore[unresolved-attribute]
+    assert isinstance(netcdf.data_standard, ep.data_standards.PRBEMStandard)
 
 
 @pytest.mark.minimal
