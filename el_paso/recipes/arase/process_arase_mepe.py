@@ -80,33 +80,24 @@ def arase_mepe_strategy(
 
     Args:
         processed_data_path (str | Path): Base directory of the processed data.
-        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with. It is mapped
-            to the name used in the output files (`TS04` becomes `T04s` for `gfz`, `OP77Q` becomes `OP77`).
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
         save_strategy (Literal["gfz", "h5", "netcdf"]): Saving strategy of the output files. Defaults to "gfz".
         data_standard (Literal["gfz", "prbem"]): Data standard of the output files. Defaults to "gfz".
 
     Returns:
         ep.SavingStrategy: Saving strategy for the given arguments.
     """
-    match mag_field:
-        case "T89":
-            mag_field_save = "T89"
-        case "TS04":
-            mag_field_save = "T04s" if save_strategy == "gfz" else mag_field
-        case "OP77Q":
-            mag_field_save = "OP77"
-
     data_standard_instance = (
         ep.data_standards.GFZStandard() if data_standard == "gfz" else ep.data_standards.PRBEMStandard()
     )
 
     match save_strategy:
         case "gfz":
-            return arase_mepe_gfz_strategy(processed_data_path, mag_field_save, data_standard_instance)
+            return arase_mepe_gfz_strategy(processed_data_path, mag_field, data_standard_instance)
         case "h5":
-            return arase_mepe_h5_strategy(processed_data_path, mag_field_save, data_standard_instance)
+            return arase_mepe_h5_strategy(processed_data_path, mag_field, data_standard_instance)
         case "netcdf":
-            return arase_mepe_netcdf_strategy(processed_data_path, mag_field_save, data_standard_instance)
+            return arase_mepe_netcdf_strategy(processed_data_path, mag_field, data_standard_instance)
 
 
 def process_arase_mepe(
@@ -124,6 +115,7 @@ def process_arase_mepe(
     use_level_3_orbit_data: bool = True,
     skip_existing: bool = True,
     add_B_obs: bool = False,
+    calculate_Lstar: bool = False,
     save_indices_sw: bool = False,
     append: bool = False,
 ) -> None:
@@ -134,10 +126,12 @@ def process_arase_mepe(
     files for the requested time range, then sorts energies into ascending order, time-bins the
     flux, position and pitch-angle variables onto a common cadence, folds the pitch-angle
     distribution, applies a lower flux threshold, and computes the equatorial pitch angle and
-    magnetic-field-related quantities (Lm, MLT, R0, InvMu) either from the Level 3 orbit data directly
-    or via IRBEM using the SM position from Level 2 orbit data. If `add_B_obs` is set, the observed
-    magnetic field magnitude from the MGF magnetometer and the first adiabatic invariant computed from
-    it are added. The resulting variables are saved using the requested saving strategy.
+    magnetic-field-related quantities (Lm, MLT, R0, InvMu, and InvK when using Level 2 orbit data)
+    either from the Level 3 orbit data directly or via IRBEM using the SM position from Level 2
+    orbit data. The phase space density (PSD) is computed from the flux. If `add_B_obs` is set,
+    the observed magnetic field magnitude from the MGF magnetometer and the first adiabatic
+    invariant computed from it are added. The resulting variables are saved using the requested
+    saving strategy.
 
     Args:
         start_time (datetime): Start of the time range to process.
@@ -169,12 +163,15 @@ def process_arase_mepe(
         add_B_obs (bool): If True, also download the MGF Level 2 8-second magnetometer data and save
                                 the observed magnetic field magnitude (B_total_obs) and InvMu_obs computed
                                 from it. Only supported with the "gfz" data standard. Defaults to False.
+        calculate_Lstar (bool): If True, also compute (or, when `use_level_3_orbit_data` is True,
+            interpolate and save) the L* magnetic field quantity. Defaults to True.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
         append (bool): If True, append to existing output files instead of overwriting them.
             Defaults to False.
 
     Raises:
+        ValueError: If `use_level_3_orbit_data` is set and `mag_field` is not one of "OP77Q", "T89" or "TS04".
         ValueError: If `add_B_obs` is set together with the "prbem" data standard, which does not
             define B_total_obs and InvMu_obs.
     """
@@ -182,6 +179,13 @@ def process_arase_mepe(
 
     if add_B_obs and data_standard == "prbem":
         msg = "add_B_obs requires the gfz data standard; the prbem standard does not define B_total_obs and InvMu_obs."
+        raise ValueError(msg)
+
+    if use_level_3_orbit_data and mag_field not in ("OP77Q", "T89", "TS04"):
+        msg = (
+            f"Invalid mag_field '{mag_field}' for Arase Level 3 orbit data. "
+            "Valid options are OP77Q, T89 and TS04, or set use_level_3_orbit_data=False."
+        )
         raise ValueError(msg)
 
     raw_data_path = Path(raw_data_path)
@@ -267,7 +271,7 @@ def process_arase_mepe(
         "Pitch_angle": ep.TimeBinMethod.Repeat,
     }
 
-    binned_time_variable = ep.processing.bin_by_time(
+    _ = ep.processing.bin_by_time(
         mepe_variables["Epoch"],
         variables=mepe_variables,
         time_bin_method_dict=time_bin_methods,
@@ -285,10 +289,11 @@ def process_arase_mepe(
             "B_local": ep.TimeBinMethod.NanMedian,
             "B_eq": ep.TimeBinMethod.NanMedian,
             "Lm": ep.TimeBinMethod.NanMean,
-            "Lstar": ep.TimeBinMethod.NanMean,
             "MLT": ep.TimeBinMethod.NanMean,
             "R0": ep.TimeBinMethod.NanMean,
         }
+        if calculate_Lstar:
+            time_bin_methods["Lstar"] = ep.TimeBinMethod.NanMean
 
         binned_time_variable = ep.processing.bin_by_time(
             orb_variables["Epoch"],
@@ -314,6 +319,10 @@ def process_arase_mepe(
         orb_variables["Lm"] = interpolate_level_3_to_pitch_angles(
             orb_variables["Lm"], mepe_variables["Pitch_angle"].get_data(u.deg)
         )
+        if calculate_Lstar:
+            orb_variables["Lstar"] = interpolate_level_3_to_pitch_angles(
+                orb_variables["Lstar"], mepe_variables["Pitch_angle"].get_data(u.deg)
+            )
 
     else:
         time_bin_methods = {
@@ -341,7 +350,11 @@ def process_arase_mepe(
         )
         pos_geo_var = ep.Variable(data=geo_data, original_unit=ep.units.RE)
 
-        irbem_options = ep.processing.magnetic_field_utils.IrbemOptions()
+        irbem_options = ep.processing.magnetic_field_utils.IrbemOptions(
+            lstar_quantity=ep.processing.magnetic_field_utils.LstarQuantity.LSTAR
+            if calculate_Lstar
+            else ep.processing.magnetic_field_utils.LstarQuantity.NONE,
+        )
 
         variables_to_compute: ep.processing.VariableRequest = [
             ("B_Calc", mag_field),
@@ -350,8 +363,12 @@ def process_arase_mepe(
             ("R_Eq", mag_field),
             ("Alpha_Eq", mag_field),
             ("L_m", mag_field),
+            ("InvK", mag_field),
             ("InvMu", mag_field),
         ]
+
+        if calculate_Lstar:
+            variables_to_compute.append(("L_star", mag_field))
 
         magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
             time_var=binned_time_variable,
@@ -368,7 +385,14 @@ def process_arase_mepe(
         orb_variables["MLT"] = magnetic_field_variables["MLT_" + mag_field]
         mepe_variables["Pa_eq"] = magnetic_field_variables["Alpha_Eq_" + mag_field]
         orb_variables["Lm"] = magnetic_field_variables["L_m_" + mag_field]
+        if calculate_Lstar:
+            orb_variables["Lstar"] = magnetic_field_variables["L_star_" + mag_field]
         mepe_variables["InvMu"] = magnetic_field_variables["InvMu_" + mag_field]
+        mepe_variables["InvK"] = magnetic_field_variables["InvK_" + mag_field]
+
+    psd_var = ep.processing.compute_phase_space_density(
+        mepe_variables["FEDU"], mepe_variables["Energy"], particle_species="electron"
+    )
 
     variables_to_save: ep.typing.VariablesDict = {
         "Epoch": binned_time_variable,
@@ -380,7 +404,15 @@ def process_arase_mepe(
         "MLT": orb_variables["MLT"],
         "L_m": orb_variables["Lm"],
         "InvMu": mepe_variables["InvMu"],
+        "PSD": psd_var,
     }
+
+    if calculate_Lstar:
+        variables_to_save["L_star"] = orb_variables["Lstar"]
+
+    # Level 3 orbit data does not provide the second adiabatic invariant
+    if not use_level_3_orbit_data:
+        variables_to_save["InvK"] = mepe_variables["InvK"]
 
     if add_B_obs:
         variables_to_save |= compute_observed_B_variables(

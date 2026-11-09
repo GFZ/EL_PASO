@@ -79,6 +79,8 @@ def _recipe(
 
 
 RECIPES: tuple[RecipeEntry, ...] = (
+    _recipe("arase", "hep-h", "process_arase_hep", "process_arase_hep_h"),
+    _recipe("arase", "hep-l", "process_arase_hep", "process_arase_hep_l"),
     _recipe("arase", "mepe", "process_arase_mepe", strategy="arase_mepe_strategy"),
     _recipe(
         "arase",

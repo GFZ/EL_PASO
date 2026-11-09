@@ -37,6 +37,7 @@ Color code: ${\color{#4A8A4F}\textsf{publication ready}}$, ${\color{#E6D753}\tex
 
 - **Arase**
     - ${\color{#E6D753}\textsf{MEPe}}$
+    - ${\color{#E6D753}\textsf{HEP (L and H)}}$
     - ${\color{#4A8A4F}\textsf{XEP (archived and real-time)}}$
     - ${\color{#4A8A4F}\textsf{PWE density}}$
 - **DMSP (F16, F17, F18)**
