@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -19,7 +20,7 @@ import el_paso as ep
 import pytest
 import typer
 import typer.testing
-from el_paso.cli import plot_cli
+from el_paso.cli import plot_cli, plot_figure
 from el_paso.cli.app import RECIPES, RecipeEntry, app, load_strategy_factory
 from el_paso.cli.plot_cli import PlotRequest, build_plot_command
 from typer.testing import CliRunner, Result
@@ -153,7 +154,18 @@ def test_plot_command_takes_the_recipe_defaults(requests: list[PlotRequest]) -> 
 def test_plot_command_passes_plot_options_through(requests: list[PlotRequest]) -> None:
     result = runner.invoke(
         stub_app(plot_defaults={"panels": ["FEDU"]}),
-        [*TIME_ARGS, "--variable", "FEDU", "--variable", "L_star", "-o", "out.pdf", "--show", "--dry-run", "-v"],
+        [
+            *TIME_ARGS,
+            "--variable",
+            "FEDU",
+            "--variable",
+            "L_star",
+            "-o",
+            "out.pdf",
+            "--show",
+            "--dry-run",
+            "-v",
+        ],
     )
     assert result.exit_code == 0, result.output
 
@@ -761,7 +773,7 @@ def test_mageis_plot_defaults_draw_fedu_along_l_star(
     monkeypatch.setattr(plot_cli, "build_figure", lambda *a, **k: figures.append(original(*a, **k)) or figures[-1])
     output = mageis_data / "defaults.png"
     # the synthetic data has no Kp, which would be downloaded
-    monkeypatch.setattr(plot_cli, "_plot_index", lambda *a, **k: None)
+    monkeypatch.setattr(plot_figure, "_plot_index", lambda *a, **k: None)
 
     result = mageis_plot(mageis_data, "--satellite", "a", "-o", str(output))
 
