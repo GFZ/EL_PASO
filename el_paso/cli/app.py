@@ -68,194 +68,67 @@ class RecipeEntry(NamedTuple):
     strategy: str | None = None
 
 
+def _recipe(
+    mission: str, command: str, module: str, function: str | None = None, *, strategy: str | None = None
+) -> RecipeEntry:
+    """Build a registry entry from the module's name inside ``el_paso.recipes.<mission>``.
+
+    The recipe function defaults to the module's name.
+    """
+    return RecipeEntry(mission, command, f"el_paso.recipes.{mission}.{module}", function or module, strategy)
+
+
 RECIPES: tuple[RecipeEntry, ...] = (
-    RecipeEntry(
-        "arase",
-        "mepe",
-        "el_paso.recipes.arase.process_arase_mepe",
-        "process_arase_mepe",
-        strategy="arase_mepe_strategy",
-    ),
-    RecipeEntry(
+    _recipe("arase", "mepe", "process_arase_mepe", strategy="arase_mepe_strategy"),
+    _recipe(
         "arase",
         "pwe-density",
-        "el_paso.recipes.arase.process_arase_pwe_densities",
+        "process_arase_pwe_densities",
         "process_arase_pwe_density",
         strategy="arase_pwe_densities_strategy",
     ),
-    RecipeEntry(
-        "arase", "xep", "el_paso.recipes.arase.process_arase_xep", "process_arase_xep", strategy="arase_xep_strategy"
-    ),
-    RecipeEntry(
+    _recipe("arase", "xep", "process_arase_xep", strategy="arase_xep_strategy"),
+    _recipe(
         "arase",
         "xep-realtime",
-        "el_paso.recipes.arase.process_arase_xep_realtime",
+        "process_arase_xep_realtime",
         "process_arase_xep_real_time",
         strategy="arase_xep_realtime_strategy",
     ),
-    RecipeEntry(
-        "dmsp",
-        "ssj",
-        "el_paso.recipes.dmsp.process_dmsp_ssj_electrons",
-        "process_dmsp_ssj_electrons",
-        strategy="dmsp_ssj_electron_strategy",
+    _recipe("dmsp", "ssj", "process_dmsp_ssj_electrons", strategy="dmsp_ssj_electron_strategy"),
+    _recipe("esa", "gssc-emu-electrons", "process_gssc_emu_electrons", strategy="gssc_emu_electron_strategy"),
+    _recipe("esa", "gssc-emu-protons", "process_gssc_emu_protons", strategy="gssc_emu_proton_strategy"),
+    _recipe("esa", "ngrm", "process_ngrm_satellite", "process_ngrm_electron_fluxes", strategy="esa_ngrm_strategy"),
+    _recipe(
+        "goes", "eps-maged-epead", "process_goes_eps_maged_and_epead", strategy="goes_eps_maged_and_epead_strategy"
     ),
-    RecipeEntry(
-        "esa",
-        "gssc-emu-electrons",
-        "el_paso.recipes.esa.process_gssc_emu_electrons",
-        "process_gssc_emu_electrons",
-        strategy="gssc_emu_electron_strategy",
-    ),
-    RecipeEntry(
-        "esa",
-        "gssc-emu-protons",
-        "el_paso.recipes.esa.process_gssc_emu_protons",
-        "process_gssc_emu_protons",
-        strategy="gssc_emu_proton_strategy",
-    ),
-    RecipeEntry(
-        "esa",
-        "ngrm",
-        "el_paso.recipes.esa.process_ngrm_satellite",
-        "process_ngrm_electron_fluxes",
-        strategy="esa_ngrm_strategy",
-    ),
-    RecipeEntry(
-        "goes",
-        "eps-maged-epead",
-        "el_paso.recipes.goes.process_goes_eps_maged_and_epead",
-        "process_goes_eps_maged_and_epead",
-        strategy="goes_eps_maged_and_epead_strategy",
-    ),
-    RecipeEntry(
-        "goes",
-        "mps-high",
-        "el_paso.recipes.goes.process_goes_r_mps_high",
-        "process_goes_r_mps_high",
-        strategy="goes_r_mps_high_strategy",
-    ),
-    RecipeEntry(
-        "goes",
-        "realtime",
-        "el_paso.recipes.goes.process_goes_realtime",
-        "process_goes_real_time",
-        strategy="goes_realtime_strategy",
-    ),
-    RecipeEntry("gps", "cxd", "el_paso.recipes.gps.process_gps", "process_gps_data", strategy="gps_cxd_strategy"),
-    RecipeEntry("model", "lcds", "el_paso.recipes.model.process_lcds", "process_lcds", strategy="lcds_strategy"),
-    RecipeEntry(
-        "poes",
-        "meped",
-        "el_paso.recipes.poes.process_poes_meped",
-        "process_poes_meped_electron",
-        strategy="poes_meped_strategy",
-    ),
-    RecipeEntry(
-        "poes",
-        "ted",
-        "el_paso.recipes.poes.process_poes_ted",
-        "process_poes_ted_electron",
-        strategy="poes_ted_strategy",
-    ),
-    RecipeEntry(
-        "probav",
-        "ept-electrons",
-        "el_paso.recipes.probav.process_ept_electron_fluxes",
-        "process_ept_electron_fluxes",
-        strategy="probav_ept_electron_strategy",
-    ),
-    RecipeEntry(
-        "probav",
-        "ept-protons",
-        "el_paso.recipes.probav.process_ept_proton_fluxes",
-        "process_ept_proton_fluxes",
-        strategy="probav_ept_proton_strategy",
-    ),
-    RecipeEntry(
-        "rbsp",
-        "ect-combined",
-        "el_paso.recipes.rbsp.process_rbsp_ect_combined",
-        "process_rbsp_ect_combined",
-        strategy="rbsp_ect_combined_strategy",
-    ),
-    RecipeEntry(
+    _recipe("goes", "mps-high", "process_goes_r_mps_high", strategy="goes_r_mps_high_strategy"),
+    _recipe("goes", "realtime", "process_goes_realtime", "process_goes_real_time", strategy="goes_realtime_strategy"),
+    _recipe("gps", "cxd", "process_gps", "process_gps_data", strategy="gps_cxd_strategy"),
+    _recipe("model", "lcds", "process_lcds", strategy="lcds_strategy"),
+    _recipe("poes", "meped", "process_poes_meped", "process_poes_meped_electron", strategy="poes_meped_strategy"),
+    _recipe("poes", "ted", "process_poes_ted", "process_poes_ted_electron", strategy="poes_ted_strategy"),
+    _recipe("probav", "ept-electrons", "process_ept_electron_fluxes", strategy="probav_ept_electron_strategy"),
+    _recipe("probav", "ept-protons", "process_ept_proton_fluxes", strategy="probav_ept_proton_strategy"),
+    _recipe("rbsp", "ect-combined", "process_rbsp_ect_combined", strategy="rbsp_ect_combined_strategy"),
+    _recipe(
         "rbsp",
         "density-combined",
-        "el_paso.recipes.rbsp.process_rbsp_efw_emfisis_density_combined",
         "process_rbsp_efw_emfisis_density_combined",
         strategy="rbsp_efw_emfisis_density_combined_strategy",
     ),
-    RecipeEntry(
-        "rbsp",
-        "emfisis-waves",
-        "el_paso.recipes.rbsp.process_rbsp_emfisis_waves",
-        "process_rbsp_emfisis_waves",
-        strategy="rbsp_emfisis_waves_strategy",
+    _recipe("rbsp", "emfisis-waves", "process_rbsp_emfisis_waves", strategy="rbsp_emfisis_waves_strategy"),
+    _recipe("rbsp", "hope-electrons", "process_rbsp_hope_electrons", strategy="rbsp_hope_electron_strategy"),
+    _recipe("rbsp", "hope-protons", "process_rbsp_hope_protons", strategy="rbsp_hope_proton_strategy"),
+    _recipe("rbsp", "mageis-electrons", "process_rbsp_mageis_electrons", strategy="rbsp_mageis_electron_strategy"),
+    _recipe("rbsp", "mageis-protons", "process_rbsp_mageis_protons", strategy="rbsp_mageis_proton_strategy"),
+    _recipe("rbsp", "rept-electrons", "process_rbsp_rept_electrons", strategy="rbsp_rept_electron_strategy"),
+    _recipe("rbsp", "rbspice-protons", "process_rbsp_rbspice_protons", strategy="rbsp_rbspice_proton_strategy"),
+    _recipe(
+        "solar_wind_indices", "solar-wind-indices", "process_solar_wind_indices", strategy="solar_wind_indices_strategy"
     ),
-    RecipeEntry(
-        "rbsp",
-        "hope-electrons",
-        "el_paso.recipes.rbsp.process_rbsp_hope_electrons",
-        "process_rbsp_hope_electrons",
-        strategy="rbsp_hope_electron_strategy",
-    ),
-    RecipeEntry(
-        "rbsp",
-        "hope-protons",
-        "el_paso.recipes.rbsp.process_rbsp_hope_protons",
-        "process_rbsp_hope_protons",
-        strategy="rbsp_hope_proton_strategy",
-    ),
-    RecipeEntry(
-        "rbsp",
-        "mageis-electrons",
-        "el_paso.recipes.rbsp.process_rbsp_mageis_electrons",
-        "process_rbsp_mageis_electrons",
-        strategy="rbsp_mageis_electron_strategy",
-    ),
-    RecipeEntry(
-        "rbsp",
-        "mageis-protons",
-        "el_paso.recipes.rbsp.process_rbsp_mageis_protons",
-        "process_rbsp_mageis_protons",
-        strategy="rbsp_mageis_proton_strategy",
-    ),
-    RecipeEntry(
-        "rbsp",
-        "rept-electrons",
-        "el_paso.recipes.rbsp.process_rbsp_rept_electrons",
-        "process_rbsp_rept_electrons",
-        strategy="rbsp_rept_electron_strategy",
-    ),
-    RecipeEntry(
-        "rbsp",
-        "rbspice-protons",
-        "el_paso.recipes.rbsp.process_rbsp_rbspice_protons",
-        "process_rbsp_rbspice_protons",
-        strategy="rbsp_rbspice_proton_strategy",
-    ),
-    RecipeEntry(
-        "solar_wind_indices",
-        "solar-wind-indices",
-        "el_paso.recipes.solar_wind_indices.process_solar_wind_indices",
-        "process_solar_wind_indices",
-        strategy="solar_wind_indices_strategy",
-    ),
-    RecipeEntry(
-        "themis",
-        "fft-waves",
-        "el_paso.recipes.themis.process_themis_fft_waves",
-        "process_themis_fft_waves",
-        strategy="themis_fft_waves_strategy",
-    ),
-    RecipeEntry(
-        "themis",
-        "scpot-density",
-        "el_paso.recipes.themis.process_themis_scpot_density",
-        "process_themis_scpot_density",
-        strategy="themis_scpot_density_strategy",
-    ),
+    _recipe("themis", "fft-waves", "process_themis_fft_waves", strategy="themis_fft_waves_strategy"),
+    _recipe("themis", "scpot-density", "process_themis_scpot_density", strategy="themis_scpot_density_strategy"),
 )
 
 
