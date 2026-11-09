@@ -17,7 +17,8 @@ three sources:
   ``--processed-data-path``, with the recipe's defaults, so that the same arguments find the
   files a processing run wrote;
 - plot-only options: ``--variable``, ``--energy``, ``--pitch-angle``, ``--vmin``, ``--vmax``,
-  ``--along-L-star``/``--along-L-m``/``--along-R-eq`` (at most one), ``--output-dir``, ``--filename`` and ``--show``.
+  ``--along-L-star``/``--along-L-m``/``--along-R-eq`` (at most one), ``--output-dir``, ``--filename``,
+  ``--show`` and ``--export-script``.
 
 Processing-only options such as ``--num-cores`` or ``--raw-data-path`` are not part of the
 factory's signature and so are rejected.
@@ -54,6 +55,7 @@ import el_paso as ep
 from el_paso.cli._logging import _log_level, _log_table
 from el_paso.cli._parsing import _expand_loops, _format_value, _func_name, parse_docstring
 from el_paso.cli.plot_figure import DEFAULT_COLORMAP, INDEX_PANELS, build_figure
+from el_paso.cli.plot_script import write_plot_script
 from el_paso.cli.recipe_cli import (
     _attach_signature,
     _build_parameter_specs,
@@ -104,6 +106,7 @@ _PLOT_PARAMETER_NAMES = (
     "output_dir",
     "filename",
     "show",
+    "export_script",
 )
 """Options defined here: ``--dry-run`` is shared with processing in name only, the rest are plot-only."""
 
@@ -138,6 +141,8 @@ class PlotRequest:
         along: Coordinate on the y axis of scatter panels (``--along-L-star``, ``--along-L-m`` or
             ``--along-R-eq``), or ``None`` for the usual plot types.
         colormap: Colormap of spectrograms and scatter panels (``--colormap``).
+        export_script: File to write a standalone Python script that makes the figure to, instead of
+            plotting (``--export-script``), or ``None`` to plot.
     """
 
     recipe: Recipe
@@ -159,6 +164,7 @@ class PlotRequest:
     vmax: float | None = None
     along: InternalName | None = None
     colormap: str = DEFAULT_COLORMAP
+    export_script: Path | None = None
 
 
 def _plot_parameters() -> list[inspect.Parameter]:
@@ -291,6 +297,18 @@ def _plot_parameters() -> list[inspect.Parameter]:
             "show",
             Annotated[bool, typer.Option("--show", help="Open the figure in an interactive window.")],
             False,
+        ),
+        (
+            "export_script",
+            Annotated[
+                Path | None,
+                typer.Option(
+                    "--export-script",
+                    help="Write a standalone Python script that makes this figure to this file, instead of "
+                    "plotting. Edit the script to customise the figure.",
+                ),
+            ],
+            None,
         ),
     ]
 
@@ -662,6 +680,8 @@ def _report_settings(request: PlotRequest) -> None:
         along_text = "none (plot types by dimensions)"
     table.add_row("along", along_text)
     output_path = _output_path(request)
+    if request.export_script:
+        table.add_row("export script", str(request.export_script))
     if output_path is None:
         table.add_row("output", "none (shown only)")
     else:
@@ -933,6 +953,8 @@ def _run_plot(request: PlotRequest) -> None:
     Satellites with only some of the expected files are plotted with gaps; satellites without
     any are left out (see `_check_coverage`).
 
+    With ``--export-script``, a script that makes the figure is written instead, and nothing is loaded.
+
     Raises:
         typer.BadParameter: If no variables are given and the recipe has no default panels, or if
             the command-line settings clash with the recipe's.
@@ -953,6 +975,12 @@ def _run_plot(request: PlotRequest) -> None:
     if not panels:
         msg = f"is required: {_func_name(request.recipe)} defines no default panels."
         raise typer.BadParameter(msg, param_hint="'--variable'")
+
+    if request.export_script:
+        request.export_script.parent.mkdir(parents=True, exist_ok=True)
+        request.export_script.write_text(write_plot_script(request), encoding="utf-8")
+        logger.info(f"Wrote the plot script to {request.export_script}. Run it with python.")
+        return
 
     if request.show and (error := _interactive_backend_error()):
         logger.error(error)

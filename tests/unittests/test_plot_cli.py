@@ -1205,3 +1205,95 @@ def test_plot_filename_must_not_contain_a_directory(requests: list[PlotRequest])
 
     assert result.exit_code == 2, result.output
     assert "Use --output-dir" in click.unstyle(result.output)
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_plot_script_values_render_as_python() -> None:
+    from el_paso.cli.plot_script import _py  # noqa: PLC0415
+
+    assert _py(datetime(2017, 10, 15, tzinfo=timezone.utc)) == "datetime(2017, 10, 15, 0, 0, 0, tzinfo=timezone.utc)"
+    assert _py(Path("/data")) == "Path('/data')"
+    assert _py([2.1, 3.4] * u.MeV) == 'u.Quantity([2.1, 3.4], "MeV")'
+    assert _py(90 * u.deg) == 'u.Quantity(90.0, "deg")'
+    assert _py({"FEDU": {"vmin": 1e-2, "along": None}}) == "{'FEDU': {'vmin': 0.01, 'along': None}}"
+    assert _py(timedelta(minutes=5)) == "timedelta(seconds=300.0)"
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_exported_script_makes_the_same_figure(
+    mageis_data: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import runpy  # noqa: PLC0415
+
+    monkeypatch.setattr(ep, "setup_logging", lambda *_args, **_kwargs: None)  # the script sets up its own logging
+
+    script = tmp_path / "scripts" / "my_plot.py"
+    figure_path = tmp_path / "figures" / "from_script.png"
+
+    result = mageis_plot(
+        mageis_data,
+        "--satellite",
+        "all",
+        "--variable",
+        "FEDU",
+        "--variable",
+        "B_Eq",
+        "--energy",
+        "400",
+        "--along-L-star",
+        *output_args(figure_path),
+        "--export-script",
+        str(script),
+    )
+
+    assert result.exit_code == 0, result.output
+    assert not figure_path.exists()  # exporting does not plot
+    source = script.read_text()
+    assert "plt.subplots(" in source
+    assert "build_figure" not in source
+    assert 'ENERGIES = u.Quantity([400.0], "keV")' in source
+    assert "ALONG = 'L_star'" in source
+    compile(source, str(script), "exec")
+
+    runpy.run_path(str(script))
+
+    assert figure_path.read_bytes().startswith(b"\x89PNG")
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_exported_script_leaves_a_panel_empty_when_an_index_cannot_be_loaded(
+    mageis_data: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    import runpy  # noqa: PLC0415
+
+    monkeypatch.setattr(ep, "setup_logging", lambda *_args, **_kwargs: None)  # the script sets up its own logging
+
+    def failing_download(*args: object, **kwargs: object) -> None:
+        msg = "no network"
+        raise OSError(msg)
+
+    monkeypatch.setattr(ep, "load_indices_solar_wind_parameters", failing_download)
+    script = tmp_path / "my_plot.py"
+    figure_path = tmp_path / "with_kp.png"
+
+    result = mageis_plot(
+        mageis_data,
+        "--satellite",
+        "a",
+        "--variable",
+        "Kp",
+        "--variable",
+        "B_Eq",
+        *output_args(figure_path),
+        "--export-script",
+        str(script),
+    )
+    assert result.exit_code == 0, result.output
+
+    runpy.run_path(str(script))
+
+    assert "Could not load Kp: no network" in caplog.text
+    assert figure_path.read_bytes().startswith(b"\x89PNG")

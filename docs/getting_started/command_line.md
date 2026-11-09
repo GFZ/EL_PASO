@@ -189,6 +189,7 @@ A recipe can define default panels (`PLOT_DEFAULTS`, as RBSP MagEIS does), in wh
 | `--output-dir` | Directory to write the figure to, created if missing. Default: the current directory. |
 | `--filename` | Name of the file; the format follows the suffix (`.png`, `.pdf`, ...). Default: `<recipe>_<satellite>_<start>_<end>.png`. |
 | `--show` | Open the figure in an interactive window instead of only writing a file. |
+| `--export-script` | Write a standalone Python script that makes this figure to the given file, instead of plotting. The script holds every setting as a variable at the top and draws the figure with matplotlib, so it can be edited into a custom figure.|
 
 For example, electron flux at three energies against `L_star`, written as a PDF:
 
