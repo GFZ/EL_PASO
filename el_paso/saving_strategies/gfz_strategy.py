@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Optional
 
 import el_paso as ep
 from el_paso.data_standards import GFZStandard
+from el_paso.one_of import OneOf
 from el_paso.saving_strategy import OutputFile, SavingStrategy
 
 if TYPE_CHECKING:
@@ -78,8 +79,8 @@ class GFZStrategy(SavingStrategy):
         self.mag_field = mag_field
 
         self.output_files = [
-            OutputFile("flux", ["Epoch", ("FEDU", "FPDU")]),
-            OutputFile("alpha_and_energy", ["Epoch", "Alpha", "Alpha_Eq", ("Energy_FEDU", "Energy_FPDU")]),
+            OutputFile("flux", ["Epoch", OneOf("FEDU", "FPDU")]),
+            OutputFile("alpha_and_energy", ["Epoch", "Alpha", "Alpha_Eq", OneOf("Energy_FEDU", "Energy_FPDU")]),
             OutputFile("mlt", ["Epoch", "MLT"]),
             OutputFile("lstar", ["Epoch", "L_star"]),
             OutputFile("lm", ["Epoch", "L_m"]),
