@@ -51,19 +51,15 @@ import typer
 from rich.table import Table
 
 import el_paso as ep
+from el_paso.cli._logging import _log_level, _log_table
+from el_paso.cli._parsing import _expand_loops, _format_value, _func_name, parse_docstring
 from el_paso.cli.recipe_cli import (
     _attach_signature,
     _build_parameter_specs,
-    _expand_loops,
-    _format_value,
-    _func_name,
-    _log_level,
-    _log_table,
     _restore_parsed_values,
     _spec_parameters,
     _universal_parameters,
     check_strategy_factory,
-    parse_docstring,
 )
 
 # Kept in sync with `el_paso.dataset.plot.DEFAULT_COLORMAP`; that module imports numpy and astropy, which

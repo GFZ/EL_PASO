@@ -35,18 +35,14 @@ from __future__ import annotations
 import collections
 import enum
 import inspect
-import io
 import logging
-import re
 import types
 import typing
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Literal, get_args, get_origin
 
-import dateutil.parser
 import typer
-from rich.console import Console
 from rich.table import Table
 
 # `el_paso` is imported for its module-level flags and helpers, which are only read at
@@ -54,6 +50,16 @@ from rich.table import Table
 # object here (rather than any of its attributes) keeps that import cycle safe.
 import el_paso as ep
 from el_paso.cache import mark_run_failed
+from el_paso.cli._logging import _configure_logging, _log_table
+from el_paso.cli._parsing import (
+    _expand_loops,
+    _format_value,
+    _func_name,
+    format_cadence,
+    parse_cadence,
+    parse_datetime,
+    parse_docstring,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -61,11 +67,6 @@ if TYPE_CHECKING:
     from el_paso.typing import Recipe
 
 logger = logging.getLogger("el_paso.cli")
-
-_LOG_FILE_FORMAT = "[%(levelname)-8s] %(asctime)s - %(name)s:%(lineno)d - %(message)s"
-_LOG_FILE_DATEFMT = "%Y-%m-%d %H:%M:%S"
-
-_log_file_handler: logging.Handler | None = None
 
 LOOP_PARAMETER_NAMES = frozenset({"satellite"})
 """Parameters that accept several values and make the recipe run once per value.
@@ -77,161 +78,62 @@ Every recipe names its spacecraft parameter ``satellite``. Pass ``loop_over`` to
 ALL_VALUES = "all"
 """Value of a looped choice parameter that stands for all of its choices, e.g. ``--satellite all``."""
 
-_UNIVERSAL_PARAMETER_NAMES = (
-    "verbose",
-    "quiet",
-    "dry_run",
-    "skip_download",
-    "exit_after_download",
-    "version",
-    "logs",
-)
-"""Options every recipe command carries; they are consumed by the command, not the recipe."""
 
-_SECTION_RE = re.compile(r"^\s*(Args|Arguments|Returns|Raises|Yields|Note|Notes|Example|Examples|Attributes):\s*$")
-_ARG_RE = re.compile(r"^(?P<name>\*{0,2}\w+)\s*(?:\((?P<type>[^)]*)\))?\s*:\s*(?P<help>.*)$")
-_DEFAULTS_RE = re.compile(r"\s*Defaults? to\s+[^.]*\.?\s*$")
+def _version_callback(value: bool) -> None:  # noqa: FBT001
+    """Print the EL-PASO version and exit, before any other option is processed."""
+    if value:
+        typer.echo(f"EL-PASO {ep.__version__}")
+        raise typer.Exit
 
-_CADENCE_UNITS = {
-    "": 1.0,
-    "s": 1.0,
-    "sec": 1.0,
-    "secs": 1.0,
-    "second": 1.0,
-    "seconds": 1.0,
-    "m": 60.0,
-    "min": 60.0,
-    "mins": 60.0,
-    "minute": 60.0,
-    "minutes": 60.0,
-    "h": 3600.0,
-    "hr": 3600.0,
-    "hrs": 3600.0,
-    "hour": 3600.0,
-    "hours": 3600.0,
-    "d": 86400.0,
-    "day": 86400.0,
-    "days": 86400.0,
+
+_UNIVERSAL_OPTIONS: dict[str, tuple[Any, Any]] = {
+    "verbose": (
+        Annotated[
+            int,
+            typer.Option("--verbose", "-v", count=True, help="Increase log verbosity. Repeat for debug output."),
+        ],
+        0,
+    ),
+    "quiet": (Annotated[bool, typer.Option("--quiet", "-q", help="Only log warnings and errors.")], False),
+    "dry_run": (
+        Annotated[
+            bool,
+            typer.Option("--dry-run", help="Print the resolved recipe arguments and exit without processing."),
+        ],
+        False,
+    ),
+    "skip_download": (
+        Annotated[bool, typer.Option("--skip-download", help="Use already downloaded raw files only.")],
+        False,
+    ),
+    "exit_after_download": (
+        Annotated[bool, typer.Option("--exit-after-download", help="Download the raw files, then stop.")],
+        False,
+    ),
+    "version": (
+        Annotated[
+            bool,
+            typer.Option("--version", callback=_version_callback, is_eager=True, help="Show the version and exit."),
+        ],
+        False,
+    ),
+    "logs": (
+        Annotated[
+            Path,
+            typer.Option(
+                "--logs",
+                help="Base directory for log files, or a path to a specific log file "
+                "(e.g. 'log.log'). If a directory, a dated <mission>/<satellite> "
+                "subdirectory is created under it for each run.",
+            ),
+        ],
+        Path("logs"),
+    ),
 }
-_CADENCE_RE = re.compile(r"^\s*(?P<value>\d+(?:\.\d+)?)\s*(?P<unit>[a-zA-Z]*)\s*$")
+"""Every recipe command option that is not a recipe parameter: its annotation and its default."""
 
-
-def parse_cadence(value: str | timedelta) -> timedelta:
-    """Parse a cadence such as ``"5min"``, ``"10s"``, ``"1h"`` or ``"30"`` into a timedelta.
-
-    A bare number is interpreted as seconds.
-
-    Args:
-        value (str | timedelta): The cadence to parse. A `timedelta` is returned unchanged,
-            which lets Typer re-use the parser on its own default values.
-
-    Returns:
-        timedelta: The parsed cadence.
-
-    Raises:
-        ValueError: If the string is not a number followed by a known unit.
-    """
-    if isinstance(value, timedelta):
-        return value
-
-    match = _CADENCE_RE.match(value)
-    if match is None or match.group("unit").lower() not in _CADENCE_UNITS:
-        units = ", ".join(sorted(u for u in _CADENCE_UNITS if u))
-        msg = f"Cannot parse cadence {value!r}. Expected a number with an optional unit ({units}), e.g. '5min'."
-        raise ValueError(msg)
-
-    return timedelta(seconds=float(match.group("value")) * _CADENCE_UNITS[match.group("unit").lower()])
-
-
-def format_cadence(value: timedelta) -> str:
-    """Render a timedelta the way :func:`parse_cadence` accepts it, for help output."""
-    total_seconds = value.total_seconds()
-    for unit, seconds_per_unit in (("d", 86400.0), ("h", 3600.0), ("min", 60.0)):
-        if total_seconds >= seconds_per_unit and total_seconds % seconds_per_unit == 0:
-            return f"{int(total_seconds // seconds_per_unit)}{unit}"
-    return f"{total_seconds:g}s"
-
-
-def parse_datetime(value: str | datetime) -> datetime:
-    """Parse a date/time string into a UTC-aware datetime.
-
-    Accepts anything :mod:`dateutil` understands, so both ``2013-03-16`` and
-    ``2013-03-16T23:59:59`` work. Naive results are assumed to be UTC.
-
-    Args:
-        value (str | datetime): The value to parse. A `datetime` is returned with UTC
-            enforced, which lets Typer re-use the parser on its own default values.
-
-    Returns:
-        datetime: The parsed, timezone-aware datetime.
-    """
-    # Local import: `el_paso.utils` pulls in pandas, xarray, h5py and
-    # netCDF4, which the CLI should not pay for just to parse a date.
-    from el_paso.utils import enforce_utc_timezone  # noqa: PLC0415
-
-    if isinstance(value, datetime):
-        return enforce_utc_timezone(value)
-
-    return enforce_utc_timezone(dateutil.parser.parse(value))
-
-
-def parse_docstring(docstring: str | None) -> tuple[str, dict[str, str]]:
-    """Split a Google-style docstring into its summary and its per-argument help texts.
-
-    Args:
-        docstring (str | None): The raw ``__doc__`` of a recipe function.
-
-    Returns:
-        tuple[str, dict[str, str]]: The summary line (everything up to the first blank
-        line) and a mapping from argument name to its description with whitespace
-        collapsed.
-    """
-    if not docstring:
-        return "", {}
-
-    lines = inspect.cleandoc(docstring).splitlines()
-
-    summary_lines: list[str] = []
-    for line in lines:
-        if not line.strip():
-            break
-        summary_lines.append(line.strip())
-    summary = " ".join(summary_lines)
-
-    arg_help: dict[str, str] = {}
-    in_args = False
-    current: str | None = None
-
-    for line in lines:
-        section = _SECTION_RE.match(line)
-        if section:
-            in_args = section.group(1) in {"Args", "Arguments"}
-            current = None
-            continue
-
-        if not in_args:
-            continue
-
-        stripped = line.strip()
-        if not stripped:
-            continue
-
-        match = _ARG_RE.match(stripped)
-        if match and not stripped.startswith("-"):
-            current = match.group("name").lstrip("*")
-            arg_help[current] = match.group("help").strip()
-        elif current is not None:
-            # a continuation line of the previous argument
-            arg_help[current] = f"{arg_help[current]} {stripped}".strip()
-
-    # Typer renders the actual default itself, so drop the docstrings' trailing
-    # "Defaults to ..." sentence rather than showing it twice.
-    return summary, {name: _DEFAULTS_RE.sub("", " ".join(text.split())).strip() for name, text in arg_help.items()}
-
-
-def _func_name(func: Recipe) -> str:
-    """Return a readable name for a recipe function."""
-    return getattr(func, "__name__", repr(func))
+_UNIVERSAL_PARAMETER_NAMES = tuple(_UNIVERSAL_OPTIONS)
+"""Options every recipe command carries; they are consumed by the command, not the recipe."""
 
 
 def _literal_choices(hint: Any) -> tuple[str, ...] | None:  # noqa: ANN401
@@ -663,185 +565,6 @@ def _typer_default(spec: _ParameterSpec) -> Any:  # noqa: ANN401
     return spec.default
 
 
-def _universal_parameters(names: Sequence[str] = _UNIVERSAL_PARAMETER_NAMES) -> list[inspect.Parameter]:
-    """Options every recipe command gets, independent of its signature.
-
-    Args:
-        names (Sequence[str]): Only return these options, for commands that share only some of
-            them. Defaults to all of :data:`_UNIVERSAL_PARAMETER_NAMES`.
-
-    Returns:
-        list[inspect.Parameter]: The options, as keyword-only parameters.
-    """
-    definitions: list[tuple[str, Any, Any]] = [
-        (
-            "verbose",
-            Annotated[
-                int,
-                typer.Option("--verbose", "-v", count=True, help="Increase log verbosity. Repeat for debug output."),
-            ],
-            0,
-        ),
-        ("quiet", Annotated[bool, typer.Option("--quiet", "-q", help="Only log warnings and errors.")], False),
-        (
-            "dry_run",
-            Annotated[
-                bool,
-                typer.Option("--dry-run", help="Print the resolved recipe arguments and exit without processing."),
-            ],
-            False,
-        ),
-        (
-            "skip_download",
-            Annotated[bool, typer.Option("--skip-download", help="Use already downloaded raw files only.")],
-            False,
-        ),
-        (
-            "exit_after_download",
-            Annotated[bool, typer.Option("--exit-after-download", help="Download the raw files, then stop.")],
-            False,
-        ),
-        (
-            "version",
-            Annotated[
-                bool,
-                typer.Option("--version", callback=_version_callback, is_eager=True, help="Show the version and exit."),
-            ],
-            False,
-        ),
-        (
-            "logs",
-            Annotated[
-                Path,
-                typer.Option(
-                    "--logs",
-                    help="Base directory for log files, or a path to a specific log file "
-                    "(e.g. 'log.log'). If a directory, a dated <mission>/<satellite> "
-                    "subdirectory is created under it for each run.",
-                ),
-            ],
-            Path("logs"),
-        ),
-    ]
-
-    return [
-        inspect.Parameter(name, inspect.Parameter.KEYWORD_ONLY, default=default, annotation=annotation)
-        for name, annotation, default in definitions
-        if name in names
-    ]
-
-
-def _version_callback(value: bool) -> None:  # noqa: FBT001
-    """Print the EL-PASO version and exit, before any other option is processed."""
-    if value:
-        typer.echo(f"EL-PASO {ep.__version__}")
-        raise typer.Exit
-
-
-def _mission_name(func: Recipe) -> str:
-    """Derive a recipe's mission name from its module path (`el_paso.recipes.<mission>.*`)."""
-    parts = func.__module__.split(".")
-    if parts[:2] == ["el_paso", "recipes"] and len(parts) > 2:
-        return parts[2]
-
-    return "misc"
-
-
-def _resolve_log_file(logs_path: Path, func: Recipe, satellite: str | None) -> Path:
-    """Resolve `--logs` into the concrete log file a recipe call should write to.
-
-    A `logs_path` with a suffix (e.g. ``log.log``) is used as-is, as an explicit log file.
-    Otherwise it is treated as a base directory, under which a dated, mission/satellite-scoped
-    log file is created: ``<logs_path>/<YYYY>/<MM>/<DD>/<mission>/<satellite>/<recipe>.log``
-    (the satellite segment is omitted for recipes that do not take one).
-    """
-    if logs_path.suffix:
-        log_file = logs_path
-    else:
-        today = datetime.now(timezone.utc)
-        log_dir = logs_path / f"{today:%Y}" / f"{today:%m}" / f"{today:%d}" / _mission_name(func)
-        if satellite is not None:
-            log_dir /= str(satellite)
-        log_file = log_dir / f"{_func_name(func)}_{today:%H00}.log"
-
-    log_file.parent.mkdir(parents=True, exist_ok=True)
-    return log_file
-
-
-def _log_level(*, verbose: int, quiet: bool) -> int:
-    """Map ``-v``/``--quiet`` onto a logging level."""
-    if quiet:
-        return logging.WARNING
-    if verbose >= 1:
-        return logging.DEBUG
-    return logging.INFO
-
-
-def _configure_logging(
-    *,
-    verbose: int,
-    quiet: bool,
-    logs_path: Path,
-    func: Recipe,
-    satellite: str | None,
-    configure_console: bool,
-) -> None:
-    """Set up logging for one recipe call."""
-    level = _log_level(verbose=verbose, quiet=quiet)
-
-    if configure_console:
-        ep.setup_logging(level)
-    else:
-        logging.getLogger().setLevel(level)
-
-    log_file = _resolve_log_file(logs_path, func, satellite)
-
-    global _log_file_handler
-    root_logger = logging.getLogger()
-    if _log_file_handler is not None:
-        root_logger.removeHandler(_log_file_handler)
-        _log_file_handler.close()
-
-    file_handler = logging.FileHandler(log_file, mode="a")
-    file_handler.setFormatter(logging.Formatter(_LOG_FILE_FORMAT, datefmt=_LOG_FILE_DATEFMT))
-    root_logger.addHandler(file_handler)
-    _log_file_handler = file_handler
-
-
-def _expand_loops(kwargs: dict[str, Any], loop_names: list[str]) -> list[dict[str, Any]]:
-    """Expand looped parameters into one keyword set per combination of values."""
-    call_kwargs_list = [dict(kwargs)]
-
-    for name in loop_names:
-        values = call_kwargs_list[0].get(name)
-        if not isinstance(values, list):
-            continue
-
-        call_kwargs_list = [{**call_kwargs, name: value} for call_kwargs in call_kwargs_list for value in values]
-
-    return call_kwargs_list
-
-
-_SECRET_PARAMETER_HINTS = ("password", "secret", "token", "credential")
-
-
-def _format_value(name: str, value: Any) -> str:  # noqa: ANN401
-    """Render one argument for display, hiding anything that looks like a credential."""
-    if value is not None and any(hint in name.lower() for hint in _SECRET_PARAMETER_HINTS):
-        return "<hidden>"
-
-    if isinstance(value, datetime):
-        return value.isoformat()
-    if isinstance(value, timedelta):
-        return format_cadence(value)
-    if isinstance(value, Path):
-        return str(value)
-    if value is None:
-        return "-"
-
-    return str(value)
-
-
 def _report_call(
     func: Recipe,
     call_kwargs: dict[str, Any],
@@ -863,12 +586,21 @@ def _report_call(
     _log_table(table)
 
 
-def _log_table(table: Table) -> None:
-    """Log a rich table line by line, so that it reaches the console and the log file alike."""
-    buffer = io.StringIO()
-    Console(file=buffer).print(table)
-    for line in buffer.getvalue().splitlines():
-        logger.info(line)
+def _universal_parameters(names: Sequence[str] = _UNIVERSAL_PARAMETER_NAMES) -> list[inspect.Parameter]:
+    """Options every recipe command gets, independent of its signature.
+
+    Args:
+        names (Sequence[str]): Only return these options, for commands that share only some of
+            them. Defaults to all of :data:`_UNIVERSAL_PARAMETER_NAMES`.
+
+    Returns:
+        list[inspect.Parameter]: The options, as keyword-only parameters.
+    """
+    return [
+        inspect.Parameter(name, inspect.Parameter.KEYWORD_ONLY, default=default, annotation=annotation)
+        for name, (annotation, default) in _UNIVERSAL_OPTIONS.items()
+        if name in names
+    ]
 
 
 def check_strategy_factory(
