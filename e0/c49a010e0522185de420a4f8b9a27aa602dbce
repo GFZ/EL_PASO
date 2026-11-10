@@ -1,0 +1,19 @@
+tests/unittests/test_recipe_cli.py
+  s_1cff697aa6eb59::t_1ba4c5805864cb 415
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e0c49a010e0522185de420a4f8b9a27aa602dbce",
+  "prompts": {},
+  "sessions": {
+    "s_1cff697aa6eb59": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5259985-ab23-4ccb-9ebb-5ff0c82c03f0",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Sahil Jhawar <sahil.jhawar448@gmail.com>"
+    }
+  }
+}
