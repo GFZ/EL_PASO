@@ -1,0 +1,15 @@
+.github/dependabot.yml
+  h_f1e7cc567ec383 7-9,14-19,22-27,30
+  h_f1e7cc567ec383 12,20-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3113a986ae5be438bdbee6f63f5924869d91b833",
+  "prompts": {},
+  "humans": {
+    "h_f1e7cc567ec383": {
+      "author": "Sahil Jhawar <sahil.jhawar448@gmail.com>"
+    }
+  }
+}
