@@ -1,0 +1,34 @@
+el_paso/cli/plot_script.py
+  h_f1e7cc567ec383 136
+el_paso/cli/recipe_cli.py
+  h_f1e7cc567ec383 461
+el_paso/dataset/bin_and_interpolate_to_model_grid.py
+  h_f1e7cc567ec383 556-557,642
+el_paso/dataset/utils.py
+  h_f1e7cc567ec383 53
+el_paso/load_indices_solar_wind_parameters.py
+  h_f1e7cc567ec383 262
+el_paso/recipes/esa/process_gssc_emu_electrons.py
+  h_f1e7cc567ec383 192
+el_paso/recipes/esa/process_gssc_emu_protons.py
+  h_f1e7cc567ec383 192
+el_paso/recipes/esa/process_ngrm_satellite.py
+  h_f1e7cc567ec383 235
+el_paso/saving_strategies/single_file_strategy.py
+  h_f1e7cc567ec383 104,107,285
+el_paso/units.py
+  h_f1e7cc567ec383 38
+el_paso/utils.py
+  h_f1e7cc567ec383 219
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a160bebbf8413c2408c1abacf1eacff0ff3d7fe9",
+  "prompts": {},
+  "humans": {
+    "h_f1e7cc567ec383": {
+      "author": "Sahil Jhawar <sahil.jhawar448@gmail.com>"
+    }
+  }
+}
