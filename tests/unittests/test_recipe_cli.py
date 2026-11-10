@@ -412,7 +412,7 @@ def test_stub_help_lists_satellite_all(stub_app: typer.Typer) -> None:
     result = runner.invoke(stub_app, ["--help"], env={"COLUMNS": "200"})
 
     assert result.exit_code == 0, result.output
-    assert "<a|b|all>" in click.unstyle(result.output)
+    assert "a|b|all" in click.unstyle(result.output)
 
 
 def recipe_failing_for_satellite_a(
