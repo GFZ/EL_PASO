@@ -458,7 +458,7 @@ def _attach_signature(command: Callable[..., Any], parameters: Sequence[inspect.
 
     # Typer reads parameters from __signature__ but resolves types from __annotations__,
     # so both have to be set and agree.
-    command.__signature__ = inspect.Signature(parameters)  # ty:ignore[unresolved-attribute]
+    command.__signature__ = inspect.Signature(parameters)  # ty:ignore[missing-attribute]
     command.__annotations__ = {parameter.name: parameter.annotation for parameter in parameters}
 
 

@@ -216,7 +216,7 @@ def timed_function(func_name: str | None = None) -> Callable[[Callable[P, R]], C
             tic = timeit.default_timer()
             result = f(*args, **kwargs)
             toc = timeit.default_timer()
-            name = func_name or f"{f.__name__}"  # ty:ignore[unresolved-attribute]
+            name = func_name or f"{f.__name__}"  # ty:ignore[missing-attribute]
             log = logging.getLogger(f.__module__)
             log.info(f"{name} finished in {toc - tic:0.3f} seconds", stacklevel=2)
 

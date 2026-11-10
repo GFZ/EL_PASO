@@ -232,7 +232,7 @@ def process_ngrm_electron_fluxes(
     coords_ITRS = coords_ECI.transform_to(ITRS(obstime=datetimes))
     xgeo_data = np.stack((coords_ITRS.x, coords_ITRS.y, coords_ITRS.z)).T
 
-    variables["xGEO"] = ep.Variable(data=xgeo_data.value, original_unit=u.km)  # ty:ignore[unresolved-attribute]
+    variables["xGEO"] = ep.Variable(data=xgeo_data.value, original_unit=u.km)  # ty: ignore[missing-attribute]
     del variables["x_ECI"], variables["y_ECI"], variables["z_ECI"]
 
     # create flux variable

@@ -553,8 +553,8 @@ def plot_debug_figures_plasmasphere(  # noqa: D103
         )
         ax0.set_ylim(1, 6.6)
         ax0.set_title("Orbit")
-        ax0.set_rlim([0, 6.6])  # ty:ignore[unresolved-attribute]
-        ax0.set_theta_offset(np.pi)  # ty:ignore[unresolved-attribute]
+        ax0.set_rlim([0, 6.6])  # ty:ignore[missing-attribute]
+        ax0.set_theta_offset(np.pi)  # ty:ignore[missing-attribute]
 
         grid_X = grid_R[:, :, 0, 0] * np.cos(grid_P[:, :, 0, 0])  # ty:ignore[not-subscriptable]
 
@@ -639,7 +639,7 @@ def plot_debug_figures(  # noqa: D103
         )
         ax0.set_ylim(1, 6.6)
         ax0.set_title("Orbit")
-        ax0.set_theta_offset(np.pi)  # ty:ignore[unresolved-attribute]
+        ax0.set_theta_offset(np.pi)  # ty:ignore[missing-attribute]
 
         ax1.vlines(
             [np.log10(np.min(grid_V)), np.log10(np.max(grid_V))],

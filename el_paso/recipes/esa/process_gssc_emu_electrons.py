@@ -189,7 +189,7 @@ def process_gssc_emu_electrons(
         obstime=obstimes,
     )
     coords_ITRS = coords_ECI.transform_to(ITRS(obstime=obstimes))
-    xgeo_data = np.stack((coords_ITRS.x, coords_ITRS.y, coords_ITRS.z)).T.value  # ty:ignore[unresolved-attribute]
+    xgeo_data = np.stack((coords_ITRS.x, coords_ITRS.y, coords_ITRS.z)).T.value  # ty:ignore[missing-attribute]
 
     # ODI_Position is zero-filled or NaN for some/all samples in some GSSC EMU files; for those
     # samples only, position is reconstructed from OMM element sets downloaded from Space-Track.

@@ -133,7 +133,7 @@ def write_plot_script(request: PlotRequest) -> str:
         'so every step can be changed or extended.\n"""\n\n'
         + "\n".join(imports)
         + "\nep.setup_logging()"
-        + f'\nlogger=logging.getLogger("{request.export_script.stem!s}")'  # ty: ignore[unresolved-attribute]
+        + f'\nlogger=logging.getLogger("{request.export_script.stem!s}")'  # ty: ignore[missing-union-attribute]
         + "\n\n# Settings\n"
         + body
         + f"""

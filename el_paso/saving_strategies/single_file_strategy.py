@@ -101,10 +101,10 @@ class SingleFileStrategy(SavingStrategy):
         if format_writers:
             self._writers.update(format_writers)
 
-    def get_file_path_stem(self) -> None:  # ty:ignore[invalid-method-override]
+    def get_file_path_stem(self) -> None:  # ty:ignore[incompatible-method-override]
         """Not applicable for this strategy; the full path is fixed via `file_path`."""
 
-    def get_file_name_stem(self) -> None:  # ty:ignore[invalid-method-override]
+    def get_file_name_stem(self) -> None:  # ty:ignore[incompatible-method-override]
         """Not applicable for this strategy; the full path is fixed via `file_path`."""
 
     def get_time_intervals_to_save(self, start_time: datetime, end_time: datetime) -> list[TimeInterval]:
@@ -282,7 +282,7 @@ class SingleFileStrategy(SavingStrategy):
                 if path in data_dict.get("metadata", {}):
                     self._write_metadata_to_netcdf_variable(data_set, data_dict["metadata"][path])
 
-    def save_single_file(self, file_path: Path, dict_to_save: dict[str, Any], *, append: bool = False) -> None:  # ty:ignore[invalid-method-override]
+    def save_single_file(self, file_path: Path, dict_to_save: dict[str, Any], *, append: bool = False) -> None:  # ty:ignore[incompatible-method-override]
         """Saves variable data to a single file in one of the supported formats.
 
         The file format is determined by the file extension. Built-in formats include .mat, .h5, .nc, and .cdf.
