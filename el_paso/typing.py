@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from el_paso.data_standard import ConsistencyCheck, DataStandard, VariableInfo
     from el_paso.data_standards import GFZStandard, PRBEMStandard
     from el_paso.dataset.metadata import GFZMetaData, PRBEMMetaData
+    from el_paso.one_of import OneOf
     from el_paso.processing.compute_magnetic_field_variables import VariableRequest
     from el_paso.saving_strategies.daily_leo_rb_strategy import DailyLEORBStrategy
     from el_paso.saving_strategies.daily_wave_strategy import DailyWaveStrategy
@@ -300,6 +301,7 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     "RBSPDensityStrategy": ("el_paso.saving_strategies.rbsp_density_strategy", "RBSPDensityStrategy"),
     "MonthlyRBStrategy": ("el_paso.saving_strategies.monthly_rb_strategy", "MonthlyRBStrategy"),
     "DailyLEORBStrategy": ("el_paso.saving_strategies.daily_leo_rb_strategy", "DailyLEORBStrategy"),
+    "OneOf": ("el_paso.one_of", "OneOf"),
     "OutputFile": ("el_paso.saving_strategy", "OutputFile"),
     "PRBEMStandard": ("el_paso.data_standards.prbem_standard", "PRBEMStandard"),
     "VariableRequest": ("el_paso.processing.compute_magnetic_field_variables", "VariableRequest"),
@@ -351,6 +353,7 @@ __all__ = [
     "MagneticFieldLiteral",
     "MonthlyDensityStrategy",
     "MonthlyRBStrategy",
+    "OneOf",
     "OutputFile",
     "PRBEMMetaData",
     "PRBEMName",

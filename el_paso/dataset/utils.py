@@ -51,7 +51,7 @@ def join_var(
     if is_xr_variable(var1):
         var1 = [var1]
 
-    var1.append(var2)  # ty: ignore[invalid-argument-type, unresolved-attribute]
+    var1.append(var2)  # ty: ignore[invalid-argument-type, missing-union-attribute]
 
     return var1
 

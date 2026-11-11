@@ -31,15 +31,25 @@ _GSSC_EMU_SATELLITE_TO_ID: dict[ESAGSSCSatellite, str] = {
 
 
 def gssc_emu_proton_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     satellite: ESAGSSCSatellite,
-    *,
-    file_format: ep.typing.MFSFormats = ".nc",
+    save_strategy: Literal["netcdf"] = "netcdf",
 ) -> ep.SavingStrategy:
-    """Monthly RB saving strategy for GSSC EMU protons."""
+    """Saving strategy of the ESA GSSC EMU proton recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
+        satellite (ESAGSSCSatellite): Satellite the data belongs to.
+        save_strategy (Literal["netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Monthly NetCDF saving strategy.
+    """
+    file_format: ep.typing.MFSFormats = {"netcdf": "nc"}[save_strategy]
     return ep.saving_strategies.MonthlyRBStrategy(
-        Path(base_data_path),
+        Path(processed_data_path),
         "ESA",
         satellite,
         "emu-proton",
@@ -66,6 +76,7 @@ def process_gssc_emu_protons(
     *,
     calculate_Lstar: bool = True,
     save_indices_sw: bool = False,
+    append: bool = True,
 ) -> None:
     """Process ESA GSSC EMU (Galileo) proton data into pitch-angle resolved flux and PSD.
 
@@ -105,6 +116,8 @@ def process_gssc_emu_protons(
             Defaults to True.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to True.
 
     Raises:
         ValueError: If `username` or `password` is not provided and not available via the
@@ -112,8 +125,6 @@ def process_gssc_emu_protons(
             (`SPACETRACK_USER`/`SPACETRACK_PASS`) are missing while OMM data is needed.
         FileNotFoundError: If OMM data is needed but Space-Track has no element sets for the satellite.
     """
-    del save_strategy
-
     if username is None:
         username = os.environ.get("GSSC_USER")
     if password is None:
@@ -178,7 +189,7 @@ def process_gssc_emu_protons(
         obstime=obstimes,
     )
     coords_ITRS = coords_ECI.transform_to(ITRS(obstime=obstimes))
-    xgeo_data = np.stack((coords_ITRS.x, coords_ITRS.y, coords_ITRS.z)).T.value  # ty:ignore[unresolved-attribute]
+    xgeo_data = np.stack((coords_ITRS.x, coords_ITRS.y, coords_ITRS.z)).T.value  # ty:ignore[missing-attribute]
 
     # ODI_Position is zero-filled or NaN for some/all samples in some GSSC EMU files; for those
     # samples only, position is reconstructed from OMM element sets downloaded from Space-Track.
@@ -271,7 +282,7 @@ def process_gssc_emu_protons(
     if calculate_Lstar:
         variables_to_save["L_star"] = magnetic_field_variables[f"L_star_{mag_field}"]
 
-    saving_strategy = gssc_emu_proton_strategy(processed_data_path, mag_field, satellite)
+    saving_strategy = gssc_emu_proton_strategy(processed_data_path, mag_field, satellite, save_strategy)
 
     ep.save(
         variables_to_save,
@@ -279,7 +290,7 @@ def process_gssc_emu_protons(
         start_time,
         end_time,
         time_var=binned_time_var,
-        append=True,
+        append=append,
     )
 
     if save_indices_sw:
@@ -296,5 +307,16 @@ CLI_DEFAULTS = {
     "processed_data_path": "processed_GSSC_EMU",
 }
 
+PLOT_DEFAULTS = {
+    "panels": ["Kp", "FEDU"],
+    "FEDU": {
+        "pitch_angle": 90 * u.deg,
+        "energies": [100, 500, 1000] * u.keV,  # placeholder energies, to be replaced by the instrument channels
+        "along": "L_m",
+    },
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_gssc_emu_protons, defaults=CLI_DEFAULTS)
+    ep.run_recipe_cli(
+        process_gssc_emu_protons, defaults=CLI_DEFAULTS, strategy=gssc_emu_proton_strategy, plot_defaults=PLOT_DEFAULTS
+    )

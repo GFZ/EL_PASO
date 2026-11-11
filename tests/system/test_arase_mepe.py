@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import shutil
+from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
@@ -82,3 +83,23 @@ def test_arase_mepe_snapshot(
     )
 
     arase_true.assert_equal(arase_proc)
+
+
+@pytest.mark.visual
+@pytest.mark.parametrize("mag_field", ["T89", "TS04"])
+def test_arase_mepe_plot_default(mag_field: str, plot_default: Callable[..., None]) -> None:
+    """Save the default figure of `el-paso plot arase mepe` for the reference data. Check it by eye."""
+    start_time = datetime(2017, 9, 8, tzinfo=timezone.utc)
+    end_time = start_time + timedelta(hours=4, seconds=-1)
+
+    plot_default(
+        "arase",
+        "mepe",
+        Path(__file__).parent / "data" / "processed",
+        start_time,
+        end_time,
+        "--mag-field",
+        mag_field,
+        "--save-strategy",
+        "netcdf",
+    )

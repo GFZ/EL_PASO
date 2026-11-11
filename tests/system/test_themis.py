@@ -128,3 +128,51 @@ def test_themis_scpot_density(tmpdir: Path, skip_if_unreachable: Callable[..., N
     )
 
     _assert_variables_load(dataset, _DENSITY_VARIABLES)
+
+
+@pytest.mark.visual
+@pytest.mark.network
+def test_themis_fft_waves_plot_default(
+    tmp_path: Path, skip_if_unreachable: Callable[..., None], plot_default: Callable[..., None]
+) -> None:
+    """Process THEMIS fft_waves and show the default figure of `el-paso plot themis fft-waves`."""
+    process_themis_fft_waves(
+        start_time=_START_TIME,
+        end_time=_END_TIME,
+        satellite=_SATELLITE,
+        mag_field=_MAG_FIELD,
+        raw_data_path=Path(__file__).parent / "data" / "raw" / "themis",
+        processed_data_path=tmp_path,
+        num_cores=4,
+    )
+
+    plot_default("themis", "fft-waves", tmp_path, _START_TIME, _END_TIME, "--satellite", _SATELLITE)
+
+
+@pytest.mark.visual
+@pytest.mark.network
+def test_themis_scpot_density_plot_default(
+    tmp_path: Path, skip_if_unreachable: Callable[..., None], plot_default: Callable[..., None]
+) -> None:
+    """Process THEMIS scpot_density and show the default figure of `el-paso plot themis scpot-density`."""
+    process_themis_scpot_density(
+        start_time=_START_TIME,
+        end_time=_END_TIME,
+        satellite=_SATELLITE,
+        mag_field=_MAG_FIELD,
+        raw_data_path=Path(__file__).parent / "data" / "raw" / "themis",
+        processed_data_path=tmp_path,
+        num_cores=4,
+    )
+
+    plot_default(
+        "themis",
+        "scpot-density",
+        tmp_path,
+        _START_TIME,
+        _END_TIME,
+        "--satellite",
+        _SATELLITE,
+        "--mag-field",
+        _MAG_FIELD,
+    )

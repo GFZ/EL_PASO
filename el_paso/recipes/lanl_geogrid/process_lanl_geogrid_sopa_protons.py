@@ -14,6 +14,7 @@ import el_paso as ep
 from el_paso.recipes.lanl_geogrid import LANLGeoGridSatellite
 from el_paso.recipes.lanl_geogrid._lanl_geogrid_extraction import extract_lanl_geogrid_ascii
 from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import process_solar_wind_indices
+from el_paso.utils import timed_function
 
 
 class _MonthlySopaProtonStrategy(ep.saving_strategies.MonthlyRBStrategy):
@@ -23,29 +24,37 @@ class _MonthlySopaProtonStrategy(ep.saving_strategies.MonthlyRBStrategy):
     placeholders there, which would end up in the output of every other recipe.
     """
 
-    def _get_output_file_entries(self) -> list[ep.typing.InternalName | tuple[ep.typing.InternalName, ...]]:
+    def _get_output_file_entries(self) -> list[ep.typing.InternalName | ep.typing.OneOf]:
         return [*super()._get_output_file_entries(), "FPDU_SA"]
 
 
 def lanl_geogrid_sopa_proton_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     satellite: LANLGeoGridSatellite,
-    *,
-    file_format: ep.typing.MFSFormats = "nc",
 ) -> ep.SavingStrategy:
-    """Monthly GFZ-standard saving strategy for LANL GeoGrid SOPA protons."""
+    """Monthly GFZ-standard saving strategy for LANL GeoGrid SOPA protons.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
+        satellite (LANLGeoGridSatellite): Geosynchronous longitude slot the data belongs to.
+
+    Returns:
+        ep.SavingStrategy: A monthly netCDF strategy using the GFZ data standard.
+    """
     return _MonthlySopaProtonStrategy(
-        Path(base_data_path),
+        Path(processed_data_path),
         "LANL_GeoGrid",
         f"geogrid_{satellite}",
         "sopa-protons",
         mag_field,
         data_standard=ep.data_standards.GFZStandard(),
-        file_format=file_format,
+        file_format=".nc",
     )
 
 
+@timed_function("process_lanl_geogrid_sopa_protons")
 def process_lanl_geogrid_sopa_protons(
     start_time: datetime,
     end_time: datetime,
@@ -58,7 +67,9 @@ def process_lanl_geogrid_sopa_protons(
     save_strategy: Literal["netcdf"] = "netcdf",
     *,
     skip_existing: bool = True,
+    calculate_Lstar: bool = True,
     save_indices_sw: bool = False,
+    append: bool = False,
 ) -> None:
     """Process LANL GeoGrid SOPA spin-averaged proton fluxes into pitch-angle-resolved fluxes.
 
@@ -93,8 +104,13 @@ def process_lanl_geogrid_sopa_protons(
             Only monthly netCDF files are supported.
         skip_existing (bool): If True, skip downloading files that already exist locally.
             Defaults to True.
+        calculate_Lstar (bool): If True, also compute the L* magnetic field quantity. If False, the
+            expensive drift-shell tracing is skipped and L* is not saved, while L_m and InvK are still
+            computed. Defaults to True.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to False.
     """
     del save_strategy
 
@@ -201,11 +217,19 @@ def process_lanl_geogrid_sopa_protons(
         ("MLT", mag_field),
         ("R_Eq", mag_field),
         ("L_m", mag_field),
-        ("L_star", mag_field),
         ("Alpha_Eq", mag_field),
         ("InvMu", mag_field),
         ("InvK", mag_field),
     ]
+
+    if calculate_Lstar:
+        variables_to_compute.append(("L_star", mag_field))
+
+    irbem_options = ep.processing.magnetic_field_utils.IrbemOptions(
+        lstar_quantity=ep.processing.magnetic_field_utils.LstarQuantity.LSTAR
+        if calculate_Lstar
+        else ep.processing.magnetic_field_utils.LstarQuantity.NONE,
+    )
 
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
         time_var=binned_time_var,
@@ -214,7 +238,7 @@ def process_lanl_geogrid_sopa_protons(
         pa_local_var=variables["PA_local_FPDU"],
         particle_species="proton",
         variables_to_compute=variables_to_compute,
-        irbem_options=ep.processing.magnetic_field_utils.IrbemOptions(),
+        irbem_options=irbem_options,
         num_cores=num_cores,
     )
 
@@ -239,7 +263,6 @@ def process_lanl_geogrid_sopa_protons(
         "B_Calc": magnetic_field_variables[f"B_Calc_{mag_field}"],
         "B_Eq": magnetic_field_variables[f"B_Eq_{mag_field}"],
         "L_m": magnetic_field_variables[f"L_m_{mag_field}"],
-        "L_star": magnetic_field_variables[f"L_star_{mag_field}"],
         "Alpha_Eq": magnetic_field_variables[f"Alpha_Eq_{mag_field}"],
         "Position": variables["xGEO"],
         "PSD": psd_var,
@@ -247,9 +270,12 @@ def process_lanl_geogrid_sopa_protons(
         "InvK": magnetic_field_variables[f"InvK_{mag_field}"],
     }
 
+    if calculate_Lstar:
+        variables_to_save["L_star"] = magnetic_field_variables[f"L_star_{mag_field}"]
+
     saving_strategy = lanl_geogrid_sopa_proton_strategy(processed_data_path, mag_field, satellite)
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var)
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=append)
 
     if save_indices_sw:
         process_solar_wind_indices(
@@ -260,5 +286,12 @@ def process_lanl_geogrid_sopa_protons(
         )
 
 
+PLOT_DEFAULTS = {
+    "panels": ["Kp", "FPDU", "MLT"],
+    "FPDU": {"pitch_angle": 90 * u.deg, "energies": [90, 520, 2400] * u.keV},
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_lanl_geogrid_sopa_protons)
+    ep.run_recipe_cli(
+        process_lanl_geogrid_sopa_protons, strategy=lanl_geogrid_sopa_proton_strategy, plot_defaults=PLOT_DEFAULTS
+    )

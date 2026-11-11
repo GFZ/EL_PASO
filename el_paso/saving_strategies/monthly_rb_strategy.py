@@ -16,6 +16,7 @@ import el_paso as ep
 from el_paso.saving_strategy import OutputFile, SavingStrategy
 
 if TYPE_CHECKING:
+    from el_paso.one_of import OneOf
     from el_paso.typing import (
         DataStandard,
         InternalName,
@@ -80,7 +81,7 @@ class MonthlyRBStrategy(SavingStrategy):
             OutputFile("full", self._get_output_file_entries(), save_incomplete=True),
         ]
 
-    def _get_output_file_entries(self) -> list[InternalName | tuple[InternalName, ...]]:
+    def _get_output_file_entries(self) -> list[InternalName | OneOf]:
         """Return the standard variable list plus user-defined custom variables."""
         return [
             "FEDU",

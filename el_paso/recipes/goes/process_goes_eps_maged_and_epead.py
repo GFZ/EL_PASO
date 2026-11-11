@@ -37,7 +37,7 @@ class _MonthlyMagedEpeadStrategy(ep.saving_strategies.MonthlyRBStrategy):
     placeholders there, which would end up in the output of every other recipe.
     """
 
-    def _get_output_file_entries(self) -> list[ep.typing.InternalName | tuple[ep.typing.InternalName, ...]]:
+    def _get_output_file_entries(self) -> list[ep.typing.InternalName | ep.typing.OneOf]:
         return [*super()._get_output_file_entries(), "FEIU_SA", "Energy_FEIU"]
 
 
@@ -76,6 +76,29 @@ EPEAD_E2_THRESHOLD_MEV = 2.0
 EPEAD_E2_BACKGROUND_FLUX: dict[GOESNOPSatellite, float] = {"goes13": 20.7, "goes15": 19.5}
 
 
+def goes_eps_maged_and_epead_strategy(
+    processed_data_path: str | Path,
+    mag_field: ep.typing.MagneticFieldLiteral,
+    satellite: GOESNOPSatellite,
+    save_strategy: Literal["gfz", "netcdf"] = "netcdf",
+) -> ep.SavingStrategy:
+    """Saving strategy of the GOES EPS MAGED and EPEAD recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
+        satellite (GOESNOPSatellite): Satellite the data belongs to.
+        save_strategy (Literal["gfz", "netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Legacy GFZ strategy for "gfz", otherwise a monthly or daily NetCDF strategy.
+    """
+    if save_strategy == "gfz":
+        return goes_eps_maged_and_epead_gfz_strategy(processed_data_path, mag_field, satellite)
+
+    return goes_eps_maged_and_epead_netcdf_strategy(processed_data_path, mag_field, satellite)
+
+
 def process_goes_eps_maged_and_epead(
     start_time: datetime,
     end_time: datetime,
@@ -92,6 +115,7 @@ def process_goes_eps_maged_and_epead(
     calculate_Lstar: bool = True,
     save_indices_sw: bool = False,
     epead_pad_method: Literal["maged", "Smirnov2022"] = "maged",
+    append: bool = True,
 ) -> None:
     """Process combined GOES-13/15 EPS MAGED and EPEAD electron data into phase space densities.
 
@@ -142,6 +166,8 @@ def process_goes_eps_maged_and_epead(
             the shape of the 1650 keV channel. In both cases the EPEAD flux is treated as spin-averaged
             over the MAGED telescope pitch angles, i.e. the PAD is normalized to a trapezoidal mean of one
             over the sampled local pitch angle range. Defaults to "maged".
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to True.
     """
     data_path_stem = f"{raw_data_path}/YYYY/MM/{satellite}/"
 
@@ -343,12 +369,9 @@ def process_goes_eps_maged_and_epead(
             maged_vars["Energy"], pa_vars["AlphaLocal"], magn_vars["B_total_obs"], "electron"
         )
 
-    if save_strategy == "gfz":
-        saving_strategy = goes_eps_maged_and_epead_gfz_strategy(processed_data_path, mag_field, satellite)
-    else:
-        saving_strategy = goes_eps_maged_and_epead_netcdf_strategy(processed_data_path, mag_field, satellite)
+    saving_strategy = goes_eps_maged_and_epead_strategy(processed_data_path, mag_field, satellite, save_strategy)
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=maged_vars["Epoch"], append=True)
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=maged_vars["Epoch"], append=append)
 
     if save_indices_sw:
         process_solar_wind_indices(
@@ -675,5 +698,15 @@ CLI_DEFAULTS = {
     "processed_data_path": "goes/processed/",
 }
 
+PLOT_DEFAULTS = {
+    "panels": ["Kp", "FEDU", "L_star", "MLT"],
+    "FEDU": {"pitch_angle": 90 * u.deg},
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_goes_eps_maged_and_epead, defaults=CLI_DEFAULTS)
+    ep.run_recipe_cli(
+        process_goes_eps_maged_and_epead,
+        defaults=CLI_DEFAULTS,
+        strategy=goes_eps_maged_and_epead_strategy,
+        plot_defaults=PLOT_DEFAULTS,
+    )

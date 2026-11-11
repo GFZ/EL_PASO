@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from el_paso.data_standard import DataStandard
+    from el_paso.one_of import OneOf
     from el_paso.typing import InternalName, MagneticFieldLiteral, MFSFormats, StandardName
 
 logger = logging.getLogger(__name__)
@@ -88,7 +89,7 @@ class RBSPDensityStrategy(MonthlyRBStrategy):
             OutputFile("full", self._get_output_file_entries(), save_incomplete=True),
         ]
 
-    def _get_output_file_entries(self) -> list[InternalName | tuple[InternalName, ...]]:
+    def _get_output_file_entries(self) -> list[InternalName | OneOf]:
         """Return the RBSP density variable list written by this strategy."""
         return [
             "Epoch",

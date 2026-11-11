@@ -12,13 +12,13 @@ from typing import TYPE_CHECKING, Any, get_args
 import numpy as np
 
 import el_paso as ep
-from el_paso.typing import FixedDimensionName, InternalName, Variable
+from el_paso.one_of import alternatives_of, describe, resolve_name
+from el_paso.typing import InternalName, Variable
 from el_paso.utils import enforce_utc_timezone, timed_function
 
 if TYPE_CHECKING:
     from datetime import datetime
 
-    from el_paso.data_standard import DataStandard
     from el_paso.saving_strategy import SavingStrategy
     from el_paso.typing import SavedDataDict, VariablesDict
 
@@ -67,9 +67,11 @@ def save(
         If an output file is missing one or more of its required variables, a
         warning is logged and that output file is skipped (no exception is raised).
     """
+    # after this step, we know that all required dependencies are present for the
+    # full set of variables
     if not ignore_validation:
-        data_standard = saving_strategy.data_standard if hasattr(saving_strategy, "data_standard") else None
-        _validate_variables_dict(variables_dict, data_standard)
+        _validate_variables_dict(variables_dict)
+        saving_strategy.data_standard.validate(variables_dict)
 
     _warn_about_unsaved_variables(variables_dict, saving_strategy)
 
@@ -111,25 +113,38 @@ def _warn_about_unsaved_variables(
 ) -> None:
     """Logs a warning for passed variables that no output file of the saving strategy writes.
 
+    Entries are resolved like the strategy resolves them when writing, so of a `OneOf` only the
+    first present alternative counts as saved. A passed variable that lost a `OneOf` to an earlier
+    alternative is dropped too, and the warning names the alternative that won.
+
     Args:
         variables_dict (dict[str, Variable]): The variables passed to ``save``.
         saving_strategy (SavingStrategy): The strategy whose output files define what is written.
     """
     names_to_save: set[str] = set()
+    lost_one_of: dict[str, str] = {}
     for output_file in saving_strategy.output_files:
         # an output file without names saves every variable
         if len(output_file.names_to_save) == 0:
             return
 
-        for name in output_file.names_to_save:
-            names_to_save.update(name if isinstance(name, tuple) else (name,))
+        for entry in output_file.names_to_save:
+            resolved = resolve_name(entry, variables_dict)
+            if resolved is None:
+                continue
+
+            names_to_save.add(resolved)
+            for alternative in alternatives_of(entry):
+                if alternative != resolved and alternative in variables_dict:
+                    lost_one_of.setdefault(alternative, f"{describe(entry)} resolved to {resolved}")
 
     unsaved_names = [name for name in variables_dict if name not in names_to_save]
     if unsaved_names:
-        logger.warning(
-            f"Variable(s) {', '.join(unsaved_names)} are not saved by {type(saving_strategy).__name__} "
-            "and will be dropped!"
-        )
+        message = f"Variable(s) {', '.join(unsaved_names)} will be dropped!"
+        reasons = [lost_one_of[name] for name in unsaved_names if name in lost_one_of]
+        if reasons:
+            message += f" ({'; '.join(reasons)})"
+        logger.warning(message)
 
 
 def _has_records_in_interval(time_var: Variable, interval_start: datetime, interval_end: datetime) -> bool:
@@ -155,7 +170,7 @@ def _has_records_in_interval(time_var: Variable, interval_start: datetime, inter
     return bool(np.any(in_interval))
 
 
-def _validate_variables_dict(variables_dict: VariablesDict, data_standard: DataStandard | None) -> None:
+def _validate_variables_dict(variables_dict: VariablesDict) -> None:
     """Validates runtime types for data passed to ``save``.
 
     This guard complements static type checking by rejecting invalid keys and
@@ -177,40 +192,6 @@ def _validate_variables_dict(variables_dict: VariablesDict, data_standard: DataS
     if invalid_values:
         msg = f"variables_dict must map each internal name to an ep.Variable. Invalid entries: {invalid_values}"
         raise TypeError(msg)
-
-    if data_standard:
-        unknown_names = [name for name in variables_dict if name not in data_standard.variable_infos]
-        if unknown_names:
-            msg = (
-                f"The following variables are not part of {type(data_standard).__name__}: {unknown_names}. "
-                f"Add them to the data standard's variable_infos or use a data standard that defines them."
-            )
-            raise ValueError(msg)
-
-    # check if necessary dimensions are saved
-    if data_standard:
-        available_keys = set(variables_dict.keys())
-        missing: dict[str, list[str]] = {}
-        for name in variables_dict:
-            for dep in data_standard.get_dependencies(name):
-                # a tuple entry means "any one of these alternative dimension names satisfies it"
-                if isinstance(dep, tuple):
-                    if any(alt in available_keys for alt in dep):
-                        continue
-                    dim_label = " or ".join(dep)
-                    missing.setdefault(dim_label, []).append(name)
-                    continue
-
-                if dep in get_args(FixedDimensionName) or dep in available_keys:
-                    continue
-                missing.setdefault(dep, []).append(name)
-
-        if len(missing) > 0:
-            missing_details = "; ".join(
-                f"'{dim}' (required by: {', '.join(required_by)})" for dim, required_by in missing.items()
-            )
-            msg = f"Data for the following dimensions is not saved: {missing_details}"
-            raise ValueError(msg)
 
 
 def _get_data_dict_to_save(

@@ -18,15 +18,25 @@ from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import proces
 
 
 def poes_ted_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     satellite: POESSatellite,
-    *,
-    file_format: ep.typing.MFSFormats = "nc",
+    save_strategy: Literal["netcdf"] = "netcdf",
 ) -> ep.SavingStrategy:
-    """Daily LEO/RB saving strategy for POES TED."""
+    """Saving strategy of the POES TED recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
+        satellite (POESSatellite): Satellite the data belongs to.
+        save_strategy (Literal["netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Daily NetCDF saving strategy.
+    """
+    file_format: ep.typing.MFSFormats = {"netcdf": "nc"}[save_strategy]
     return ep.saving_strategies.DailyLEORBStrategy(
-        Path(base_data_path),
+        Path(processed_data_path),
         "POES",
         satellite,
         "TED",
@@ -47,9 +57,10 @@ def process_poes_ted_electron(
     num_cores: int = 16,
     save_strategy: Literal["netcdf"] = "netcdf",
     *,
-    calculate_Lm_Lstar: bool = False,
+    calculate_Lstar: bool = False,
     skip_existing: bool = True,
     save_indices_sw: bool = False,
+    append: bool = False,
 ) -> None:
     """Process POES/MetOp TED electron flux data into magnetic-field-resolved data products.
 
@@ -71,7 +82,7 @@ def process_poes_ted_electron(
         processed_data_path (str | Path): Directory where the processed output files are saved.
         bin_cadence (timedelta): Time cadence used to bin the extracted variables.
         num_cores (int): Number of CPU cores used for the magnetic field computations.
-        calculate_Lm_Lstar (bool): If True, additionally compute and save the L_m and
+        calculate_Lstar (bool): If True, additionally compute and save the L_m and
             L_star magnetic field quantities.
         save_strategy (Literal["netcdf"]): The saving strategy used to write the processed
                                                     data. POES TED data only supports a single
@@ -80,9 +91,9 @@ def process_poes_ted_electron(
                                             Defaults to True.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to False.
     """
-    del save_strategy
-
     data_path_stem = f"{raw_data_path}/POES/{satellite}/YYYY/MM/"
     url = f"https://spdf.gsfc.nasa.gov/pub/data/noaa/{satellite}/sem2_fluxes-2sec/YYYY/"
     file_name_stem = satellite + "_poes-sem2_fluxes-2sec_YYYYMMDD_.{3}.cdf"
@@ -206,7 +217,7 @@ def process_poes_ted_electron(
         ("Alpha_LC_Eq", mag_field),
     ]
 
-    if calculate_Lm_Lstar:
+    if calculate_Lstar:
         variables_to_compute.extend([("L_star", mag_field), ("L_m", mag_field)])
 
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
@@ -240,15 +251,15 @@ def process_poes_ted_electron(
         "Alpha_LC_Eq": magnetic_field_variables[f"Alpha_LC_Eq_{mag_field}"],
     }
 
-    if calculate_Lm_Lstar:
+    if calculate_Lstar:
         variables_to_save |= {
             "L_m": magnetic_field_variables[f"L_m_{mag_field}"],
             "L_star": magnetic_field_variables[f"L_star_{mag_field}"],
         }
 
-    saving_strategy = poes_ted_strategy(processed_data_path, mag_field, satellite)
+    saving_strategy = poes_ted_strategy(processed_data_path, mag_field, satellite, save_strategy)
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var)
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=append)
 
     if save_indices_sw:
         process_solar_wind_indices(
@@ -263,5 +274,16 @@ CLI_DEFAULTS = {
     "bin_cadence": timedelta(seconds=10),
 }
 
+PLOT_DEFAULTS = {
+    "panels": ["Kp", "FEDU"],
+    "FEDU": {
+        "pitch_angle": 90 * u.deg,
+        "energies": [100, 500, 1000] * u.keV,  # placeholder energies, to be replaced by the instrument channels
+        "along": "R_Eq",
+    },
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_poes_ted_electron, defaults=CLI_DEFAULTS)
+    ep.run_recipe_cli(
+        process_poes_ted_electron, defaults=CLI_DEFAULTS, strategy=poes_ted_strategy, plot_defaults=PLOT_DEFAULTS
+    )

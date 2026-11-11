@@ -34,6 +34,8 @@ Recipe changes (`el_paso/recipes/**`, `el_paso/cli/**`) are covered by `tests/un
 
 **Mark every new test `@pytest.mark.basic`** (the repo's convention is a per-test decorator). CI runs only `-m basic`, so an unmarked test never runs in CI.
 
+**Tests that download real data get `@pytest.mark.network` instead of `minimal`/`basic`** (plus `enable_downloads`). They are excluded from the regular runs and from `main`; CI runs them only on a PR labelled `run-network-tests` (comment `/run-network-tests`, write access required). Suggest the slash commands to the user, never post them yourself. Secrets are not available to fork PRs, so credential-dependent network tests fail there.
+
 System tests (`tests/system/test_<mission>.py`) download real mission data, need the Hugging Face reference data (`./download_data_for_tests.sh`), and some need credentials (`CLIENT_ID`/`CLIENT_SECRET`, `SPACETRACK_USER`/`SPACETRACK_PASS`). Run one only when asked. Files prefixed `_test_` are deliberately disabled.
 
 Regenerate reference solutions only when asked: `.venv/bin/python -m pytest <file> --renew_solution=true`.

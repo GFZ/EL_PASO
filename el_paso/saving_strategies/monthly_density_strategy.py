@@ -9,6 +9,7 @@ import logging
 from typing import TYPE_CHECKING, Optional
 
 import el_paso as ep
+from el_paso.one_of import OneOf
 from el_paso.saving_strategies.monthly_rb_strategy import MonthlyRBStrategy
 from el_paso.saving_strategy import OutputFile
 
@@ -85,7 +86,7 @@ class MonthlyDensityStrategy(MonthlyRBStrategy):
             OutputFile("full", self._get_output_file_entries(), save_incomplete=True),
         ]
 
-    def _get_output_file_entries(self) -> list[InternalName | tuple[InternalName, ...]]:
+    def _get_output_file_entries(self) -> list[InternalName | OneOf]:
         """Return the density variable list written by this strategy."""
         return [
             "Epoch",
@@ -93,6 +94,6 @@ class MonthlyDensityStrategy(MonthlyRBStrategy):
             "xGEO_Eq",
             "MLT",
             "R_Eq",
-            ("Number_density_scpot", "Number_density_spectrogram", "Number_density_other"),
-            ("Number_density_scpot_Eq", "Number_density_spectrogram_Eq", "Number_density_other_Eq"),
+            OneOf("Number_density_scpot", "Number_density_spectrogram", "Number_density_other"),
+            OneOf("Number_density_scpot_Eq", "Number_density_spectrogram_Eq", "Number_density_other_Eq"),
         ]
