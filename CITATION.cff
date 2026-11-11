@@ -5,7 +5,7 @@
 
 cff-version: 1.2.0
 title: "EL-PASO: ELaborative Particle Analysis from Satellite Observations"
-message: If you use this software, please cite it using the metadata from this file, as well as the associated preprint.
+message: If you use this software, please cite it using the metadata from this file, as well as the associated publication.
 type: software
 authors:
   - family-names: Haas
@@ -30,19 +30,32 @@ keywords:
   - Space Physics
   - Space Weather
   - Computational Physics
-license: "Apache-2.0 OR LGPL-3.0-only"
+license:
+  - Apache-2.0
+  - LGPL-3.0-only
 preferred-citation:
   type: article
   title: "EL-PASO: An Open-Source Python Library for Processing and Standardizing Particle Measurements Taken in Space"
   authors:
     - family-names: Haas
       given-names: Bernhard
-      affiliation: GFZ Helmholtz Centre for Geosciences Potsdam, Germany; Institute of Physics and Astronomy, University of Potsdam, Potsdam, Germany
+      affiliation: "GFZ German Research Centre for Geosciences, Helmholtz Centre Potsdam, Potsdam, Germany; Institute of Physics and Astronomy, University of Potsdam, Potsdam, Germany"
     - family-names: Drozdov
       given-names: Alexander Y.
       affiliation: "The Aerospace Corporation, El Segundo, CA, USA"
+    - family-names: Szabó-Roberts
+      given-names: Mátyás
+      affiliation: "GFZ German Research Centre for Geosciences, Helmholtz Centre Potsdam, Potsdam, Germany"
     - family-names: Jhawar
       given-names: Sahil
-      affiliation: "GFZ Helmholtz Centre for Geosciences Potsdam, Potsdam, Germany"
-  doi: 10.22541/essoar.15002644/v1
-  url: "https://essopenarchive.org/doi/full/10.22541/essoar.15002644/v1"
+      affiliation: "GFZ German Research Centre for Geosciences, Helmholtz Centre Potsdam, Potsdam, Germany"
+  journal: "Earth and Space Science"
+  publisher:
+    name: "Wiley Periodicals LLC on behalf of American Geophysical Union"
+  year: 2026
+  month: 11
+  volume: 13
+  issue: 11
+  start: e2026EA005044
+  doi: 10.1029/2026EA005044
+  url: "https://doi.org/10.1029/2026EA005044"
