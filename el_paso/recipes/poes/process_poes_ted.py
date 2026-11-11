@@ -16,6 +16,10 @@ import el_paso as ep
 from el_paso.recipes.poes import POESSatellite
 from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import process_solar_wind_indices
 
+# Days with SEM-2 fluxes-2sec files per satellite, shared by every POES recipe.
+# Regenerate with `python scripts/generate_satellite_availability.py poes-sem2-fluxes-2sec`.
+SATELLITE_AVAILABILITY = Path(__file__).with_name("sem2_fluxes_2sec_availability.toml")
+
 
 def poes_ted_strategy(
     processed_data_path: str | Path,
@@ -285,5 +289,9 @@ PLOT_DEFAULTS = {
 
 if __name__ == "__main__":
     ep.run_recipe_cli(
-        process_poes_ted_electron, defaults=CLI_DEFAULTS, strategy=poes_ted_strategy, plot_defaults=PLOT_DEFAULTS
+        process_poes_ted_electron,
+        defaults=CLI_DEFAULTS,
+        strategy=poes_ted_strategy,
+        plot_defaults=PLOT_DEFAULTS,
+        availability=SATELLITE_AVAILABILITY,
     )

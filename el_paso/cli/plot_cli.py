@@ -54,11 +54,15 @@ from rich.table import Table
 import el_paso as ep
 from el_paso.cli._logging import _log_level, _log_table
 from el_paso.cli._parsing import _expand_loops, _format_value, _func_name, parse_docstring
+from el_paso.cli.availability import AVAILABILITY_PARAMETER, load_availability_table
 from el_paso.cli.plot_figure import DEFAULT_COLORMAP, INDEX_PANELS, build_figure
 from el_paso.cli.plot_script import write_plot_script
 from el_paso.cli.recipe_cli import (
+    _apply_availability,
     _attach_signature,
     _build_parameter_specs,
+    _coverage_text,
+    _has_availability_parameters,
     _restore_parsed_values,
     _spec_parameters,
     _universal_parameters,
@@ -71,6 +75,7 @@ if TYPE_CHECKING:
 
     from astropy import units as u
 
+    from el_paso.cli.availability import AvailabilitySource, DateInterval
     from el_paso.dataset import DataSet
     from el_paso.typing import InternalName, Recipe, SavingStrategy
 
@@ -143,6 +148,8 @@ class PlotRequest:
         colormap: Colormap of spectrograms and scatter panels (``--colormap``).
         export_script: File to write a standalone Python script that makes the figure to, instead of
             plotting (``--export-script``), or ``None`` to plot.
+        availability: The satellites the recipe's availability table has data for in the time range,
+            with their overlapping intervals, or ``None`` if the recipe has no table.
     """
 
     recipe: Recipe
@@ -165,6 +172,7 @@ class PlotRequest:
     along: InternalName | None = None
     colormap: str = DEFAULT_COLORMAP
     export_script: Path | None = None
+    availability: dict[str, list[DateInterval]] | None = None
 
 
 def _plot_parameters() -> list[inspect.Parameter]:
@@ -402,6 +410,7 @@ def build_plot_command(
     loop_over: Sequence[str] | None = None,
     plot_defaults: dict[str, Any] | None = None,
     processing_command: str | None = None,
+    availability: AvailabilitySource | None = None,
 ) -> Callable[..., None]:
     """Build the Typer-compatible ``el-paso plot`` command for one recipe.
 
@@ -422,6 +431,9 @@ def build_plot_command(
         processing_command (str | None): The command that runs the recipe, e.g.
             ``el-paso rbsp mageis-electrons``, suggested when processed files are missing.
             Defaults to ``python -m <recipe module>``.
+        availability (AvailabilitySource | None): The recipe's satellite availability table. With it,
+            ``--satellite all`` only plots the satellites that have data in the time range, exactly as
+            in the processing command, and ``--dry-run`` says whether each satellite has data.
 
     Returns:
         Callable[..., None]: A callable ready to be registered with ``app.command()``.
@@ -454,17 +466,30 @@ def build_plot_command(
     )
     specs = [*time_specs, *factory_specs]
     loop_names = [spec.name for spec in factory_specs if spec.is_loop]
+    with_availability = availability is not None and _has_availability_parameters(specs)
 
     def command(**kwargs: Any) -> None:  # noqa: ANN401
         shared = {name: kwargs.pop(name) for name in _SHARED_PARAMETER_NAMES}
         plot_options = {name: kwargs.pop(name) for name in _PLOT_PARAMETER_NAMES}
 
-        _restore_parsed_values(kwargs, specs)
+        expanded_all = _restore_parsed_values(kwargs, specs)
         start_time = kwargs.pop("start_time")
         end_time = kwargs.pop("end_time")
         if end_time <= start_time:
             msg = f"must be after --start-time ({start_time.isoformat()}), got {end_time.isoformat()}."
             raise typer.BadParameter(msg, param_hint="'--end-time'")
+
+        coverage = None
+        notices: list[tuple[int, str]] = []
+        if with_availability:
+            coverage, notices = _apply_availability(
+                kwargs,
+                load_availability_table(availability),  # ty: ignore[invalid-argument-type]
+                start_time,
+                end_time,
+                expanded_all=expanded_all,
+                label=_func_name(recipe),
+            )
 
         plot_options = _parse_plot_options(plot_options)
 
@@ -476,6 +501,8 @@ def build_plot_command(
         # The dry-run report is logged at INFO, and printing it is the whole point of --dry-run.
         quiet = shared["quiet"] and not plot_options["dry_run"]
         ep.setup_logging(_log_level(verbose=shared["verbose"], quiet=quiet))
+        for level, message in notices:
+            logger.log(level, message)
 
         _run_plot(
             PlotRequest(
@@ -487,6 +514,7 @@ def build_plot_command(
                 verbose=shared["verbose"] >= 1,
                 plot_defaults=plot_defaults,
                 processing_command=processing_command,
+                availability=coverage,
                 **plot_options,
             )
         )
@@ -653,6 +681,9 @@ def _report_settings(request: PlotRequest) -> None:
                 values.append(value)
     for name, values in loop_values.items():
         table.add_row(name.replace("_", " "), ", ".join(_format_value(name, value) for value in values))
+    if request.dry_run and request.availability is not None:
+        for satellite in loop_values.get(AVAILABILITY_PARAMETER, []):
+            table.add_row(f"availability {satellite}", _coverage_text(request.availability, satellite))
 
     panels = resolve_panels(request)
     if request.variables:

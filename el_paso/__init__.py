@@ -55,6 +55,7 @@ __getattr__, _lazy_dir, _lazy_all = lazy.attach(
         "utils",
     ],
     submod_attrs={
+        "cli.availability": ["satellite_availability"],
         "cli.recipe_cli": ["build_recipe_command", "run_recipe_cli"],
         "dataset": [
             "DataSet",
@@ -106,6 +107,7 @@ if TYPE_CHECKING:
         units,
         utils,
     )
+    from el_paso.cli.availability import satellite_availability
     from el_paso.cli.recipe_cli import build_recipe_command, run_recipe_cli
     from el_paso.dataset import (
         DataSet,
@@ -155,6 +157,7 @@ if TYPE_CHECKING:
         "processing",
         "recipes",
         "run_recipe_cli",
+        "satellite_availability",
         "save",
         "saving_strategies",
         "setup_logging",

@@ -60,10 +60,17 @@ from el_paso.cli._parsing import (
     parse_datetime,
     parse_docstring,
 )
+from el_paso.cli.availability import (
+    AVAILABILITY_PARAMETER,
+    format_interval,
+    load_availability_table,
+    overlapping_intervals,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
+    from el_paso.cli.availability import AvailabilitySource, AvailabilityTable, DateInterval
     from el_paso.typing import Recipe
 
 logger = logging.getLogger("el_paso.cli")
@@ -134,6 +141,21 @@ _UNIVERSAL_OPTIONS: dict[str, tuple[Any, Any]] = {
 
 _UNIVERSAL_PARAMETER_NAMES = tuple(_UNIVERSAL_OPTIONS)
 """Options every recipe command carries; they are consumed by the command, not the recipe."""
+
+_LIST_SATELLITES_OPTION = inspect.Parameter(
+    "list_satellites",
+    inspect.Parameter.KEYWORD_ONLY,
+    default=False,
+    annotation=Annotated[
+        bool,
+        typer.Option(
+            "--list-satellites",
+            help="List the satellites that have data between --start-time and --end-time according to the "
+            "recipe's availability table, then exit without processing.",
+        ),
+    ],
+)
+"""Option of every recipe command with a ``satellite`` parameter; consumed by the command, not the recipe."""
 
 
 def _literal_choices(hint: Any) -> tuple[str, ...] | None:  # noqa: ANN401
@@ -285,6 +307,7 @@ def build_recipe_command(
     *,
     defaults: dict[str, Any] | None = None,
     loop_over: Sequence[str] | None = None,
+    availability: AvailabilitySource | None = None,
 ) -> Callable[..., None]:
     """Build a Typer-compatible command callable for a recipe function.
 
@@ -304,6 +327,12 @@ def build_recipe_command(
         loop_over (Sequence[str] | None): Parameters that accept several values, causing
             one call to `func` per value. Defaults to any parameter named in
             :data:`LOOP_PARAMETER_NAMES`.
+        availability (AvailabilitySource | None): The recipe's satellite availability table (see
+            :mod:`el_paso.cli.availability`). With it, ``--satellite all`` only runs the satellites
+            that have data in the requested time range, explicitly requested satellites without
+            data get a warning, and the run report says whether each satellite has data. It is
+            read when the command runs, not when it is built. Every command with a time range and a
+            ``satellite`` choice gets ``--list-satellites``.
 
     Returns:
         Callable[..., None]: A callable ready to be registered with ``app.command()``.
@@ -315,7 +344,7 @@ def build_recipe_command(
     summary, _ = parse_docstring(func.__doc__)
     specs, skipped = _build_parameter_specs(func, defaults=defaults, loop_over=loop_over)
 
-    command = _make_command(func, specs, skipped, summary)
+    command = _make_command(func, specs, skipped, summary, availability)
     command.__doc__ = summary or func.__doc__
     command.__name__ = _func_name(func)
     return command
@@ -402,13 +431,17 @@ def _build_parameter_specs(
     return specs, skipped
 
 
-def _restore_parsed_values(kwargs: dict[str, Any], specs: Sequence[_ParameterSpec]) -> None:
+def _restore_parsed_values(kwargs: dict[str, Any], specs: Sequence[_ParameterSpec]) -> set[str]:
     """Convert the values Typer parsed for `specs` back into the types the wrapped function expects.
 
     Choice parameters come back as plain strings instead of Enum members, ``all`` in a looped
     choice parameter expands to every choice, and repeated options come back as lists instead of
     tuples. `kwargs` is modified in place.
+
+    Returns:
+        set[str]: The looped parameters given as ``all``, which were expanded to every choice.
     """
+    expanded_all: set[str] = set()
     for spec in specs:
         value = kwargs.get(spec.name)
 
@@ -422,6 +455,7 @@ def _restore_parsed_values(kwargs: dict[str, Any], specs: Sequence[_ParameterSpe
         # `all` stands for every choice of a looped parameter, e.g. `--satellite all`
         if spec.loop_values is not None and isinstance(value, list) and ALL_VALUES in value:
             value = list(spec.loop_values)
+            expanded_all.add(spec.name)
 
         # Typer hands back a tuple for options that take several values; recipes annotate them as lists.
         if spec.is_list and isinstance(value, tuple):
@@ -429,6 +463,8 @@ def _restore_parsed_values(kwargs: dict[str, Any], specs: Sequence[_ParameterSpe
 
         if spec.name in kwargs:
             kwargs[spec.name] = value
+
+    return expanded_all
 
 
 def _spec_parameters(specs: Sequence[_ParameterSpec]) -> list[inspect.Parameter]:
@@ -462,15 +498,153 @@ def _attach_signature(command: Callable[..., Any], parameters: Sequence[inspect.
     command.__annotations__ = {parameter.name: parameter.annotation for parameter in parameters}
 
 
+def format_time_range(start_time: datetime, end_time: datetime) -> str:
+    """Render a time range for messages: dates alone at midnight, otherwise date and time."""
+
+    def render(time: datetime) -> str:
+        if (time.hour, time.minute, time.second, time.microsecond) == (0, 0, 0, 0):
+            return time.date().isoformat()
+        return time.strftime("%Y-%m-%dT%H:%M:%S")
+
+    return f"{render(start_time)} and {render(end_time)}"
+
+
+def _apply_availability(
+    kwargs: dict[str, Any],
+    table: AvailabilityTable,
+    start_time: datetime,
+    end_time: datetime,
+    *,
+    expanded_all: set[str],
+    label: str,
+) -> tuple[dict[str, list[DateInterval]], list[tuple[int, str]]]:
+    """Restrict ``--satellite all`` to the satellites the availability table has data for.
+
+    An explicitly requested satellite is never dropped: the table is a hint, not a gate. Each one
+    without data in the range gets a warning instead. `kwargs` is modified in place.
+
+    Args:
+        kwargs (dict[str, Any]): The restored command arguments, with ``satellite``.
+        table (AvailabilityTable): The recipe's availability table.
+        start_time (datetime): Start of the requested time range.
+        end_time (datetime): End of the requested time range.
+        expanded_all (set[str]): The looped parameters given as ``all``, see `_restore_parsed_values`.
+        label (str): Names the recipe in messages.
+
+    Returns:
+        tuple[dict[str, list[DateInterval]], list[tuple[int, str]]]: The satellites with data in the
+        range and their overlapping intervals, and the messages to log once logging is configured, as
+        ``(level, message)`` pairs.
+
+    Raises:
+        typer.BadParameter: If ``--satellite all`` leaves no satellite with data in the range.
+    """
+    coverage = overlapping_intervals(table, start_time, end_time)
+    time_range = format_time_range(start_time, end_time)
+
+    value = kwargs[AVAILABILITY_PARAMETER]
+    satellites = value if isinstance(value, list) else [value]
+    notices: list[tuple[int, str]] = []
+
+    if AVAILABILITY_PARAMETER in expanded_all:
+        kept = [satellite for satellite in satellites if satellite in coverage]
+        skipped = [satellite for satellite in satellites if satellite not in coverage]
+        if not kept:
+            msg = (
+                f"'{ALL_VALUES}' selects no satellite: according to the availability table of {label}, "
+                f"none has data between {time_range}."
+            )
+            raise typer.BadParameter(msg, param_hint=f"'--{AVAILABILITY_PARAMETER}'")
+        if skipped:
+            notices.append(
+                (
+                    logging.INFO,
+                    (
+                        f"--{AVAILABILITY_PARAMETER} {ALL_VALUES}: skipping {len(skipped)} of {len(satellites)} "
+                        f"satellites without data between {time_range} according to the availability table: "
+                        f"{', '.join(skipped)}."
+                    ),
+                )
+            )
+        kwargs[AVAILABILITY_PARAMETER] = kept if isinstance(value, list) else kept[0]
+    else:
+        notices.extend(
+            (
+                logging.WARNING,
+                (
+                    f"Satellite {satellite!r} has no data between {time_range} according to the availability "
+                    f"table of {label}; running it anyway."
+                ),
+            )
+            for satellite in satellites
+            if satellite not in coverage
+        )
+
+    return coverage, notices
+
+
+def _coverage_text(coverage: dict[str, list[DateInterval]], satellite: str) -> str:
+    """Describe a satellite's coverage of the requested range for the run report."""
+    intervals = coverage.get(satellite)
+    if not intervals:
+        return "no data in range (availability table)"
+    return f"data {'; '.join(format_interval(interval) for interval in intervals)}"
+
+
+def _print_satellite_listing(
+    label: str,
+    satellites: Sequence[str],
+    table: AvailabilityTable | None,
+    start_time: datetime,
+    end_time: datetime,
+) -> None:
+    """Print the satellites with data in a time range, for ``--list-satellites``."""
+    from rich.console import Console  # noqa: PLC0415
+
+    console = Console()
+    time_range = format_time_range(start_time, end_time)
+    if table is None:
+        console.print(f"{label} has no availability table: which satellites have data is unknown.")
+        return
+
+    coverage = overlapping_intervals(table, start_time, end_time)
+    available = [satellite for satellite in satellites if satellite in coverage]
+    if not available:
+        console.print(f"No satellite of {label} has data between {time_range} according to its availability table.")
+        return
+
+    first, last = start_time.date(), end_time.date()
+    table_out = Table(
+        "Satellite",
+        "Range",
+        "Intervals with data",
+        title=f"{label}\n{len(available)} of {len(satellites)} satellites have data between {time_range}",
+        padding=(0, 2, 0, 0),
+    )
+    for satellite in available:
+        intervals = coverage[satellite]
+        full = any(start <= first and end >= last for start, end in intervals)
+        table_out.add_row(
+            satellite, "full" if full else "partial", "\n".join(format_interval(interval) for interval in intervals)
+        )
+    console.print(table_out)
+
+
 def _run_calls(
     func: Recipe,
     calls: list[dict[str, Any]],
     loop_names: list[str],
     universal: dict[str, Any],
+    *,
+    notices: Sequence[tuple[int, str]] = (),
+    coverage: dict[str, list[DateInterval]] | None = None,
 ) -> None:
     """Run `func` once per set of keyword arguments, reporting each call first.
 
     A failing call does not stop the remaining ones; the run fails at the end.
+
+    `notices` are logged once logging is configured, before the first call. With `coverage`, the
+    report of each call says whether the availability table has data for its satellite.
 
     Raises:
         typer.Exit: With code 1 if any call failed.
@@ -490,10 +664,18 @@ def _run_calls(
             satellite=call_kwargs.get("satellite"),
             configure_console=index == 1,
         )
+        if index == 1:
+            for level, message in notices:
+                logger.log(level, message)
 
         if not universal["quiet"]:
             counter = f" ({index}/{len(calls)})" if len(calls) > 1 else ""
-            _report_call(func, call_kwargs, title_suffix=counter, dry_run=dry_run)
+            availability = (
+                _coverage_text(coverage, call_kwargs[AVAILABILITY_PARAMETER])
+                if coverage is not None and AVAILABILITY_PARAMETER in call_kwargs
+                else None
+            )
+            _report_call(func, call_kwargs, title_suffix=counter, dry_run=dry_run, availability=availability)
 
         if dry_run:
             continue
@@ -517,32 +699,69 @@ def _run_calls(
         raise typer.Exit(code=1)
 
 
+def _has_availability_parameters(specs: Sequence[_ParameterSpec]) -> bool:
+    """Return True if a command has the time range and the ``satellite`` choice an availability table needs."""
+    names = {spec.name for spec in specs if spec.choice_enum is not None or spec.name in ("start_time", "end_time")}
+    return {"start_time", "end_time", AVAILABILITY_PARAMETER} <= names
+
+
 def _make_command(
     func: Recipe,
     specs: list[_ParameterSpec],
     skipped: dict[str, Any],
     summary: str,
+    availability: AvailabilitySource | None = None,
 ) -> Any:  # noqa: ANN401
     """Assemble the wrapper callable and attach the synthesised signature."""
     loop_names = [spec.name for spec in specs if spec.is_loop]
+    with_availability = _has_availability_parameters(specs)
+    satellite_spec = next((spec for spec in specs if spec.name == AVAILABILITY_PARAMETER), None)
+    satellite_choices: list[str] = []
+    if with_availability and satellite_spec is not None and satellite_spec.choice_enum is not None:
+        satellite_choices = list(satellite_spec.loop_values or [member.value for member in satellite_spec.choice_enum])
 
     def command(**kwargs: Any) -> None:  # noqa: ANN401
         # The universal options belong to the command, not to the recipe, so they are
         # all removed before the remaining keywords are handed over.
         universal = {name: kwargs.pop(name) for name in _UNIVERSAL_PARAMETER_NAMES if name in kwargs}
+        list_satellites = kwargs.pop(_LIST_SATELLITES_OPTION.name, False)
 
         if universal["skip_download"]:
             ep.skip_download = True
         if universal["exit_after_download"]:
             ep.exit_after_download = True
 
-        _restore_parsed_values(kwargs, specs)
+        expanded_all = _restore_parsed_values(kwargs, specs)
         kwargs.update(skipped)
 
-        _run_calls(func, _expand_loops(kwargs, loop_names), loop_names, universal)
+        # loaded per invocation, not when the command is built, so that `--help` never reads it
+        table = load_availability_table(availability) if availability is not None and with_availability else None
+
+        if list_satellites:
+            _print_satellite_listing(
+                _func_name(func), satellite_choices, table, kwargs["start_time"], kwargs["end_time"]
+            )
+            return
+
+        notices: list[tuple[int, str]] = []
+        coverage = None
+        if table is not None:
+            coverage, notices = _apply_availability(
+                kwargs,
+                table,
+                kwargs["start_time"],
+                kwargs["end_time"],
+                expanded_all=expanded_all,
+                label=_func_name(func),
+            )
+
+        _run_calls(func, _expand_loops(kwargs, loop_names), loop_names, universal, notices=notices, coverage=coverage)
 
     command.__name__ = _func_name(func)
-    _attach_signature(command, [*_spec_parameters(specs), *_universal_parameters()])
+    parameters = [*_spec_parameters(specs), *_universal_parameters()]
+    if with_availability:
+        parameters.append(_LIST_SATELLITES_OPTION)
+    _attach_signature(command, parameters)
     command.__doc__ = summary
 
     return command
@@ -571,8 +790,12 @@ def _report_call(
     *,
     title_suffix: str = "",
     dry_run: bool = False,
+    availability: str | None = None,
 ) -> None:
-    """Show the settings a run is about to use, so a long job is never a black box."""
+    """Show the settings a run is about to use, so a long job is never a black box.
+
+    `availability` describes what the recipe's availability table says about the call's satellite.
+    """
     prefix = "Would run" if dry_run else "Running"
     table = Table(
         "Parameter",
@@ -583,6 +806,8 @@ def _report_call(
 
     for name, value in call_kwargs.items():
         table.add_row(name.replace("_", " "), _format_value(name, value))
+    if availability is not None:
+        table.add_row("availability", availability)
     _log_table(table)
 
 
@@ -661,6 +886,7 @@ def run_recipe_cli(
     loop_over: Sequence[str] | None = None,
     strategy: Callable[..., Any] | None = None,
     plot_defaults: dict[str, Any] | None = None,
+    availability: AvailabilitySource | None = None,
     args: Sequence[str] | None = None,
 ) -> None:
     """Run a recipe as a standalone command line program.
@@ -682,6 +908,8 @@ def run_recipe_cli(
             fails at start-up. The ``el-paso plot`` command uses it to locate the processed data.
         plot_defaults (dict[str, Any] | None): Recipe-specific plot settings for ``el-paso plot``,
             checked with :func:`el_paso.cli.plot_cli.check_plot_defaults`. Requires `strategy`.
+        availability (AvailabilitySource | None): The recipe's ``SATELLITE_AVAILABILITY``, see
+            :func:`build_recipe_command`.
         args (Sequence[str] | None): Command line arguments to parse. Defaults to
             `sys.argv`; mainly useful for testing.
 
@@ -701,5 +929,5 @@ def run_recipe_cli(
         check_plot_defaults(plot_defaults)
 
     app = typer.Typer(add_completion=False, pretty_exceptions_show_locals=False)
-    app.command()(build_recipe_command(func, defaults=defaults, loop_over=loop_over))
+    app.command()(build_recipe_command(func, defaults=defaults, loop_over=loop_over, availability=availability))
     app(args=args)
