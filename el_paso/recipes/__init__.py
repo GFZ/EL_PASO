@@ -18,6 +18,7 @@ __getattr__, __dir__, __all__ = lazy.attach(
         "esa",
         "goes",
         "gps",
+        "lanl_geogrid",
         "model",
         "poes",
         "probav",
@@ -32,7 +33,20 @@ __getattr__, __dir__, __all__ = lazy.attach(
 )
 
 if TYPE_CHECKING:
-    from el_paso.recipes import arase, dmsp, esa, goes, gps, model, poes, probav, rbsp, solar_wind_indices, themis
+    from el_paso.recipes import (
+        arase,
+        dmsp,
+        esa,
+        goes,
+        gps,
+        lanl_geogrid,
+        model,
+        poes,
+        probav,
+        rbsp,
+        solar_wind_indices,
+        themis,
+    )
     from el_paso.recipes.model import process_lcds
     from el_paso.recipes.solar_wind_indices import process_solar_wind_indices
 
@@ -42,6 +56,7 @@ if TYPE_CHECKING:
         "esa",
         "goes",
         "gps",
+        "lanl_geogrid",
         "model",
         "poes",
         "probav",

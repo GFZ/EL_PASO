@@ -48,6 +48,7 @@ from el_paso.recipes.esa.process_gssc_emu_electrons import gssc_emu_electron_str
 from el_paso.recipes.esa.process_gssc_emu_protons import gssc_emu_proton_strategy
 from el_paso.recipes.esa.process_ngrm_satellite import esa_ngrm_strategy
 from el_paso.recipes.goes.process_goes_eps_maged_and_epead import (
+    _MonthlyMagedEpeadStrategy,
     goes_eps_maged_and_epead_gfz_strategy,
     goes_eps_maged_and_epead_netcdf_strategy,
 )
@@ -60,6 +61,22 @@ from el_paso.recipes.goes.process_goes_realtime import (
     goes_realtime_netcdf_strategy,
 )
 from el_paso.recipes.gps.process_gps import gps_cxd_strategy
+from el_paso.recipes.lanl_geogrid.process_lanl_geogrid_mpa_electrons import (
+    _MonthlyMpaElectronStrategy,
+    lanl_geogrid_mpa_electron_strategy,
+)
+from el_paso.recipes.lanl_geogrid.process_lanl_geogrid_mpa_ions import (
+    _MonthlyMpaIonStrategy,
+    lanl_geogrid_mpa_ion_strategy,
+)
+from el_paso.recipes.lanl_geogrid.process_lanl_geogrid_sopa_esp_electrons import (
+    _MonthlySopaEspElectronStrategy,
+    lanl_geogrid_sopa_esp_electron_strategy,
+)
+from el_paso.recipes.lanl_geogrid.process_lanl_geogrid_sopa_protons import (
+    _MonthlySopaProtonStrategy,
+    lanl_geogrid_sopa_proton_strategy,
+)
 from el_paso.recipes.poes.process_poes_meped import poes_meped_strategy
 from el_paso.recipes.poes.process_poes_ted import poes_ted_strategy
 from el_paso.recipes.probav.process_ept_electron_fluxes import (
@@ -265,7 +282,7 @@ CASES: list[
         goes_eps_maged_and_epead_netcdf_strategy,
         ("T89", "goes15"),
         {},
-        ep.saving_strategies.MonthlyRBStrategy,
+        _MonthlyMagedEpeadStrategy,
         {
             "mission": "GOES",
             "satellite": "goes15",
@@ -314,6 +331,58 @@ CASES: list[
         {},
         ep.saving_strategies.MonthlyRBStrategy,
         {"mission": "GPS", "satellite": "ns41", "instrument": "cxd", "mag_field": "T89", "file_format": ".nc"},
+    ),
+    (
+        lanl_geogrid_mpa_electron_strategy,
+        ("T89", "010"),
+        {},
+        _MonthlyMpaElectronStrategy,
+        {
+            "mission": "LANL_GeoGrid",
+            "satellite": "geogrid_010",
+            "instrument": "mpa-electrons",
+            "mag_field": "T89",
+            "file_format": ".nc",
+        },
+    ),
+    (
+        lanl_geogrid_mpa_ion_strategy,
+        ("T89", "010"),
+        {},
+        _MonthlyMpaIonStrategy,
+        {
+            "mission": "LANL_GeoGrid",
+            "satellite": "geogrid_010",
+            "instrument": "mpa-ions",
+            "mag_field": "T89",
+            "file_format": ".nc",
+        },
+    ),
+    (
+        lanl_geogrid_sopa_esp_electron_strategy,
+        ("T89", "010"),
+        {},
+        _MonthlySopaEspElectronStrategy,
+        {
+            "mission": "LANL_GeoGrid",
+            "satellite": "geogrid_010",
+            "instrument": "sopa-esp-electrons",
+            "mag_field": "T89",
+            "file_format": ".nc",
+        },
+    ),
+    (
+        lanl_geogrid_sopa_proton_strategy,
+        ("T89", "010"),
+        {},
+        _MonthlySopaProtonStrategy,
+        {
+            "mission": "LANL_GeoGrid",
+            "satellite": "geogrid_010",
+            "instrument": "sopa-protons",
+            "mag_field": "T89",
+            "file_format": ".nc",
+        },
     ),
     (
         solar_wind_indices_strategy,
@@ -637,3 +706,45 @@ def test_every_recipe_strategy_is_exported_from_its_mission_package() -> None:
             assert any(getattr(mission_package, exported, None) is factory for exported in exported_names), (
                 f"{module_name}.{name} is not exported (under any name) from el_paso/recipes/{mission}/__init__.py"
             )
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_goes_eps_maged_and_epead_strategy_saves_integral_channels(tmp_path: Path) -> None:
+    """The EPEAD integral channels are saved by the GOES MAGED+EPEAD strategy only, not by the shared monthly one."""
+    strategy = goes_eps_maged_and_epead_netcdf_strategy(tmp_path, "T89", "goes15")
+    entries = strategy.output_files[0].names_to_save
+
+    assert "FEIU_SA" in entries
+    assert "Energy_FEIU" in entries
+
+    default_strategy = goes_r_mps_high_netcdf_strategy(tmp_path, "T89", "goes16")
+    default_entries = default_strategy.output_files[0].names_to_save
+
+    assert "FEIU_SA" not in default_entries
+    assert "Energy_FEIU" not in default_entries
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+@pytest.mark.parametrize(
+    ("factory", "extra_names"),
+    [
+        (lanl_geogrid_mpa_electron_strategy, ["FEDU_SA"]),
+        (lanl_geogrid_mpa_ion_strategy, ["FIDU", "FIDU_SA", "Energy_FIDU"]),
+        (lanl_geogrid_sopa_esp_electron_strategy, ["FEDU_SA"]),
+        (lanl_geogrid_sopa_proton_strategy, ["FPDU_SA"]),
+    ],
+    ids=lambda f: getattr(f, "__name__", ""),
+)
+def test_lanl_geogrid_strategies_save_extra_variables(
+    tmp_path: Path, factory: Callable[..., SavingStrategy], extra_names: list[str]
+) -> None:
+    """The LANL GeoGrid variables are saved by their own strategies only, not by the shared monthly one."""
+    entries = factory(tmp_path, "T89", "010").output_files[0].names_to_save
+
+    default_entries = gps_cxd_strategy(tmp_path, "T89", "ns41").output_files[0].names_to_save
+
+    for name in extra_names:
+        assert name in entries
+        assert name not in default_entries

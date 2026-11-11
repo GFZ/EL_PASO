@@ -130,8 +130,9 @@ def process_goes_real_time(
         save_strategy (Literal["gfz", "netcdf"]): Strategy used to save the
             processed data. "gfz" saves using the GFZ format, "netcdf" saves monthly NetCDF files.
         skip_existing (bool): If True, skip downloading files that already exist on disk.
-        calculate_Lstar (bool): If True, also compute the L* magnetic field quantity.
-            Defaults to True.
+        calculate_Lstar (bool): If True, also compute the L* magnetic field quantity. If False, the
+            expensive drift-shell tracing is skipped and L* is not saved, while L_m and InvK are still
+            computed. Defaults to True.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
         append (bool): If True, append to existing output files instead of overwriting them.
@@ -170,7 +171,7 @@ def process_goes_real_time(
         ep.ExtractionInfo(
             result_key="FEDO",
             name_or_column="flux",
-            unit=(u.cm**2 * u.s * u.keV) ** (-1),
+            unit=(u.cm**2 * u.s * u.sr * u.keV) ** (-1),
             dependent_variables=["time_tag", "energy"],
         ),
         ep.ExtractionInfo(

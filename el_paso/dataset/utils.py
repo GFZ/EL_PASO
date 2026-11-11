@@ -6,13 +6,14 @@ from __future__ import annotations
 
 import sys
 import warnings
-from collections.abc import Iterable
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 
 import numpy as np
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     import xarray as xr
     from numpy.typing import NDArray
     from typing_extensions import TypeIs
@@ -105,16 +106,14 @@ def matlab2python(datenum: float | Iterable[float]) -> Iterable[datetime] | date
 
     warnings.filterwarnings("ignore", message="Discarding nonzero nanoseconds in conversion")
 
-    datenum = np.asarray(datenum, dtype=float)
-    datenum = pd.to_datetime(datenum - 719529, unit="D", origin=pd.Timestamp("1970-01-01")).to_pydatetime()
+    datenum_arr = np.asarray(datenum, dtype=float)
+    converted = pd.to_datetime(np.atleast_1d(datenum_arr) - 719529, unit="D", origin=pd.Timestamp("1970-01-01"))
+    py_datetimes: list[datetime] = [ts.to_pydatetime() for ts in converted]
+    rounded = [round_seconds(x) for x in enforce_utc_timezone(py_datetimes)]
 
-    if isinstance(datenum, Iterable):
-        datenum = enforce_utc_timezone(list(datenum))  # ty: ignore[invalid-assignment]
-        datenum: Iterable[datetime] = [round_seconds(x) for x in datenum]  # ty: ignore[not-iterable, invalid-argument-type]
-    else:
-        datenum: datetime = round_seconds(enforce_utc_timezone(datenum))
-
-    return datenum
+    if datenum_arr.ndim == 0:
+        return rounded[0]
+    return rounded
 
 
 def pol2cart(

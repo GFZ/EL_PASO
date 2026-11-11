@@ -50,8 +50,17 @@ class GFZDataSet(DataSet):
         BzIMF (NDArray[np.float64]): GSM z-component of the interplanetary magnetic field.
         Dst (NDArray[np.float64]): Disturbance storm time index.
         FEDO (NDArray[np.float64]): Electron differential omnidirectional flux.
+        FEDU_SA (NDArray[np.float64]): Electron differential flux, spin-averaged over the look directions (no pitch
+            angle resolution).
         FEIU (NDArray[np.float64]): Electron integral unidirectional flux.
+        FEIU_SA (NDArray[np.float64]): Electron integral flux, spin-averaged over the look directions (no pitch
+            angle resolution).
+        FIDU (NDArray[np.float64]): Ion (total, all species) differential unidirectional flux.
+        FIDU_SA (NDArray[np.float64]): Ion (total, all species) differential flux, spin-averaged over the look
+            directions (no pitch angle resolution).
         FPDU (NDArray[np.float64]): Proton differential unidirectional flux.
+        FPDU_SA (NDArray[np.float64]): Proton differential flux, spin-averaged over the look directions (no pitch
+            angle resolution).
         Flux (NDArray[np.float64]): Electron differential unidirectional flux.
         G1 (NDArray[np.float64]): Tsyganenko G1 parameter.
         G2 (NDArray[np.float64]): Tsyganenko G2 parameter.
@@ -95,6 +104,7 @@ class GFZDataSet(DataSet):
         ellipticity (NDArray[np.float64]): Frequency of the power spectral density.
         energy_FEDO (NDArray[np.float64]): Central energy of measured omnidirecitonal flux.
         energy_FEIU (NDArray[np.float64]): Central energy of measured integral flux.
+        energy_FIDU (NDArray[np.float64]): Central energy of measured ion differential flux.
         energy_FPDU (NDArray[np.float64]): Central energy of measured proton differential flux.
         energy_channels (NDArray[np.float64]): Central energy of measured differential flux.
         fce (NDArray[np.float64]): Electron gyrofrequency at the satellite location.
@@ -123,8 +133,13 @@ class GFZDataSet(DataSet):
     BzIMF: NDArray[np.float64]
     Dst: NDArray[np.float64]
     FEDO: NDArray[np.float64]
+    FEDU_SA: NDArray[np.float64]
     FEIU: NDArray[np.float64]
+    FEIU_SA: NDArray[np.float64]
+    FIDU: NDArray[np.float64]
+    FIDU_SA: NDArray[np.float64]
     FPDU: NDArray[np.float64]
+    FPDU_SA: NDArray[np.float64]
     Flux: NDArray[np.float64]
     G1: NDArray[np.float64]
     G2: NDArray[np.float64]
@@ -162,6 +177,7 @@ class GFZDataSet(DataSet):
     ellipticity: NDArray[np.float64]
     energy_FEDO: NDArray[np.float64]  # noqa: N815
     energy_FEIU: NDArray[np.float64]  # noqa: N815
+    energy_FIDU: NDArray[np.float64]  # noqa: N815
     energy_FPDU: NDArray[np.float64]  # noqa: N815
     energy_channels: NDArray[np.float64]
     fce: NDArray[np.float64]

@@ -46,7 +46,9 @@ logger = logging.getLogger(__name__)
 _FIELD_MODEL_VARIABLES = frozenset({"L_star", "L_m", "MLT", "MLT_Eq", "B_Eq", "R_Eq", "InvMu", "InvK", "MLat", "PSD"})
 """Variables computed with a magnetic field model, whose labels name the strategy's ``mag_field``."""
 
-_LOG_COLOR_VARIABLES = frozenset({"FEDU", "FEIU", "FEDO", "FPDU", "PSD"})
+_LOG_COLOR_VARIABLES = frozenset(
+    {"FEDU", "FEDU_SA", "FEIU", "FEIU_SA", "FEDO", "FPDU", "FPDU_SA", "FIDU", "FIDU_SA", "PSD"}
+)
 """Flux-like variables that get a logarithmic colour scale."""
 
 _DEFAULT_PITCH_ANGLE = 90.0 * u.deg
