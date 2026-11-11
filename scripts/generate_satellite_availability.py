@@ -110,11 +110,13 @@ PRODUCTS: dict[str, Product] = {
 }
 """Products this script can tabulate, by the name given on the command line."""
 
+# REUSE-IgnoreStart
 _REUSE_HEADER = """\
 # SPDX-FileCopyrightText: {year} GFZ Helmholtz Centre for Geosciences
 #
 # SPDX-License-Identifier: Apache-2.0
 """
+# REUSE-IgnoreEnd
 
 
 class ListingCache:
@@ -130,20 +132,23 @@ class ListingCache:
         self._session = session or requests.Session()
         self._listings: dict[str, str | None] = {}
 
-    def _fetch(self, url: str) -> str | None:
-        """Return the listing at `url`, or ``None`` if the server has none (404).
+    def _request(self, url: str) -> str | None:
+        """Request the listing at `url` from the server; ``None`` if it has none (404).
 
         Raises:
             requests.HTTPError: If the server answers with an error other than 404.
         """
+        print(f"  listing {url}", file=sys.stderr)
+        response = self._session.get(url, timeout=120)
+        if response.status_code == _HTTP_NOT_FOUND:
+            return None
+        response.raise_for_status()
+        return response.text
+
+    def _fetch(self, url: str) -> str | None:
+        """Return the listing at `url`, requesting it only the first time; ``None`` if the server has none."""
         if url not in self._listings:
-            print(f"  listing {url}", file=sys.stderr)
-            response = self._session.get(url, timeout=120)
-            if response.status_code == _HTTP_NOT_FOUND:
-                self._listings[url] = None
-            else:
-                response.raise_for_status()
-                self._listings[url] = response.text
+            self._listings[url] = self._request(url)
         return self._listings[url]
 
     def get(self, url: str) -> str:

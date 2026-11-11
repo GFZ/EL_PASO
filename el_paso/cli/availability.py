@@ -24,9 +24,7 @@ table is a hint about coverage, not a guarantee that every file exists. A TOML f
 intervals in its ``[satellites]`` table as ``[first, last]`` pairs of TOML dates; any other key is
 descriptive metadata::
 
-    # SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
-    #
-    # SPDX-License-Identifier: Apache-2.0
+    # (REUSE header comments)
 
     max_gap_days = 5
 

@@ -102,7 +102,8 @@ def process_lanl_geogrid_mpa_electrons(
         start_time (datetime): Start of the time interval to process.
         end_time (datetime): End of the time interval to process.
         satellite (LANLGeoGridSatellite): The geosynchronous longitude slot to process, in
-            degrees east (e.g. "010").
+            degrees east (e.g. "010"). Only a few slots are populated at any time: with "all",
+            only the slots with data in the time range are processed (see --list-satellites).
         mag_field (MagneticFieldLiteral): Magnetic field model used for the derived quantities.
         raw_data_path (str | Path): Directory where the raw downloaded data files are stored.
         processed_data_path (str | Path): Directory where the processed output files are saved.

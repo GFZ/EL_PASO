@@ -39,7 +39,8 @@ recipe function's own signature.
 | Option | Meaning |
 | --- | --- |
 | `--start-time`, `--end-time` | Processing time range. Anything `dateutil` understands, e.g. `2013-03-16` or `2013-03-16T23:59:59`. Naive values are read as UTC. |
-| `--satellite` | Which spacecraft to process. Repeat the option to process several in one run, or pass `all` for every spacecraft the recipe supports. |
+| `--satellite` | Which spacecraft to process. Repeat the option to process several in one run, or pass `all` for every spacecraft the recipe supports (only those with data in the time range, if the recipe has an [availability table](#which-satellites-have-data)). |
+| `--list-satellites` | List the satellites with data between `--start-time` and `--end-time`, then exit. Only for recipes with a `--satellite` option. |
 | `--mag-field` | Magnetic field model used for the derived quantities, e.g. `T89`, `T96`, `TS04`. |
 | `--bin-cadence` | Time binning cadence: `10s`, `5min`, `1h`, `2d`. A bare number means seconds. |
 | `--raw-data-path` | Where raw files are downloaded to and read from. |
@@ -77,6 +78,60 @@ el-paso goes mps-high \
 When several satellites are processed, a satellite that fails (for example because it
 has no data in the time range) does not stop the others. The run continues, logs which
 satellites failed, and exits with code 1 at the end.
+
+### Which satellites have data
+
+Most missions' satellites cover different eras: POES and MetOp satellites were launched and
+retired at different times, and the LANL GeoGrid "satellites" are geosynchronous longitude
+slots, only a handful of which are populated at any time. Recipes for such missions ship a
+*satellite availability table*: for each satellite, the date intervals in which the remote
+archive has data. It is part of the package, so using it needs no network access.
+
+Ask which satellites have data in a time range with `--list-satellites`. It prints the
+intervals overlapping the range, and whether they cover all of it, without processing anything:
+
+```bash
+$ el-paso lanl-geogrid mpa-electrons --list-satellites \
+    --start-time 2017-04-01 --end-time 2017-04-30
+      process_lanl_geogrid_mpa_electrons
+5 of 28 satellites have data between 2017-04-01 and 2017-04-30
+Satellite  Range  Intervals with data
+010        full   2017-01-01 to 2018-02-07
+070        full   2017-01-01 to 2018-02-07
+130        full   2017-01-01 to 2018-02-07
+190        full   2017-03-21 to 2017-05-23
+310        full   2017-01-01 to 2018-02-08
+```
+
+With a table, the recipe commands use it as follows:
+
+- `--satellite all` runs only the satellites with data somewhere in the time range, and logs
+  which ones it skipped. If none has data, the command stops with an error naming the range.
+- A satellite you name explicitly is always run, even if the table says it has no data, since
+  the table is a hint and not a guarantee: you get a warning before the run starts instead.
+- The run report (and `--dry-run`) gets an `availability` line per satellite.
+
+A time range counts as covered if it overlaps an interval at all, also partially at either end.
+Short gaps of a few days are merged into the surrounding interval, so a covered day can still
+miss its file; downloading reports missing files as before. Recipes without a table behave as
+if every satellite had data, and `--list-satellites` says that their availability is unknown.
+
+The same query is available from Python, returning `None` for a recipe without a table:
+
+```python
+from datetime import date
+
+import el_paso as ep
+
+coverage = ep.satellite_availability(
+    ep.recipes.lanl_geogrid.process_lanl_geogrid_mpa_electrons, date(2017, 4, 1), date(2017, 4, 30)
+)
+sorted(coverage)  # ['010', '070', '130', '190', '310']
+```
+
+Recipes declare their table in a `SATELLITE_AVAILABILITY` attribute of the recipe module, next to
+`CLI_DEFAULTS`. Maintainers regenerate the tables from the remote archives with
+`python scripts/generate_satellite_availability.py <product>`.
 
 ## What a run reports
 
@@ -158,7 +213,9 @@ missing from the local cache. Raw-data and processing options such as
 
 Run `--dry-run` first to see which files are expected and which of them exist. If
 files are missing, the command stops and prints the processing command that would
-create them.
+create them. `--satellite all` only plots the satellites with data in the time range, as
+in [processing](#which-satellites-have-data), and the dry run says per satellite whether
+the recipe's availability table has data for it.
 
 ### Choosing what to plot
 
