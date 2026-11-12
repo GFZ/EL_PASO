@@ -25,13 +25,25 @@ _MINIMUM_PHYSICAL_DENSITY = 1e-21
 
 
 def themis_scpot_density_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     satellite: ThemisProbe,
     mag_field: ep.typing.MagneticFieldLiteral,
+    save_strategy: Literal["netcdf"] = "netcdf",
 ) -> ep.SavingStrategy:
-    """Monthly NetCDF density saving strategy for the THEMIS spacecraft-potential density."""
+    """Saving strategy of the THEMIS spacecraft-potential density recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        satellite (ThemisProbe): THEMIS probe the data belongs to.
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
+        save_strategy (Literal["netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Monthly NetCDF density saving strategy.
+    """
+    del save_strategy
     return ep.saving_strategies.MonthlyDensityStrategy(
-        base_data_path=base_data_path,
+        base_data_path=processed_data_path,
         mission="THEMIS",
         satellite="th" + satellite,
         instrument="SCPOT",
@@ -43,7 +55,7 @@ def process_themis_scpot_density(
     start_time: datetime,
     end_time: datetime,
     satellite: ThemisProbe = "a",
-    mag_field: Literal["T89", "T96", "TS04"] = "T89",
+    mag_field: ep.typing.MagneticFieldLiteral = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=5),
@@ -52,6 +64,7 @@ def process_themis_scpot_density(
     *,
     skip_existing: bool = True,
     save_indices_sw: bool = False,
+    append: bool = False,
 ) -> None:
     """Process the THEMIS spacecraft-potential electron density and save the mapped equatorial density.
 
@@ -67,7 +80,7 @@ def process_themis_scpot_density(
         start_time (datetime): Start of the time range to process.
         end_time (datetime): End of the time range to process.
         satellite (Literal["a", "b", "c", "d", "e"]): THEMIS probe identifier.
-        mag_field (Literal["T89", "T96", "TS04"]): The magnetic field model used for the
+        mag_field (ep.typing.MagneticFieldLiteral): The magnetic field model used for the
             magnetic-field-related output variables and the equatorial density mapping.
         raw_data_path (str | Path): Base directory pyspedas downloads the raw THEMIS files into
             and reads them from. Defaults to ".".
@@ -84,9 +97,10 @@ def process_themis_scpot_density(
             cached THEMIS file is still current. Defaults to True.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to False.
     """
     del skip_existing
-    del save_strategy
 
     set_pyspedas_data_dir("themis", raw_data_path)
     use_spdf_for_themis_downloads()
@@ -139,7 +153,7 @@ def process_themis_scpot_density(
         method="Denton_average",
     )
 
-    saving_strategy = themis_scpot_density_strategy(processed_data_path, satellite, mag_field)
+    saving_strategy = themis_scpot_density_strategy(processed_data_path, satellite, mag_field, save_strategy)
 
     variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
         "Epoch": binned_time_variable,
@@ -151,7 +165,7 @@ def process_themis_scpot_density(
         "xGEO_Eq": magnetic_field_variables["xGEO_Eq_" + mag_field],
     }
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable, append=append)
 
     if save_indices_sw:
         process_solar_wind_indices(
@@ -167,5 +181,15 @@ CLI_DEFAULTS = {
     "processed_data_path": "./data",
 }
 
+PLOT_DEFAULTS = {
+    "panels": ["Number_density_scpot", "MLT"],
+    "Number_density_scpot": {"along": "R_Eq"},
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_themis_scpot_density, defaults=CLI_DEFAULTS)
+    ep.run_recipe_cli(
+        process_themis_scpot_density,
+        defaults=CLI_DEFAULTS,
+        strategy=themis_scpot_density_strategy,
+        plot_defaults=PLOT_DEFAULTS,
+    )

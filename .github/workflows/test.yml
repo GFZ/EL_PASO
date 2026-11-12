@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   ruff:
-    if: github.event.action != 'labeled' || github.event.label.name == 'run-basic-tests'
+    if: github.event.action != 'labeled' || github.event.label.name == 'run-basic-tests' || github.event.label.name == 'run-network-tests'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -32,7 +32,7 @@ jobs:
           src: el_paso
 
   ty:
-    if: github.event.action != 'labeled' || github.event.label.name == 'run-basic-tests'
+    if: github.event.action != 'labeled' || github.event.label.name == 'run-basic-tests' || github.event.label.name == 'run-network-tests'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -56,7 +56,7 @@ jobs:
         run: ty check
 
   tests:
-    if: github.event.action != 'labeled' || github.event.label.name == 'run-basic-tests'
+    if: github.event.action != 'labeled' || github.event.label.name == 'run-basic-tests' || github.event.label.name == 'run-network-tests'
     needs: [ruff, ty]
     strategy:
       fail-fast: false
@@ -104,9 +104,10 @@ jobs:
           SPACETRACK_PASS: ${{ secrets.SPACETRACK_PASS }}
           _TYPER_FORCE_DISABLE_TERMINAL: "1"
           EL_PASO_SKIP_DOWNLOAD: "1"
-          # Pull requests run only the minimal tests, except the run started by adding the run-basic-tests label.
-          # Everything else (push to main, manual dispatch) runs the basic tests.
-          MARKER: ${{ github.event_name == 'pull_request' && !(github.event.action == 'labeled' && github.event.label.name == 'run-basic-tests') && 'minimal' || 'basic' }}
+          # Pull requests run only the minimal tests, except for the runs started by adding a label:
+          # run-basic-tests runs the basic tests, run-network-tests runs only the network tests (real downloads).
+          # Everything else (push to main, manual dispatch) runs the basic tests. Network tests never run on main.
+          MARKER: ${{ (github.event.action == 'labeled' && github.event.label.name == 'run-network-tests' && 'network') || (github.event_name == 'pull_request' && !(github.event.action == 'labeled' && github.event.label.name == 'run-basic-tests') && 'minimal') || 'basic' }}
         run: uv run coverage run --source el_paso -m pytest -rf tests -m "$MARKER" --indices_sw_param_data_path tests/system/data/indices_sw_params
 
       - name: Run Coveralls

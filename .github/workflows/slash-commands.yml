@@ -12,6 +12,27 @@ on:
 permissions: {}
 
 jobs:
+  run-network-tests:
+    if: github.event.issue.pull_request && startsWith(github.event.comment.body, '/run-network-tests')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Re-apply the run-network-tests label
+        env:
+          GH_TOKEN: ${{ secrets.SLASH_COMMAND_PAT }}
+          GH_REPO: ${{ github.repository }}
+          COMMENTER: ${{ github.event.comment.user.login }}
+          PR: ${{ github.event.issue.number }}
+        run: |
+          perm=$(gh api "repos/$GH_REPO/collaborators/$COMMENTER/permission" --jq .permission)
+          if [ "$perm" != admin ] && [ "$perm" != write ]; then
+            echo "::error::$COMMENTER has '$perm' permission, write is required"
+            exit 1
+          fi
+          gh label create run-network-tests --description "Run the network tests on this PR" 2>/dev/null || true
+          gh pr edit "$PR" --remove-label run-network-tests 2>/dev/null || true
+          gh pr edit "$PR" --add-label run-network-tests
+
+
   run-basic-tests:
     if: github.event.issue.pull_request && startsWith(github.event.comment.body, '/run-full-tests')
     runs-on: ubuntu-latest

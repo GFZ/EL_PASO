@@ -216,7 +216,7 @@ def timed_function(func_name: str | None = None) -> Callable[[Callable[P, R]], C
             tic = timeit.default_timer()
             result = f(*args, **kwargs)
             toc = timeit.default_timer()
-            name = func_name or f"{f.__name__}"  # ty:ignore[unresolved-attribute]
+            name = func_name or f"{f.__name__}"  # ty:ignore[missing-attribute]
             log = logging.getLogger(f.__module__)
             log.info(f"{name} finished in {toc - tic:0.3f} seconds", stacklevel=2)
 
@@ -317,7 +317,7 @@ class Hashabledict(dict[Any, Any]):
     by providing a custom hash implementation based on its contents.
     """
 
-    def __hash__(self) -> int:  # ty: ignore[invalid-attribute-override]
+    def __hash__(self) -> int:
         """Computes a hash value for the dictionary.
 
         The hash is computed from the frozenset of the dictionary's key-value
@@ -729,7 +729,7 @@ def _write_data_to_netcdf_file(file: nC.Dataset | nC.Group, data_dict: DataDict,
                 curr_hierarchy = curr_hierarchy.groups[group]
 
         available_keys = {key for key in data_dict if key != "metadata"}
-        dimensions = data_standard.resolve_dependencies(data_standard.get_dependencies(internal_name), available_keys)
+        dimensions = data_standard.get_resolved_dependencies(internal_name, available_keys)
         data_set = cast(
             "nC.Variable[Any]",
             curr_hierarchy.createVariable(
@@ -827,7 +827,7 @@ def _calculate_dimensions(data_dict: DataDict, data_standard: DataStandard) -> d
             continue
 
         available_keys = {key for key in data_dict if key != "metadata"}
-        dim_names = data_standard.resolve_dependencies(data_standard.get_dependencies(internal_name), available_keys)
+        dim_names = data_standard.get_resolved_dependencies(internal_name, available_keys)
 
         for dim_name in dim_names:
             if dim_name not in unique_dims:
@@ -839,9 +839,7 @@ def _calculate_dimensions(data_dict: DataDict, data_standard: DataStandard) -> d
                 elif dim_name == "W_components":
                     unique_dims[dim_name] = 6
                 elif dim_name in data_dict:
-                    dims_of_dim = data_standard.resolve_dependencies(
-                        data_standard.get_dependencies(dim_name), available_keys
-                    )
+                    dims_of_dim = data_standard.get_resolved_dependencies(dim_name, available_keys)
 
                     target_idx = np.where(dim_name == np.asarray(dims_of_dim))[0][0]  # ty:ignore[no-matching-overload]
 

@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -12,7 +13,7 @@ import pytest
 from el_paso.recipes.esa import process_ngrm_electron_fluxes
 
 
-@pytest.mark.basic
+@pytest.mark.network
 @pytest.mark.usefixtures("enable_downloads")
 @pytest.mark.skip(reason="update test data on Hugging Face")
 def test_esa_ngrm(
@@ -46,3 +47,27 @@ def test_esa_ngrm(
 
     out_path = processed_data_path / "ESA" / "edrs-c" / f"edrs-c_ngrm_{start_date:%Y%m%d}to{end_date:%Y%m%d}_T89.nc"
     assert out_path.exists()
+
+
+@pytest.mark.visual
+@pytest.mark.network
+@pytest.mark.usefixtures("enable_downloads")
+@pytest.mark.skip(reason="update test data on Hugging Face")
+def test_esa_ngrm_plot_default(tmp_path: Path, plot_default: Callable[..., None]) -> None:
+    """Process ESA NGRM and show the default figure of `el-paso plot esa ngrm`. Check it by eye."""
+    start_time = datetime(2025, 9, 8, tzinfo=timezone.utc)
+    end_time = start_time + timedelta(hours=4)
+
+    process_ngrm_electron_fluxes(
+        start_time=start_time,
+        end_time=end_time,
+        satellite="EDRS-C",
+        raw_data_path=Path(__file__).parent / "data" / "raw",
+        processed_data_path=tmp_path,
+        num_cores=32,
+        client_id=os.environ.get("ESA_CLIENT_ID"),
+        client_secret=os.environ.get("ESA_CLIENT_SECRET"),
+        bin_cadence=timedelta(minutes=5),
+    )
+
+    plot_default("esa", "ngrm", tmp_path, start_time, end_time, "--satellite", "EDRS-C")

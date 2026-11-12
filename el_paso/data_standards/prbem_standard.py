@@ -8,6 +8,7 @@ from astropy import units as u
 
 import el_paso as ep
 from el_paso.data_standard import ConsistencyCheck, DataStandard, VariableInfo
+from el_paso.one_of import OneOf
 from el_paso.typing import InternalName, PRBEMName
 
 logger = logging.getLogger("__name__")
@@ -102,13 +103,13 @@ class PRBEMStandard(DataStandard[PRBEMName]):
                 "InvMu",
                 "Calculated first adiabatic invariant from modelled magnetic field.",
                 u.MeV / u.G,
-                ["Epoch", ("Energy_FEDU", "Energy_FPDU"), "Alpha"],
+                ["Epoch", OneOf("Energy_FEDU", "Energy_FPDU"), "Alpha"],
             ),
             "InvMu_obs": VariableInfo[PRBEMName](
                 "InvMu_obs",
                 "Calculated first adiabatic invariant from magnetic field observations.",
                 u.MeV / u.G,
-                ["Epoch", ("Energy_FEDU", "Energy_FPDU"), "Alpha"],
+                ["Epoch", OneOf("Energy_FEDU", "Energy_FPDU"), "Alpha"],
             ),
             "InvK": VariableInfo[PRBEMName](
                 "InvK", "Calculated modified second adiabatic invariant.", ep.units.RE * u.G**0.5, ["Epoch", "Alpha"]
@@ -120,7 +121,7 @@ class PRBEMStandard(DataStandard[PRBEMName]):
                 "PSD",
                 "Calculated phase space density of particles.",
                 ep.units.psd_natural_unit,
-                ["Epoch", ("Energy_FEDU", "Energy_FPDU"), "Alpha"],
+                ["Epoch", OneOf("Energy_FEDU", "Energy_FPDU"), "Alpha"],
             ),
             "MLT": VariableInfo[PRBEMName]("MLT", "Magnetic local time at the satellite location.", u.hour, ["Epoch"]),
             "xGEO_Eq": VariableInfo[PRBEMName](

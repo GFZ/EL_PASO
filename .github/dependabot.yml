@@ -4,16 +4,27 @@
 # SPDX-License-Identifier: Apache-2.0
 
 version: 2
+
+multi-ecosystem-groups:
+  dependencies:
+    schedule:
+      interval: "cron"
+      cronjob: "0 8 * * 1"
+      timezone: "Europe/Berlin"
+
 updates:
   - package-ecosystem: "pre-commit"
     directory: "/"
-    schedule:
-      interval: "cron"
-      cronjob: "0 8 * * 2,5"
-      timezone: "Europe/Berlin"
+    patterns:
+      - "*"
     cooldown:
       default-days: 0
-    groups:
-      pre-commit-dependencies:
-        patterns:
-          - "*"
+    multi-ecosystem-group: "dependencies"
+
+  - package-ecosystem: "uv"
+    directory: "/"
+    patterns:
+      - "*"
+    cooldown:
+      default-days: 0
+    multi-ecosystem-group: "dependencies"

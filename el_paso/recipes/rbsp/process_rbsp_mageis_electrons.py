@@ -37,15 +37,25 @@ STANDARD_ENERGIES_KEV = np.array(
 
 
 def rbsp_mageis_electron_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     satellite: RBSPSatellite,
-    *,
-    file_format: ep.typing.MFSFormats = "nc",
+    save_strategy: Literal["netcdf"] = "netcdf",
 ) -> ep.SavingStrategy:
-    """Monthly NetCDF saving strategy for RBSP MagEIS electrons."""
+    """Saving strategy of the RBSP MagEIS electron recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
+        satellite (RBSPSatellite): RBSP satellite, "a" or "b".
+        save_strategy (Literal["netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Monthly NetCDF saving strategy.
+    """
+    file_format: ep.typing.MFSFormats = {"netcdf": "nc"}[save_strategy]
     return ep.saving_strategies.MonthlyRBStrategy(
-        Path(base_data_path),
+        Path(processed_data_path),
         "RBSP",
         "rbsp" + satellite,
         "mageis",
@@ -59,7 +69,7 @@ def process_rbsp_mageis_electrons(
     start_time: datetime,
     end_time: datetime,
     satellite: RBSPSatellite = "a",
-    mag_field: Literal["T89", "T96", "TS04"] = "T89",
+    mag_field: ep.typing.MagneticFieldLiteral = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=5),
@@ -68,7 +78,9 @@ def process_rbsp_mageis_electrons(
     save_strategy: Literal["netcdf"] = "netcdf",
     *,
     add_B_obs: bool = False,
+    calculate_Lstar: bool = True,
     save_indices_sw: bool = False,
+    append: bool = False,
 ) -> None:
     """Process RBSP ECT/MagEIS electron flux data into the EL-PASO data standard.
 
@@ -90,7 +102,7 @@ def process_rbsp_mageis_electrons(
         start_time (datetime): Start of the time range to process.
         end_time (datetime): End of the time range to process.
         satellite (Literal["a", "b"]): RBSP satellite identifier ("a" or "b").
-        mag_field (Literal["T89", "T96", "TS04"]): Magnetic field model used to compute the
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model used to compute the
             magnetic-field-related variables.
         raw_data_path (str | Path): Directory where raw CDF files are downloaded to and
             read from. Defaults to ".".
@@ -105,10 +117,13 @@ def process_rbsp_mageis_electrons(
             Only "netcdf" is currently supported for this recipe. Defaults to "netcdf".
         add_B_obs (bool): If True, also download the EMFISIS magnetometer data and save the observed
             magnetic field magnitude (B_total_obs) and InvMu_obs computed from it. Defaults to False.
+        calculate_Lstar (bool): If True, also compute the L* magnetic field quantity.
+            Defaults to True.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to False.
     """
-    del save_strategy
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
 
@@ -198,17 +213,25 @@ def process_rbsp_mageis_electrons(
         ("B_Eq", mag_field),
         ("R_Eq", mag_field),
         ("Alpha_Eq", mag_field),
-        ("L_star", mag_field),
         ("L_m", mag_field),
         ("InvK", mag_field),
         ("InvMu", mag_field),
     ]
 
+    if calculate_Lstar:
+        vars_to_compute.append(("L_star", mag_field))
+
+    irbem_options = IrbemOptions(
+        lstar_quantity=ep.processing.magnetic_field_utils.LstarQuantity.LSTAR
+        if calculate_Lstar
+        else ep.processing.magnetic_field_utils.LstarQuantity.NONE,
+    )
+
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
         time_var=binned_time_variable,
         xgeo_var=variables["xGEO"],
         variables_to_compute=vars_to_compute,
-        irbem_options=IrbemOptions(),
+        irbem_options=irbem_options,
         num_cores=num_cores,
         pa_local_var=variables["Pitch_angle"],
         energy_var=variables["Energy"],
@@ -224,7 +247,6 @@ def process_rbsp_mageis_electrons(
         "Energy_FEDU": variables["Energy"],
         "Alpha": variables["Pitch_angle"],
         "Alpha_Eq": magnetic_field_variables["Alpha_Eq_" + mag_field],
-        "L_star": magnetic_field_variables["L_star_" + mag_field],
         "MLT": magnetic_field_variables["MLT_" + mag_field],
         "L_m": magnetic_field_variables["L_m_" + mag_field],
         "R_Eq": magnetic_field_variables["R_Eq_" + mag_field],
@@ -234,6 +256,9 @@ def process_rbsp_mageis_electrons(
         "B_Calc": magnetic_field_variables["B_Calc_" + mag_field],
         "PSD": psd_var,
     }
+
+    if calculate_Lstar:
+        variables_to_save["L_star"] = magnetic_field_variables["L_star_" + mag_field]
 
     if add_B_obs:
         variables_to_save |= compute_observed_B_variables(
@@ -248,8 +273,8 @@ def process_rbsp_mageis_electrons(
             "electron",
         )
 
-    strategy = rbsp_mageis_electron_strategy(processed_data_path, mag_field, satellite)
-    ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=False)
+    strategy = rbsp_mageis_electron_strategy(processed_data_path, mag_field, satellite, save_strategy)
+    ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=append)
 
     if save_indices_sw:
         process_solar_wind_indices(
@@ -310,5 +335,20 @@ def _mageis_data_modifier(
     return variable_data
 
 
+PLOT_DEFAULTS = {
+    "panels": ["Kp", "FEDU"],
+    "FEDU": {
+        "pitch_angle": 90 * u.deg,
+        "energies": [108, 470, 1575] * u.keV,
+        "vmin": 1e0,
+        "vmax": 1e6,
+        "along": "L_star",
+    },
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_rbsp_mageis_electrons)
+    ep.run_recipe_cli(
+        process_rbsp_mageis_electrons,
+        strategy=rbsp_mageis_electron_strategy,
+        plot_defaults=PLOT_DEFAULTS,
+    )

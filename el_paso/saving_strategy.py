@@ -9,19 +9,23 @@ import inspect
 import logging
 import shutil
 import tempfile
+import warnings
 from abc import ABC, abstractmethod
 from copy import deepcopy
+from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, NamedTuple
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 from astropy import units as u
 
 import el_paso as ep
+from el_paso.one_of import OneOf, alternatives_of, describe, resolve_name
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from datetime import datetime
 
     from el_paso.typing import (
@@ -35,18 +39,45 @@ if TYPE_CHECKING:
     )
 
 
-class OutputFile(NamedTuple):
+@dataclass(init=False)
+class OutputFile:
     """Represents an output file with its name and a list of variable names to save.
 
     Attributes:
         name (str): The name of the output file.
-        names_to_save (list[str]): List of variable names to be saved in the output file.
+        names_to_save (list[InternalName | OneOf]): Variable names to be saved in the output file.
+            A `OneOf` entry is satisfied by the first of its alternatives that is present.
         save_incomplete (bool): If True, allows saving even if some variables are missing.
     """
 
     name: str
-    names_to_save: list[InternalName | tuple[InternalName, ...]]
-    save_incomplete: bool = False
+    names_to_save: list[InternalName | OneOf]
+    save_incomplete: bool
+
+    def __init__(
+        self,
+        name: str,
+        names_to_save: Sequence[InternalName | OneOf | tuple[InternalName, ...]],
+        save_incomplete: bool = False,  # noqa: FBT001, FBT002
+    ) -> None:
+        """Initializes the output file.
+
+        Args:
+            name (str): The name of the output file.
+            names_to_save (Sequence[InternalName | OneOf | tuple[InternalName, ...]]): Variable names
+                to be saved. A tuple of alternatives is converted to a `OneOf` (deprecated; pass a `OneOf`).
+            save_incomplete (bool): If True, allows saving even if some variables are missing.
+        """
+        if any(isinstance(entry, tuple) for entry in names_to_save):
+            warnings.warn(
+                "Passing alternatives in names_to_save as a tuple is deprecated; use OneOf(...) instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        self.name = name
+        self.names_to_save = [OneOf(*entry) if isinstance(entry, tuple) else entry for entry in names_to_save]
+        self.save_incomplete = save_incomplete
 
 
 _writers: dict[str, ep.typing.FileWriter] = {
@@ -137,7 +168,7 @@ class SavingStrategy(ABC):
         internal_name: InternalName,
         *,
         first_call_of_interval: bool,
-        available_keys: set[InternalName] | None = None,
+        available_keys: set[InternalName],
     ) -> ep.Variable:
         """Standardize a variable through the configured data standard.
 
@@ -147,7 +178,7 @@ class SavingStrategy(ABC):
             first_call_of_interval (bool): If True, the data standard's consistency
                 check is reset before standardizing, as this is the first variable
                 processed for a new file/time interval.
-            available_keys (set[InternalName] | None): The full set of internal names being
+            available_keys (set[InternalName]): The full set of internal names being
                 saved together in this call.
 
         Returns:
@@ -427,11 +458,7 @@ class SavingStrategy(ABC):
         resolved_count = 0
 
         for name_to_save in output_file.names_to_save:
-            # a tuple entry means "either of these species-specific names satisfies it"
-            if isinstance(name_to_save, tuple):
-                resolved_name = next((alt for alt in name_to_save if alt in variables_dict), None)
-            else:
-                resolved_name = name_to_save if name_to_save in variables_dict else None
+            resolved_name = resolve_name(name_to_save, variables_dict)
 
             if resolved_name is not None:
                 resolved_count += 1
@@ -456,10 +483,9 @@ class SavingStrategy(ABC):
 
                 target_variables[resolved_name] = var_to_save
             else:
-                label = " or ".join(name_to_save) if isinstance(name_to_save, tuple) else name_to_save
-                missing_names.append(label)
+                missing_names.append(describe(name_to_save))
                 if output_file.save_incomplete:
-                    fallback_name = name_to_save[0] if isinstance(name_to_save, tuple) else name_to_save
+                    fallback_name = alternatives_of(name_to_save)[0]
                     target_variables[fallback_name] = ep.Variable(
                         original_unit=u.dimensionless_unscaled, data=np.array([])
                     )
@@ -508,7 +534,7 @@ class SavingStrategy(ABC):
 
         for output_file in self.output_files:
             for name_to_save in output_file.names_to_save:
-                if name_to_save == internal_name or (isinstance(name_to_save, tuple) and internal_name in name_to_save):
+                if internal_name in alternatives_of(name_to_save):
                     return output_file
 
         return None
@@ -523,9 +549,8 @@ class SavingStrategy(ABC):
 
         for output_file in self.output_files:
             for name_to_save in output_file.names_to_save:
-                if isinstance(name_to_save, tuple):
-                    all_standard_names.extend(self.data_standard.get_standard_name(alt) for alt in name_to_save)
-                else:
-                    all_standard_names.append(self.data_standard.get_standard_name(name_to_save))
+                all_standard_names.extend(
+                    self.data_standard.get_standard_name(alt) for alt in alternatives_of(name_to_save)
+                )
 
         return list(set(all_standard_names))

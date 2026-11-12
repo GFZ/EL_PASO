@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import calendar
+from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -80,3 +81,19 @@ def test_arase_xep(tmpdir: Path) -> None:
     )
 
     _assert_variables_load(dataset, _XEP_VARIABLES)
+
+
+@pytest.mark.visual
+def test_arase_xep_plot_default(tmp_path: Path, plot_default: Callable[..., None]) -> None:
+    """Process Arase XEP and show the default figure of `el-paso plot arase xep`. Check it by eye."""
+    process_arase_xep(
+        start_time=_START_TIME,
+        end_time=_END_TIME,
+        mag_field=_MAG_FIELD,
+        raw_data_path=Path(__file__).parent / "data" / "raw",
+        processed_data_path=tmp_path,
+        num_cores=16,
+        use_level_3_orbit_data=False,
+    )
+
+    plot_default("arase", "xep", tmp_path, _START_TIME, _END_TIME, "--mag-field", _MAG_FIELD)

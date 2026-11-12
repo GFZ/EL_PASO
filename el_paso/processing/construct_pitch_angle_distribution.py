@@ -61,7 +61,11 @@ def construct_pitch_angle_distribution(
 
     Args:
         omni_flux_var: Flux as an `el_paso` variable (interpreted according to
-            ``flux_type``), with dimensions (time, energy_channels).
+            ``flux_type``), with dimensions (time, energy_channels). Its unit must
+            be convertible to $\mathrm{cm}^{-2} \mathrm{s}^{-1} \mathrm{keV}^{-1}$
+            for ``"omni"`` and to
+            $\mathrm{cm}^{-2} \mathrm{s}^{-1} \mathrm{sr}^{-1} \mathrm{keV}^{-1}$
+            for ``"spin_average"``.
         pa_local_var: Local pitch angles as an `el_paso` variable, with
             dimensions (time, pitch_angles).
         pa_eq_var: Equatorial pitch angles as an `el_paso` variable, with
@@ -89,7 +93,9 @@ def construct_pitch_angle_distribution(
     References:
         Smirnov et al. (2022), Space Weather, https://doi.org/10.1029/2022SW003053
     """
-    omni_flux = omni_flux_var.get_data(_OMNI_FLUX_UNIT)
+    # A spin-averaged flux is already per steradian, an omni-directional flux is not.
+    input_unit = _OMNI_FLUX_UNIT if flux_type == "omni" else _DIRECTIONAL_FLUX_UNIT
+    omni_flux = omni_flux_var.get_data(input_unit)
     pa_local = pa_local_var.get_data(u.rad).astype(np.float64)
     pa_eq = pa_eq_var.get_data(u.rad).astype(np.float64)
 

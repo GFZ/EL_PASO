@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, Callable  # noqa: UP035
 
 import numpy as np
 
+from el_paso.data_standard import NullDataStandard
 from el_paso.saving_strategy import OutputFile, SavingStrategy
 
 if TYPE_CHECKING:
@@ -86,6 +87,7 @@ class SingleFileStrategy(SavingStrategy):
         """
         self.file_path = Path(file_path)
         self.output_files = [OutputFile(self.file_path.name, [])]
+        self.data_standard = NullDataStandard()
 
         # Build the dispatch table with built-in writers
         self._writers: dict[str, SingleFileFormatWriter] = {
@@ -99,10 +101,10 @@ class SingleFileStrategy(SavingStrategy):
         if format_writers:
             self._writers.update(format_writers)
 
-    def get_file_path_stem(self) -> None:  # ty:ignore[invalid-method-override]
+    def get_file_path_stem(self) -> None:  # ty:ignore[incompatible-method-override]
         """Not applicable for this strategy; the full path is fixed via `file_path`."""
 
-    def get_file_name_stem(self) -> None:  # ty:ignore[invalid-method-override]
+    def get_file_name_stem(self) -> None:  # ty:ignore[incompatible-method-override]
         """Not applicable for this strategy; the full path is fixed via `file_path`."""
 
     def get_time_intervals_to_save(self, start_time: datetime, end_time: datetime) -> list[TimeInterval]:
@@ -170,7 +172,7 @@ class SingleFileStrategy(SavingStrategy):
         internal_name: InternalName,  # noqa: ARG002
         *,
         first_call_of_interval: bool,  # noqa: ARG002
-        available_keys: set[InternalName] | None = None,  # noqa: ARG002
+        available_keys: set[InternalName],  # noqa: ARG002
     ) -> Variable:
         """Does not modify the variable.
 
@@ -180,7 +182,7 @@ class SingleFileStrategy(SavingStrategy):
             variable (Variable): The variable instance to be standardized.
             internal_name (InternalName): The internal name of the variable (ignored).
             first_call_of_interval (bool): Flag to indicate if it is the first call of a time interval
-            available_keys (set(InternalName) | None): The full set of internal names being
+            available_keys (set[InternalName]): The full set of internal names being
                 saved together in this call.
 
         Returns:
@@ -280,7 +282,7 @@ class SingleFileStrategy(SavingStrategy):
                 if path in data_dict.get("metadata", {}):
                     self._write_metadata_to_netcdf_variable(data_set, data_dict["metadata"][path])
 
-    def save_single_file(self, file_path: Path, dict_to_save: dict[str, Any], *, append: bool = False) -> None:  # ty:ignore[invalid-method-override]
+    def save_single_file(self, file_path: Path, dict_to_save: dict[str, Any], *, append: bool = False) -> None:  # ty:ignore[incompatible-method-override]
         """Saves variable data to a single file in one of the supported formats.
 
         The file format is determined by the file extension. Built-in formats include .mat, .h5, .nc, and .cdf.

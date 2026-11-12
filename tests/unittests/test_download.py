@@ -16,8 +16,7 @@ import pytest
 
 
 @pytest.mark.usefixtures("enable_downloads")
-@pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.network
 def test_esa_api(tmp_path: Path):
 
     client_id = os.environ.get("ESA_CLIENT_ID")
@@ -49,8 +48,7 @@ def test_esa_api(tmp_path: Path):
 
 
 @pytest.mark.usefixtures("enable_downloads")
-@pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.network
 def test_request(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 
     download_mod = importlib.import_module("el_paso.download")
@@ -112,7 +110,6 @@ def test_request(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.mark.usefixtures("enable_downloads")
-@pytest.mark.minimal
 @pytest.mark.basic
 def test_get_next_time_with_callable_cadence() -> None:
     """A callable file_cadence should be invoked with curr_time and its return value used directly."""
@@ -129,7 +126,6 @@ def test_get_next_time_with_callable_cadence() -> None:
 
 
 @pytest.mark.usefixtures("enable_downloads")
-@pytest.mark.minimal
 @pytest.mark.basic
 def test_download_with_callable_cadence(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A callable file_cadence should drive ep.download the same way a built-in literal does."""
@@ -173,7 +169,6 @@ def test_download_with_callable_cadence(tmp_path: Path, monkeypatch: pytest.Monk
 
 
 @pytest.mark.usefixtures("enable_downloads")
-@pytest.mark.minimal
 @pytest.mark.basic
 def test_download_single_file_cadence_runs_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """file_cadence="single_file" must create exactly one task instead of looping forever."""
@@ -202,7 +197,6 @@ def test_download_single_file_cadence_runs_once(tmp_path: Path, monkeypatch: pyt
 
 
 @pytest.mark.usefixtures("enable_downloads")
-@pytest.mark.minimal
 @pytest.mark.basic
 @pytest.mark.parametrize(
     ("file_cadence", "start_time", "end_time", "expected_starts"),
@@ -255,8 +249,7 @@ def test_download_includes_end_file_when_start_is_late_in_its_day(
 
 
 @pytest.mark.usefixtures("enable_downloads")
-@pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.network
 def test_ftp(tmp_path: Path):
 
     start_time = datetime(2024, 1, 3, tzinfo=timezone.utc)
@@ -282,7 +275,6 @@ def test_ftp(tmp_path: Path):
 
 
 @pytest.mark.usefixtures("enable_downloads")
-@pytest.mark.minimal
 @pytest.mark.basic
 def test_exit_after_download(caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch):
     download_module = importlib.import_module("el_paso.download")
@@ -432,7 +424,6 @@ def test_falsy_env_values_neither_skip_nor_exit(
 
 
 @pytest.mark.usefixtures("enable_downloads")
-@pytest.mark.minimal
 @pytest.mark.basic
 def test_skip_existing_false_does_not_overwrite_files_outside_time_range(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch

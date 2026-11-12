@@ -43,11 +43,34 @@ def rbsp_hope_electron_netcdf_strategy(
     )
 
 
+def rbsp_hope_electron_strategy(
+    processed_data_path: str | Path,
+    mag_field: ep.typing.MagneticFieldLiteral,
+    satellite: RBSPSatellite,
+    save_strategy: Literal["gfz", "netcdf"] = "netcdf",
+) -> ep.SavingStrategy:
+    """Saving strategy of the RBSP HOPE electron recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
+        satellite (RBSPSatellite): Satellite the data belongs to.
+        save_strategy (Literal["gfz", "netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Legacy GFZ strategy for "gfz", otherwise a monthly or daily NetCDF strategy.
+    """
+    if save_strategy == "gfz":
+        return rbsp_hope_electron_gfz_strategy(processed_data_path, mag_field, satellite)
+
+    return rbsp_hope_electron_netcdf_strategy(processed_data_path, mag_field, satellite)
+
+
 def process_rbsp_hope_electrons(
     start_time: datetime,
     end_time: datetime,
     satellite: RBSPSatellite = "a",
-    mag_field: Literal["T89", "T96", "TS04"] = "T89",
+    mag_field: ep.typing.MagneticFieldLiteral = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=5),
@@ -58,6 +81,7 @@ def process_rbsp_hope_electrons(
     skip_existing: bool = True,
     add_B_obs: bool = False,
     save_indices_sw: bool = False,
+    append: bool = True,
 ) -> None:
     """Process RBSP ECT/HOPE electron flux data into the EL-PASO data standard.
 
@@ -73,7 +97,7 @@ def process_rbsp_hope_electrons(
         start_time (datetime): Start of the time range to process.
         end_time (datetime): End of the time range to process.
         satellite (Literal["a", "b"]): RBSP satellite identifier ("a" or "b").
-        mag_field (Literal["T89", "T96", "TS04"]): Magnetic field model used to compute the
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model used to compute the
             magnetic-field-related variables.
         raw_data_path (str | Path): Directory where raw CDF files are downloaded to and
             read from. Defaults to ".".
@@ -90,6 +114,8 @@ def process_rbsp_hope_electrons(
             magnetic field magnitude (B_total_obs) and InvMu_obs computed from it. Defaults to False.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to True.
     """
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
@@ -238,12 +264,9 @@ def process_rbsp_hope_electrons(
             "electron",
         )
 
-    if save_strategy == "gfz":
-        strategy = rbsp_hope_electron_gfz_strategy(processed_data_path, mag_field, satellite)
-    else:
-        strategy = rbsp_hope_electron_netcdf_strategy(processed_data_path, mag_field, satellite)
+    strategy = rbsp_hope_electron_strategy(processed_data_path, mag_field, satellite, save_strategy)
 
-    ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=True)
+    ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_variable, append=append)
 
     if save_indices_sw:
         process_solar_wind_indices(
@@ -254,5 +277,10 @@ def process_rbsp_hope_electrons(
         )
 
 
+PLOT_DEFAULTS = {
+    "panels": ["Kp", "FEDU", "R_Eq", "MLT"],
+    "FEDU": {"pitch_angle": 90 * u.deg},
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_rbsp_hope_electrons)
+    ep.run_recipe_cli(process_rbsp_hope_electrons, strategy=rbsp_hope_electron_strategy, plot_defaults=PLOT_DEFAULTS)

@@ -35,7 +35,7 @@ J2000_EPOCH = dt.datetime(2000, 1, 1, 12, 0, 0, tzinfo=dt.timezone.utc)
 RE = u.def_unit("RE", 6371.2 * u.km)
 
 # Phase space density unit
-psd_natural_unit = u.def_unit("c3_per_MeV3_cm3", (const.c / (u.MeV * u.cm)) ** 3)  # ty: ignore[unresolved-attribute]
+psd_natural_unit = u.def_unit("c3_per_MeV3_cm3", (const.c / (u.MeV * u.cm)) ** 3)  # ty: ignore[missing-attribute]
 
 # -----------------------------------------------------------------------------
 # 2. Time Conversion Functions

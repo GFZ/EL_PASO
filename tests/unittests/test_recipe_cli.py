@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import importlib
 import inspect
-import logging
 import typing
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -22,19 +21,15 @@ import el_paso as ep
 import pytest
 import typer
 import typer.testing
-from el_paso.cli.app import RECIPES, RecipeEntry, app, load_recipe
-from el_paso.cli.recipe_cli import (
-    _format_value,
-    build_recipe_command,
-    format_cadence,
-    parse_cadence,
-    parse_datetime,
-    parse_docstring,
-)
+from el_paso.cli._parsing import _format_value, format_cadence, parse_cadence, parse_datetime, parse_docstring
+from el_paso.cli.app import RECIPES, RecipeEntry, app, load_recipe, load_strategy_factory
+from el_paso.cli.recipe_cli import build_recipe_command, check_strategy_factory, run_recipe_cli
 from typer.testing import CliRunner, Result
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Sequence
+    from collections.abc import Sequence
+
+pytestmark = pytest.mark.usefixtures("no_live_logging")
 
 runner = CliRunner()
 
@@ -47,34 +42,6 @@ def invoke_app(args: Sequence[str], **kwargs: Any) -> Result:  # noqa: ANN401
 
 DEFAULT_NUM_CORES = 16
 """The core count every recipe defaults to; see test_num_cores_default_is_shared_by_every_recipe."""
-
-
-@pytest.fixture(autouse=True)
-def _no_crashy_live_logging(request: pytest.FixtureRequest) -> Iterator[None]:
-    """Detach pytest's live-log handler for the duration of each test.
-
-    Recipe commands report their run settings and failures through the standard `logging`
-    module rather than printing straight to stdout, so a `CliRunner.invoke()` in these tests
-    can trigger a real log emission mid-command. Combined with `log_cli = 1` in pytest.ini,
-    such an emission makes pytest's own live-log handler try to interleave output with
-    Click's captured stdout, which raises "ValueError: I/O operation on closed file" (a known
-    pytest/Click incompatibility, unrelated to whether the recipe command itself is correct).
-    Detaching it here does not affect `caplog`, which is backed by its own separate handler.
-    """
-    plugin = request.config.pluginmanager.get_plugin("logging-plugin")
-    if plugin is None:
-        yield
-        return
-
-    root_logger = logging.getLogger()
-    attached = plugin.log_cli_handler in root_logger.handlers
-    if attached:
-        root_logger.removeHandler(plugin.log_cli_handler)
-    try:
-        yield
-    finally:
-        if attached:
-            root_logger.addHandler(plugin.log_cli_handler)
 
 
 @pytest.fixture(autouse=True)
@@ -445,7 +412,7 @@ def test_stub_help_lists_satellite_all(stub_app: typer.Typer) -> None:
     result = runner.invoke(stub_app, ["--help"], env={"COLUMNS": "200"})
 
     assert result.exit_code == 0, result.output
-    assert "<a|b|all>" in click.unstyle(result.output)
+    assert "a|b|all" in click.unstyle(result.output)
 
 
 def recipe_failing_for_satellite_a(
@@ -706,13 +673,14 @@ def test_the_time_range_is_mandatory_for_every_recipe() -> None:
 @pytest.mark.parametrize("entry", RECIPES, ids=lambda e: f"{e.mission}-{e.command}")
 def test_every_recipe_is_exported_from_its_mission_package(entry: RecipeEntry) -> None:
     """A recipe must be importable as el_paso.recipes.<mission>.<function>."""
-    mission = importlib.import_module(f"el_paso.recipes.{entry.mission}")
+    # the package is taken from the module path, since a command group may be kebab-case (e.g. lanl-geogrid)
+    package_name = entry.module.rsplit(".", 1)[0]
+    package_path = package_name.replace(".", "/")
+    mission = importlib.import_module(package_name)
 
-    assert hasattr(mission, entry.function), (
-        f"{entry.function} is missing from el_paso/recipes/{entry.mission}/__init__.py"
-    )
+    assert hasattr(mission, entry.function), f"{entry.function} is missing from {package_path}/__init__.py"
     assert entry.function in getattr(mission, "__all__", ()), (
-        f"{entry.function} is missing from the __all__ of el_paso/recipes/{entry.mission}/__init__.py"
+        f"{entry.function} is missing from the __all__ of {package_path}/__init__.py"
     )
 
 
@@ -761,3 +729,82 @@ def test_cli_dispatches_to_a_recipe(caplog: pytest.LogCaptureFixture) -> None:
     assert "process_poes_meped_electron" in caplog.text
     assert "T96" in caplog.text
     assert "1min" in caplog.text
+
+
+# --- strategy factory registration -------------------------------------------------------------------------------
+
+
+def _recipe(  # noqa: PLR0913
+    start_time: datetime,
+    end_time: datetime,
+    satellite: Literal["a", "b"] = "a",
+    mag_field: Literal["T89", "TS04"] = "T89",
+    processed_data_path: str | Path = ".",
+    num_cores: int = 1,
+) -> None:
+    """Recipe used to test the factory check.
+
+    Args:
+        start_time (datetime): Start.
+        end_time (datetime): End.
+        satellite (Literal["a", "b"]): Satellite.
+        mag_field (Literal["T89", "TS04"]): Field model.
+        processed_data_path (str | Path): Output path.
+        num_cores (int): Cores.
+    """
+    del start_time, end_time, satellite, mag_field, processed_data_path, num_cores
+
+
+@pytest.mark.minimal
+def test_check_strategy_factory_accepts_matching_factory() -> None:
+    def factory(
+        processed_data_path: str | Path, mag_field: Literal["T89", "TS04"], satellite: Literal["a", "b"]
+    ) -> None: ...
+
+    check_strategy_factory(_recipe, factory)
+
+
+@pytest.mark.minimal
+def test_check_strategy_factory_reports_all_problems() -> None:
+    def factory(base_data_path: str | Path, mag_field: Literal["T89", "T96"], num_cores: dict) -> None: ...
+
+    with pytest.raises(TypeError) as excinfo:
+        check_strategy_factory(_recipe, factory)
+
+    message = str(excinfo.value)
+    assert "'base_data_path': not a parameter" in message
+    assert "'mag_field': annotated" in message
+    assert "'num_cores': unsupported annotation" in message
+
+
+@pytest.mark.minimal
+def test_run_recipe_cli_rejects_mismatching_factory() -> None:
+    def factory(base_data_path: str | Path) -> None: ...
+
+    with pytest.raises(TypeError, match="does not match recipe"):
+        run_recipe_cli(_recipe, strategy=factory, args=["--help"])
+
+
+@pytest.mark.minimal
+def test_run_recipe_cli_plot_defaults_require_strategy() -> None:
+    with pytest.raises(ValueError, match="requires a strategy factory"):
+        run_recipe_cli(_recipe, plot_defaults={"panels": []}, args=["--help"])
+
+
+@pytest.mark.minimal
+@pytest.mark.parametrize(
+    "entry", [e for e in RECIPES if e.strategy is not None], ids=lambda e: f"{e.mission}-{e.command}"
+)
+def test_registered_strategy_factories_match_their_recipes(entry: RecipeEntry) -> None:
+    recipe, _ = load_recipe(entry)
+    factory = load_strategy_factory(entry)
+
+    assert factory is not None
+    check_strategy_factory(recipe, factory)
+
+
+@pytest.mark.minimal
+def test_mageis_electrons_registers_its_strategy_factory() -> None:
+    entry = next(e for e in RECIPES if e.command == "mageis-electrons")
+
+    assert load_strategy_factory(entry) is not None

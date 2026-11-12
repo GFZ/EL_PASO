@@ -24,20 +24,30 @@ logger = logging.getLogger(__name__)
 
 
 def esa_ngrm_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     satellite: ESANGRMSatellite,
-    *,
-    file_format: ep.typing.MFSFormats = ".nc",
+    save_strategy: Literal["netcdf"] = "netcdf",
 ) -> ep.SavingStrategy:
-    """NetCDF saving strategy for ESA NGRM, daily for S6 satellites and monthly otherwise."""
+    """Saving strategy of the ESA NGRM recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
+        satellite (ESANGRMSatellite): Satellite the data belongs to.
+        save_strategy (Literal["netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Daily NetCDF strategy for Sentinel-6 satellites, otherwise a monthly NetCDF strategy.
+    """
+    file_format: ep.typing.MFSFormats = {"netcdf": "nc"}[save_strategy]
     strategy_cls = (
         ep.saving_strategies.DailyLEORBStrategy
         if satellite.startswith("S6")
         else ep.saving_strategies.MonthlyRBStrategy
     )
     return strategy_cls(
-        Path(base_data_path),
+        Path(processed_data_path),
         "ESA",
         satellite.lower(),
         "ngrm",
@@ -77,6 +87,7 @@ def process_ngrm_electron_fluxes(
     *,
     calculate_Lstar: bool = True,
     save_indices_sw: bool = False,
+    append: bool = True,
 ) -> None:
     """Process ESA NGRM electron flux data for the given satellite into omnidirectional fluxes and PSD.
 
@@ -111,13 +122,13 @@ def process_ngrm_electron_fluxes(
         calculate_Lstar (bool): If True, also compute the L* magnetic field quantity.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to True.
 
     Raises:
         ValueError: If `client_id` or `client_secret` is not provided and not available via the
             `CLIENT_ID`/`CLIENT_SECRET` environment variables.
     """
-    del save_strategy
-
     data_path_stem = f"{raw_data_path}/NGRM/{satellite}/YYYY/MM/"
     file_name_stem = f"{satellite}_ngrm_YYYYMMDD_L1d.csv"
 
@@ -221,7 +232,7 @@ def process_ngrm_electron_fluxes(
     coords_ITRS = coords_ECI.transform_to(ITRS(obstime=datetimes))
     xgeo_data = np.stack((coords_ITRS.x, coords_ITRS.y, coords_ITRS.z)).T
 
-    variables["xGEO"] = ep.Variable(data=xgeo_data.value, original_unit=u.km)  # ty:ignore[unresolved-attribute]
+    variables["xGEO"] = ep.Variable(data=xgeo_data.value, original_unit=u.km)  # ty: ignore[missing-attribute]
     del variables["x_ECI"], variables["y_ECI"], variables["z_ECI"]
 
     # create flux variable
@@ -326,9 +337,9 @@ def process_ngrm_electron_fluxes(
     if calculate_Lstar:
         variables_to_save["L_star"] = magnetic_field_variables[f"L_star_{mag_field}"]
 
-    saving_strategy = esa_ngrm_strategy(processed_data_path, mag_field, satellite)
+    saving_strategy = esa_ngrm_strategy(processed_data_path, mag_field, satellite, save_strategy)
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=True)
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=append)
 
     if save_indices_sw:
         process_solar_wind_indices(
@@ -343,5 +354,16 @@ CLI_DEFAULTS = {
     "bin_cadence": timedelta(minutes=5),
 }
 
+PLOT_DEFAULTS = {
+    "panels": ["Kp", "FEDU"],
+    "FEDU": {
+        "pitch_angle": 90 * u.deg,
+        "energies": [100, 500, 1000] * u.keV,  # placeholder energies, to be replaced by the instrument channels
+        "along": "L_m",
+    },
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_ngrm_electron_fluxes, defaults=CLI_DEFAULTS)
+    ep.run_recipe_cli(
+        process_ngrm_electron_fluxes, defaults=CLI_DEFAULTS, strategy=esa_ngrm_strategy, plot_defaults=PLOT_DEFAULTS
+    )

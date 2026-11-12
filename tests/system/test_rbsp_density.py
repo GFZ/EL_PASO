@@ -57,7 +57,7 @@ def _assert_variables_load(dataset: DataSet, internal_names: list[ep.typing.Inte
         assert not np.all(np.isnan(data)), f"{internal_name} is entirely NaN"
 
 
-@pytest.mark.basic
+@pytest.mark.network
 def test_rbsp_density_without_hiss(
     tmpdir: Path,
     skip_if_unreachable: Callable[..., None],
@@ -93,10 +93,45 @@ def test_rbsp_density_without_hiss(
 
     dataset = DataSet(
         saving_strategy=rbsp_efw_emfisis_density_combined_strategy(
-            processed_data_path, _SATELLITE, _MAG_FIELD, file_format=file_format
+            processed_data_path, _SATELLITE, _MAG_FIELD, file_format
         ),
         start_time=_START_TIME,
         end_time=_END_TIME,
     )
 
     _assert_variables_load(dataset, _DENSITY_VARIABLES)
+
+
+@pytest.mark.visual
+@pytest.mark.network
+def test_rbsp_density_plot_default(
+    tmp_path: Path, skip_if_unreachable: Callable[..., None], plot_default: Callable[..., None]
+) -> None:
+    """Process the combined RBSP density and show the default figure of `el-paso plot rbsp density-combined`."""
+    skip_if_unreachable("https://spdf.gsfc.nasa.gov")
+
+    process_rbsp_efw_emfisis_density_combined(
+        start_time=_START_TIME,
+        end_time=_END_TIME,
+        satellite=_SATELLITE,
+        mag_field="T89",
+        raw_data_path=Path(__file__).parent / "data" / "raw" / "rbsp",
+        processed_data_path=tmp_path,
+        num_cores=4,
+        save_strategy="mat",
+        add_hiss_derived_densitites=False,
+    )
+
+    plot_default(
+        "rbsp",
+        "density-combined",
+        tmp_path,
+        _START_TIME,
+        _END_TIME,
+        "--satellite",
+        _SATELLITE,
+        "--mag-field",
+        "T89",
+        "--save-strategy",
+        "mat",
+    )

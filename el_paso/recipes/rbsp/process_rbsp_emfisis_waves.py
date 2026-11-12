@@ -25,17 +25,27 @@ if TYPE_CHECKING:
 
 
 def rbsp_emfisis_waves_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     satellite: RBSPSatellite,
-    data_standard: ep.typing.DataStandard[ep.typing.StandardName] | None = None,
+    save_strategy: Literal["netcdf"] = "netcdf",
 ) -> ep.SavingStrategy:
-    """Daily NetCDF wave saving strategy for RBSP EMFISIS."""
+    """Saving strategy of the RBSP EMFISIS wave recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        satellite (RBSPSatellite): RBSP satellite, "a" or "b".
+        save_strategy (Literal["netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Daily NetCDF wave saving strategy following the GFZ data standard.
+    """
+    del save_strategy
     return ep.saving_strategies.DailyWaveStrategy(
-        Path(base_data_path),
+        Path(processed_data_path),
         "RBSP",
         "rbsp" + satellite,
         "EMFISIS",
-        data_standard or ep.data_standards.GFZStandard(),
+        ep.data_standards.GFZStandard(),
     )
 
 
@@ -43,7 +53,7 @@ def process_rbsp_emfisis_waves(
     start_time: datetime,
     end_time: datetime,
     satellite: RBSPSatellite = "a",
-    mag_field: Literal["T89", "T96", "TS04"] = "T89",
+    mag_field: ep.typing.MagneticFieldLiteral = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=5),
@@ -52,6 +62,7 @@ def process_rbsp_emfisis_waves(
     *,
     skip_existing: bool = True,
     save_indices_sw: bool = False,
+    append: bool = False,
 ) -> None:
     """Process RBSP EMFISIS wave, density, and magnetometer data and save derived wave properties.
 
@@ -69,7 +80,7 @@ def process_rbsp_emfisis_waves(
         start_time (datetime): Start of the time range to process.
         end_time (datetime): End of the time range to process.
         satellite (Literal["a", "b"]): RBSP satellite identifier ("a" or "b").
-        mag_field (Literal["T89", "T96", "TS04"]): Unused by this recipe; accepted only for
+        mag_field (ep.typing.MagneticFieldLiteral): Unused by this recipe; accepted only for
             interface consistency with other EL-PASO recipes, since EMFISIS wave processing
             derives its orbital quantities (L-shell, MLAT, MLT, electron cyclotron frequency)
             directly from the magnetometer data without using a magnetic field model.
@@ -90,11 +101,12 @@ def process_rbsp_emfisis_waves(
             Defaults to True.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to False.
     """
     del mag_field
     del bin_cadence
     del num_cores
-    del save_strategy
 
     wfr_url = (
         f"https://cdaweb.gsfc.nasa.gov/pub/data/rbsp/rbsp{satellite}/l2/emfisis/wfr/spectral-matrix-diagonal/YYYY/"
@@ -189,9 +201,9 @@ def process_rbsp_emfisis_waves(
         "f_ce_Eq": orbit_vars["f_ce_Eq"],
     }
 
-    saving_strat = rbsp_emfisis_waves_strategy(processed_data_path, satellite)
+    saving_strat = rbsp_emfisis_waves_strategy(processed_data_path, satellite, save_strategy)
 
-    ep.save(vars_to_save, saving_strat, start_time, end_time, target_time_var)
+    ep.save(vars_to_save, saving_strat, start_time, end_time, target_time_var, append=append)
 
     if save_indices_sw:
         process_solar_wind_indices(
@@ -523,5 +535,9 @@ def _plot_wna(wna_vars: dict[str, ep.Variable]) -> None:
     plt.savefig("wna.png")
 
 
+PLOT_DEFAULTS = {
+    "panels": ["Magnetic_Power_Spectral_Density"],
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_rbsp_emfisis_waves)
+    ep.run_recipe_cli(process_rbsp_emfisis_waves, strategy=rbsp_emfisis_waves_strategy, plot_defaults=PLOT_DEFAULTS)

@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -13,7 +14,7 @@ from el_paso.recipes.probav import process_ept_electron_fluxes
 
 
 @pytest.mark.parametrize("apply_correction_factors", [True, False])
-@pytest.mark.basic
+@pytest.mark.network
 @pytest.mark.usefixtures("enable_downloads")
 @pytest.mark.skip(reason="update test data on Hugging Face")
 def test_probav_ept(
@@ -45,3 +46,26 @@ def test_probav_ept(
 
     out_path = processed_data_path / "PROBAV" / "probav" / f"probav_ept_{start_time:%Y%m%d}_T89.nc"
     assert out_path.exists()
+
+
+@pytest.mark.visual
+@pytest.mark.network
+@pytest.mark.usefixtures("enable_downloads")
+@pytest.mark.skip(reason="update test data on Hugging Face")
+def test_probav_ept_plot_default(tmp_path: Path, plot_default: Callable[..., None]) -> None:
+    """Process PROBA-V EPT electrons and show the default figure of `el-paso plot probav ept-electrons`."""
+    start_time = datetime(2017, 9, 8, tzinfo=timezone.utc)
+    end_time = start_time + timedelta(hours=4)
+
+    process_ept_electron_fluxes(
+        start_time=start_time,
+        end_time=end_time,
+        raw_data_path=Path(__file__).parent / "data" / "raw",
+        processed_data_path=tmp_path,
+        num_cores=32,
+        save_strategy="netcdf",
+        client_id=os.environ.get("ESA_CLIENT_ID"),
+        client_secret=os.environ.get("ESA_CLIENT_SECRET"),
+    )
+
+    plot_default("probav", "ept-electrons", tmp_path, start_time, end_time)

@@ -259,7 +259,7 @@ def _create_variables_from_data_frame(
             f"{index_name} values sourced from model(s): {', '.join(contributing_models)}."
         )
 
-    timestamps = np.asarray([t.timestamp() for t in df_in.index.to_pydatetime()])  # ty:ignore[unresolved-attribute]
+    timestamps = np.asarray([t.timestamp() for t in df_in.index.to_pydatetime()])  # ty:ignore[missing-attribute]
     time_var = ep.Variable(data=timestamps, original_unit=ep.units.posixtime)
 
     if target_time_variable is None:

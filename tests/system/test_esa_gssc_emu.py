@@ -12,7 +12,7 @@ import pytest
 from el_paso.recipes.esa import process_gssc_emu_electrons, process_gssc_emu_protons
 
 
-@pytest.mark.basic
+@pytest.mark.network
 @pytest.mark.usefixtures("enable_downloads")
 def test_esa_gssc_emu_electrons(
     tmpdir: Path,
@@ -50,7 +50,7 @@ def test_esa_gssc_emu_electrons(
     assert out_path.exists()
 
 
-@pytest.mark.basic
+@pytest.mark.network
 @pytest.mark.usefixtures("enable_downloads")
 def test_esa_gssc_emu_protons(
     tmpdir: Path,
@@ -83,3 +83,52 @@ def test_esa_gssc_emu_protons(
         processed_data_path / "ESA" / "gsat0215" / f"gsat0215_emu-proton_{start_date:%Y%m%d}to{end_date:%Y%m%d}_T89.nc"
     )
     assert out_path.exists()
+
+
+@pytest.mark.visual
+@pytest.mark.network
+@pytest.mark.usefixtures("enable_downloads")
+def test_esa_gssc_emu_electrons_plot_default(
+    tmp_path: Path, skip_if_unreachable: Callable[..., None], plot_default: Callable[..., None]
+) -> None:
+    """Process ESA GSSC EMU electrons and show the default figure of `el-paso plot esa gssc-emu-electrons`."""
+    skip_if_unreachable("ftp://gssc.esa.int", "https://www.space-track.org")
+
+    start_time = datetime(2019, 1, 4, tzinfo=timezone.utc)
+    end_time = start_time + timedelta(hours=4)
+
+    process_gssc_emu_electrons(
+        start_time=start_time,
+        end_time=end_time,
+        satellite="gsat0215",
+        raw_data_path=Path(__file__).parent / "data" / "raw",
+        processed_data_path=tmp_path,
+        num_cores=32,
+        calculate_Lstar=False,
+    )
+
+    plot_default("esa", "gssc-emu-electrons", tmp_path, start_time, end_time, "--satellite", "gsat0215")
+
+
+@pytest.mark.visual
+@pytest.mark.network
+@pytest.mark.usefixtures("enable_downloads")
+def test_esa_gssc_emu_protons_plot_default(
+    tmp_path: Path, skip_if_unreachable: Callable[..., None], plot_default: Callable[..., None]
+) -> None:
+    """Process ESA GSSC EMU protons and show the default figure of `el-paso plot esa gssc-emu-protons`."""
+    skip_if_unreachable("ftp://gssc.esa.int", "https://www.space-track.org")
+
+    start_time = datetime(2019, 1, 4, tzinfo=timezone.utc)
+    end_time = start_time + timedelta(hours=4)
+
+    process_gssc_emu_protons(
+        start_time=start_time,
+        end_time=end_time,
+        satellite="gsat0215",
+        raw_data_path=Path(__file__).parent / "data" / "raw",
+        processed_data_path=tmp_path,
+        num_cores=32,
+    )
+
+    plot_default("esa", "gssc-emu-protons", tmp_path, start_time, end_time, "--satellite", "gsat0215")

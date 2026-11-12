@@ -395,8 +395,7 @@ def test_download_omm_instant_mode_multi_satellite(monkeypatch: pytest.MonkeyPat
     assert written == {"ISS": "omm_20240102.csv", "GALILEO_24": "omm_20240102.csv"}
 
 
-@pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.network
 def test_download_omm_live(tmp_path: Path, skip_if_unreachable: Callable[..., None]) -> None:
     skip_if_unreachable("https://www.space-track.org")
 

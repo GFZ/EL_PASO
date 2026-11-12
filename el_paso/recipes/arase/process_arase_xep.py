@@ -10,7 +10,7 @@ from __future__ import annotations
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 
 import numpy as np
 from astropy import units as u
@@ -27,20 +27,32 @@ from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import proces
 
 
 def arase_xep_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
-    *,
-    file_format: ep.typing.MFSFormats = "nc",
+    save_strategy: Literal["gfz", "netcdf"] = "netcdf",
 ) -> ep.SavingStrategy:
-    """Monthly saving strategy for Arase XEP, which also saves the omnidirectional flux (FEDO)."""
+    """Saving strategy of the Arase XEP recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
+        save_strategy (Literal["gfz", "netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Legacy GFZ strategy for "gfz", otherwise a monthly NetCDF strategy that also saves
+            the omnidirectional flux (FEDO).
+    """
+    if save_strategy == "gfz":
+        return arase_xep_gfz_strategy(processed_data_path, mag_field)
+
     return ep.saving_strategies.MonthlyOmniFluxRBStrategy(
-        Path(base_data_path),
+        Path(processed_data_path),
         "Arase",
         "arase",
         "xep",
         mag_field,
         data_standard=ep.data_standards.GFZStandard(),
-        file_format=file_format,
+        file_format="nc",
     )
 
 
@@ -60,7 +72,7 @@ def process_arase_xep(
     start_time: datetime,
     end_time: datetime,
     satellite: Literal["arase"] = "arase",
-    mag_field: Literal["T89", "TS04", "OP77Q"] = "T89",
+    mag_field: ep.typing.MagneticFieldLiteral = "T89",
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(minutes=5),
@@ -70,7 +82,9 @@ def process_arase_xep(
     use_level_3_orbit_data: bool = True,
     skip_existing: bool = True,
     add_B_obs: bool = False,
+    calculate_Lstar: bool = True,
     save_indices_sw: bool = False,
+    append: bool = False,
 ) -> None:
     """Process Arase XEP Level 2 omnidirectional electron flux data and save derived products.
 
@@ -93,7 +107,7 @@ def process_arase_xep(
         end_time (datetime): End of the time range to process.
         satellite (Literal["arase"]): Identifier of the satellite to process. Arase is a
                                                     single-satellite mission, so this has only one value.
-        mag_field (Literal["T89", "TS04", "OP77Q"]): The magnetic field model used for the
+        mag_field (ep.typing.MagneticFieldLiteral): The magnetic field model used for the
                                                     magnetic-field-related output variables.
         raw_data_path (str | Path): Directory where downloaded raw data files are
                                             stored. Defaults to ".".
@@ -115,10 +129,24 @@ def process_arase_xep(
         add_B_obs (bool): If True, also download the MGF Level 2 8-second magnetometer data and save
                                 the observed magnetic field magnitude (B_total_obs) and InvMu_obs computed
                                 from it. Defaults to False.
+        calculate_Lstar (bool): If True, also compute (or, when `use_level_3_orbit_data` is True,
+            interpolate and save) the L* magnetic field quantity. Defaults to True.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to False.
+
+    Raises:
+        ValueError: If `use_level_3_orbit_data` is set and `mag_field` is not one of "OP77Q", "T89" or "TS04".
     """
     del satellite
+
+    if use_level_3_orbit_data and mag_field not in ("OP77Q", "T89", "TS04"):
+        msg = (
+            f"Invalid mag_field '{mag_field}' for Arase Level 3 orbit data. "
+            "Valid options are OP77Q, T89 and TS04, or set use_level_3_orbit_data=False."
+        )
+        raise ValueError(msg)
 
     raw_data_path = Path(raw_data_path)
     processed_data_path = Path(processed_data_path)
@@ -143,7 +171,11 @@ def process_arase_xep(
 
     if use_level_3_orbit_data:
         orb_variables = get_arase_orbit_level_3_variables(
-            start_time, end_time, mag_field, raw_data_path=raw_data_path, skip_existing=skip_existing
+            start_time,
+            end_time,
+            cast("Literal['OP77Q', 'T89', 'TS04']", mag_field),
+            raw_data_path=raw_data_path,
+            skip_existing=skip_existing,
         )
     else:
         orb_variables = get_arase_orbit_level_2_variables(
@@ -213,10 +245,11 @@ def process_arase_xep(
             "B_local": ep.TimeBinMethod.NanMedian,
             "B_eq": ep.TimeBinMethod.NanMedian,
             "Lm": ep.TimeBinMethod.NanMean,
-            "Lstar": ep.TimeBinMethod.NanMean,
             "MLT": ep.TimeBinMethod.NanMean,
             "R0": ep.TimeBinMethod.NanMean,
         }
+        if calculate_Lstar:
+            time_bin_methods["Lstar"] = ep.TimeBinMethod.NanMean
 
         binned_time_variable = ep.processing.bin_by_time(
             orb_variables["Epoch"],
@@ -236,7 +269,8 @@ def process_arase_xep(
 
         pa_local_deg = xep_variables["AlphaLocal"].get_data(u.deg)
         orb_variables["Lm"] = interpolate_level_3_to_pitch_angles(orb_variables["Lm"], pa_local_deg)
-        orb_variables["Lstar"] = interpolate_level_3_to_pitch_angles(orb_variables["Lstar"], pa_local_deg)
+        if calculate_Lstar:
+            orb_variables["Lstar"] = interpolate_level_3_to_pitch_angles(orb_variables["Lstar"], pa_local_deg)
 
     else:
         time_bin_methods = {
@@ -264,7 +298,11 @@ def process_arase_xep(
         )
         pos_geo_var = ep.Variable(data=geo_data, original_unit=ep.units.RE)
 
-        irbem_options = ep.processing.magnetic_field_utils.IrbemOptions()
+        irbem_options = ep.processing.magnetic_field_utils.IrbemOptions(
+            lstar_quantity=ep.processing.magnetic_field_utils.LstarQuantity.LSTAR
+            if calculate_Lstar
+            else ep.processing.magnetic_field_utils.LstarQuantity.NONE,
+        )
 
         variables_to_compute: ep.processing.VariableRequest = [
             ("B_Calc", mag_field),
@@ -273,10 +311,12 @@ def process_arase_xep(
             ("R_Eq", mag_field),
             ("Alpha_Eq", mag_field),
             ("L_m", mag_field),
-            ("L_star", mag_field),
             ("InvK", mag_field),
             ("InvMu", mag_field),
         ]
+
+        if calculate_Lstar:
+            variables_to_compute.append(("L_star", mag_field))
 
         magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
             time_var=binned_time_variable,
@@ -293,7 +333,8 @@ def process_arase_xep(
         orb_variables["MLT"] = magnetic_field_variables["MLT_" + mag_field]
         xep_variables["Alpha_eq"] = magnetic_field_variables["Alpha_Eq_" + mag_field]
         orb_variables["Lm"] = magnetic_field_variables["L_m_" + mag_field]
-        orb_variables["Lstar"] = magnetic_field_variables["L_star_" + mag_field]
+        if calculate_Lstar:
+            orb_variables["Lstar"] = magnetic_field_variables["L_star_" + mag_field]
         orb_variables["InvK"] = magnetic_field_variables["InvK_" + mag_field]
         orb_variables["InvMu"] = magnetic_field_variables["InvMu_" + mag_field]
 
@@ -335,9 +376,11 @@ def process_arase_xep(
         "R_Eq": orb_variables["R0"],
         "MLT": orb_variables["MLT"],
         "L_m": orb_variables["Lm"],
-        "L_star": orb_variables["Lstar"],
         "PSD": psd_var,
     }
+    if calculate_Lstar:
+        variables_to_save["L_star"] = orb_variables["Lstar"]
+
     # Level 3 orbit data does not provide the adiabatic invariants
     if not use_level_3_orbit_data:
         variables_to_save |= {
@@ -357,13 +400,9 @@ def process_arase_xep(
             "electron",
         )
 
-    match save_strategy:
-        case "gfz":
-            saving_strategy = arase_xep_gfz_strategy(processed_data_path, mag_field)
-        case "netcdf":
-            saving_strategy = arase_xep_strategy(processed_data_path, mag_field)
+    saving_strategy = arase_xep_strategy(processed_data_path, mag_field, save_strategy)
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable)
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, binned_time_variable, append=append)
 
     if save_indices_sw:
         process_solar_wind_indices(
@@ -378,5 +417,16 @@ CLI_DEFAULTS = {
     "use_level_3_orbit_data": False,
 }
 
+PLOT_DEFAULTS = {
+    "panels": ["Kp", "FEDU"],
+    "FEDU": {
+        "pitch_angle": 90 * u.deg,
+        "energies": [500, 1000, 2000] * u.keV,
+        "along": "L_m",
+    },
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_arase_xep, defaults=CLI_DEFAULTS)
+    ep.run_recipe_cli(
+        process_arase_xep, defaults=CLI_DEFAULTS, strategy=arase_xep_strategy, plot_defaults=PLOT_DEFAULTS
+    )

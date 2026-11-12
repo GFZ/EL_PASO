@@ -11,7 +11,7 @@ SPDX-License-Identifier: Apache-2.0
 | Status     | [![Tests](https://github.com/GFZ/EL_PASO/actions/workflows/test.yml/badge.svg)](https://github.com/GFZ/EL_PASO/actions/workflows/test.yml) [![Coverage Status](https://coveralls.io/repos/github/GFZ/EL_PASO/badge.svg?branch=main)](https://coveralls.io/github/GFZ/EL_PASO?branch=main) [![Docs](https://app.readthedocs.org/projects/el-paso/badge/?version=latest)](https://el-paso.readthedocs.io/en/latest/) [![REUSE status](https://api.reuse.software/badge/github.com/GFZ/EL_PASO)](https://api.reuse.software/info/github.com/GFZ/EL_PASO) |
 | Tools      | [![Pre-Commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit) [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) [![ty](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ty/main/assets/badge/v0.json)](https://github.com/astral-sh/ty) |
 | License    | [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![License: LGPL v3](https://img.shields.io/badge/License-LGPL_v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)                                                                                                                    |
-| Paper      | [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/GFZ/EL_PASO/executable_paper?urlpath=%2Fdoc%2Ftree%2Fpaper%2Fel_paso_executable_paper.ipynb) [![Paper](https://img.shields.io/badge/Open_Access-10.22541/essoar.15002644/v1-blue)](https://essopenarchive.org/doi/abs/10.22541/essoar.15002644/v1)                          |
+| Paper      | [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/GFZ/EL_PASO/executable_paper?urlpath=%2Fdoc%2Ftree%2Fpaper%2Fel_paso_executable_paper.ipynb) [![Paper](https://img.shields.io/badge/DOI-10.1029/2026EA005044-blue)](https://doi.org/10.1029/2026EA005044)                          |
 | SPEC       | [![SPEC 0 — Minimum Supported Dependencies](https://img.shields.io/badge/SPEC-0-green?labelColor=%23004811&color=%235CA038)](https://scientific-python.org/specs/spec-0000/) [![SPEC 1 — Lazy Loading of Submodules and Functions](https://img.shields.io/badge/SPEC-1-green?labelColor=%23004811&color=%235CA038)](https://scientific-python.org/specs/spec-0001/) |
 
 # ELaborative Particle Analysis from Satellite Observations (EL-PASO)
@@ -33,40 +33,50 @@ Full documentation can be viewed [here](https://el-paso.readthedocs.io/en/latest
 
 ## Available processing scripts
 
+Color code: ${\color{#4A8A4F}\textsf{publication ready}}$, ${\color{#E6D753}\textsf{needs verification}}$, ${\color{#E67D53}\textsf{draft}}$
+
 - **Arase**
-    - MEPe
-    - XEP (archived and real-time)
-    - PWE density
-- **DMSP**
-    - SSJ (electrons)
+    - ${\color{#E6D753}\textsf{MEPe}}$
+    - ${\color{#E6D753}\textsf{HEP (L and H)}}$
+    - ${\color{#4A8A4F}\textsf{XEP (archived and real-time)}}$
+    - ${\color{#4A8A4F}\textsf{PWE density}}$
+- **DMSP (F16, F17, F18)**
+    - ${\color{#E6D753}\textsf{SSJ (electrons)}}$
 - **GOES (13 and 15)**
-    - EPS MAGED and EPEAD combined
+    - ${\color{#4A8A4F}\textsf{EPS MAGED and EPEAD combined}}$
 - **GOES-R**
-    - MPS-High real-time
-    - MPS-High
+    - ${\color{#E6D753}\textsf{MPS-High (archived and real-time)}}$
 - **GPS**
-    - GPS processing
+    - ${\color{#E6D753}\textsf{GPS processing}}$
+- **LANL GeoGrid**
+    - ${\color{#E67D53}\textsf{SOPA and ESP (electrons)}}$
+    - ${\color{#E67D53}\textsf{SOPA (protons)}}$
+    - ${\color{#E67D53}\textsf{MPA (electrons)}}$
+    - ${\color{#E67D53}\textsf{MPA (ions)}}$
 - **ESA**
-    - NGRM satellites
-    - GSSC EMU (electrons and protons)
-- **POES**
-    - MEPED (electrons)
-    - TED (electrons)
+    - ${\color{#E67D53}\textsf{NGRM satellites}}$
+    - ${\color{#E67D53}\textsf{GSSC EMU (electrons and protons)}}$
+- **POES (no proton correction)**
+    - ${\color{#4A8A4F}\textsf{MEPED (electrons)}}$
+    - ${\color{#4A8A4F}\textsf{TED (electrons)}}$
 - **PROBA-V**
-    - EPT (electrons and protons)
+    - ${\color{#E6D753}\textsf{EPT (electrons and protons)}}$
 - **THEMIS**
-    - FFT waves
-    - Spacecraft-potential density
+    - ${\color{#E6D753}\textsf{FFT waves}}$
+    - ${\color{#E6D753}\textsf{Spacecraft-potential density}}$
 - **Van Allen Probes**
-    - HOPE (electrons and protons)
-    - MagEIS (electrons and protons)
-    - RBSPICE (protons)
-    - ECT-combined
-    - EMFISIS waves
-    - EMFISIS and EFW density
+    - ${\color{#4A8A4F}\textsf{HOPE (electrons)}}$
+    - ${\color{#E67D53}\textsf{HOPE (protons)}}$
+    - ${\color{#4A8A4F}\textsf{MagEIS (electrons)}}$
+    - ${\color{#E67D53}\textsf{MagEIS (protons)}}$
+    - ${\color{#E67D53}\textsf{RBSPICE (protons)}}$
+    - ${\color{#4A8A4F}\textsf{REPT (electrons)}}$
+    - ${\color{#4A8A4F}\textsf{ECT-combined}}$
+    - ${\color{#4A8A4F}\textsf{EMFISIS waves}}$
+    - ${\color{#4A8A4F}\textsf{EMFISIS and EFW density}}$
 - **Models**
-    - Last closed drift shell (LCDS)  (no spacecraft data needed)
-    - Solar wind and geomagnetic indices
+    - ${\color{#4A8A4F}\textsf{Last closed drift shell (LCDS)}}$
+    - ${\color{#4A8A4F}\textsf{Solar wind and geomagnetic indices}}$
 
 Every recipe shares one command line interface; see
 [Running a recipe](#running-a-recipe) below.
@@ -167,6 +177,20 @@ check `--help`.
 See the [command line documentation](docs/getting_started/command_line.md) for
 the full list.
 
+### Plotting processed data
+
+`el-paso plot <mission> <recipe>` draws a quick-look figure of data you have
+already processed. Pass the same arguments you used for processing, so the same
+files are located again:
+
+```bash
+el-paso plot rbsp mageis-electrons \
+    --start-time 2017-10-15 --end-time 2017-10-16T23:59:59 \
+    --satellite a --mag-field T89 \
+    --processed-data-path ./processed
+```
+See the [plotting section](docs/getting_started/command_line.md#plotting) of the command line documentation for details.
+
 ## Testing
 
 ### Step 1: Download the Test Data
@@ -223,23 +247,22 @@ Please read our comprehensive [contribution guide](CONTRIBUTING.md) before submi
 
 ## Citation
 
-If you use `EL-PASO` in your research, please cite the associated preprint:
+If you use `EL-PASO` in your research, please cite the associated paper:
 
-> Haas, B., Drozdov, A. Y., and Jhawar, S. 	EL-PASO: An Open-Source Python Library for Processing and Standardizing Particle Measurements Taken in Space. ESS Open Archive. https://essopenarchive.org/doi/full/10.22541/essoar.15002644/v1
+> Haas, B., Drozdov, A. Y., Szabó-Roberts, M., & Jhawar, S. (2026). EL-PASO: An Open-Source Python Library for Processing and Standardizing Particle Measurements Taken in Space. *Earth and Space Science, 13*, e2026EA005044. https://doi.org/10.1029/2026EA005044
 
 ```bibtex
-@article{
-doi:10.22541/essoar.15002644/v1,
-author = {Bernhard Haas  and Alexander Y. Drozdov  and Sahil Jhawar },
-title = {EL-PASO: An Open-Source Python Library for Processing and Standardizing Particle Measurements Taken in Space},
-journal = {ESS Open Archive},
-volume = {2026},
-number = {0502},
-pages = {},
-year = {2026},
-doi = {10.22541/essoar.15002644/v1},
-URL = {https://essopenarchive.org/doi/abs/10.22541/essoar.15002644/v1},
-eprint = {https://essopenarchive.org/doi/pdf/10.22541/essoar.15002644/v1}}
+@article{haas2026elpaso,
+  author  = {Haas, Bernhard and Drozdov, Alexander Y. and Szab{\'o}-Roberts, M{\'a}ty{\'a}s and Jhawar, Sahil},
+  title   = {{EL-PASO}: An Open-Source Python Library for Processing and Standardizing Particle Measurements Taken in Space},
+  journal = {Earth and Space Science},
+  volume  = {13},
+  number  = {11},
+  pages   = {e2026EA005044},
+  year    = {2026},
+  doi     = {10.1029/2026EA005044},
+  url     = {https://doi.org/10.1029/2026EA005044}
+}
 ```
 
 To cite this repository you can use [CITATION.cff](CITATION.cff).

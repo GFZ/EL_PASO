@@ -7,6 +7,7 @@ from astropy import units as u
 
 import el_paso as ep
 from el_paso.data_standard import ConsistencyCheck, DataStandard, VariableInfo
+from el_paso.one_of import OneOf
 from el_paso.typing import GFZVarNames, InternalName
 
 
@@ -66,17 +67,36 @@ class GFZStandard(DataStandard[GFZVarNames]):
                 ["Epoch", "Energy_FPDU"],
                 ("Energy_FPDU", "ascending"),
             ),
+            "Energy_FIDU": VariableInfo[GFZVarNames](
+                "energy_FIDU",
+                "Central energy of measured ion differential flux.",
+                u.MeV,
+                ["Epoch", "Energy_FIDU"],
+                ("Energy_FIDU", "ascending"),
+            ),
             "FEDU": VariableInfo[GFZVarNames](
                 "Flux",
                 "Electron differential unidirectional flux.",
                 (u.cm**2 * u.s * u.sr * u.keV) ** (-1),
                 ["Epoch", "Energy_FEDU", "Alpha"],
             ),
+            "FEDU_SA": VariableInfo[GFZVarNames](
+                "FEDU_SA",
+                "Electron differential flux, spin-averaged over the look directions (no pitch angle resolution).",
+                (u.cm**2 * u.s * u.sr * u.keV) ** (-1),
+                ["Epoch", "Energy_FEDU"],
+            ),
             "FEIU": VariableInfo[GFZVarNames](
                 "FEIU",
                 "Electron integral unidirectional flux.",
                 (u.cm**2 * u.s * u.sr) ** (-1),
                 ["Epoch", "Energy_FEIU", "Alpha"],
+            ),
+            "FEIU_SA": VariableInfo[GFZVarNames](
+                "FEIU_SA",
+                "Electron integral flux, spin-averaged over the look directions (no pitch angle resolution).",
+                (u.cm**2 * u.s * u.sr) ** (-1),
+                ["Epoch", "Energy_FEIU"],
             ),
             "FEDO": VariableInfo[GFZVarNames](
                 "FEDO",
@@ -89,6 +109,25 @@ class GFZStandard(DataStandard[GFZVarNames]):
                 "Proton differential unidirectional flux.",
                 (u.cm**2 * u.s * u.sr * u.keV) ** (-1),
                 ["Epoch", "Energy_FPDU", "Alpha"],
+            ),
+            "FPDU_SA": VariableInfo[GFZVarNames](
+                "FPDU_SA",
+                "Proton differential flux, spin-averaged over the look directions (no pitch angle resolution).",
+                (u.cm**2 * u.s * u.sr * u.keV) ** (-1),
+                ["Epoch", "Energy_FPDU"],
+            ),
+            "FIDU": VariableInfo[GFZVarNames](
+                "FIDU",
+                "Ion (total, all species) differential unidirectional flux.",
+                (u.cm**2 * u.s * u.sr * u.keV) ** (-1),
+                ["Epoch", "Energy_FIDU", "Alpha"],
+            ),
+            "FIDU_SA": VariableInfo[GFZVarNames](
+                "FIDU_SA",
+                "Ion (total, all species) differential flux, spin-averaged over the look directions (no pitch angle "
+                "resolution).",
+                (u.cm**2 * u.s * u.sr * u.keV) ** (-1),
+                ["Epoch", "Energy_FIDU"],
             ),
             "Alpha": VariableInfo[GFZVarNames](
                 "alpha_local",
@@ -146,7 +185,7 @@ class GFZStandard(DataStandard[GFZVarNames]):
                 "PSD",
                 "Calculated phase space density of particles.",
                 ep.units.psd_natural_unit,
-                ["Epoch", ("Energy_FEDU", "Energy_FPDU"), "Alpha"],
+                ["Epoch", OneOf("Energy_FEDU", "Energy_FPDU"), "Alpha"],
             ),
             "MLT": VariableInfo[GFZVarNames](
                 "MLT", "Magnetic local time at the satellite location.", u.hour, ["Epoch"]
@@ -174,13 +213,13 @@ class GFZStandard(DataStandard[GFZVarNames]):
                 "InvMu",
                 "Calculated first adiabatic invariant from modelled magnetic field.",
                 u.MeV / u.G,
-                ["Epoch", ("Energy_FEDU", "Energy_FPDU"), "Alpha"],
+                ["Epoch", OneOf("Energy_FEDU", "Energy_FPDU"), "Alpha"],
             ),
             "InvMu_obs": VariableInfo[GFZVarNames](
                 "InvMu_obs",
                 "Calculated first adiabatic invariant from magnetic field observations.",
                 u.MeV / u.G,
-                ["Epoch", ("Energy_FEDU", "Energy_FPDU"), "Alpha"],
+                ["Epoch", OneOf("Energy_FEDU", "Energy_FPDU"), "Alpha"],
             ),
             "InvK": VariableInfo[GFZVarNames](
                 "InvK", "Calculated modified second adiabatic invariant.", ep.units.RE * u.G**0.5, ["Epoch", "Alpha"]

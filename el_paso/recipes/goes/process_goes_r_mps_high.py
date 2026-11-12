@@ -54,6 +54,29 @@ TELE_ALPHA_ANGLES = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
 TELE_BETA_ANGLES = np.array([-35.0, 35.0, -70.0, 0, 70.0])
 
 
+def goes_r_mps_high_strategy(
+    processed_data_path: str | Path,
+    mag_field: ep.typing.MagneticFieldLiteral,
+    satellite: GOESRSatellite,
+    save_strategy: Literal["gfz", "netcdf"] = "netcdf",
+) -> ep.SavingStrategy:
+    """Saving strategy of the GOES-R MPS-HI recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
+        satellite (GOESRSatellite): Satellite the data belongs to.
+        save_strategy (Literal["gfz", "netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Legacy GFZ strategy for "gfz", otherwise a monthly or daily NetCDF strategy.
+    """
+    if save_strategy == "gfz":
+        return goes_r_mps_high_gfz_strategy(processed_data_path, mag_field, satellite)
+
+    return goes_r_mps_high_netcdf_strategy(processed_data_path, mag_field, satellite)
+
+
 def process_goes_r_mps_high(
     start_time: datetime,
     end_time: datetime,
@@ -66,7 +89,9 @@ def process_goes_r_mps_high(
     save_strategy: Literal["gfz", "netcdf"] = "netcdf",
     skip_existing: bool = True,  # noqa: FBT001, FBT002,
     *,
+    calculate_Lstar: bool = True,
     save_indices_sw: bool = False,
+    append: bool = True,
 ) -> None:
     """Process GOES-R MPS-HI MAGED electron data into pitch-angle resolved phase space densities.
 
@@ -90,8 +115,13 @@ def process_goes_r_mps_high(
         save_strategy (Literal["gfz", "netcdf"]): Strategy used to save the processed
             data. "gfz" saves using the GFZ format, "netcdf" saves monthly NetCDF files.
         skip_existing (bool): If True, skip downloading files that already exist on disk.
+        calculate_Lstar (bool): If True, also compute the L* magnetic field quantity. If False, the
+            expensive drift-shell tracing is skipped and L* is not saved, while L_m and InvK are still
+            computed. Defaults to True.
         save_indices_sw (bool): If True, also save all solar wind indices and parameters,
             independent of this recipe's own output. Defaults to False.
+        append (bool): If True, append to existing output files instead of overwriting them.
+            Defaults to True.
     """
     data_path_stem = f"{raw_data_path}/YYYY/MM/{satellite}/"
 
@@ -246,11 +276,19 @@ def process_goes_r_mps_high(
         ("MLT", mag_field),
         ("R_Eq", mag_field),
         ("Alpha_Eq", mag_field),
-        ("L_star", mag_field),
         ("L_m", mag_field),
         ("InvMu", mag_field),
         ("InvK", mag_field),
     ]
+
+    if calculate_Lstar:
+        variables_to_compute.append(("L_star", mag_field))
+
+    irbem_options = ep.processing.magnetic_field_utils.IrbemOptions(
+        lstar_quantity=ep.processing.magnetic_field_utils.LstarQuantity.LSTAR
+        if calculate_Lstar
+        else ep.processing.magnetic_field_utils.LstarQuantity.NONE,
+    )
 
     magnetic_field_variables = ep.processing.compute_magnetic_field_variables(
         time_var=binned_time_var,
@@ -259,7 +297,7 @@ def process_goes_r_mps_high(
         pa_local_var=local_pa_var,
         particle_species="electron",
         variables_to_compute=variables_to_compute,
-        irbem_options=ep.processing.magnetic_field_utils.IrbemOptions(),
+        irbem_options=irbem_options,
         num_cores=num_cores,
     )
 
@@ -288,7 +326,6 @@ def process_goes_r_mps_high(
         "PSD": psd_var,
         "Alpha_Eq": magnetic_field_variables[f"Alpha_Eq_{mag_field}"],
         "MLT": magnetic_field_variables[f"MLT_{mag_field}"],
-        "L_star": magnetic_field_variables[f"L_star_{mag_field}"],
         "R_Eq": magnetic_field_variables[f"R_Eq_{mag_field}"],
         "B_Eq": magnetic_field_variables[f"B_Eq_{mag_field}"],
         "B_Calc": magnetic_field_variables[f"B_Calc_{mag_field}"],
@@ -298,12 +335,12 @@ def process_goes_r_mps_high(
         "B_total_obs": B_total_obs_var,
     }
 
-    if save_strategy == "gfz":
-        saving_strategy = goes_r_mps_high_gfz_strategy(processed_data_path, mag_field, satellite)
-    else:
-        saving_strategy = goes_r_mps_high_netcdf_strategy(processed_data_path, mag_field, satellite)
+    if calculate_Lstar:
+        variables_to_save["L_star"] = magnetic_field_variables[f"L_star_{mag_field}"]
 
-    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=True)
+    saving_strategy = goes_r_mps_high_strategy(processed_data_path, mag_field, satellite, save_strategy)
+
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=binned_time_var, append=append)
 
     if save_indices_sw:
         process_solar_wind_indices(
@@ -397,5 +434,12 @@ CLI_DEFAULTS = {
     "processed_data_path": "goes/processed/",
 }
 
+PLOT_DEFAULTS = {
+    "panels": ["Kp", "FEDU", "L_star", "MLT"],
+    "FEDU": {"pitch_angle": 90 * u.deg},
+}
+
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_goes_r_mps_high, defaults=CLI_DEFAULTS)
+    ep.run_recipe_cli(
+        process_goes_r_mps_high, defaults=CLI_DEFAULTS, strategy=goes_r_mps_high_strategy, plot_defaults=PLOT_DEFAULTS
+    )

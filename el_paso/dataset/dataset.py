@@ -12,7 +12,7 @@ import importlib
 import inspect
 import logging
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 import distance
 import numpy as np
@@ -20,8 +20,11 @@ import numpy as np
 import el_paso as ep
 from el_paso.dataset.metadata import DatasetMetadata
 from el_paso.dataset.utils import is_xr_variable, join_var
+from el_paso.one_of import alternatives_of
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from numpy.typing import NDArray
 
     from el_paso.typing import (
@@ -123,6 +126,24 @@ def _describe_difference(
             lines.append(f"  max {label} difference: {diff[idx]:.6g} at index {idx} ({a[idx]:.10g} vs. {b[idx]:.10g})")
 
     return "\n".join(lines)
+
+
+class FileCoverage(NamedTuple):
+    """Expected output file for one time interval, as reported by ``DataSet.get_file_coverage``.
+
+    Attributes:
+        interval_start (datetime): Start of the time interval the file covers.
+        interval_end (datetime): End of the time interval the file covers.
+        output_file_name (str): Name of the output file configuration in the saving strategy.
+        path (Path): Path where the saving strategy expects the file.
+        exists (bool): Whether the file exists on disk.
+    """
+
+    interval_start: datetime
+    interval_end: datetime
+    output_file_name: str
+    path: Path
+    exists: bool
 
 
 class DataSet:
@@ -537,17 +558,58 @@ class DataSet:
         for var_name in var_names_stored:
             # Assign the data array onto the dataset
             val = list(loaded_var_arrs[var_name]) if var_name == "datetime" else loaded_var_arrs[var_name]
-            setattr(self, var_name, val)
+            if var_name in self._internal_attrs or var_name in self.possible_variables:
+                setattr(self, var_name, val)
+            else:
+                logger.warning(
+                    f"Variable '{var_name}' found in the saved file is not part of "
+                    f"{self.saving_strategy.data_standard}. Loading it anyway."
+                )
+                object.__setattr__(self, var_name, val)
 
         # assign all vars, which are not present in the saved file, as empty. A name shared with
         # another output file (e.g. "Epoch") may already hold real data loaded from that other,
         # existing file, so it must be left untouched rather than clobbered with an empty array.
         for internal_name in output_file.names_to_save:
-            alt_names = internal_name if isinstance(internal_name, tuple) else (internal_name,)
-            for alt in alt_names:
+            for alt in alternatives_of(internal_name):
                 standard_name = self.saving_strategy.data_standard.get_standard_name(alt)
                 if standard_name not in var_names_stored and standard_name not in self.__dict__:
                     setattr(self, standard_name, np.asarray([]))
+
+    def get_file_coverage(self, names: list[InternalName] | None = None) -> list[FileCoverage]:
+        """Report which output files expected for the requested time range exist on disk.
+
+        Nothing is loaded; only the saving strategy's intervals and file paths are checked.
+
+        Args:
+            names (list[InternalName] | None): Internal variable names. If given, only the output files
+                containing at least one of them are reported. Defaults to all output files.
+
+        Returns:
+            list[FileCoverage]: One entry per time interval and output file, ordered by interval.
+
+        Raises:
+            ValueError: If a name in ``names`` is not part of the chosen saving strategy.
+        """
+        if names is None:
+            output_files = list(self.saving_strategy.output_files)
+        else:
+            output_files = []
+            for name in names:
+                output_file = self.saving_strategy.get_output_file(internal_name=name)
+                if output_file is None:
+                    msg = f"{name} is not part of the chosen saving strategy!"
+                    raise ValueError(msg)
+                if output_file not in output_files:
+                    output_files.append(output_file)
+
+        coverage: list[FileCoverage] = []
+        for time_start, time_end in self._date_list:
+            for output_file in output_files:
+                path = self.saving_strategy.get_file_path(time_start, time_end, output_file)
+                coverage.append(FileCoverage(time_start, time_end, output_file.name, path, path.exists()))
+
+        return coverage
 
     def get_loaded_variables(self) -> list[str]:
         """Get a list of currently loaded variable names.
@@ -654,7 +716,9 @@ class DataSet:
         from .identify_orbits import identify_orbits  # noqa: PLC0415
         from .interp_functions import interp_flux, interp_psd  # noqa: PLC0415
         from .linearize_trajectories import linearize_trajectories  # noqa: PLC0415
+        from .plot import plot  # noqa: PLC0415
     else:
+        plot = _LazyMethod(".plot")
         bin_and_interpolate_to_model_grid = _LazyMethod(".bin_and_interpolate_to_model_grid")
         identify_orbits = _LazyMethod(".identify_orbits")
         interp_flux = _LazyMethod(".interp_functions")
