@@ -227,6 +227,34 @@ def test_variable_not_in_data_standard_raises_descriptive_error(tmp_path: Path) 
 
 @pytest.mark.minimal
 @pytest.mark.basic
+def test_loss_cones_are_saved_along_north_south_dimension(tmp_path: Path) -> None:
+    """Alpha_LC(_Eq) hold one value per hemisphere, written along a fixed 'north_south' dimension of size 2."""
+    start_time = datetime(2024, 5, 10, tzinfo=timezone.utc)
+    end_time = datetime(2024, 5, 10, 23, 59, tzinfo=timezone.utc)
+    times = np.array([start_time.timestamp() + 3600 * i for i in range(6)])
+    loss_cone = np.column_stack([np.linspace(0.5, 1.0, times.size), np.linspace(0.6, 1.1, times.size)])
+
+    variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
+        "Epoch": ep.Variable(ep.units.posixtime, data=times),
+        "Alpha_LC": ep.Variable(u.rad, data=loss_cone),
+        "Alpha_LC_Eq": ep.Variable(u.rad, data=loss_cone / 10),
+    }
+
+    saving_strategy = ep.saving_strategies.DailyLEORBStrategy(
+        tmp_path, "POES", "noaa15", "MEPED", "T89", data_standard=ep.data_standards.GFZStandard()
+    )
+    ep.save(variables_to_save, saving_strategy, start_time, end_time, time_var=variables_to_save["Epoch"])
+
+    (file_path,) = tmp_path.rglob("*.nc")
+    with nC.Dataset(file_path) as file:
+        assert file.dimensions["north_south"].size == 2
+        for name, expected in (("alpha_lc", loss_cone), ("alpha_lc_eq", loss_cone / 10)):
+            assert file.variables[name].dimensions == ("Epoch", "north_south")
+            np.testing.assert_allclose(file.variables[name][:], expected)
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
 @pytest.mark.parametrize("file_format", ["mat", "nc"])
 def test_unresolvable_one_of_dimension_raises_even_without_validation(tmp_path: Path, file_format: str) -> None:
     """PSD needs Energy_FEDU or Energy_FPDU; skipping validation must not let it be saved without either."""

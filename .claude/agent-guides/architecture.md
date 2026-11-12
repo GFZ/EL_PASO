@@ -45,7 +45,7 @@ Environment variables read by the library:
 |---|---|
 | `EL_PASO_SKIP_DOWNLOAD` | Skip every `ep.download` call. Same as setting `ep.skip_download = True`. |
 | `EL_PASO_EXIT_AFTER_DOWNLOAD` | Exit the process after `ep.download` finishes (useful for download-only runs on HPC). Same as setting `ep.exit_after_download = True`. |
-| `EL_PASO_MODEL_DATA_PATH` | Where model coefficient data is stored. Default `~/.elpaso`. |
+| `EL_PASO_MODEL_DATA_PATH` | Where model coefficient data is stored, including the IGRF drift loss cone lookup tables (`dlc_lookup_tables/`, computed with `scripts/compute_dlc_lookup_table.py`). Default `~/.elpaso`. |
 | `EL_PASO_INDICES_SW_PARAM_DATA_PATH` | Where solar-wind indices/parameters are stored. Default `~/.elpaso`. The test suite's `conftest.py` points it at a temporary directory unless `--indices_sw_param_data_path` is given. |
 | `EL_PASO_USE_MAG_FIELD_CACHE` | Set to `0`/`false`/`no`/`off` to disable the magnetic-field joblib cache. |
 | `EL_PASO_REBUILD_IRBEM` | Force recompilation of `libirbem.so` even if one already exists. |

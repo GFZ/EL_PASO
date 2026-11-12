@@ -13,6 +13,7 @@ __getattr__, __dir__, __all__ = lazy.attach(
     __name__,
     submod_attrs={
         "construct_maginput": ["construct_maginput"],
+        "dlc_lookup_table": ["compute_dlc_lookup_table", "get_dlc_table_path", "get_drift_loss_cone_from_lookup_table"],
         "irbem": ["Coords", "InternalFieldModel", "IrbemOptions", "LCDSSearchParams", "LstarQuantity"],
         "mag_field_enum": ["MagneticField", "kext"],
         "magnetic_field_functions": [
@@ -33,6 +34,11 @@ __getattr__, __dir__, __all__ = lazy.attach(
 
 if TYPE_CHECKING:
     from el_paso.processing.magnetic_field_utils.construct_maginput import construct_maginput
+    from el_paso.processing.magnetic_field_utils.dlc_lookup_table import (
+        compute_dlc_lookup_table,
+        get_dlc_table_path,
+        get_drift_loss_cone_from_lookup_table,
+    )
     from el_paso.processing.magnetic_field_utils.irbem import (
         Coords,
         InternalFieldModel,
@@ -64,12 +70,15 @@ if TYPE_CHECKING:
         "LCDSSearchParams",
         "LstarQuantity",
         "MagneticField",
+        "compute_dlc_lookup_table",
         "construct_maginput",
         "create_var_name",
         "get_LCDS",
         "get_Lstar",
         "get_MLT",
+        "get_dlc_table_path",
         "get_drift_loss_cone",
+        "get_drift_loss_cone_from_lookup_table",
         "get_footpoint_atmosphere",
         "get_local_B_field",
         "get_magequator",

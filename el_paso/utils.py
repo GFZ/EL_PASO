@@ -817,8 +817,8 @@ def _calculate_dimensions(data_dict: DataDict, data_standard: DataStandard) -> d
 
     Returns:
         dict[str, int]: Mapping from dimension name to its size, with
-        "min_max", "Position_components", and "W_components" special-cased
-        to 2, 3, and 6 respectively.
+        "min_max", "north_south", "Position_components", and "W_components"
+        special-cased to 2, 2, 3, and 6 respectively.
     """
     unique_dims = {}
 
@@ -832,7 +832,7 @@ def _calculate_dimensions(data_dict: DataDict, data_standard: DataStandard) -> d
         for dim_name in dim_names:
             if dim_name not in unique_dims:
                 # handle special cases
-                if dim_name == "min_max":
+                if dim_name in ("min_max", "north_south"):
                     unique_dims[dim_name] = 2
                 elif dim_name == "Position_components":
                     unique_dims[dim_name] = 3

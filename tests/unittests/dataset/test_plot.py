@@ -49,6 +49,9 @@ def synthetic_dataset(tmp_path: Path) -> DataSet:
         "Energy_FEDU": ep.Variable(original_unit=u.MeV, data=np.tile([0.5, 1.0, 2.0], (TIME_SIZE, 1))),
         "Alpha": ep.Variable(original_unit=u.deg, data=np.tile([10.0, 30.0, 60.0, 90.0], (TIME_SIZE, 1))),
         "L_m": ep.Variable(original_unit=u.dimensionless_unscaled, data=np.full((TIME_SIZE, alpha_size), 4.5)),
+        "Alpha_Eq": ep.Variable(
+            original_unit=u.rad, data=np.tile(np.radians([10.0, 30.0, 60.0, 90.0]), (TIME_SIZE, 1))
+        ),
         "Position": ep.Variable(original_unit=ep.units.RE, data=np.ones((TIME_SIZE, 3))),
         "B_Eq": ep.Variable(original_unit=u.nT, data=np.linspace(40.0, 60.0, TIME_SIZE)),
     }
@@ -89,6 +92,16 @@ def test_plot_into_given_axes(synthetic_dataset: DataSet) -> None:
     assert "B_Eq" in axes[0].get_ylabel()
     assert "Alpha" in axes[1].get_ylabel()  # L_m is a spectrogram over pitch angle (in degrees)
     assert "[deg]" in axes[1].get_ylabel()
+
+
+@pytest.mark.minimal
+def test_angles_are_plotted_in_degrees(synthetic_dataset: DataSet) -> None:
+    """Angles are stored in radians, so a variable that is itself an angle must be converted, not just labelled."""
+    figure = synthetic_dataset.plot(["Alpha_Eq"], pitch_angle=90 * u.deg)
+
+    ax = figure.axes[0]
+    assert "[deg]" in ax.get_ylabel()
+    assert ax.lines[0].get_ydata() == pytest.approx(np.full(TIME_SIZE, 90.0))
 
 
 @pytest.mark.minimal

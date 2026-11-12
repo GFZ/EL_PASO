@@ -183,12 +183,17 @@ class GFZMetaData(DatasetMetadata):
         R0 (VariableMetadata): Radial distance of the satellite location mapped to the equator.
         Vsw (VariableMetadata): Solar wind bulk speed.
         W_params (VariableMetadata): Tsyganenko-Sitnov W1-W6 parameters.
-        alpha_dlc (VariableMetadata): Drift loss cone size at the satellite location.
-        alpha_dlc_eq (VariableMetadata): Drift loss cone size at the satellite location mapped to the equator.
+        alpha_dlc (VariableMetadata): Drift loss cone size at the satellite location, calculated in the IGRF field
+            without external magnetic field model, i.e. independent of the magnetic field model of the file.
+        alpha_dlc_eq (VariableMetadata): Drift loss cone size at the satellite location mapped to the equator with
+            the magnetic field model of the file.
         alpha_eq_model (VariableMetadata): Calculated equatorial pitch angles of the particles.
         alpha_eq_range (VariableMetadata): Equatorial pitch angle ranges of the particles.
-        alpha_lc (VariableMetadata): Local loss cone size at the satellite location.
-        alpha_lc_eq (VariableMetadata): Local loss cone size at the satellite location mapped to the equator.
+        alpha_lc (VariableMetadata): Bounce loss cone size at the satellite location, separately for the foot points
+            in the northern (north_south index 0) and southern (index 1) magnetic hemisphere.
+        alpha_lc_eq (VariableMetadata): Bounce loss cone size at the satellite location mapped to the equator,
+            separately for the foot points in the northern (north_south index 0) and southern (index 1) magnetic
+            hemisphere.
         alpha_local (VariableMetadata): Local pitch angles of the particles.
         alpha_local_range (VariableMetadata): Local pitch angle ranges of the particles.
         density_other (VariableMetadata): Electron number density at the satellite location, derived by other methods.

@@ -154,20 +154,30 @@ class GFZStandard(DataStandard[GFZVarNames]):
                 ["Epoch", "Alpha_range", "min_max"],
             ),
             "Alpha_LC": VariableInfo[GFZVarNames](
-                "alpha_lc", "Local loss cone size at the satellite location.", u.radian, ["Epoch"]
+                "alpha_lc",
+                "Bounce loss cone size at the satellite location, separately for the foot points in the northern "
+                "(north_south index 0) and southern (index 1) magnetic hemisphere.",
+                u.radian,
+                ["Epoch", "north_south"],
             ),
             "Alpha_LC_Eq": VariableInfo[GFZVarNames](
                 "alpha_lc_eq",
-                "Local loss cone size at the satellite location mapped to the equator.",
+                "Bounce loss cone size at the satellite location mapped to the equator, separately for the foot points "
+                "in the northern (north_south index 0) and southern (index 1) magnetic hemisphere.",
+                u.radian,
+                ["Epoch", "north_south"],
+            ),
+            "Alpha_DLC": VariableInfo[GFZVarNames](
+                "alpha_dlc",
+                "Drift loss cone size at the satellite location, calculated in the IGRF field without external "
+                "magnetic field model, i.e. independent of the magnetic field model of the file.",
                 u.radian,
                 ["Epoch"],
             ),
-            "Alpha_DLC": VariableInfo[GFZVarNames](
-                "alpha_dlc", "Drift loss cone size at the satellite location.", u.radian, ["Epoch"]
-            ),
             "Alpha_DLC_Eq": VariableInfo[GFZVarNames](
                 "alpha_dlc_eq",
-                "Drift loss cone size at the satellite location mapped to the equator.",
+                "Drift loss cone size at the satellite location mapped to the equator with the magnetic field model "
+                "of the file.",
                 u.radian,
                 ["Epoch"],
             ),

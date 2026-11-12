@@ -35,6 +35,8 @@ from el_paso.processing.magnetic_field_utils.irbem import MagFields
 from matplotlib import pyplot as plt
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from numpy.typing import NDArray
 
 NUM_CORES = min(os.cpu_count() or 1, 32)
@@ -193,8 +195,11 @@ def test_replot_tu2010_figure() -> None:
 
 
 @pytest.mark.visual
-def test_replot_drift_loss_cone_map() -> None:
+def test_replot_drift_loss_cone_map(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Map the precipitating and drift loss cones at 500 km, as seen by a low Earth orbit spacecraft."""
+    # No lookup table in an empty model data path, so the drift loss cone is traced at every point.
+    monkeypatch.setenv("EL_PASO_MODEL_DATA_PATH", str(tmp_path))
+
     irbem_options = IrbemOptions(
         lstar_quantity=LstarQuantity.NONE,
         igrf_update_interval_days=0,
@@ -230,7 +235,8 @@ def test_replot_drift_loss_cone_map() -> None:
         grid[in_band] = values
         return grid.reshape(lon_grid.shape)
 
-    lc = on_grid(out["Alpha_LC_Dip"].get_data(u.deg))
+    # the bounce loss cone of the weaker foot point, the larger of the two hemispheres' values
+    lc = on_grid(np.fmax.reduce(out["Alpha_LC_Dip"].get_data(u.deg).astype(np.float64), axis=1))
     dlc = on_grid(out["Alpha_DLC_Dip"].get_data(u.deg))
     lm_grid = np.where(in_band, lm, np.nan).reshape(lon_grid.shape)
 

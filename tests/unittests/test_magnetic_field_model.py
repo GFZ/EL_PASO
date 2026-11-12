@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Literal
 
 import el_paso as ep
@@ -130,15 +131,22 @@ def test_drift_loss_cone_equals_bounce_loss_cone_in_centred_dipole():
         time_var, xgeo_var, LOSS_CONE_REQUEST, irbem_options, num_cores=4, cache_dir=None
     )
 
+    # Both hemispheres' foot points of a centred dipole field line have the same field strength.
+    lc_eq = out["Alpha_LC_Eq_Dip"].get_data("deg")
+    assert lc_eq.shape == (4, 2)
+    np.testing.assert_allclose(lc_eq[:, 0], lc_eq[:, 1], rtol=1e-3)
+
     # half the default bisection tolerance of 0.1 degrees, plus a little slack
     np.testing.assert_allclose(
-        out["Alpha_DLC_Eq_Dip"].get_data("deg"), out["Alpha_LC_Eq_Dip"].get_data("deg"), rtol=0, atol=0.06
+        out["Alpha_DLC_Eq_Dip"].get_data("deg"), np.fmax.reduce(lc_eq, axis=1), rtol=0, atol=0.06
     )
 
 
-@pytest.mark.minimal
-@pytest.mark.basic
-def test_drift_loss_cone_in_igrf():
+@pytest.mark.basic  # traces drift shells, too slow for the minimal tests
+def test_drift_loss_cone_in_igrf(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    # No lookup table in an empty model data path, so the drift loss cone is traced at every point.
+    monkeypatch.setenv("EL_PASO_MODEL_DATA_PATH", str(tmp_path))
+
     # Two points under the South Atlantic Anomaly and two well away from it.
     time_var, xgeo_var = _leo_request([(-40, -20), (-33, 10), (55, 100), (-55, 150)])
     irbem_options = ep.processing.magnetic_field_utils.IrbemOptions(drift_shell_resolution=1)
@@ -149,8 +157,10 @@ def test_drift_loss_cone_in_igrf():
 
     dlc = out["Alpha_DLC_Dip"].get_data("deg")
     dlc_eq = out["Alpha_DLC_Eq_Dip"].get_data("deg")
-    lc = out["Alpha_LC_Dip"].get_data("deg")
-    lc_eq = out["Alpha_LC_Eq_Dip"].get_data("deg")
+    # one bounce loss cone per hemisphere; particles are lost within a bounce inside either, i.e. the larger one
+    assert out["Alpha_LC_Dip"].get_data("deg").shape == (4, 2)
+    lc = np.fmax.reduce(out["Alpha_LC_Dip"].get_data("deg"), axis=1)
+    lc_eq = np.fmax.reduce(out["Alpha_LC_Eq_Dip"].get_data("deg"), axis=1)
 
     assert np.isfinite(dlc).all()
     assert np.isfinite(dlc_eq).all()
@@ -206,8 +216,7 @@ def test_lm_keeps_magnitude_of_flagged_values():
     np.testing.assert_allclose(out["L_m_Dip"].get_data()[:, 0], np.abs(raw_lm))
 
 
-@pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.basic  # traces drift shells for the IRBEM reference, too slow for the minimal tests
 def test_loss_cone_uses_weaker_foot_point():
     # A particle is lost if it mirrors below 100 km in either hemisphere, so Alpha_LC is set by the weaker of the two
     # foot point fields. IRBEM's drift_loss_cone computes the same bounce loss cone independently, in Fortran.
@@ -234,6 +243,13 @@ def test_loss_cone_uses_weaker_foot_point():
         {"Kp": np.zeros(len(x_geo))},
     )
 
-    np.testing.assert_allclose(out["Alpha_LC_Dip"].get_data(u.deg), reference.alpha_blc_loc, rtol=0, atol=1e-4)
-    np.testing.assert_allclose(out["Alpha_LC_Eq_Dip"].get_data(u.deg), reference.alpha_blc_eq, rtol=0, atol=1e-4)
-    np.testing.assert_allclose(out["Alpha_LC_Dip"].get_data(u.deg)[:2], 90)
+    # one value per magnetic hemisphere (north, south); the larger one belongs to the weaker foot point
+    lc = out["Alpha_LC_Dip"].get_data(u.deg)
+    lc_eq = out["Alpha_LC_Eq_Dip"].get_data(u.deg)
+    assert lc.shape == lc_eq.shape == (5, 2)
+
+    np.testing.assert_allclose(np.fmax.reduce(lc, axis=1), reference.alpha_blc_loc, rtol=0, atol=1e-4)
+    np.testing.assert_allclose(np.fmax.reduce(lc_eq, axis=1), reference.alpha_blc_eq, rtol=0, atol=1e-4)
+    # only the southern end, in the anomaly, takes the whole locally observed distribution
+    np.testing.assert_allclose(lc[:2, 1], 90)
+    assert (lc[:2, 0] < 90).all()

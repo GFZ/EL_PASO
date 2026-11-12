@@ -81,12 +81,17 @@ class GFZDataSet(DataSet):
         R0 (NDArray[np.float64]): Radial distance of the satellite location mapped to the equator.
         Vsw (NDArray[np.float64]): Solar wind bulk speed.
         W_params (NDArray[np.float64]): Tsyganenko-Sitnov W1-W6 parameters.
-        alpha_dlc (NDArray[np.float64]): Drift loss cone size at the satellite location.
-        alpha_dlc_eq (NDArray[np.float64]): Drift loss cone size at the satellite location mapped to the equator.
+        alpha_dlc (NDArray[np.float64]): Drift loss cone size at the satellite location, calculated in the IGRF
+            field without external magnetic field model, i.e. independent of the magnetic field model of the file.
+        alpha_dlc_eq (NDArray[np.float64]): Drift loss cone size at the satellite location mapped to the equator
+            with the magnetic field model of the file.
         alpha_eq_model (NDArray[np.float64]): Calculated equatorial pitch angles of the particles.
         alpha_eq_range (NDArray[np.float64]): Equatorial pitch angle ranges of the particles.
-        alpha_lc (NDArray[np.float64]): Local loss cone size at the satellite location.
-        alpha_lc_eq (NDArray[np.float64]): Local loss cone size at the satellite location mapped to the equator.
+        alpha_lc (NDArray[np.float64]): Bounce loss cone size at the satellite location, separately for the foot
+            points in the northern (north_south index 0) and southern (index 1) magnetic hemisphere.
+        alpha_lc_eq (NDArray[np.float64]): Bounce loss cone size at the satellite location mapped to the equator,
+            separately for the foot points in the northern (north_south index 0) and southern (index 1) magnetic
+            hemisphere.
         alpha_local (NDArray[np.float64]): Local pitch angles of the particles.
         alpha_local_range (NDArray[np.float64]): Local pitch angle ranges of the particles.
         density_other (NDArray[np.float64]): Electron number density at the satellite location, derived by other

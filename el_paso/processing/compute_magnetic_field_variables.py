@@ -130,6 +130,14 @@ def compute_magnetic_field_variables(
         - Intermediate computed variables (e.g., `B_eq`, `B_local`) are cached
           within the function to avoid redundant IRBEM calls when multiple
           dependent variables are requested.
+        - With IGRF as the internal field model, `Alpha_DLC` and `Alpha_DLC_Eq` are taken from the precomputed
+          IGRF lookup table of each year (`magnetic_field_utils.get_drift_loss_cone_from_lookup_table`) instead
+          of being traced at every time step, for every external field model: the critical mirror field of the
+          IGRF drift shell is converted with `B_Calc` and `B_Eq` of the requested model. For external field models
+          this neglects their effect on the drift shell, which can lead to small deviations at L > 5. Years
+          without a table fall back to tracing in the IGRF field. Other internal field models are traced. The
+          tables are computed with `scripts/compute_dlc_lookup_table.py`. They are not part of the cache key, so
+          pass `overwrite_cache=True` after recomputing a table.
     """
     if cache_dir == "_default_":
         cache_dir = get_cache_dir()
@@ -368,7 +376,16 @@ def _get_result(
             )
 
         case "Alpha_DLC" | "Alpha_DLC_Eq":
-            result_dict = mag_utils.get_drift_loss_cone(xgeo_var, time_var, irbem_input)
+            from el_paso.processing.magnetic_field_utils.dlc_lookup_table import (  # noqa: PLC0415
+                uses_dlc_lookup_table,
+            )
+
+            if uses_dlc_lookup_table(irbem_input):
+                result_dict = computed_vars | mag_utils.get_drift_loss_cone_from_lookup_table(
+                    xgeo_var, time_var, irbem_input, computed_vars
+                )
+            else:
+                result_dict = mag_utils.get_drift_loss_cone(xgeo_var, time_var, irbem_input)
 
         case _:
             msg = f"Variable '{var_type}' is not implemented in compute_magnetic_field_variables."
@@ -624,11 +641,17 @@ def _get_eq_loss_cone_angle(
     B_fofl = computed_vars[B_fofl_name].get_data(u.nT).astype(np.float64)
     B_eq = computed_vars[B_eq_name].get_data(u.nT).astype(np.float64)
 
-    # B_eq is the minimum along the field line, so the ratio cannot exceed 1 beyond round-off
-    pa_lc_eq = np.asin(np.sqrt(np.clip(B_eq / B_fofl, 0, 1)))
+    # One bounce loss cone per magnetic hemisphere (columns: north, south). B_eq is the minimum along the field line,
+    # so the ratio cannot exceed 1 beyond round-off.
+    pa_lc_eq = np.asin(np.sqrt(np.clip(B_eq[:, np.newaxis] / B_fofl, 0, 1)))
 
     pa_lc_eq_name = mag_utils.create_var_name("Alpha_LC_Eq", irbem_input.magnetic_field)
     computed_vars[pa_lc_eq_name] = ep.Variable(data=pa_lc_eq, original_unit=u.rad)
+    computed_vars[pa_lc_eq_name].metadata.add_processing_note(
+        "Calculated the equatorial bounce loss cone separately for the foot points at 100 km in the northern "
+        f"(index 0) and southern (index 1) magnetic hemisphere using {irbem_input.magnetic_field} and options: "
+        f"{irbem_input.irbem_options}."
+    )
 
     return computed_vars
 
@@ -654,12 +677,17 @@ def _get_local_loss_cone_angle(
     B_fofl = computed_vars[B_fofl_name].get_data(u.nT).astype(np.float64)
     B_local = computed_vars[B_local_name].get_data(u.nT).astype(np.float64)
 
-    # Where the weaker foot point field is below the local field, as on field lines whose other end lies
-    # in the South Atlantic Anomaly, every particle seen here reaches below 100 km at that end: the whole
-    # distribution is inside the loss cone, i.e. 90 degrees.
-    pa_lc_local = np.asin(np.sqrt(np.clip(B_local / B_fofl, 0, 1)))
+    # One bounce loss cone per magnetic hemisphere (columns: north, south). Where a foot point field is below the
+    # local field, as on field lines whose other end lies in the South Atlantic Anomaly, every particle seen here
+    # reaches below 100 km at that end: the whole distribution is inside that hemisphere's loss cone, i.e. 90 degrees.
+    pa_lc_local = np.asin(np.sqrt(np.clip(B_local[:, np.newaxis] / B_fofl, 0, 1)))
 
     pa_lc_local_name = mag_utils.create_var_name("Alpha_LC", irbem_input.magnetic_field)
     computed_vars[pa_lc_local_name] = ep.Variable(data=pa_lc_local, original_unit=u.rad)
+    computed_vars[pa_lc_local_name].metadata.add_processing_note(
+        "Calculated the local bounce loss cone separately for the foot points at 100 km in the northern (index 0) "
+        f"and southern (index 1) magnetic hemisphere using {irbem_input.magnetic_field} and options: "
+        f"{irbem_input.irbem_options}."
+    )
 
     return computed_vars

@@ -44,6 +44,8 @@ class DailyLEORBStrategy(ep.typing.MonthlyRBStrategy):
             "L_star",
             "Alpha_LC",
             "Alpha_LC_Eq",
+            "Alpha_DLC",
+            "Alpha_DLC_Eq",
             "Position_geo_alt",
             "Position_geo_lat",
             "Position_geo_lon",
