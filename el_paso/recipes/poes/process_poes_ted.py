@@ -16,6 +16,10 @@ import el_paso as ep
 from el_paso.recipes.poes import POESSatellite
 from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import process_solar_wind_indices
 
+# Days with SEM-2 fluxes-2sec files per satellite, shared by every POES recipe.
+# Regenerate with `python scripts/generate_satellite_availability.py poes-sem2-fluxes-2sec`.
+SATELLITE_AVAILABILITY = Path(__file__).with_name("sem2_fluxes_2sec_availability.toml")
+
 
 def poes_ted_strategy(
     processed_data_path: str | Path,
@@ -76,7 +80,8 @@ def process_poes_ted_electron(
     Args:
         start_time (datetime): Start of the time interval to process.
         end_time (datetime): End of the time interval to process.
-        satellite (POESSatellite): The POES/MetOp satellite to process.
+        satellite (POESSatellite): The POES/MetOp satellite to process. With "all", only the
+            satellites with data in the time range are processed (see --list-satellites).
         mag_field (MagneticFieldLiteral): Magnetic field model used for the derived quantities.
         raw_data_path (str | Path): Directory where the raw downloaded data files are stored.
         processed_data_path (str | Path): Directory where the processed output files are saved.
@@ -285,5 +290,9 @@ PLOT_DEFAULTS = {
 
 if __name__ == "__main__":
     ep.run_recipe_cli(
-        process_poes_ted_electron, defaults=CLI_DEFAULTS, strategy=poes_ted_strategy, plot_defaults=PLOT_DEFAULTS
+        process_poes_ted_electron,
+        defaults=CLI_DEFAULTS,
+        strategy=poes_ted_strategy,
+        plot_defaults=PLOT_DEFAULTS,
+        availability=SATELLITE_AVAILABILITY,
     )

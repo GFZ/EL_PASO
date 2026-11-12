@@ -11,7 +11,7 @@ from __future__ import annotations
 import importlib
 import inspect
 import typing
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 from unittest.mock import patch
@@ -22,7 +22,8 @@ import pytest
 import typer
 import typer.testing
 from el_paso.cli._parsing import _format_value, format_cadence, parse_cadence, parse_datetime, parse_docstring
-from el_paso.cli.app import RECIPES, RecipeEntry, app, load_recipe, load_strategy_factory
+from el_paso.cli.app import RECIPES, RecipeEntry, app, load_availability, load_recipe, load_strategy_factory
+from el_paso.cli.availability import check_availability_table
 from el_paso.cli.recipe_cli import build_recipe_command, check_strategy_factory, run_recipe_cli
 from typer.testing import CliRunner, Result
 
@@ -808,3 +809,244 @@ def test_mageis_electrons_registers_its_strategy_factory() -> None:
     entry = next(e for e in RECIPES if e.command == "mageis-electrons")
 
     assert load_strategy_factory(entry) is not None
+
+
+# --- satellite availability -------------------------------------------------------------------------------------
+
+STUB_AVAILABILITY = {
+    "a": [(date(2020, 1, 1), date(2020, 1, 31))],
+    "b": [(date(2020, 3, 1), date(2020, 3, 31))],
+}
+"""Satellite a has data in January 2020, satellite b in March 2020."""
+
+JANUARY = ["--start-time", "2020-01-10", "--end-time", "2020-01-12"]
+FEBRUARY = ["--start-time", "2020-02-05", "--end-time", "2020-02-10"]
+
+
+def availability_app(availability: Any = STUB_AVAILABILITY) -> typer.Typer:  # noqa: ANN401
+    """A single-command app for the stub recipe with an availability table."""
+    calls.clear()
+    built = typer.Typer(add_completion=False)
+    built.command()(build_recipe_command(stub_recipe, availability=availability))
+    return built
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_satellite_all_runs_only_satellites_with_data(caplog: pytest.LogCaptureFixture) -> None:
+    result = runner.invoke(availability_app(), [*JANUARY, "--satellite", "all"], env={"COLUMNS": "200"})
+
+    assert result.exit_code == 0, result.output
+    assert [call["satellite"] for call in calls] == ["a"]
+    assert "skipping 1 of 2 satellites" in caplog.text
+    assert "between 2020-01-10 and 2020-01-12" in caplog.text
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_satellite_all_without_any_data_is_an_error() -> None:
+    result = runner.invoke(availability_app(), [*FEBRUARY, "--satellite", "all"], env={"COLUMNS": "200"})
+
+    assert result.exit_code == 2, result.output
+    assert not calls
+    output = click.unstyle(result.output)
+    assert "selects no satellite" in output
+    assert "2020-02-05 and 2020-02-10" in output
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_explicit_satellite_without_data_runs_with_a_warning(caplog: pytest.LogCaptureFixture) -> None:
+    result = runner.invoke(
+        availability_app(), [*JANUARY, "--satellite", "a", "--satellite", "b"], env={"COLUMNS": "200"}
+    )
+
+    assert result.exit_code == 0, result.output
+    # the table is a hint, not a gate
+    assert [call["satellite"] for call in calls] == ["a", "b"]
+    warnings = [record.getMessage() for record in caplog.records if record.levelname == "WARNING"]
+    assert len(warnings) == 1
+    assert "'b' has no data" in warnings[0]
+    assert "running it anyway" in warnings[0]
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+@pytest.mark.parametrize(
+    ("start", "end"),
+    [
+        ("2019-12-20", "2020-01-01"),  # ends on the first day with data
+        ("2020-01-31T12:00:00", "2020-02-15"),  # starts on the last day with data
+        ("2019-12-01", "2020-02-29"),  # covers the whole interval
+    ],
+)
+def test_partial_overlap_counts_as_available(start: str, end: str) -> None:
+    result = runner.invoke(availability_app(), ["--start-time", start, "--end-time", end, "--satellite", "all"])
+
+    assert result.exit_code == 0, result.output
+    assert [call["satellite"] for call in calls] == ["a"]
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_dry_run_reports_availability_per_satellite(caplog: pytest.LogCaptureFixture) -> None:
+    result = runner.invoke(
+        availability_app(),
+        ["--dry-run", *JANUARY, "--satellite", "a", "--satellite", "b"],
+        env={"COLUMNS": "200"},
+    )
+
+    assert result.exit_code == 0, result.output
+    assert not calls
+    assert "data 2020-01-01 to 2020-01-31" in caplog.text
+    assert "no data in range (availability table)" in caplog.text
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_without_a_table_nothing_is_filtered(caplog: pytest.LogCaptureFixture) -> None:
+    result = runner.invoke(availability_app(None), [*FEBRUARY, "--satellite", "all"], env={"COLUMNS": "200"})
+
+    assert result.exit_code == 0, result.output
+    assert [call["satellite"] for call in calls] == ["a", "b"]
+    assert "availability" not in caplog.text
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_list_satellites_shows_the_satellites_with_data() -> None:
+    result = runner.invoke(
+        availability_app(),
+        ["--list-satellites", "--start-time", "2020-01-15", "--end-time", "2020-03-01"],
+        env={"COLUMNS": "200"},
+    )
+
+    assert result.exit_code == 0, result.output
+    assert not calls
+    output = click.unstyle(result.output)
+    # rich wraps the title to the width of the table
+    assert "2 of 2 satellites have data between 2020-01-15 and 2020-03-01" in " ".join(output.split())
+    # both satellites cover only part of the range
+    assert "partial" in output
+    assert "full" not in output
+    assert "2020-01-01 to 2020-01-31" in output
+    assert "2020-03-01 to 2020-03-31" in output
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_list_satellites_marks_full_coverage() -> None:
+    result = runner.invoke(availability_app(), ["--list-satellites", *JANUARY], env={"COLUMNS": "200"})
+
+    assert result.exit_code == 0, result.output
+    output = click.unstyle(result.output)
+    assert "1 of 2 satellites" in output
+    assert "full" in output
+    assert "2020-03-01" not in output
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_list_satellites_without_data_in_range() -> None:
+    result = runner.invoke(availability_app(), ["--list-satellites", *FEBRUARY], env={"COLUMNS": "200"})
+
+    assert result.exit_code == 0, result.output
+    output = " ".join(click.unstyle(result.output).split())
+    assert "No satellite of stub_recipe has data between 2020-02-05 and 2020-02-10" in output
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_list_satellites_without_a_table_says_availability_is_unknown() -> None:
+    result = runner.invoke(availability_app(None), ["--list-satellites", *JANUARY], env={"COLUMNS": "200"})
+
+    assert result.exit_code == 0, result.output
+    assert not calls
+    assert "has no availability table" in click.unstyle(result.output)
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_list_satellites_is_only_offered_with_a_satellite_choice() -> None:
+    no_satellite_app = typer.Typer(add_completion=False)
+    no_satellite_app.command()(build_recipe_command(failing_recipe, availability=STUB_AVAILABILITY))
+
+    result = runner.invoke(no_satellite_app, ["--help"], env={"COLUMNS": "200"})
+
+    assert result.exit_code == 0, result.output
+    assert "--list-satellites" not in click.unstyle(result.output)
+    help_with_choice = runner.invoke(availability_app(), ["--help"], env={"COLUMNS": "200"})
+    assert "--list-satellites" in click.unstyle(help_with_choice.output)
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_availability_file_is_read_when_the_command_runs(tmp_path: Path) -> None:
+    table_file = tmp_path / "availability.toml"
+    stub_app = availability_app(table_file)
+
+    # --help never reads the table, so a missing file does not matter yet
+    assert runner.invoke(stub_app, ["--help"]).exit_code == 0
+
+    table_file.write_text(
+        """max_gap_days = 5
+
+[satellites]
+"b" = [
+  [2020-01-01, 2020-01-31],
+]
+""",
+        encoding="utf-8",
+    )
+    result = runner.invoke(stub_app, [*JANUARY, "--satellite", "all"])
+
+    assert result.exit_code == 0, result.output
+    assert [call["satellite"] for call in calls] == ["b"]
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_run_recipe_cli_uses_the_availability_table() -> None:
+    calls.clear()
+
+    with pytest.raises(SystemExit) as exit_info:
+        run_recipe_cli(stub_recipe, availability=STUB_AVAILABILITY, args=[*JANUARY, "--satellite", "all"])
+
+    assert exit_info.value.code == 0
+    assert [call["satellite"] for call in calls] == ["a"]
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+@pytest.mark.parametrize("entry", RECIPES, ids=lambda e: f"{e.mission}-{e.command}")
+def test_every_declared_availability_table_is_valid(entry: RecipeEntry) -> None:
+    if load_availability(entry) is None:
+        pytest.skip(f"{entry.mission} {entry.command} declares no SATELLITE_AVAILABILITY")
+    recipe, _ = load_recipe(entry)
+
+    check_availability_table(recipe, load_availability(entry))
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_cli_lists_the_lanl_geogrid_slots_of_april_2017() -> None:
+    """The committed LANL table knows the populated slots of April 2017, without network access."""
+    result = invoke_app(
+        [
+            "lanl-geogrid",
+            "mpa-electrons",
+            "--list-satellites",
+            "--start-time",
+            "2017-04-01",
+            "--end-time",
+            "2017-04-30",
+        ],
+        env={"COLUMNS": "200"},
+    )
+
+    assert result.exit_code == 0, result.output
+    output = click.unstyle(result.output)
+    assert "5 of 28 satellites" in " ".join(output.split())
+    for slot in ("010", "070", "130", "190", "310"):
+        assert f"{slot} " in output
+    assert "020 " not in output

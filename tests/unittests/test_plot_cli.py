@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 from unittest.mock import patch
@@ -1297,3 +1297,93 @@ def test_exported_script_leaves_a_panel_empty_when_an_index_cannot_be_loaded(
 
     assert "Could not load Kp: no network" in caplog.text
     assert figure_path.read_bytes().startswith(b"\x89PNG")
+
+
+# --- satellite availability -------------------------------------------------------------------------------------
+
+STUB_AVAILABILITY = {
+    "a": [(date(2017, 10, 1), date(2017, 10, 31))],
+    "b": [(date(2017, 12, 1), date(2017, 12, 31))],
+}
+"""Satellite a has data in October 2017, satellite b in December 2017."""
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_plot_satellite_all_plots_only_satellites_with_data(
+    requests: list[PlotRequest], caplog: pytest.LogCaptureFixture
+) -> None:
+    result = runner.invoke(stub_app(availability=STUB_AVAILABILITY), [*TIME_ARGS, "--satellite", "all"])
+    assert result.exit_code == 0, result.output
+
+    (request,) = requests
+    assert [kwargs["satellite"] for kwargs in request.strategy_kwargs] == ["a"]
+    assert request.availability == {"a": [(date(2017, 10, 1), date(2017, 10, 31))]}
+    assert "skipping 1 of 2 satellites" in caplog.text
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_plot_satellite_all_without_any_data_is_an_error(requests: list[PlotRequest]) -> None:
+    result = runner.invoke(
+        stub_app(availability=STUB_AVAILABILITY),
+        ["--start-time", "2017-11-05", "--end-time", "2017-11-06", "--satellite", "all"],
+        env={"COLUMNS": "200"},
+    )
+
+    assert result.exit_code == 2, result.output
+    assert not requests
+    assert "selects no satellite" in click.unstyle(result.output)
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_plot_explicit_satellite_without_data_is_kept(
+    requests: list[PlotRequest], caplog: pytest.LogCaptureFixture
+) -> None:
+    result = runner.invoke(stub_app(availability=STUB_AVAILABILITY), [*TIME_ARGS, "--satellite", "b"])
+    assert result.exit_code == 0, result.output
+
+    (request,) = requests
+    assert [kwargs["satellite"] for kwargs in request.strategy_kwargs] == ["b"]
+    assert "'b' has no data" in caplog.text
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_plot_without_a_table_keeps_every_satellite(requests: list[PlotRequest]) -> None:
+    result = runner.invoke(stub_app(), [*TIME_ARGS, "--satellite", "all"])
+    assert result.exit_code == 0, result.output
+
+    (request,) = requests
+    assert [kwargs["satellite"] for kwargs in request.strategy_kwargs] == ["a", "b"]
+    assert request.availability is None
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_plot_dry_run_reports_availability_per_satellite(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO, logger="el_paso.cli")
+    request = PlotRequest(
+        recipe=stub_recipe,
+        factory=stub_strategy,
+        start_time=PLOT_START,
+        end_time=PLOT_START + timedelta(days=1),
+        strategy_kwargs=[{"satellite": "a"}, {"satellite": "b"}],
+        variables=["FEDU"],
+        output_dir=None,
+        filename=None,
+        show=False,
+        dry_run=True,
+        verbose=False,
+        plot_defaults={},
+        availability={"a": [(date(2017, 10, 1), date(2017, 10, 31))]},
+    )
+
+    plot_cli._report_settings(request)
+
+    text = " ".join(caplog.text.split())
+    assert "availability a" in text
+    assert "data 2017-10-01 to 2017-10-31" in text
+    assert "availability b" in text
+    assert "no data in range (availability table)" in text

@@ -16,6 +16,10 @@ from el_paso.recipes.lanl_geogrid._lanl_geogrid_extraction import extract_lanl_g
 from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import process_solar_wind_indices
 from el_paso.utils import timed_function
 
+# Days with LowRes SOPA_ESP files per longitude slot, shared by every SOPA_ESP recipe.
+# Regenerate with `python scripts/generate_satellite_availability.py lanl-geogrid-sopa-esp`.
+SATELLITE_AVAILABILITY = Path(__file__).with_name("sopa_esp_availability.toml")
+
 
 class _MonthlySopaProtonStrategy(ep.saving_strategies.MonthlyRBStrategy):
     """Monthly strategy that also saves the measured spin-averaged proton flux (FPDU_SA).
@@ -94,7 +98,8 @@ def process_lanl_geogrid_sopa_protons(
         start_time (datetime): Start of the time interval to process.
         end_time (datetime): End of the time interval to process.
         satellite (LANLGeoGridSatellite): The geosynchronous longitude slot to process, in
-            degrees east (e.g. "010").
+            degrees east (e.g. "010"). Only a few slots are populated at any time: with "all",
+            only the slots with data in the time range are processed (see --list-satellites).
         mag_field (MagneticFieldLiteral): Magnetic field model used for the derived quantities.
         raw_data_path (str | Path): Directory where the raw downloaded data files are stored.
         processed_data_path (str | Path): Directory where the processed output files are saved.
@@ -293,5 +298,8 @@ PLOT_DEFAULTS = {
 
 if __name__ == "__main__":
     ep.run_recipe_cli(
-        process_lanl_geogrid_sopa_protons, strategy=lanl_geogrid_sopa_proton_strategy, plot_defaults=PLOT_DEFAULTS
+        process_lanl_geogrid_sopa_protons,
+        strategy=lanl_geogrid_sopa_proton_strategy,
+        plot_defaults=PLOT_DEFAULTS,
+        availability=SATELLITE_AVAILABILITY,
     )

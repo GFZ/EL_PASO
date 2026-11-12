@@ -14,3 +14,13 @@ SPDX-License-Identifier: Apache-2.0
 ::: el_paso.cli.recipe_cli.parse_datetime
 
 ::: el_paso.cli.recipe_cli.parse_docstring
+
+## Satellite availability
+
+::: el_paso.cli.availability
+    options:
+      members:
+        - satellite_availability
+        - check_availability_table
+        - load_availability_table
+        - get_availability_source

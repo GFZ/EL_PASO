@@ -40,12 +40,14 @@ from typer.models import DeveloperExceptionConfig
 
 import el_paso
 from el_paso.cache import mark_run_failed
+from el_paso.cli.availability import get_availability_source
 from el_paso.cli.plot_cli import build_plot_command
 from el_paso.cli.recipe_cli import build_recipe_command
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from el_paso.cli.availability import AvailabilitySource
     from el_paso.typing import Recipe, SavingStrategy
 
 
@@ -239,7 +241,21 @@ def _to_click_command(name: str, func: Callable[..., Any], *, no_args_is_help: b
 def _recipe_command(name: str, entry: RecipeEntry) -> typer._click.Command:
     """Build the processing command for one registry entry."""
     recipe, defaults = load_recipe(entry)
-    return _to_click_command(name, build_recipe_command(recipe, defaults=defaults))
+    return _to_click_command(
+        name, build_recipe_command(recipe, defaults=defaults, availability=load_availability(entry))
+    )
+
+
+def load_availability(entry: RecipeEntry) -> AvailabilitySource | None:
+    """Return the ``SATELLITE_AVAILABILITY`` a recipe module declares, without reading it.
+
+    Args:
+        entry (RecipeEntry): The registry entry to load.
+
+    Returns:
+        AvailabilitySource | None: The declared table or TOML path, or ``None`` if the module declares none.
+    """
+    return get_availability_source(entry)
 
 
 def load_plot_defaults(entry: RecipeEntry) -> dict[str, Any]:
@@ -270,6 +286,7 @@ def _plot_command(name: str, entry: RecipeEntry) -> typer._click.Command:
             defaults=defaults,
             plot_defaults=load_plot_defaults(entry),
             processing_command=f"el-paso {entry.mission} {entry.command}",
+            availability=load_availability(entry),
         ),
     )
 
