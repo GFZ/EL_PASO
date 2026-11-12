@@ -349,7 +349,7 @@ PLOT_DEFAULTS = {
     "panels": ["Kp", "FEIU"],
     "FEIU": {
         "pitch_angle": 90 * u.deg,
-        "energies": [100, 500, 1000] * u.keV,  # placeholder energies, to be replaced by the instrument channels
+        "energies": [40, 130, 287] * u.keV,
         "along": "L_m",
     },
 }

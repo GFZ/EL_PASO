@@ -248,6 +248,22 @@ def _label(dataset: DataSet, name: InternalName) -> str:
     return f"{label} [{unit}]" if unit else label
 
 
+def _in_degrees(dataset: DataSet, name: InternalName, values: NDArray[Any]) -> NDArray[Any]:
+    """`values` of the variable `name` converted to degrees if its data standard stores it in radians.
+
+    Angles are stored in radians, but labelled and shown in degrees (see `_label`).
+    """
+    info = dataset.saving_strategy.data_standard.variable_infos.get(name)
+    if info is not None and info.unit == u.rad:
+        return np.degrees(values)
+    return values
+
+
+def _variable_values(dataset: DataSet, name: InternalName) -> NDArray[Any]:
+    """Values of a variable as they are plotted: angles in degrees, everything else unchanged."""
+    return _in_degrees(dataset, name, dataset.get_by_internal_name(name))
+
+
 def _resolve_dependency(
     dataset: DataSet, dependency: Dependency
 ) -> tuple[InternalName | FixedDimensionName, NDArray[np.float64]]:
@@ -274,9 +290,7 @@ def _resolve_dependency(
         values = dataset.get_by_internal_name(name)  # ty:ignore[invalid-argument-type]
         if values.size > 0:
             break
-    if dataset.saving_strategy.data_standard.variable_infos[name].unit == u.rad:  # ty:ignore[invalid-argument-type]
-        values = np.degrees(values)  # angles are stored in radians, but shown in degrees
-    return name, values
+    return name, _in_degrees(dataset, name, values)  # ty:ignore[invalid-argument-type]
 
 
 def _get_median_coordinate(
@@ -403,7 +417,7 @@ def _plot_variable(
     and the colour limits to spectrograms only.
     """
     standard = dataset.saving_strategy.data_standard
-    data = dataset.get_by_internal_name(name)
+    data = _variable_values(dataset, name)
     dependencies = standard.get_dependencies(name)[1:]
     mag_field = getattr(dataset.saving_strategy, "mag_field", None)
     title = f"{name} ({mag_field})" if mag_field and name in _FIELD_MODEL_VARIABLES else name
@@ -614,7 +628,7 @@ def _along_coordinate(
     Raises:
         ValueError: If the coordinate does not have one value per time step.
     """
-    coordinate = np.asarray(dataset.get_by_internal_name(along), dtype=float)
+    coordinate = np.asarray(_variable_values(dataset, along), dtype=float)
     dependencies = dataset.saving_strategy.data_standard.get_dependencies(along)[1:]
     note = ""
     if dependencies and _is_dimension(dependencies[-1], "Alpha") and coordinate.ndim == len(dependencies) + 1:
@@ -646,7 +660,7 @@ def _plot_along(
             or `axes` does not match the number of panels.
     """
     standard = dataset.saving_strategy.data_standard
-    data = np.asarray(dataset.get_by_internal_name(name), dtype=float)
+    data = np.asarray(_variable_values(dataset, name), dtype=float)
     dependencies = list(standard.get_dependencies(name)[1:])
     if data.ndim - 1 != len(dependencies):
         msg = f"{name} has {data.ndim - 1} non-time dimensions, but its data standard lists {len(dependencies)}."
