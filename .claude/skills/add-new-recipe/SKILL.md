@@ -17,7 +17,7 @@ Copy the structure of an existing one, e.g. `el_paso/recipes/rbsp/process_rbsp_h
 
 ## Register it in four places
 1. **Mission `__init__.py`:** add the `process_*` function and every `<...>_strategy` factory to both the runtime `lazy.attach(submod_attrs=...)` and the `TYPE_CHECKING` imports and `__all__`. The `export-public-api` skill explains why both are needed.
-2. **`RECIPES` in `el_paso/cli/app.py`:** add a `RecipeEntry(mission, command, module, function)`. `command` is the kebab-case sub-command name.
+2. **`RECIPES` in `el_paso/cli/app.py`:** add a `RecipeEntry(mission, command, module_name, function_name=None, strategy=None)`. `module_name` is the module's name inside `el_paso/recipes/<mission>/` (hyphens in `mission` become underscores, and the full import path is derived), and `function_name` defaults to `module_name`. `command` is the kebab-case sub-command name.
 3. **`docs/API_reference/recipes/<mission>.md`:** add a `::: el_paso.recipes.<mission>.<module>.<function>` line.
 4. **`README.md`:** add it to the "Available processing scripts" list.
 

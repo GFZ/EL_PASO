@@ -28,7 +28,8 @@ import ast
 import functools
 import importlib
 import pathlib
-from typing import TYPE_CHECKING, Any, NamedTuple
+from dataclasses import InitVar, dataclass, field
+from typing import TYPE_CHECKING, Any
 
 import typer
 from rich.console import Console
@@ -51,116 +52,114 @@ if TYPE_CHECKING:
     from el_paso.typing import Recipe, SavingStrategy
 
 
-class RecipeEntry(NamedTuple):
+@dataclass(frozen=True)
+class RecipeEntry:
     """One recipe as it is exposed on the ``el-paso`` command line.
 
-    Attributes:
+    The recipe module is given by its name inside ``el_paso.recipes.<mission>`` (hyphens in the
+    mission become underscores); the full import path is derived from it.
+
+    Args:
         mission: The sub-command group the recipe lives in (e.g. ``"poes"``).
         command: The sub-command name within that group (e.g. ``"meped"``).
-        module: Import path of the module defining the recipe.
-        function: Name of the recipe function inside that module.
+        module_name: Name of the module defining the recipe inside the mission's package under ``el_paso.recipes``.
+        function_name: Name of the recipe function inside that module. Defaults to ``module_name``.
         strategy: Name of the recipe's strategy factory inside that module, or ``None`` if the
             recipe does not register one yet.
+
+    Attributes:
+        module (str): Import path of the module defining the recipe.
+        function (str): Name of the recipe function inside that module.
     """
 
     mission: str
     command: str
-    module: str
-    function: str
+    module_name: InitVar[str]
+    function_name: InitVar[str | None] = None
     strategy: str | None = None
+    module: str = field(init=False)
+    function: str = field(init=False)
 
-
-def _recipe(
-    mission: str, command: str, module: str, function: str | None = None, *, strategy: str | None = None
-) -> RecipeEntry:
-    """Build a registry entry from the module's name inside ``el_paso.recipes.<mission>``.
-
-    The recipe function defaults to the module's name.
-    """
-    return RecipeEntry(mission, command, f"el_paso.recipes.{mission}.{module}", function or module, strategy)
+    def __post_init__(self, module_name: str, function_name: str | None) -> None:
+        mission = self.mission.replace("-", "_")
+        object.__setattr__(self, "module", f"el_paso.recipes.{mission}.{module_name}")
+        object.__setattr__(self, "function", function_name or module_name)
 
 
 RECIPES: tuple[RecipeEntry, ...] = (
-    _recipe("arase", "hep-h", "process_arase_hep", "process_arase_hep_h", strategy="arase_hep_h_strategy"),
-    _recipe("arase", "hep-l", "process_arase_hep", "process_arase_hep_l", strategy="arase_hep_l_strategy"),
-    _recipe("arase", "mepe", "process_arase_mepe", strategy="arase_mepe_strategy"),
-    _recipe(
+    RecipeEntry("arase", "hep-h", "process_arase_hep", "process_arase_hep_h", strategy="arase_hep_h_strategy"),
+    RecipeEntry("arase", "hep-l", "process_arase_hep", "process_arase_hep_l", strategy="arase_hep_l_strategy"),
+    RecipeEntry("arase", "mepe", "process_arase_mepe", strategy="arase_mepe_strategy"),
+    RecipeEntry(
         "arase",
         "pwe-density",
         "process_arase_pwe_densities",
         "process_arase_pwe_density",
         strategy="arase_pwe_densities_strategy",
     ),
-    _recipe("arase", "xep", "process_arase_xep", strategy="arase_xep_strategy"),
-    _recipe(
+    RecipeEntry("arase", "xep", "process_arase_xep", strategy="arase_xep_strategy"),
+    RecipeEntry(
         "arase",
         "xep-realtime",
         "process_arase_xep_realtime",
         "process_arase_xep_real_time",
         strategy="arase_xep_realtime_strategy",
     ),
-    _recipe("dmsp", "ssj", "process_dmsp_ssj_electrons", strategy="dmsp_ssj_electron_strategy"),
-    _recipe("esa", "gssc-emu-electrons", "process_gssc_emu_electrons", strategy="gssc_emu_electron_strategy"),
-    _recipe("esa", "gssc-emu-protons", "process_gssc_emu_protons", strategy="gssc_emu_proton_strategy"),
-    _recipe("esa", "ngrm", "process_ngrm_satellite", "process_ngrm_electron_fluxes", strategy="esa_ngrm_strategy"),
-    _recipe(
+    RecipeEntry("dmsp", "ssj", "process_dmsp_ssj_electrons", strategy="dmsp_ssj_electron_strategy"),
+    RecipeEntry("esa", "gssc-emu-electrons", "process_gssc_emu_electrons", strategy="gssc_emu_electron_strategy"),
+    RecipeEntry("esa", "gssc-emu-protons", "process_gssc_emu_protons", strategy="gssc_emu_proton_strategy"),
+    RecipeEntry("esa", "ngrm", "process_ngrm_satellite", "process_ngrm_electron_fluxes", strategy="esa_ngrm_strategy"),
+    RecipeEntry(
         "goes", "eps-maged-epead", "process_goes_eps_maged_and_epead", strategy="goes_eps_maged_and_epead_strategy"
     ),
-    _recipe("goes", "mps-high", "process_goes_r_mps_high", strategy="goes_r_mps_high_strategy"),
-    _recipe("goes", "realtime", "process_goes_realtime", "process_goes_real_time", strategy="goes_realtime_strategy"),
-    _recipe("gps", "cxd", "process_gps", "process_gps_data", strategy="gps_cxd_strategy"),
+    RecipeEntry("goes", "mps-high", "process_goes_r_mps_high", strategy="goes_r_mps_high_strategy"),
+    RecipeEntry(
+        "goes", "realtime", "process_goes_realtime", "process_goes_real_time", strategy="goes_realtime_strategy"
+    ),
+    RecipeEntry("gps", "cxd", "process_gps", "process_gps_data", strategy="gps_cxd_strategy"),
     RecipeEntry(
         "lanl-geogrid",
         "mpa-electrons",
-        "el_paso.recipes.lanl_geogrid.process_lanl_geogrid_mpa_electrons",
         "process_lanl_geogrid_mpa_electrons",
         strategy="lanl_geogrid_mpa_electron_strategy",
     ),
-    RecipeEntry(
-        "lanl-geogrid",
-        "mpa-ions",
-        "el_paso.recipes.lanl_geogrid.process_lanl_geogrid_mpa_ions",
-        "process_lanl_geogrid_mpa_ions",
-        strategy="lanl_geogrid_mpa_ion_strategy",
-    ),
+    RecipeEntry("lanl-geogrid", "mpa-ions", "process_lanl_geogrid_mpa_ions", strategy="lanl_geogrid_mpa_ion_strategy"),
     RecipeEntry(
         "lanl-geogrid",
         "sopa-esp-electrons",
-        "el_paso.recipes.lanl_geogrid.process_lanl_geogrid_sopa_esp_electrons",
         "process_lanl_geogrid_sopa_esp_electrons",
         strategy="lanl_geogrid_sopa_esp_electron_strategy",
     ),
     RecipeEntry(
         "lanl-geogrid",
         "sopa-protons",
-        "el_paso.recipes.lanl_geogrid.process_lanl_geogrid_sopa_protons",
         "process_lanl_geogrid_sopa_protons",
         strategy="lanl_geogrid_sopa_proton_strategy",
     ),
-    _recipe("model", "lcds", "process_lcds", strategy="lcds_strategy"),
-    _recipe("poes", "meped", "process_poes_meped", "process_poes_meped_electron", strategy="poes_meped_strategy"),
-    _recipe("poes", "ted", "process_poes_ted", "process_poes_ted_electron", strategy="poes_ted_strategy"),
-    _recipe("probav", "ept-electrons", "process_ept_electron_fluxes", strategy="probav_ept_electron_strategy"),
-    _recipe("probav", "ept-protons", "process_ept_proton_fluxes", strategy="probav_ept_proton_strategy"),
-    _recipe("rbsp", "ect-combined", "process_rbsp_ect_combined", strategy="rbsp_ect_combined_strategy"),
-    _recipe(
+    RecipeEntry("model", "lcds", "process_lcds", strategy="lcds_strategy"),
+    RecipeEntry("poes", "meped", "process_poes_meped", "process_poes_meped_electron", strategy="poes_meped_strategy"),
+    RecipeEntry("poes", "ted", "process_poes_ted", "process_poes_ted_electron", strategy="poes_ted_strategy"),
+    RecipeEntry("probav", "ept-electrons", "process_ept_electron_fluxes", strategy="probav_ept_electron_strategy"),
+    RecipeEntry("probav", "ept-protons", "process_ept_proton_fluxes", strategy="probav_ept_proton_strategy"),
+    RecipeEntry("rbsp", "ect-combined", "process_rbsp_ect_combined", strategy="rbsp_ect_combined_strategy"),
+    RecipeEntry(
         "rbsp",
         "density-combined",
         "process_rbsp_efw_emfisis_density_combined",
         strategy="rbsp_efw_emfisis_density_combined_strategy",
     ),
-    _recipe("rbsp", "emfisis-waves", "process_rbsp_emfisis_waves", strategy="rbsp_emfisis_waves_strategy"),
-    _recipe("rbsp", "hope-electrons", "process_rbsp_hope_electrons", strategy="rbsp_hope_electron_strategy"),
-    _recipe("rbsp", "hope-protons", "process_rbsp_hope_protons", strategy="rbsp_hope_proton_strategy"),
-    _recipe("rbsp", "mageis-electrons", "process_rbsp_mageis_electrons", strategy="rbsp_mageis_electron_strategy"),
-    _recipe("rbsp", "mageis-protons", "process_rbsp_mageis_protons", strategy="rbsp_mageis_proton_strategy"),
-    _recipe("rbsp", "rept-electrons", "process_rbsp_rept_electrons", strategy="rbsp_rept_electron_strategy"),
-    _recipe("rbsp", "rbspice-protons", "process_rbsp_rbspice_protons", strategy="rbsp_rbspice_proton_strategy"),
-    _recipe(
+    RecipeEntry("rbsp", "emfisis-waves", "process_rbsp_emfisis_waves", strategy="rbsp_emfisis_waves_strategy"),
+    RecipeEntry("rbsp", "hope-electrons", "process_rbsp_hope_electrons", strategy="rbsp_hope_electron_strategy"),
+    RecipeEntry("rbsp", "hope-protons", "process_rbsp_hope_protons", strategy="rbsp_hope_proton_strategy"),
+    RecipeEntry("rbsp", "mageis-electrons", "process_rbsp_mageis_electrons", strategy="rbsp_mageis_electron_strategy"),
+    RecipeEntry("rbsp", "mageis-protons", "process_rbsp_mageis_protons", strategy="rbsp_mageis_proton_strategy"),
+    RecipeEntry("rbsp", "rept-electrons", "process_rbsp_rept_electrons", strategy="rbsp_rept_electron_strategy"),
+    RecipeEntry("rbsp", "rbspice-protons", "process_rbsp_rbspice_protons", strategy="rbsp_rbspice_proton_strategy"),
+    RecipeEntry(
         "solar_wind_indices", "solar-wind-indices", "process_solar_wind_indices", strategy="solar_wind_indices_strategy"
     ),
-    _recipe("themis", "fft-waves", "process_themis_fft_waves", strategy="themis_fft_waves_strategy"),
-    _recipe("themis", "scpot-density", "process_themis_scpot_density", strategy="themis_scpot_density_strategy"),
+    RecipeEntry("themis", "fft-waves", "process_themis_fft_waves", strategy="themis_fft_waves_strategy"),
+    RecipeEntry("themis", "scpot-density", "process_themis_scpot_density", strategy="themis_scpot_density_strategy"),
 )
 
 

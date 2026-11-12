@@ -245,10 +245,9 @@ def _registered_recipes() -> dict[tuple[str, str], int]:
             if not (isinstance(call, ast.Call) and isinstance(call.func, ast.Name)):
                 continue
             args = [arg.value for arg in call.args if isinstance(arg, ast.Constant) and isinstance(arg.value, str)]
-            if call.func.id == "RecipeEntry" and len(args) == 4:  # mission, command, module, function
-                registered[(args[2], args[3])] = call.lineno
-            elif call.func.id == "_recipe" and len(args) in (3, 4):  # mission, command, module name[, function]
-                module = f"el_paso.recipes.{args[0]}.{args[2]}"
+            if call.func.id == "RecipeEntry" and len(args) in (3, 4):  # mission, command, module name[, function]
+                package = args[0].replace("-", "_")
+                module = f"el_paso.recipes.{package}.{args[2]}"
                 registered[(module, args[3] if len(args) == 4 else args[2])] = call.lineno
 
     return registered
