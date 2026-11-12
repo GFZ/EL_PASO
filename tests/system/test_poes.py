@@ -36,7 +36,15 @@ def test_poes_ted_electron(
         calculate_Lstar=True,
     )
 
-    out_path = processed_data_path / "POES" / "metop1" / f"metop1_ted_{start_time:%Y%m%d}_T89.nc"
+    out_path = (
+        processed_data_path
+        / "POES"
+        / "metop1"
+        / "ted"
+        / f"{start_time:%Y}"
+        / f"{start_time:%m}"
+        / f"metop1_ted_{start_time:%Y%m%d}_T89.nc"
+    )
     assert out_path.exists()
 
     poes_proc = DataSet(
@@ -58,7 +66,17 @@ def test_poes_ted_electron(
         # more output groups stays covered.
         # get_file_path() needs the strategy's own rounded interval, not the raw start_time/end_time,
         # to compute the correct file name.
-        dest_dir = Path(__file__).parent / "data" / "processed" / "POES" / "metop1"
+        dest_dir = (
+            Path(__file__).parent
+            / "data"
+            / "processed"
+            / "POES"
+            / "metop1"
+            / "ted"
+            / f"{start_time:%Y}"
+            / f"{start_time:%m}"
+        )
+        dest_dir.mkdir(parents=True, exist_ok=True)
         interval_start, interval_end = poes_proc.saving_strategy.get_time_intervals_to_save(start_time, end_time)[0]
         for output_file in poes_proc.saving_strategy.output_files:
             src_path = poes_proc.saving_strategy.get_file_path(interval_start, interval_end, output_file)
@@ -104,7 +122,15 @@ def test_poes_meped_electron(
         num_cores=32,
     )
 
-    out_path = processed_data_path / "POES" / "noaa18" / f"noaa18_meped_{start_time:%Y%m%d}_T89.nc"
+    out_path = (
+        processed_data_path
+        / "POES"
+        / "noaa18"
+        / "meped"
+        / f"{start_time:%Y}"
+        / f"{start_time:%m}"
+        / f"noaa18_meped_{start_time:%Y%m%d}_T89.nc"
+    )
     assert out_path.exists()
 
     poes_proc = DataSet(
@@ -126,7 +152,17 @@ def test_poes_meped_electron(
         # more output groups stays covered.
         # get_file_path() needs the strategy's own rounded interval, not the raw start_time/end_time,
         # to compute the correct file name.
-        dest_dir = Path(__file__).parent / "data" / "processed" / "POES" / "noaa18"
+        dest_dir = (
+            Path(__file__).parent
+            / "data"
+            / "processed"
+            / "POES"
+            / "noaa18"
+            / "meped"
+            / f"{start_time:%Y}"
+            / f"{start_time:%m}"
+        )
+        dest_dir.mkdir(parents=True, exist_ok=True)
         interval_start, interval_end = poes_proc.saving_strategy.get_time_intervals_to_save(start_time, end_time)[0]
         for output_file in poes_proc.saving_strategy.output_files:
             src_path = poes_proc.saving_strategy.get_file_path(interval_start, interval_end, output_file)

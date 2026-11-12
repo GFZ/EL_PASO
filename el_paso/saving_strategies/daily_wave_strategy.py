@@ -44,6 +44,8 @@ class DailyWaveStrategy(SavingStrategy):
         satellite: str,
         instrument: str,
         data_standard: DataStandard[StandardName],
+        *,
+        legacy_layout: bool = False,
     ) -> None:
         """Initialize a monthly file saving strategy.
 
@@ -53,6 +55,8 @@ class DailyWaveStrategy(SavingStrategy):
             satellite (str): Satellite name, used in file path and name generation.
             instrument (str): Instrument name, used in file path and name generation.
             data_standard (DataStandard): Instance of the data standard implementation.
+            legacy_layout (bool): Deprecated. If True, write to the old flat layout
+                ``base/MISSION/satellite/`` instead of ``base/MISSION/satellite/instrument/YYYY/MM/``.
 
         Attributes:
             output_files: List of output file configurations, with variable names
@@ -65,6 +69,7 @@ class DailyWaveStrategy(SavingStrategy):
         self.satellite = satellite
         self.instrument = instrument
         self.data_standard = data_standard
+        self._set_legacy_layout(legacy_layout=legacy_layout)
 
         self.output_files = [
             OutputFile("full", self._get_output_file_entries(), save_incomplete=True),
@@ -112,14 +117,6 @@ class DailyWaveStrategy(SavingStrategy):
 
         return time_intervals
 
-    def get_file_path_stem(self) -> Path:
-        """Returns the directory `base_path/MISSION/satellite`.
-
-        Returns:
-            Path: The directory where this strategy's output files are stored.
-        """
-        return self.base_data_path / self.mission.upper() / self.satellite.lower()
-
     def get_file_name_stem(self) -> str:
         """Returns the file name stem `satellite_instrument`.
 
@@ -132,7 +129,7 @@ class DailyWaveStrategy(SavingStrategy):
         """Generate the daily file path for the configured format."""
         file_name = f"{self.get_file_name_stem()}_{interval_start.strftime('%Y%m%d')}.nc"
 
-        return self.get_file_path_stem() / file_name
+        return self.get_file_path_stem() / self.get_year_month_folder(interval_start) / file_name
 
     def standardize_variable(
         self,

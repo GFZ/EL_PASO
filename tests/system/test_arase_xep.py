@@ -70,7 +70,11 @@ def test_arase_xep(tmpdir: Path) -> None:
     month_start = _START_TIME.replace(day=1)
     month_end = month_start.replace(day=calendar.monthrange(month_start.year, month_start.month)[1])
     out_path = (
-        processed_data_path / "ARASE" / "arase" / f"arase_xep_{month_start:%Y%m%d}to{month_end:%Y%m%d}_{_MAG_FIELD}.nc"
+        processed_data_path
+        / "ARASE"
+        / "arase"
+        / "xep"
+        / f"arase_xep_{month_start:%Y%m%d}to{month_end:%Y%m%d}_{_MAG_FIELD}.nc"
     )
     assert out_path.exists(), f"expected output file was not written: {out_path}"
 

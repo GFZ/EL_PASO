@@ -50,6 +50,8 @@ class MonthlyRBStrategy(SavingStrategy):
         mag_field: MagneticFieldLiteral,
         data_standard: DataStandard[StandardName],
         file_format: MFSFormats = "nc",
+        *,
+        legacy_layout: bool = False,
     ) -> None:
         """Initialize a monthly file saving strategy.
 
@@ -62,6 +64,10 @@ class MonthlyRBStrategy(SavingStrategy):
             file_format (MFSFormats): One of ``"nc"``, ``"cdf"``, ``"h5"``, or ``"mat"``.
                 A leading dot is also accepted.
             data_standard (DataStandard): Instance of the data standard implementation.
+            legacy_layout (bool): Deprecated. If True, write to the old flat layout
+                ``base/MISSION/satellite/`` instead of ``base/MISSION/satellite/instrument/``
+                (and, for daily strategies, without ``YYYY/MM/`` folders). Only meant to keep
+                existing datasets readable until they are moved to the new layout.
 
         Attributes:
             output_files: List of output file configurations, with variable names
@@ -76,6 +82,7 @@ class MonthlyRBStrategy(SavingStrategy):
         self.mag_field = mag_field
         self.data_standard = data_standard
         self.file_format = ep.utils.normalize_file_format(file_format)
+        self._set_legacy_layout(legacy_layout=legacy_layout)
 
         self.output_files = [
             OutputFile("full", self._get_output_file_entries(), save_incomplete=True),
@@ -129,14 +136,6 @@ class MonthlyRBStrategy(SavingStrategy):
             )
 
         return time_intervals
-
-    def get_file_path_stem(self) -> Path:
-        """Returns the directory `base_path/MISSION/satellite`.
-
-        Returns:
-            Path: The directory where this strategy's output files are stored.
-        """
-        return self.base_data_path / self.mission.upper() / self.satellite.lower()
 
     def get_file_name_stem(self) -> str:
         """Returns the file name stem `satellite_instrument`.
