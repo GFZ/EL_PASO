@@ -748,3 +748,44 @@ def test_lanl_geogrid_strategies_save_extra_variables(
     for name in extra_names:
         assert name in entries
         assert name not in default_entries
+
+
+_LAYOUT_STRATEGIES = (
+    ep.saving_strategies.MonthlyRBStrategy,
+    ep.saving_strategies.DailyWaveStrategy,
+)
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+@pytest.mark.parametrize(
+    ("factory", "extra_args", "extra_kwargs", "expected_cls", "expected_attrs"),
+    CASES,
+    ids=[f"{case[0].__name__}-{i}" for i, case in enumerate(CASES)],
+)
+def test_strategy_factory_passes_legacy_layout(
+    tmp_path: Path,
+    factory: Callable[..., SavingStrategy],
+    extra_args: tuple[Any, ...],
+    extra_kwargs: dict[str, Any],
+    expected_cls: type[SavingStrategy],
+    expected_attrs: dict[str, Any],
+) -> None:
+    """Every factory that builds a layout-aware strategy forwards `legacy_layout`, defaulting to False."""
+    if not issubclass(expected_cls, _LAYOUT_STRATEGIES):
+        # GFZ, LCDS and solar wind strategies keep their own fixed paths
+        assert "legacy_layout" not in inspect.signature(factory).parameters
+        return
+
+    parameter = inspect.signature(factory).parameters["legacy_layout"]
+    assert parameter.kind is inspect.Parameter.KEYWORD_ONLY
+    assert parameter.default is False
+
+    default = factory(tmp_path, *extra_args, **extra_kwargs)
+    assert default.legacy_layout is False
+    assert default.get_file_path_stem().name == default.instrument.lower()
+
+    with pytest.warns(DeprecationWarning, match="legacy_layout"):
+        legacy = factory(tmp_path, *extra_args, **extra_kwargs, legacy_layout=True)
+    assert legacy.legacy_layout is True
+    assert legacy.get_file_path_stem() == default.get_file_path_stem().parent

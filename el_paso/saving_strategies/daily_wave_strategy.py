@@ -55,8 +55,9 @@ class DailyWaveStrategy(SavingStrategy):
             satellite (str): Satellite name, used in file path and name generation.
             instrument (str): Instrument name, used in file path and name generation.
             data_standard (DataStandard): Instance of the data standard implementation.
-            legacy_layout (bool): Deprecated. If True, write to the old flat layout
+            legacy_layout (bool): Deprecated. If True, load data from the old flat layout
                 ``base/MISSION/satellite/`` instead of ``base/MISSION/satellite/instrument/YYYY/MM/``.
+                Saving always uses the new layout.
 
         Attributes:
             output_files: List of output file configurations, with variable names

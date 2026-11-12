@@ -69,7 +69,8 @@ class MonthlyDensityStrategy(MonthlyRBStrategy):
             data_standard (DataStandard | None, optional):
                 An optional `DataStandard` instance to use for standardizing variables.
                 If `None`, `ep.data_standards.PRBEMStandard` is used by default.
-            legacy_layout (bool): Deprecated. Use the old flat ``base/MISSION/satellite/`` layout.
+            legacy_layout (bool): Deprecated. Load data from the old flat ``base/MISSION/satellite/`` layout.
+                Saving always uses the new layout.
         """
         # Resolve the fallback before `super().__init__`, which assigns `self.data_standard`
         # from whatever it is handed.

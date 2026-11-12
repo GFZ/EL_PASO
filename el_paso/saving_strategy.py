@@ -106,7 +106,9 @@ class SavingStrategy(ABC):
         instrument (str): The name of the instrument for which data is being saved.
         mag_field (MagneticFieldLiteral): The magnetic field model used for saving data, if applicable.
         legacy_layout (bool): Deprecated. If True, ``get_file_path_stem`` omits the instrument folder and
-            ``get_year_month_folder`` returns an empty path, restoring the old flat layout ``base/MISSION/satellite/``.
+            ``get_year_month_folder`` returns an empty path, so that data saved in the old flat layout
+            ``base/MISSION/satellite/`` can still be loaded. It only affects loading: ``ep.save`` always
+            writes to the new layout.
     """
 
     legacy_layout: bool = False
@@ -388,7 +390,7 @@ class SavingStrategy(ABC):
         if legacy_layout:
             warnings.warn(
                 "legacy_layout=True is deprecated and will be removed in a future release. "
-                "Files are now saved under base/MISSION/satellite/instrument/. "
+                "It only affects loading. Files are always saved under base/MISSION/satellite/instrument/. "
                 "Move already processed files to the new location.",
                 DeprecationWarning,
                 stacklevel=3,

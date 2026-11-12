@@ -30,6 +30,7 @@ def rbsp_ect_combined_netcdf_strategy(
     satellite: RBSPSatellite,
     *,
     file_format: ep.typing.MFSFormats = "nc",
+    legacy_layout: bool = False,
 ) -> ep.SavingStrategy:
     """Monthly NetCDF saving strategy for RBSP ECT-combined."""
     return ep.saving_strategies.MonthlyRBStrategy(
@@ -40,6 +41,7 @@ def rbsp_ect_combined_netcdf_strategy(
         mag_field,
         data_standard=ep.data_standards.GFZStandard(),
         file_format=file_format,
+        legacy_layout=legacy_layout,
     )
 
 
@@ -48,6 +50,8 @@ def rbsp_ect_combined_strategy(
     mag_field: ep.typing.MagneticFieldLiteral,
     satellite: RBSPSatellite,
     save_strategy: Literal["gfz", "netcdf"] = "netcdf",
+    *,
+    legacy_layout: bool = False,
 ) -> ep.SavingStrategy:
     """Saving strategy of the RBSP ECT combined recipe.
 
@@ -56,6 +60,7 @@ def rbsp_ect_combined_strategy(
         mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
         satellite (RBSPSatellite): Satellite the data belongs to.
         save_strategy (Literal["gfz", "netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+        legacy_layout (bool): Deprecated. Set to True to load data saved without instrument folders. Defaults to False.
 
     Returns:
         ep.SavingStrategy: Legacy GFZ strategy for "gfz", otherwise a monthly or daily NetCDF strategy.
@@ -63,7 +68,7 @@ def rbsp_ect_combined_strategy(
     if save_strategy == "gfz":
         return rbsp_ect_combined_gfz_strategy(processed_data_path, mag_field, satellite)
 
-    return rbsp_ect_combined_netcdf_strategy(processed_data_path, mag_field, satellite)
+    return rbsp_ect_combined_netcdf_strategy(processed_data_path, mag_field, satellite, legacy_layout=legacy_layout)
 
 
 def process_rbsp_ect_combined(

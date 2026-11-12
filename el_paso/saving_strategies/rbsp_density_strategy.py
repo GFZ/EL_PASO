@@ -72,7 +72,8 @@ class RBSPDensityStrategy(MonthlyRBStrategy):
                 If `None`, `ep.data_standards.PRBEMStandard` is used by default.
             file_format (MFSFormats): One of ``"nc"``, ``"cdf"``, ``"h5"``, or ``"mat"``.
                 A leading dot is also accepted.
-            legacy_layout (bool): Deprecated. Use the old flat ``base/MISSION/satellite/`` layout.
+            legacy_layout (bool): Deprecated. Load data from the old flat ``base/MISSION/satellite/`` layout.
+                Saving always uses the new layout.
         """
         # Resolve the fallback before `super().__init__`, which assigns `self.data_standard`
         # from whatever it is handed.
