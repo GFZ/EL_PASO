@@ -37,11 +37,29 @@ def test_rbsp_emfisis_waves(
         processed_data_path=processed_data_path,
     )
 
-    out_path = processed_data_path / "RBSP" / "rbspa" / f"rbspa_emfisis_{start_time:%Y%m%d}.nc"
+    out_path = (
+        processed_data_path
+        / "RBSP"
+        / "rbspa"
+        / "emfisis"
+        / f"{start_time:%Y}"
+        / f"{start_time:%m}"
+        / f"rbspa_emfisis_{start_time:%Y%m%d}.nc"
+    )
     assert out_path.exists()
 
     if renew_solution:
-        shutil.copy(out_path, Path(__file__).parent / "data" / "processed" / "RBSP" / "rbspa")
+        shutil.copy(
+            out_path,
+            Path(__file__).parent
+            / "data"
+            / "processed"
+            / "RBSP"
+            / "rbspa"
+            / "emfisis"
+            / f"{start_time:%Y}"
+            / f"{start_time:%m}",
+        )
 
     rbsp_proc = DataSet(
         start_time=start_time,

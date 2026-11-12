@@ -157,6 +157,7 @@ def test_monthly_rb_strategy_saves_mocked_variables_to_netcdf_with_data_standard
         tmp_path
         / MISSION
         / SATELLITE
+        / INSTRUMENT.lower()
         / f"{SATELLITE}_{INSTRUMENT.lower()}_20130101to20130131_{MAG_FIELD}.{output_format}"
     )
     assert output_path.exists()
@@ -325,6 +326,7 @@ def test_append_data(
         tmp_path
         / MISSION
         / SATELLITE
+        / INSTRUMENT.lower()
         / f"{SATELLITE}_{INSTRUMENT.lower()}_20130101to20130131_{MAG_FIELD}.{output_format}"
     )
     assert output_path.exists()
@@ -444,3 +446,34 @@ def test_save_raises_when_required_dimension_is_missing_tuples(
             end_time=end_time,
             time_var=variables["Epoch"],
         )
+
+
+def test_instrument_folder_and_legacy_layout(tmp_path):
+    kwargs = {
+        "base_data_path": tmp_path,
+        "mission": "GOES",
+        "satellite": "goes16",
+        "instrument": "XEP",
+        "mag_field": "T89",
+        "data_standard": ep.data_standards.PRBEMStandard(),
+    }
+    strategy = ep.saving_strategies.MonthlyRBStrategy(**kwargs)
+    assert strategy.get_file_path_stem() == tmp_path / "GOES" / "goes16" / "xep"
+
+    with pytest.warns(DeprecationWarning, match="legacy_layout"):
+        legacy = ep.saving_strategies.MonthlyRBStrategy(**kwargs, legacy_layout=True)
+    assert legacy.get_file_path_stem() == tmp_path / "GOES" / "goes16"
+
+
+def test_daily_leo_uses_year_month_folder(tmp_path):
+    strategy = ep.saving_strategies.DailyLEORBStrategy(
+        base_data_path=tmp_path,
+        mission="POES",
+        satellite="noaa15",
+        instrument="meped",
+        mag_field="T89",
+        data_standard=ep.data_standards.PRBEMStandard(),
+    )
+    start = datetime(2013, 5, 4, tzinfo=timezone.utc)
+    path = strategy.get_file_path(start, start, strategy.output_files[0])
+    assert path == tmp_path / "POES" / "noaa15" / "meped" / "2013" / "05" / "noaa15_meped_20130504_T89.nc"
