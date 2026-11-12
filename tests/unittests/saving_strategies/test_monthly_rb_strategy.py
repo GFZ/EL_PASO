@@ -448,6 +448,7 @@ def test_save_raises_when_required_dimension_is_missing_tuples(
         )
 
 
+@pytest.mark.basic
 def test_instrument_folder_and_legacy_layout(tmp_path):
     kwargs = {
         "base_data_path": tmp_path,
@@ -465,6 +466,7 @@ def test_instrument_folder_and_legacy_layout(tmp_path):
     assert legacy.get_file_path_stem() == tmp_path / "GOES" / "goes16"
 
 
+@pytest.mark.basic
 def test_daily_leo_uses_year_month_folder(tmp_path):
     strategy = ep.saving_strategies.DailyLEORBStrategy(
         base_data_path=tmp_path,
