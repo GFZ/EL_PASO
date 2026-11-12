@@ -28,6 +28,8 @@ def esa_ngrm_strategy(
     mag_field: ep.typing.MagneticFieldLiteral,
     satellite: ESANGRMSatellite,
     save_strategy: Literal["netcdf"] = "netcdf",
+    *,
+    legacy_layout: bool = False,
 ) -> ep.SavingStrategy:
     """Saving strategy of the ESA NGRM recipe.
 
@@ -36,6 +38,7 @@ def esa_ngrm_strategy(
         mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
         satellite (ESANGRMSatellite): Satellite the data belongs to.
         save_strategy (Literal["netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+        legacy_layout (bool): Deprecated. Set to True to load data saved without instrument folders. Defaults to False.
 
     Returns:
         ep.SavingStrategy: Daily NetCDF strategy for Sentinel-6 satellites, otherwise a monthly NetCDF strategy.
@@ -54,6 +57,7 @@ def esa_ngrm_strategy(
         mag_field,
         data_standard=ep.data_standards.GFZStandard(),
         file_format=file_format,
+        legacy_layout=legacy_layout,
     )
 
 

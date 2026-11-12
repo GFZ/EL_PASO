@@ -58,6 +58,7 @@ from el_paso.cli.availability import AVAILABILITY_PARAMETER, load_availability_t
 from el_paso.cli.plot_figure import DEFAULT_COLORMAP, INDEX_PANELS, build_figure
 from el_paso.cli.plot_script import write_plot_script
 from el_paso.cli.recipe_cli import (
+    FACTORY_ONLY_PARAMETERS,
     _apply_availability,
     _attach_signature,
     _build_parameter_specs,
@@ -860,6 +861,8 @@ def processing_command_line(request: PlotRequest, kwargs: dict[str, Any]) -> str
         _format_time_for_cli(request.end_time),
     ]
     for name, value in kwargs.items():
+        if name in FACTORY_ONLY_PARAMETERS:
+            continue
         option = "--" + name.replace("_", "-")
         if isinstance(value, bool):
             arguments.append(option if value else f"--no-{option.removeprefix('--')}")

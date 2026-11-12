@@ -75,6 +75,12 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("el_paso.cli")
 
+FACTORY_ONLY_PARAMETERS = frozenset({"legacy_layout"})
+"""Strategy factory parameters that are not recipe parameters.
+
+They only matter when loading processed data (``el-paso plot``): processing always writes the new folder layout.
+"""
+
 LOOP_PARAMETER_NAMES = frozenset({"satellite"})
 """Parameters that accept several values and make the recipe run once per value.
 
@@ -836,7 +842,7 @@ def check_strategy_factory(
     The ``el-paso plot`` command takes the factory's parameters as its data options, so each of them has
     to mean the same thing as in the recipe. Every parameter of `factory` must
 
-    - exist in the signature of `recipe`,
+    - exist in the signature of `recipe` (except those in :data:`FACTORY_ONLY_PARAMETERS`),
     - have the same type annotation there, with the same allowed values for a ``Literal``, and
     - have a type the command line builder supports.
 
@@ -862,7 +868,9 @@ def check_strategy_factory(
 
         factory_hint = factory_hints.get(name, parameter.annotation)
 
-        if name not in recipe_parameters:
+        if name in FACTORY_ONLY_PARAMETERS:
+            pass
+        elif name not in recipe_parameters:
             problems.append(f"{name!r}: not a parameter of {_func_name(recipe)}")
         elif recipe_hints.get(name, recipe_parameters[name].annotation) != factory_hint:
             problems.append(

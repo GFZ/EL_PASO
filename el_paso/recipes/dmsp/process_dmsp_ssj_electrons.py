@@ -29,6 +29,8 @@ def dmsp_ssj_electron_strategy(
     mag_field: ep.typing.MagneticFieldLiteral,
     satellite: DMSPSatellite,
     save_strategy: Literal["netcdf"] = "netcdf",
+    *,
+    legacy_layout: bool = False,
 ) -> ep.SavingStrategy:
     """Saving strategy of the DMSP SSJ electron recipe.
 
@@ -37,6 +39,7 @@ def dmsp_ssj_electron_strategy(
         mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
         satellite (DMSPSatellite): Satellite the data belongs to.
         save_strategy (Literal["netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+        legacy_layout (bool): Deprecated. Set to True to load data saved without instrument folders. Defaults to False.
 
     Returns:
         ep.SavingStrategy: Daily NetCDF saving strategy.
@@ -50,6 +53,7 @@ def dmsp_ssj_electron_strategy(
         mag_field,
         data_standard=ep.data_standards.GFZStandard(),
         file_format=file_format,
+        legacy_layout=legacy_layout,
     )
 
 

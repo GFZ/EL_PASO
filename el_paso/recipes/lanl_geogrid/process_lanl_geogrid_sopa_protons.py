@@ -36,6 +36,8 @@ def lanl_geogrid_sopa_proton_strategy(
     processed_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     satellite: LANLGeoGridSatellite,
+    *,
+    legacy_layout: bool = False,
 ) -> ep.SavingStrategy:
     """Monthly GFZ-standard saving strategy for LANL GeoGrid SOPA protons.
 
@@ -43,6 +45,7 @@ def lanl_geogrid_sopa_proton_strategy(
         processed_data_path (str | Path): Base directory of the processed data.
         mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
         satellite (LANLGeoGridSatellite): Geosynchronous longitude slot the data belongs to.
+        legacy_layout (bool): Deprecated. Set to True to load data saved without instrument folders. Defaults to False.
 
     Returns:
         ep.SavingStrategy: A monthly netCDF strategy using the GFZ data standard.
@@ -55,6 +58,7 @@ def lanl_geogrid_sopa_proton_strategy(
         mag_field,
         data_standard=ep.data_standards.GFZStandard(),
         file_format=".nc",
+        legacy_layout=legacy_layout,
     )
 
 

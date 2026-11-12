@@ -24,6 +24,8 @@ def arase_pwe_densities_strategy(
     processed_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     save_strategy: Literal["netcdf"] = "netcdf",
+    *,
+    legacy_layout: bool = False,
 ) -> ep.SavingStrategy:
     """Saving strategy of the Arase PWE density recipe.
 
@@ -31,6 +33,7 @@ def arase_pwe_densities_strategy(
         processed_data_path (str | Path): Base directory of the processed data.
         mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
         save_strategy (Literal["netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+        legacy_layout (bool): Deprecated. Set to True to load data saved without instrument folders. Defaults to False.
 
     Returns:
         ep.SavingStrategy: Monthly NetCDF density saving strategy.
@@ -42,6 +45,7 @@ def arase_pwe_densities_strategy(
         satellite="arase",
         instrument="PWE",
         mag_field=mag_field,
+        legacy_layout=legacy_layout,
     )
 
 

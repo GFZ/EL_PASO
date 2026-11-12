@@ -64,10 +64,11 @@ class MonthlyRBStrategy(SavingStrategy):
             file_format (MFSFormats): One of ``"nc"``, ``"cdf"``, ``"h5"``, or ``"mat"``.
                 A leading dot is also accepted.
             data_standard (DataStandard): Instance of the data standard implementation.
-            legacy_layout (bool): Deprecated. If True, write to the old flat layout
+            legacy_layout (bool): Deprecated. If True, load data from the old flat layout
                 ``base/MISSION/satellite/`` instead of ``base/MISSION/satellite/instrument/``
                 (and, for daily strategies, without ``YYYY/MM/`` folders). Only meant to keep
-                existing datasets readable until they are moved to the new layout.
+                existing datasets readable until they are moved to the new layout. Saving always
+                uses the new layout.
 
         Attributes:
             output_files: List of output file configurations, with variable names

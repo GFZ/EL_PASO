@@ -676,6 +676,29 @@ def test_processing_command_line_spells_out_every_argument() -> None:
     )
 
 
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_processing_command_line_leaves_out_legacy_layout() -> None:
+    request = PlotRequest(
+        recipe=stub_recipe,
+        factory=stub_strategy,
+        start_time=PLOT_START,
+        end_time=PLOT_START + timedelta(hours=12),
+        strategy_kwargs=[],
+        variables=None,
+        output_dir=None,
+        filename=None,
+        show=False,
+        dry_run=False,
+        verbose=False,
+        plot_defaults={},
+    )
+
+    command = plot_cli.processing_command_line(request, {"processed_data_path": Path("data"), "legacy_layout": True})
+
+    assert "legacy" not in command
+
+
 @pytest.fixture
 def mageis_data(tmp_path: Path) -> Path:
     """Synthetic MagEIS output for both satellites; returns the processed-data path."""
