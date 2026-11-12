@@ -26,3 +26,18 @@ def test_monthly_omni_flux_rb_strategy_saves_omnidirectional_flux(tmp_path: Path
     monthly_names = monthly_strategy.output_files[0].names_to_save
 
     assert names_to_save == [*monthly_names, "FEDO", "Energy_FEDO", "Alpha_range"]
+
+
+@pytest.mark.basic
+def test_monthly_omni_flux_rb_strategy_legacy_layout(tmp_path: Path) -> None:
+    args = (tmp_path, "Arase", "arase", "xep", "T89")
+    standard = ep.data_standards.GFZStandard()
+
+    assert (
+        ep.saving_strategies.MonthlyOmniFluxRBStrategy(*args, data_standard=standard).get_file_path_stem()
+        == tmp_path / "Arase".upper() / "arase" / "xep"
+    )
+
+    with pytest.warns(DeprecationWarning, match="legacy_layout"):
+        legacy = ep.saving_strategies.MonthlyOmniFluxRBStrategy(*args, data_standard=standard, legacy_layout=True)
+    assert legacy.get_file_path_stem() == tmp_path / "Arase".upper() / "arase"

@@ -38,7 +38,9 @@ def test_goes_realtime_snapshot(
         skip_existing=True,
     )
 
-    out_path = processed_data_path / "GOES" / "goes_primary" / "goes_primary_mps-high_20251201to20251231_T89.nc"
+    out_path = (
+        processed_data_path / "GOES" / "goes_primary" / "mps-high" / "goes_primary_mps-high_20251201to20251231_T89.nc"
+    )
     assert out_path.exists(), "Output path does not exist!"
 
     goes_proc = GFZDataSet(
@@ -54,7 +56,8 @@ def test_goes_realtime_snapshot(
         # more output groups stays covered.
         # get_file_path() needs the strategy's own rounded interval (e.g. full-month bounds for
         # MonthlyRBStrategy), not the raw start_time/end_time, to compute the correct file name.
-        dest_dir = Path(__file__).parent / "data" / "processed" / "GOES" / "goes_primary"
+        dest_dir = Path(__file__).parent / "data" / "processed" / "GOES" / "goes_primary" / "mps-high"
+        dest_dir.mkdir(parents=True, exist_ok=True)
         interval_start, interval_end = goes_proc.saving_strategy.get_time_intervals_to_save(start_time, end_time)[0]
         for output_file in goes_proc.saving_strategy.output_files:
             src_path = goes_proc.saving_strategy.get_file_path(interval_start, interval_end, output_file)

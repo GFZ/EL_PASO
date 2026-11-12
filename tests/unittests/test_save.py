@@ -85,7 +85,7 @@ def test_time_independent_variable_is_written_to_every_daily_file(tmp_path: Path
         time_var=variables_to_save["Epoch"],
     )
 
-    out_dir = tmp_path / "THEMIS" / "tha"
+    out_dir = tmp_path / "THEMIS" / "tha" / "fft" / "2024" / "05"
     expected_files = [out_dir / "tha_fft_20240510.nc", out_dir / "tha_fft_20240511.nc"]
 
     for file_path in expected_files:
@@ -142,7 +142,7 @@ def test_interval_without_records_is_skipped(tmp_path: Path) -> None:
         time_var=variables_to_save["Epoch"],
     )
 
-    out_dir = tmp_path / "THEMIS" / "tha"
+    out_dir = tmp_path / "THEMIS" / "tha" / "fft" / "2024" / "05"
     assert (out_dir / "tha_fft_20240510.nc").exists()
     assert not (out_dir / "tha_fft_20240511.nc").exists()
 

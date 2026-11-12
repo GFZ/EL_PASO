@@ -105,8 +105,13 @@ class SavingStrategy(ABC):
         mission (str): The name of the mission for which data is being saved.
         instrument (str): The name of the instrument for which data is being saved.
         mag_field (MagneticFieldLiteral): The magnetic field model used for saving data, if applicable.
+        legacy_layout (bool): Deprecated. If True, ``get_file_path_stem`` omits the instrument folder and
+            ``get_year_month_folder`` returns an empty path, so that data saved in the old flat layout
+            ``base/MISSION/satellite/`` can still be loaded. It only affects loading: ``ep.save`` always
+            writes to the new layout.
     """
 
+    legacy_layout: bool = False
     output_files: list[OutputFile]
     data_standard: DataStandard[StandardName]
     base_data_path: Path
@@ -379,14 +384,33 @@ class SavingStrategy(ABC):
                 )
                 raise ValueError(msg)
 
-    @abstractmethod
+    def _set_legacy_layout(self, *, legacy_layout: bool) -> None:
+        """Store the ``legacy_layout`` flag and emit a deprecation warning if it is set."""
+        self.legacy_layout = legacy_layout
+        if legacy_layout:
+            warnings.warn(
+                "legacy_layout=True is deprecated and will be removed in a future release. "
+                "It only affects loading. Files are always saved under base/MISSION/satellite/instrument/. "
+                "Move already processed files to the new location.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
+
     def get_file_path_stem(self) -> Path:
         """Returns the directory under ``base_data_path`` where output files are stored.
 
+        The default is ``base_data_path/MISSION/satellite/instrument``. With ``legacy_layout=True``
+        the instrument folder is omitted.
+
         Returns:
-            Path: The strategy-specific output directory, typically derived from
-            ``mission``, ``satellite``, and ``instrument``.
+            Path: The strategy-specific output directory.
         """
+        path = self.base_data_path / self.mission.upper() / self.satellite.lower()
+        return path if self.legacy_layout else path / self.instrument.lower()
+
+    def get_year_month_folder(self, interval_start: datetime) -> Path:
+        """Returns the ``YYYY/MM`` sub-folder for daily files, or an empty path with ``legacy_layout=True``."""
+        return Path() if self.legacy_layout else Path(interval_start.strftime("%Y/%m"))
 
     @abstractmethod
     def get_file_name_stem(self) -> str:

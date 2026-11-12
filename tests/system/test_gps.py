@@ -36,7 +36,7 @@ def test_lanl_gps(
     start_date = dt_start.replace(day=1)
     end_date = dt_end.replace(day=30)
 
-    out_path = processed_data_path / "GPS" / "ns41" / f"ns41_cxd_{start_date:%Y%m%d}to{end_date:%Y%m%d}_T89.nc"
+    out_path = processed_data_path / "GPS" / "ns41" / "cxd" / f"ns41_cxd_{start_date:%Y%m%d}to{end_date:%Y%m%d}_T89.nc"
     assert out_path.exists()
 
 

@@ -36,11 +36,11 @@ def test_goes_r_mps_high_snapshot(
         save_strategy="netcdf",
     )
 
-    out_path = processed_data_path / "GOES" / "goes18" / "goes18_mps_high_20240501to20240531_T96.nc"
+    out_path = processed_data_path / "GOES" / "goes18" / "mps_high" / "goes18_mps_high_20240501to20240531_T96.nc"
     assert out_path.exists(), "File did not get written!"
 
     if renew_solution:
-        solution_path = Path(__file__).parent / "data" / "processed" / "GOES" / "goes18"
+        solution_path = Path(__file__).parent / "data" / "processed" / "GOES" / "goes18" / "mps_high"
         solution_path.mkdir(parents=True, exist_ok=True)
         shutil.copy(out_path, solution_path)
 

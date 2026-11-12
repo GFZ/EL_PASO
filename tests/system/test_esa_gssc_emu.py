@@ -45,6 +45,7 @@ def test_esa_gssc_emu_electrons(
         processed_data_path
         / "ESA"
         / "gsat0215"
+        / "emu-electron"
         / f"gsat0215_emu-electron_{start_date:%Y%m%d}to{end_date:%Y%m%d}_T89.nc"
     )
     assert out_path.exists()
@@ -80,7 +81,11 @@ def test_esa_gssc_emu_protons(
     end_date = start_time.replace(day=calendar.monthrange(start_time.year, start_time.month)[1])
 
     out_path = (
-        processed_data_path / "ESA" / "gsat0215" / f"gsat0215_emu-proton_{start_date:%Y%m%d}to{end_date:%Y%m%d}_T89.nc"
+        processed_data_path
+        / "ESA"
+        / "gsat0215"
+        / "emu-proton"
+        / f"gsat0215_emu-proton_{start_date:%Y%m%d}to{end_date:%Y%m%d}_T89.nc"
     )
     assert out_path.exists()
 

@@ -33,7 +33,11 @@ def probav_ept_electron_gfz_strategy(
 
 
 def probav_ept_electron_netcdf_strategy(
-    base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral, *, file_format: ep.typing.MFSFormats = ".nc"
+    base_data_path: str | Path,
+    mag_field: ep.typing.MagneticFieldLiteral,
+    *,
+    file_format: ep.typing.MFSFormats = ".nc",
+    legacy_layout: bool = False,
 ) -> ep.SavingStrategy:
     """Daily LEO/RB NetCDF saving strategy for PROBA-V EPT electrons."""
     return ep.saving_strategies.DailyLEORBStrategy(
@@ -44,6 +48,7 @@ def probav_ept_electron_netcdf_strategy(
         mag_field,
         data_standard=ep.data_standards.GFZStandard(),
         file_format=file_format,
+        legacy_layout=legacy_layout,
     )
 
 
@@ -54,6 +59,8 @@ def probav_ept_electron_strategy(
     processed_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     save_strategy: typing.Literal["gfz", "netcdf"] = "netcdf",
+    *,
+    legacy_layout: bool = False,
 ) -> ep.SavingStrategy:
     """Saving strategy of the PROBA-V EPT electron recipe.
 
@@ -61,6 +68,7 @@ def probav_ept_electron_strategy(
         processed_data_path (str | Path): Base directory of the processed data.
         mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
         save_strategy (typing.Literal["gfz", "netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+        legacy_layout (bool): Deprecated. Set to True to load data saved without instrument folders. Defaults to False.
 
     Returns:
         ep.SavingStrategy: Legacy GFZ strategy for "gfz", otherwise a monthly or daily NetCDF strategy.
@@ -68,7 +76,7 @@ def probav_ept_electron_strategy(
     if save_strategy == "gfz":
         return probav_ept_electron_gfz_strategy(processed_data_path, mag_field)
 
-    return probav_ept_electron_netcdf_strategy(processed_data_path, mag_field)
+    return probav_ept_electron_netcdf_strategy(processed_data_path, mag_field, legacy_layout=legacy_layout)
 
 
 @timed_function("process_ept_electron_fluxes")

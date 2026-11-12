@@ -42,7 +42,11 @@ def test_rbsp_rept_electrons_snapshot(
     end_date = end_time.replace(day=30)
 
     out_path = (
-        processed_data_path / "RBSP" / "rbspa" / f"rbspa_rept_{start_date:%Y%m%d}to{end_date:%Y%m%d}_{mag_field}.nc"
+        processed_data_path
+        / "RBSP"
+        / "rbspa"
+        / "rept"
+        / f"rbspa_rept_{start_date:%Y%m%d}to{end_date:%Y%m%d}_{mag_field}.nc"
     )
     assert out_path.exists()
 
@@ -57,7 +61,8 @@ def test_rbsp_rept_electrons_snapshot(
         # more output groups stays covered.
         # get_file_path() needs the strategy's own rounded interval (full-month bounds for
         # MonthlyRBStrategy), not the raw start_time/end_time, to compute the correct name.
-        dest_dir = Path(__file__).parent / "data" / "processed" / "RBSP" / "rbspa"
+        dest_dir = Path(__file__).parent / "data" / "processed" / "RBSP" / "rbspa" / "rept"
+        dest_dir.mkdir(parents=True, exist_ok=True)
         interval_start, interval_end = rbsp_proc.saving_strategy.get_time_intervals_to_save(start_time, end_time)[0]
         for output_file in rbsp_proc.saving_strategy.output_files:
             src_path = rbsp_proc.saving_strategy.get_file_path(interval_start, interval_end, output_file)

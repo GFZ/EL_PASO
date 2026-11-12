@@ -35,7 +35,15 @@ def test_dmsp_ssj(
         num_cores=32,
     )
 
-    out_path = processed_data_path / "DMSP" / "f17" / f"f17_ssj_{start_time:%Y%m%d}_T89.nc"
+    out_path = (
+        processed_data_path
+        / "DMSP"
+        / "f17"
+        / "ssj"
+        / f"{start_time:%Y}"
+        / f"{start_time:%m}"
+        / f"f17_ssj_{start_time:%Y%m%d}_T89.nc"
+    )
     assert out_path.exists()
 
     dmsp_proc = DataSet(
@@ -57,7 +65,17 @@ def test_dmsp_ssj(
         # more output groups stays covered.
         # get_file_path() needs the strategy's own rounded interval, not the raw start_time/end_time,
         # to compute the correct file name.
-        dest_dir = Path(__file__).parent / "data" / "processed" / "DMSP" / "f17"
+        dest_dir = (
+            Path(__file__).parent
+            / "data"
+            / "processed"
+            / "DMSP"
+            / "f17"
+            / "ssj"
+            / f"{start_time:%Y}"
+            / f"{start_time:%m}"
+        )
+        dest_dir.mkdir(parents=True, exist_ok=True)
         interval_start, interval_end = dmsp_proc.saving_strategy.get_time_intervals_to_save(start_time, end_time)[0]
         for output_file in dmsp_proc.saving_strategy.output_files:
             src_path = dmsp_proc.saving_strategy.get_file_path(interval_start, interval_end, output_file)

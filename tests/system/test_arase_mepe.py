@@ -44,7 +44,11 @@ def test_arase_mepe_snapshot(
     end_date = end_time.replace(day=30)
 
     out_path = (
-        processed_data_path / "ARASE" / "arase" / f"arase_mepe_{start_date:%Y%m%d}to{end_date:%Y%m%d}_{mag_field}.nc"
+        processed_data_path
+        / "ARASE"
+        / "arase"
+        / "mepe"
+        / f"arase_mepe_{start_date:%Y%m%d}to{end_date:%Y%m%d}_{mag_field}.nc"
     )
     assert out_path.exists(), "File did not get written!"
 
@@ -61,7 +65,8 @@ def test_arase_mepe_snapshot(
         # more output groups stays covered.
         # get_file_path() needs the strategy's own rounded interval (e.g. full-month bounds for
         # MonthlyRBStrategy), not the raw start_time/end_time, to compute the correct file name.
-        dest_dir = Path(__file__).parent / "data" / "processed" / "ARASE" / "arase"
+        dest_dir = Path(__file__).parent / "data" / "processed" / "ARASE" / "arase" / "mepe"
+        dest_dir.mkdir(parents=True, exist_ok=True)
         interval_start, interval_end = arase_proc.saving_strategy.get_time_intervals_to_save(start_time, end_time)[0]
         for output_file in arase_proc.saving_strategy.output_files:
             src_path = arase_proc.saving_strategy.get_file_path(interval_start, interval_end, output_file)

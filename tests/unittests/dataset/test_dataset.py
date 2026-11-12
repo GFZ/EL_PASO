@@ -376,9 +376,9 @@ class TestDataSet:  # noqa: D101
         with caplog.at_level(logging.INFO):
             _ = mock_dataset.energy_channels
 
-        assert "/GOES/primary/primary_maged_20130101to20130131_T89" in caplog.text
+        assert "/GOES/primary/maged/primary_maged_20130101to20130131_T89" in caplog.text
 
-        log_count_after_first_load = caplog.text.count("/GOES/primary/primary_maged_20130101to20130131_T89")
+        log_count_after_first_load = caplog.text.count("/GOES/primary/maged/primary_maged_20130101to20130131_T89")
 
         with (
             caplog.at_level(logging.INFO),
@@ -395,7 +395,8 @@ class TestDataSet:  # noqa: D101
             )
 
             assert (
-                caplog.text.count("/GOES/primary/primary_maged_20130101to20130131_T89") == log_count_after_first_load
+                caplog.text.count("/GOES/primary/maged/primary_maged_20130101to20130131_T89")
+                == log_count_after_first_load
             ), "File should not have been loaded again"
 
 

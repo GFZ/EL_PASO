@@ -84,6 +84,8 @@ def arase_hep_h5_strategy(
     mag_field: ep.typing.MagneticFieldLiteral,
     sensor: HepSensor,
     data_standard: ep.typing.DataStandard[ep.typing.StandardName] | None = None,
+    *,
+    legacy_layout: bool = False,
 ) -> ep.SavingStrategy:
     """Monthly HDF5 saving strategy for Arase HEP-L / HEP-H."""
     return ep.saving_strategies.MonthlyRBStrategy(
@@ -94,6 +96,7 @@ def arase_hep_h5_strategy(
         mag_field,
         data_standard=data_standard or ep.data_standards.GFZStandard(),
         file_format="h5",
+        legacy_layout=legacy_layout,
     )
 
 
@@ -102,6 +105,8 @@ def arase_hep_netcdf_strategy(
     mag_field: ep.typing.MagneticFieldLiteral,
     sensor: HepSensor,
     data_standard: ep.typing.DataStandard[ep.typing.StandardName] | None = None,
+    *,
+    legacy_layout: bool = False,
 ) -> ep.SavingStrategy:
     """Monthly NetCDF saving strategy for Arase HEP-L / HEP-H."""
     return ep.saving_strategies.MonthlyRBStrategy(
@@ -112,6 +117,7 @@ def arase_hep_netcdf_strategy(
         mag_field,
         data_standard=data_standard or ep.data_standards.GFZStandard(),
         file_format="nc",
+        legacy_layout=legacy_layout,
     )
 
 
@@ -121,6 +127,8 @@ def _select_hep_saver(
     mag_field: ep.typing.MagneticFieldLiteral,
     save_strategy: Literal["gfz", "h5", "netcdf"],
     data_standard: Literal["gfz", "prbem"],
+    *,
+    legacy_layout: bool = False,
 ) -> ep.SavingStrategy:
     """Pick the saving strategy of a HEP sensor for the requested format and data standard."""
     data_standard_instance = (
@@ -130,9 +138,13 @@ def _select_hep_saver(
         case "gfz":
             return arase_hep_gfz_strategy(processed_data_path, mag_field, sensor, data_standard_instance)
         case "h5":
-            return arase_hep_h5_strategy(processed_data_path, mag_field, sensor, data_standard_instance)
+            return arase_hep_h5_strategy(
+                processed_data_path, mag_field, sensor, data_standard_instance, legacy_layout=legacy_layout
+            )
         case "netcdf":
-            return arase_hep_netcdf_strategy(processed_data_path, mag_field, sensor, data_standard_instance)
+            return arase_hep_netcdf_strategy(
+                processed_data_path, mag_field, sensor, data_standard_instance, legacy_layout=legacy_layout
+            )
 
 
 def arase_hep_l_strategy(
@@ -140,6 +152,8 @@ def arase_hep_l_strategy(
     mag_field: ep.typing.MagneticFieldLiteral,
     save_strategy: Literal["gfz", "h5", "netcdf"] = "gfz",
     data_standard: Literal["gfz", "prbem"] = "gfz",
+    *,
+    legacy_layout: bool = False,
 ) -> ep.SavingStrategy:
     """Saving strategy of the Arase HEP-L recipe.
 
@@ -148,11 +162,14 @@ def arase_hep_l_strategy(
         mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
         save_strategy (Literal["gfz", "h5", "netcdf"]): Saving strategy of the output files. Defaults to "gfz".
         data_standard (Literal["gfz", "prbem"]): Data standard of the output files. Defaults to "gfz".
+        legacy_layout (bool): Deprecated. Set to True to load data saved without instrument folders. Defaults to False.
 
     Returns:
         ep.SavingStrategy: Saving strategy for the given arguments.
     """
-    return _select_hep_saver("L", processed_data_path, mag_field, save_strategy, data_standard)
+    return _select_hep_saver(
+        "L", processed_data_path, mag_field, save_strategy, data_standard, legacy_layout=legacy_layout
+    )
 
 
 def arase_hep_h_strategy(
@@ -160,6 +177,8 @@ def arase_hep_h_strategy(
     mag_field: ep.typing.MagneticFieldLiteral,
     save_strategy: Literal["gfz", "h5", "netcdf"] = "gfz",
     data_standard: Literal["gfz", "prbem"] = "gfz",
+    *,
+    legacy_layout: bool = False,
 ) -> ep.SavingStrategy:
     """Saving strategy of the Arase HEP-H recipe.
 
@@ -168,11 +187,14 @@ def arase_hep_h_strategy(
         mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
         save_strategy (Literal["gfz", "h5", "netcdf"]): Saving strategy of the output files. Defaults to "gfz".
         data_standard (Literal["gfz", "prbem"]): Data standard of the output files. Defaults to "gfz".
+        legacy_layout (bool): Deprecated. Set to True to load data saved without instrument folders. Defaults to False.
 
     Returns:
         ep.SavingStrategy: Saving strategy for the given arguments.
     """
-    return _select_hep_saver("H", processed_data_path, mag_field, save_strategy, data_standard)
+    return _select_hep_saver(
+        "H", processed_data_path, mag_field, save_strategy, data_standard, legacy_layout=legacy_layout
+    )
 
 
 def _download_hep(start_time: datetime, end_time: datetime, raw_data_path: Path, *, skip_existing: bool) -> None:
