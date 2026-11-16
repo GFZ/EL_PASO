@@ -106,9 +106,9 @@ class SavingStrategy(ABC):
         instrument (str): The name of the instrument for which data is being saved.
         mag_field (MagneticFieldLiteral): The magnetic field model used for saving data, if applicable.
         legacy_layout (bool): Deprecated. If True, ``get_file_path_stem`` omits the instrument folder and
-            ``get_year_month_folder`` returns an empty path, so that data saved in the old flat layout
-            ``base/MISSION/satellite/`` can still be loaded. It only affects loading: ``ep.save`` always
-            writes to the new layout.
+            daily strategies omit the ``YYYY/MM`` folder too, so that data
+            saved in the old flat layout ``base/MISSION/satellite/`` can still be loaded.
+            It only affects loading: ``ep.save`` always writes to the new layout.
     """
 
     legacy_layout: bool = False
@@ -407,10 +407,6 @@ class SavingStrategy(ABC):
         """
         path = self.base_data_path / self.mission.upper() / self.satellite.lower()
         return path if self.legacy_layout else path / self.instrument.lower()
-
-    def get_year_month_folder(self, interval_start: datetime) -> Path:
-        """Returns the ``YYYY/MM`` sub-folder for daily files, or an empty path with ``legacy_layout=True``."""
-        return Path() if self.legacy_layout else Path(interval_start.strftime("%Y/%m"))
 
     @abstractmethod
     def get_file_name_stem(self) -> str:

@@ -542,7 +542,7 @@ def test_density_strategies_forward_legacy_layout(tmp_path, strategy_cls):
 
 @pytest.mark.basic
 @pytest.mark.parametrize("legacy_layout", [False, True])
-def test_get_year_month_folder(tmp_path, legacy_layout):
+def test_daily_strategy_year_month_folder(tmp_path, legacy_layout):
     kwargs = {
         "base_data_path": tmp_path,
         "mission": "POES",
@@ -557,8 +557,10 @@ def test_get_year_month_folder(tmp_path, legacy_layout):
     else:
         strategy = ep.saving_strategies.DailyLEORBStrategy(**kwargs)
 
-    folder = strategy.get_year_month_folder(datetime(2013, 5, 4, tzinfo=timezone.utc))
-    assert folder == (Path() if legacy_layout else Path("2013") / "05")
+    assert ep.utils.get_year_month_folder(datetime(2013, 5, 4, tzinfo=timezone.utc)) == Path("2013") / "05"
+    start = datetime(2013, 5, 4, tzinfo=timezone.utc)
+    path = strategy.get_file_path(start, start, None)
+    assert ("2013" in path.parts) != legacy_layout
 
 
 @pytest.mark.basic

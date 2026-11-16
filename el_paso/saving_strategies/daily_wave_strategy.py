@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 
 from el_paso.one_of import OneOf
 from el_paso.saving_strategy import OutputFile, SavingStrategy
-from el_paso.utils import write_netcdf_file
+from el_paso.utils import get_year_month_folder, write_netcdf_file
 
 if TYPE_CHECKING:
     from el_paso.typing import (
@@ -130,7 +130,8 @@ class DailyWaveStrategy(SavingStrategy):
         """Generate the daily file path for the configured format."""
         file_name = f"{self.get_file_name_stem()}_{interval_start.strftime('%Y%m%d')}.nc"
 
-        return self.get_file_path_stem() / self.get_year_month_folder(interval_start) / file_name
+        year_month = Path() if self.legacy_layout else get_year_month_folder(interval_start)
+        return self.get_file_path_stem() / year_month / file_name
 
     def standardize_variable(
         self,
