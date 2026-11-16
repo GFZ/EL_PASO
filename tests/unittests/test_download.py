@@ -6,13 +6,16 @@
 
 import ast
 import importlib
+import logging
 import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import el_paso as ep
 import pytest
+import requests
 
 
 @pytest.mark.usefixtures("enable_downloads")
@@ -523,3 +526,261 @@ def test_recipes_with_downloads_call_exit_if_download_only() -> None:
         "Recipes that call ep.download must call ep.exit_if_download_only() after all of their downloads "
         f"(needed for --exit-after-download): {modules_without_exit}"
     )
+
+
+def _setup_fake_server(download_mod, monkeypatch: pytest.MonkeyPatch, get) -> list[float]:
+    """Install a fake directory listing, the given requests.get replacement, and a recording time.sleep."""
+    listing = MagicMock()
+    listing.text = "data_20240101_v01.cdf"
+    download_mod._get_page_content.cache_clear()
+    monkeypatch.setattr(download_mod, "_get_page_content", lambda _url, _auth: listing)
+    monkeypatch.setattr(download_mod.requests, "get", get)
+
+    sleeps: list[float] = []
+    monkeypatch.setattr(download_mod, "time", SimpleNamespace(sleep=sleeps.append))
+    return sleeps
+
+
+def _ok_response(content: bytes = b"content") -> MagicMock:
+    resp = MagicMock()
+    resp.status_code = 200
+    resp.iter_content.return_value = [content]
+    return resp
+
+
+def _http_error_response(status: int, headers: dict[str, str] | None = None) -> MagicMock:
+    resp = MagicMock()
+    resp.status_code = status
+    resp.headers = headers or {}
+    resp.raise_for_status.side_effect = requests.exceptions.HTTPError(response=resp)
+    return resp
+
+
+def _run_download(tmp_path: Path, **kwargs: object) -> None:
+    ep.download(
+        start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        end_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        save_path=tmp_path,
+        file_cadence="daily",
+        download_url="https://fake.server/data/",
+        file_name_stem=r"data_YYYYMMDD_v\d+\.cdf",
+        method="request",
+        skip_existing=False,
+        **kwargs,  # ty:ignore[invalid-argument-type]
+    )
+
+
+@pytest.mark.usefixtures("enable_downloads")
+@pytest.mark.basic
+def test_request_retries_once_after_connection_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    download_mod = importlib.import_module("el_paso.download")
+    calls: list[str] = []
+
+    def get(url: str, **_kwargs: object) -> MagicMock:
+        calls.append(url)
+        if len(calls) == 1:
+            raise requests.exceptions.ConnectionError("boom")
+        return _ok_response()
+
+    sleeps = _setup_fake_server(download_mod, monkeypatch, get)
+    _run_download(tmp_path)
+
+    assert len(calls) == 2
+    assert sleeps == [1.0]
+    assert (tmp_path / "data_20240101_v01.cdf").read_bytes() == b"content"
+    assert not list(tmp_path.glob("*.part"))
+
+
+@pytest.mark.usefixtures("enable_downloads")
+@pytest.mark.basic
+@pytest.mark.parametrize("status", [403, 404])
+def test_request_does_not_retry_permanent_errors(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, status: int) -> None:
+    download_mod = importlib.import_module("el_paso.download")
+    calls: list[str] = []
+
+    def get(url: str, **_kwargs: object) -> MagicMock:
+        calls.append(url)
+        return _http_error_response(status)
+
+    sleeps = _setup_fake_server(download_mod, monkeypatch, get)
+    _run_download(tmp_path)
+
+    assert len(calls) == 1
+    assert sleeps == []
+    assert not list(tmp_path.glob("*.cdf"))
+
+
+@pytest.mark.usefixtures("enable_downloads")
+@pytest.mark.basic
+def test_request_honors_retry_after(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    download_mod = importlib.import_module("el_paso.download")
+    calls: list[str] = []
+
+    def get(url: str, **_kwargs: object) -> MagicMock:
+        calls.append(url)
+        if len(calls) == 1:
+            return _http_error_response(429, {"Retry-After": "7"})
+        return _ok_response()
+
+    sleeps = _setup_fake_server(download_mod, monkeypatch, get)
+    _run_download(tmp_path)
+
+    assert sleeps == [7.0]
+    assert (tmp_path / "data_20240101_v01.cdf").exists()
+
+
+@pytest.mark.usefixtures("enable_downloads")
+@pytest.mark.basic
+def test_persistent_failure_is_retried_in_second_pass_and_reported(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    download_mod = importlib.import_module("el_paso.download")
+    calls: list[str] = []
+
+    def get(url: str, **_kwargs: object) -> MagicMock:
+        calls.append(url)
+        raise requests.exceptions.ConnectionError("down")
+
+    sleeps = _setup_fake_server(download_mod, monkeypatch, get)
+
+    with caplog.at_level(logging.WARNING):
+        _run_download(tmp_path)
+
+    # 2 attempts in the first pass (initial + 1 retry) and 1 in the second pass
+    assert len(calls) == 3
+    assert len(sleeps) == 2
+    assert "1 of 1 files could not be downloaded" in caplog.text
+    assert not list(tmp_path.glob("*"))
+
+
+@pytest.mark.usefixtures("enable_downloads")
+@pytest.mark.basic
+def test_failed_file_succeeds_in_second_pass(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    download_mod = importlib.import_module("el_paso.download")
+    calls: list[str] = []
+
+    def get(url: str, **_kwargs: object) -> MagicMock:
+        calls.append(url)
+        if len(calls) <= 2:
+            raise requests.exceptions.Timeout("slow")
+        return _ok_response()
+
+    _setup_fake_server(download_mod, monkeypatch, get)
+    _run_download(tmp_path)
+
+    assert (tmp_path / "data_20240101_v01.cdf").exists()
+
+
+@pytest.mark.usefixtures("enable_downloads")
+@pytest.mark.basic
+def test_interrupted_stream_leaves_no_partial_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    download_mod = importlib.import_module("el_paso.download")
+
+    def get(_url: str, **_kwargs: object) -> MagicMock:
+        resp = MagicMock()
+        resp.status_code = 200
+
+        def chunks(**_kw: object):
+            yield b"partial"
+            raise requests.exceptions.ChunkedEncodingError("cut")
+
+        resp.iter_content.side_effect = chunks
+        return resp
+
+    _setup_fake_server(download_mod, monkeypatch, get)
+    _run_download(tmp_path, retries=0)
+
+    assert not list(tmp_path.glob("*"))
+
+
+@pytest.mark.usefixtures("enable_downloads")
+@pytest.mark.basic
+def test_ftp_connect_failure_is_retried(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    download_mod = importlib.import_module("el_paso.download")
+    attempts: list[int] = []
+
+    class FakeFTP:
+        def retrbinary(self, _cmd: str, callback) -> None:
+            callback(b"ftp-content")
+
+        def quit(self) -> None:
+            pass
+
+    def connect(_host: str, _auth: tuple[str, str], **_kwargs: object) -> FakeFTP:
+        attempts.append(1)
+        if len(attempts) == 1:
+            raise OSError("refused")
+        return FakeFTP()
+
+    monkeypatch.setattr(download_mod, "_ftp_connect", connect)
+    sleeps: list[float] = []
+    monkeypatch.setattr(download_mod, "time", SimpleNamespace(sleep=sleeps.append))
+
+    ep.download(
+        start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        end_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        save_path=tmp_path,
+        file_cadence="single_file",
+        download_url="ftp://fake.server/dir",
+        file_name_stem="file.txt",
+        method="ftp",
+    )
+
+    assert len(attempts) == 2
+    assert sleeps == [1.0]
+    assert (tmp_path / "file.txt").read_bytes() == b"ftp-content"
+
+
+@pytest.mark.usefixtures("enable_downloads")
+@pytest.mark.basic
+def test_unsupported_method_raises(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="Unsupported download method"):
+        ep.download(
+            start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            end_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            save_path=tmp_path,
+            file_cadence="daily",
+            download_url="https://fake.server/",
+            file_name_stem="x",
+            method="wget",  # ty:ignore[invalid-argument-type]
+        )
+
+
+@pytest.mark.usefixtures("enable_downloads")
+@pytest.mark.basic
+def test_esa_swe_failure_is_retried(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    download_mod = importlib.import_module("el_paso.download")
+    calls: list[dict] = []
+
+    monkeypatch.setattr(download_mod, "_get_esa_swe_access_token", lambda *_args: "token")
+
+    def get(url: str, **kwargs: object) -> MagicMock:
+        calls.append({"url": url, **kwargs})
+        if len(calls) == 1:
+            return _http_error_response(503)
+        resp = _ok_response(b"esa-content")
+        resp.text = ""
+        return resp
+
+    monkeypatch.setattr(download_mod.requests, "get", get)
+    sleeps: list[float] = []
+    monkeypatch.setattr(download_mod, "time", SimpleNamespace(sleep=sleeps.append))
+
+    ep.download(
+        start_time=datetime(2025, 3, 17, tzinfo=timezone.utc),
+        end_time=datetime(2025, 3, 17, 1, tzinfo=timezone.utc),
+        save_path=tmp_path,
+        file_cadence="single_file",
+        download_url="https://swe.ssa.esa.int/hapi/data?id=fake",
+        file_name_stem="",
+        rename_file_name_stem="esa_YYYYMMDD.csv",
+        method="esa_swe",
+        authentication_info=("id", "secret"),
+        skip_existing=False,
+    )
+
+    assert len(calls) == 2
+    assert calls[0]["headers"] == {"Authorization": "Bearer token"}
+    assert sleeps == [1.0]
+    assert (tmp_path / "esa_20250317.csv").read_bytes() == b"esa-content"
+    assert not list(tmp_path.glob("*.part"))
