@@ -12,16 +12,16 @@ import gzip
 import io
 import json
 import logging
-import os
 import re
 import shutil
 import sys
+import time
 import typing
 import urllib.parse
 from datetime import datetime, timedelta
 from functools import cache, partial
 from pathlib import Path
-from typing import Literal
+from typing import Literal, TypeVar
 
 import requests
 from requests.auth import HTTPDigestAuth
@@ -37,10 +37,70 @@ from el_paso.utils import (
 )
 
 if typing.TYPE_CHECKING:
+    from collections.abc import Callable
+
     from el_paso.typing import FileCadence
 
 ERROR_NOT_FOUND = 404
+ERROR_TOO_MANY_REQUESTS = 429
+TRANSIENT_HTTP_STATUS_CODES = frozenset({ERROR_TOO_MANY_REQUESTS, 500, 502, 503, 504})
+
+# A server that does not even accept a connection within the connect timeout is treated as unresponsive and fails fast
+# while a server that connected but streams slowly gets the longer read timeout.
+CONNECT_TIMEOUT, READ_TIMEOUT = 5.0, 30.0
+REQUEST_TIMEOUT = (CONNECT_TIMEOUT, READ_TIMEOUT)
+MAX_RETRY_AFTER_SECONDS = 30.0
+
 logger = logging.getLogger(__name__)
+
+T = TypeVar("T")
+
+
+class TransientDownloadError(Exception):
+    """A download failed for a reason that may go away on its own (network hiccup, rate limit, server overload)."""
+
+
+def _is_transient_request_error(exc: requests.exceptions.RequestException) -> bool:
+    if isinstance(exc, requests.exceptions.HTTPError):
+        return exc.response is not None and exc.response.status_code in TRANSIENT_HTTP_STATUS_CODES
+
+    return isinstance(
+        exc,
+        (
+            requests.exceptions.ConnectionError,
+            requests.exceptions.Timeout,
+            requests.exceptions.ChunkedEncodingError,
+        ),
+    )
+
+
+def _retry_after_seconds(exc: BaseException) -> float | None:
+    response = getattr(exc, "response", None)
+    if response is None or response.status_code != ERROR_TOO_MANY_REQUESTS:
+        return None
+    try:
+        return min(float(response.headers.get("Retry-After", "")), MAX_RETRY_AFTER_SECONDS)
+    except (TypeError, ValueError):
+        return None
+
+
+def _with_retry(func: Callable[[], T], *, retries: int, delay: float) -> T:
+    """Call `func`, retrying up to `retries` times, waiting `delay` seconds, if it raises `TransientDownloadError`.
+
+    The last `TransientDownloadError` is re-raised if all attempts fail. A `Retry-After` header of a 429
+    response (set on the `__cause__` of the error) lengthens the wait.
+    """
+    attempt = 0
+    while True:
+        try:
+            return func()
+        except TransientDownloadError as exc:
+            if attempt >= retries:
+                raise
+            attempt += 1
+            wait = max(delay, _retry_after_seconds(exc.__cause__) or 0.0) if exc.__cause__ else delay
+            logger.info(f"Transient download error ({exc}), retrying in {wait:.1f}s (attempt {attempt}/{retries}).")
+            time.sleep(wait)
 
 
 def _download_single_step(
@@ -50,15 +110,19 @@ def _download_single_step(
     method: str,
     download_url: str,
     file_name_stem: str,
-    download_arguments_prefixes: str,
-    download_arguments_suffixes: str,
     authentication_info: tuple[str, str],
     rename_file_name_stem: str | None,
     *,
     skip_existing: bool,
     sort_raw_files_by_time: bool,
+    retries: int,
+    retry_delay: float,
 ) -> None:
-    """Worker function to handle a single time chunk download."""
+    """Worker function to handle a single time chunk download.
+
+    Raises:
+        TransientDownloadError: If the download failed for a transient reason even after retrying.
+    """
     match method:
         case "request":
             _requests_download(
@@ -70,9 +134,9 @@ def _download_single_step(
                 rename_file_name_stem,
                 skip_existing=skip_existing,
                 sort_raw_files_by_time=sort_raw_files_by_time,
+                retries=retries,
+                retry_delay=retry_delay,
             )
-        case "wget":
-            _wget_download(curr_time, save_path, download_url, download_arguments_prefixes, download_arguments_suffixes)
         case "ftp":
             _ftp_download(
                 curr_time,
@@ -83,6 +147,8 @@ def _download_single_step(
                 rename_file_name_stem,
                 skip_existing=skip_existing,
                 sort_raw_files_by_time=sort_raw_files_by_time,
+                retries=retries,
+                retry_delay=retry_delay,
             )
         case "esa_swe":
             _esa_swe_download(
@@ -93,16 +159,26 @@ def _download_single_step(
                 save_path=save_path,
                 rename_file_name_stem=rename_file_name_stem,
                 skip_existing=skip_existing,
+                retries=retries,
+                retry_delay=retry_delay,
             )
 
 
-def _download_single_step_safe(task: tuple[datetime, datetime], **kwargs: object) -> None:
-    """Wraps `_download_single_step` so one failed task logs and doesn't abort the rest of the batch."""
+def _download_single_step_safe(task: tuple[datetime, datetime], **kwargs: object) -> tuple[datetime, datetime] | None:
+    """Wraps `_download_single_step` so one failed task logs and doesn't abort the rest of the batch.
+
+    Returns:
+        The task if it failed for a transient reason (so it can be tried again later), otherwise None.
+    """
     curr_time, next_time = task
     try:
         _download_single_step(curr_time=curr_time, next_time=next_time, **kwargs)  # ty:ignore[invalid-argument-type]
+    except TransientDownloadError as exc:
+        logger.warning(f"Download for date {curr_time} failed, will try again later: {exc}")
+        return task
     except Exception as exc:  # noqa: BLE001
         logger.warning(f"Download for date {curr_time} generated an exception: {exc}")
+    return None
 
 
 @timed_function()
@@ -113,15 +189,15 @@ def download(
     file_cadence: FileCadence,
     download_url: str,
     file_name_stem: str,
-    download_arguments_prefixes: str = "",
-    download_arguments_suffixes: str = "",
-    method: Literal["request", "wget", "ftp", "esa_swe"] = "request",
+    method: Literal["request", "ftp", "esa_swe"] = "request",
     authentication_info: tuple[str, str] = ("", ""),
     rename_file_name_stem: str | None = None,
     *,
     sort_raw_files_by_time: bool = False,
     skip_existing: bool = True,
     max_threads: int = 4,
+    retries: int = 1,
+    retry_delay: float = 1.0,
 ) -> None:
     """Download satellite data files within a specified time range and cadence.
 
@@ -140,12 +216,8 @@ def download(
               weekly files).
         download_url (str): Base URL for downloading files.
         file_name_stem (str): Stem for the file name to be downloaded.
-        download_arguments_prefixes (str, optional): Additional arguments to prefix to the download command
-                                                     (used with wget). Defaults to "".
-        download_arguments_suffixes (str, optional): Additional arguments to suffix to the download command
-                                                     (used with wget). Defaults to "".
-        method (Literal["request", "wget", "ftp", "esa_swe"], optional): Download method to use. "request" uses the
-                                                       Python requests library, "wget" uses the system wget command,
+        method (Literal["request", "ftp", "esa_swe"], optional): Download method to use. "request" uses the
+                                                       Python requests library,
                                                        "ftp" uses Python's ftplib against an FTP server (the host is
                                                        parsed out of `download_url`, and `file_name_stem` is the
                                                        exact remote file name to download), and
@@ -162,13 +234,23 @@ def download(
                 If True, creates subdirectories for each year and month (e.g., 'YYYY/MM/').
                 This helps organize a large number of downloaded files. Defaults to False.
         max_threads (int, optional): Maximum number of threads used for downloading. Defaults to 4.
+        retries (int, optional): How many times a single file is retried right away after a transient error
+                (connection error, timeout, HTTP 429 or 5xx). Files that still fail are tried once more after all
+                other files are done. Defaults to 1.
+        retry_delay (float, optional): Seconds to wait before a retry. A `Retry-After` header of the server
+                (capped at 30 s) takes precedence if longer. Defaults to 1.0.
 
     Raises:
         NotImplementedError: If "monthly" cadence or an unsupported cadence is specified.
+        ValueError: If `method` is not supported.
     """
     if ep.skip_download or env_flag_enabled("EL_PASO_SKIP_DOWNLOAD"):
         logger.info("Skipping ep.download!")
         return
+
+    if method not in ("request", "ftp", "esa_swe"):
+        msg = f"Unsupported download method '{method}'. Must be one of 'request', 'ftp', 'esa_swe'."
+        raise ValueError(msg)
 
     start_time = enforce_utc_timezone(start_time)
     end_time = enforce_utc_timezone(end_time)
@@ -199,24 +281,34 @@ def download(
     if len(tasks) > 1:
         logger.info(f"Starting parallel download with {max_threads} threads for {len(tasks)} files...")
 
-    with JoblibPool(processes=max_threads, backend="threading") as pool:
-        pool.map(
-            partial(
-                _download_single_step_safe,
-                save_path=save_path,
-                method=method,
-                download_url=download_url,
-                file_name_stem=file_name_stem,
-                download_arguments_prefixes=download_arguments_prefixes,
-                download_arguments_suffixes=download_arguments_suffixes,
-                authentication_info=authentication_info,
-                rename_file_name_stem=rename_file_name_stem,
-                skip_existing=skip_existing,
-                sort_raw_files_by_time=sort_raw_files_by_time,
-            ),
-            tasks,
-            desc="Downloading",
+    def make_worker(task_retries: int) -> Callable[[tuple[datetime, datetime]], tuple[datetime, datetime] | None]:
+        return partial(
+            _download_single_step_safe,
+            save_path=save_path,
+            method=method,
+            download_url=download_url,
+            file_name_stem=file_name_stem,
+            authentication_info=authentication_info,
+            rename_file_name_stem=rename_file_name_stem,
+            skip_existing=skip_existing,
+            sort_raw_files_by_time=sort_raw_files_by_time,
+            retries=task_retries,
+            retry_delay=retry_delay,
         )
+
+    with JoblibPool(processes=max_threads, backend="threading") as pool:
+        results = pool.map(make_worker(retries), tasks, desc="Downloading")
+        failed_tasks = [task for task in results if task is not None]
+
+        if failed_tasks:
+            logger.info(f"{len(failed_tasks)} of {len(tasks)} files failed, trying them again once...")
+            time.sleep(retry_delay)
+            results = pool.map(make_worker(0), failed_tasks, desc="Retrying failed downloads")
+            failed_tasks = [task for task in results if task is not None]
+
+    if failed_tasks:
+        failed_dates = ", ".join(task[0].strftime("%Y-%m-%d %H:%M") for task in failed_tasks)
+        logger.warning(f"{len(failed_tasks)} of {len(tasks)} files could not be downloaded: {failed_dates}")
 
 
 def exit_if_download_only() -> None:
@@ -270,8 +362,10 @@ def _requests_download(
     *,
     skip_existing: bool,
     sort_raw_files_by_time: bool,
+    retries: int,
+    retry_delay: float,
 ) -> None:
-    """Download a file using the requests library."""
+    """Download a file using the requests library, retrying on transient errors."""
     if sort_raw_files_by_time:
         parent_folders = fill_str_template_with_time("YYYY/MM/", current_time)
         save_path = save_path / parent_folders
@@ -282,6 +376,33 @@ def _requests_download(
     url = fill_str_template_with_time(download_url, current_time)
     file_name_stem = fill_str_template_with_time(file_name_stem, current_time)
 
+    _with_retry(
+        partial(
+            _requests_download_attempt,
+            current_time,
+            save_path,
+            url,
+            file_name_stem,
+            authentication_info,
+            rename_file_name_stem,
+            skip_existing=skip_existing,
+        ),
+        retries=retries,
+        delay=retry_delay,
+    )
+
+
+def _requests_download_attempt(
+    current_time: datetime,
+    save_path: Path,
+    url: str,
+    file_name_stem: str,
+    authentication_info: tuple[str, str],
+    rename_file_name_stem: str | None,
+    *,
+    skip_existing: bool,
+) -> None:
+    """Single attempt of a requests download. Raises `TransientDownloadError` if worth retrying."""
     try:
         response_of_content = _get_page_content(url, authentication_info)
 
@@ -310,7 +431,7 @@ def _requests_download(
         response = requests.get(
             f"{url}/{latest_file_name}",
             stream=True,
-            timeout=30,
+            timeout=REQUEST_TIMEOUT,
             auth=HTTPDigestAuth(*authentication_info),
         )
 
@@ -321,19 +442,34 @@ def _requests_download(
 
         response.raise_for_status()
 
-        with (save_path / save_file_name).open("wb") as file:
-            for chunk in response.iter_content(chunk_size=8192):
-                file.write(chunk)
+        _write_response_atomically(response, save_path / save_file_name)
 
         logger.info(f"Downloaded successfully: {save_path / save_file_name}")
 
     except requests.exceptions.RequestException as e:
-        logger.info(f"Error downloading file from {url}: {e}")
+        if _is_transient_request_error(e):
+            msg = f"Error downloading file from {url}: {e}"
+            raise TransientDownloadError(msg) from e
+        logger.warning(f"Error downloading file from {url}: {e}")
+
+
+def _write_response_atomically(response: requests.Response, target: Path) -> None:
+    """Stream `response` to a temporary file next to `target`, so an interrupted download leaves no partial file."""
+    tmp_target = target.with_name(target.name + ".part")
+    try:
+        with tmp_target.open("wb") as file:
+            for chunk in response.iter_content(chunk_size=8192):
+                file.write(chunk)
+        tmp_target.replace(target)
+    finally:
+        tmp_target.unlink(missing_ok=True)
 
 
 @cache
 def _get_page_content(url: str, authentication_info: tuple[str, str]) -> requests.Response | None:
-    response_of_content = requests.get(url, stream=True, timeout=10, auth=HTTPDigestAuth(*authentication_info))
+    response_of_content = requests.get(
+        url, stream=True, timeout=REQUEST_TIMEOUT, auth=HTTPDigestAuth(*authentication_info)
+    )
 
     if response_of_content.status_code == ERROR_NOT_FOUND:
         msg = f"File not found on server: {url}"
@@ -343,29 +479,6 @@ def _get_page_content(url: str, authentication_info: tuple[str, str]) -> request
     response_of_content.raise_for_status()
 
     return response_of_content
-
-
-def _wget_download(
-    current_time: datetime,
-    save_path: Path,
-    download_url: str,
-    download_arguments_prefixes: str,
-    download_arguments_suffixes: str,
-) -> None:
-    Path(fill_str_template_with_time(str(save_path), current_time)).parents[0].mkdir(exist_ok=True, parents=True)
-
-    # Replace "yyyymmdd" or "YYYYMMDD" in url, prefix, and suffix with the parsed string
-    url = fill_str_template_with_time(download_url, current_time)
-    prefix = fill_str_template_with_time(download_arguments_prefixes, current_time)
-    suffix = fill_str_template_with_time(download_arguments_suffixes, current_time)
-    download_command = f"wget {prefix} {url} {suffix}"
-    logger.info(download_command)
-
-    # Execute the download command
-    try:
-        os.system(download_command)  # noqa: S605
-    except Exception as e:  # noqa: BLE001
-        logger.info(f"Error downloading file using command {download_command}: {e}")
 
 
 def _ftp_connect(
@@ -400,8 +513,10 @@ def _ftp_download(
     *,
     skip_existing: bool,
     sort_raw_files_by_time: bool,
+    retries: int,
+    retry_delay: float,
 ) -> None:
-    """Download a file from an FTP server using ftplib.
+    """Download a file from an FTP server using ftplib, retrying on transient errors.
 
     `download_url` must be of the form "ftp://host/remote/dir" (may contain time placeholders).
     `file_name_stem` is the exact remote file name (may contain time placeholders).
@@ -423,41 +538,69 @@ def _ftp_download(
 
     remote_dir = parsed.path or "/"
 
-    try:
-        ftp = _ftp_connect(parsed.hostname or "", authentication_info)
-    except OSError as e:
-        logger.warning(f"Error connecting to FTP server for {url}: {e}")
+    is_gzipped = remote_file_name.endswith(".gz")
+
+    if rename_file_name_stem is None:
+        save_file_name = remote_file_name[: -len(".gz")] if is_gzipped else remote_file_name
+    else:
+        save_file_name = fill_str_template_with_time(rename_file_name_stem, current_time)
+
+    if skip_existing and (save_path / save_file_name).exists():
+        logger.info(f"File already exists, skipping download: {save_path / save_file_name}")
         return
 
+    _with_retry(
+        partial(
+            _ftp_download_attempt,
+            parsed.hostname or "",
+            authentication_info,
+            f"{remote_dir.rstrip('/')}/{remote_file_name}",
+            save_path / save_file_name,
+            is_gzipped=is_gzipped,
+        ),
+        retries=retries,
+        delay=retry_delay,
+    )
+
+
+def _ftp_download_attempt(
+    host: str,
+    authentication_info: tuple[str, str],
+    remote_file_path: str,
+    target: Path,
+    *,
+    is_gzipped: bool,
+) -> None:
+    """Single attempt of an FTP download. Raises `TransientDownloadError` if worth retrying."""
     try:
-        is_gzipped = remote_file_name.endswith(".gz")
+        ftp = _ftp_connect(host, authentication_info)
+    except OSError as e:
+        msg = f"Error connecting to FTP server {host}: {e}"
+        raise TransientDownloadError(msg) from e
 
-        if rename_file_name_stem is None:
-            save_file_name = remote_file_name[: -len(".gz")] if is_gzipped else remote_file_name
-        else:
-            save_file_name = fill_str_template_with_time(rename_file_name_stem, current_time)
-
-        if skip_existing and (save_path / save_file_name).exists():
-            logger.info(f"File already exists, skipping download: {save_path / save_file_name}")
-            return
-
-        remote_file_path = f"{remote_dir.rstrip('/')}/{remote_file_name}"
-
+    tmp_target = target.with_name(target.name + ".part")
+    try:
         if is_gzipped:
             buffer = io.BytesIO()
             ftp.retrbinary(f"RETR {remote_file_path}", buffer.write)
             buffer.seek(0)
-            with gzip.GzipFile(fileobj=buffer) as decompressed_stream, (save_path / save_file_name).open("wb") as file:
+            with gzip.GzipFile(fileobj=buffer) as decompressed_stream, tmp_target.open("wb") as file:
                 shutil.copyfileobj(decompressed_stream, file)
         else:
-            with (save_path / save_file_name).open("wb") as file:
+            with tmp_target.open("wb") as file:
                 ftp.retrbinary(f"RETR {remote_file_path}", file.write)
 
-        logger.info(f"Downloaded successfully: {save_path / save_file_name}")
+        tmp_target.replace(target)
+        logger.info(f"Downloaded successfully: {target}")
 
+    except ftplib.error_perm as e:
+        # permanent failure (e.g. 550 file not found), retrying will not help
+        logger.warning(f"Error downloading file {remote_file_path} from {host}: {e}")
     except ftplib.all_errors as e:
-        logger.warning(f"Error downloading file from {url}: {e}")
+        msg = f"Error downloading file {remote_file_path} from {host}: {e}"
+        raise TransientDownloadError(msg) from e
     finally:
+        tmp_target.unlink(missing_ok=True)
         try:
             ftp.quit()
         except ftplib.all_errors:
@@ -473,6 +616,8 @@ def _esa_swe_download(
     rename_file_name_stem: str | None,
     *,
     skip_existing: bool,
+    retries: int,
+    retry_delay: float,
 ) -> None:
     if rename_file_name_stem is None:
         msg = "'rename_file_name_stem' is required for method 'esa_swe'!"
@@ -506,12 +651,33 @@ def _esa_swe_download(
         logger.info(f"File already exists, skipping download: {save_path / save_file_name}")
         return
 
+    _with_retry(
+        partial(
+            _esa_swe_download_attempt,
+            authentication_info,
+            download_url,
+            token_scope,
+            save_path / save_file_name,
+        ),
+        retries=retries,
+        delay=retry_delay,
+    )
+
+
+def _esa_swe_download_attempt(
+    authentication_info: tuple[str, str],
+    download_url: str,
+    token_scope: Literal["swe_hapiserver", "swe_contentproxy"],
+    target: Path,
+) -> None:
+    """Single attempt of an ESA SWE download. Raises `TransientDownloadError` if worth retrying."""
+    save_path, save_file_name = target.parent, target.name
     try:
         access_token = _get_esa_swe_access_token(authentication_info[0], authentication_info[1], token_scope)
         data_response = requests.get(
             download_url,
             headers={"Authorization": f"Bearer {access_token}"},
-            timeout=30,
+            timeout=REQUEST_TIMEOUT,
             stream=True,
         )
         if token_scope == "swe_hapiserver" and '"code":1201' in data_response.text:  # noqa: S105
@@ -527,19 +693,25 @@ def _esa_swe_download(
         data_response.raise_for_status()
 
         if download_url.endswith(".gz"):
-            with (
-                gzip.GzipFile(fileobj=data_response.raw) as decompressed_stream,
-                (save_path / save_file_name).open("wb") as file,
-            ):
-                shutil.copyfileobj(decompressed_stream, file)
+            tmp_target = target.with_name(target.name + ".part")
+            try:
+                with (
+                    gzip.GzipFile(fileobj=data_response.raw) as decompressed_stream,
+                    tmp_target.open("wb") as file,
+                ):
+                    shutil.copyfileobj(decompressed_stream, file)
+                tmp_target.replace(target)
+            finally:
+                tmp_target.unlink(missing_ok=True)
         else:
-            with (save_path / save_file_name).open("wb") as file:
-                for chunk in data_response.iter_content(chunk_size=8192):
-                    file.write(chunk)
+            _write_response_atomically(data_response, target)
 
         logger.info(f"Downloaded successfully: {save_path / save_file_name}")
 
-    except requests.exceptions.RequestException:
+    except requests.exceptions.RequestException as e:
+        if _is_transient_request_error(e):
+            msg = f"Error downloading file from {download_url}: {e}"
+            raise TransientDownloadError(msg) from e
         logger.exception(f"Error downloading file from {download_url}")
 
 
@@ -555,7 +727,7 @@ def _get_esa_swe_access_token(
             "grant_type": "client_credentials",
             "scope": token_scope,
         },
-        timeout=30,
+        timeout=REQUEST_TIMEOUT,
     )
 
     token_data = response.json()

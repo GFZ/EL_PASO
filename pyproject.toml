@@ -35,7 +35,6 @@ dependencies = [
     "tabulate==0.10.0",
     "tqdm>=4.67.2",
     "typer>=0.15",
-    "wget>=3.2",
     "wheel==0.48.0",
     "skyfield==1.55",
     "dotenv>=0.9.9",
@@ -93,9 +92,7 @@ push = true
 "el_paso.def" = ['    Version {version}']
 
 [tool.ty.src]
-exclude = [
-    "el_paso/dataset/scripts/create_RBSP_line_data.py",
-]
+exclude = ["el_paso/dataset/scripts/create_RBSP_line_data.py"]
 
 include = ["el_paso/**/*.py"]
 
