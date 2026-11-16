@@ -41,6 +41,8 @@ def rbsp_mageis_electron_strategy(
     mag_field: ep.typing.MagneticFieldLiteral,
     satellite: RBSPSatellite,
     save_strategy: Literal["netcdf"] = "netcdf",
+    *,
+    legacy_layout: bool = False,
 ) -> ep.SavingStrategy:
     """Saving strategy of the RBSP MagEIS electron recipe.
 
@@ -49,6 +51,7 @@ def rbsp_mageis_electron_strategy(
         mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
         satellite (RBSPSatellite): RBSP satellite, "a" or "b".
         save_strategy (Literal["netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+        legacy_layout (bool): Deprecated. Set to True to load data saved without instrument folders. Defaults to False.
 
     Returns:
         ep.SavingStrategy: Monthly NetCDF saving strategy.
@@ -62,6 +65,7 @@ def rbsp_mageis_electron_strategy(
         mag_field,
         data_standard=ep.data_standards.GFZStandard(),
         file_format=file_format,
+        legacy_layout=legacy_layout,
     )
 
 

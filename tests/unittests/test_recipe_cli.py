@@ -766,6 +766,21 @@ def test_check_strategy_factory_accepts_matching_factory() -> None:
 
 
 @pytest.mark.minimal
+@pytest.mark.basic
+def test_check_strategy_factory_accepts_legacy_layout_that_the_recipe_lacks() -> None:
+    def factory(
+        processed_data_path: str | Path,
+        mag_field: Literal["T89", "TS04"],
+        satellite: Literal["a", "b"],
+        *,
+        legacy_layout: bool = False,
+    ) -> None: ...
+
+    assert "legacy_layout" not in inspect.signature(_recipe).parameters
+    check_strategy_factory(_recipe, factory)
+
+
+@pytest.mark.minimal
 def test_check_strategy_factory_reports_all_problems() -> None:
     def factory(base_data_path: str | Path, mag_field: Literal["T89", "T96"], num_cores: dict) -> None: ...
 

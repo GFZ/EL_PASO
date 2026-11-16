@@ -38,6 +38,8 @@ def arase_xep_realtime_strategy(
     processed_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     save_strategy: Literal["gfz", "netcdf"] = "netcdf",
+    *,
+    legacy_layout: bool = False,
 ) -> ep.SavingStrategy:
     """Saving strategy of the Arase XEP real-time recipe.
 
@@ -45,6 +47,7 @@ def arase_xep_realtime_strategy(
         processed_data_path (str | Path): Base directory of the processed data.
         mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
         save_strategy (Literal["gfz", "netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+        legacy_layout (bool): Deprecated. Set to True to load data saved without instrument folders. Defaults to False.
 
     Returns:
         ep.SavingStrategy: Legacy GFZ strategy for "gfz", otherwise a monthly NetCDF strategy.
@@ -60,6 +63,7 @@ def arase_xep_realtime_strategy(
         mag_field,
         data_standard=ep.data_standards.GFZStandard(),
         file_format="nc",
+        legacy_layout=legacy_layout,
     )
 
 

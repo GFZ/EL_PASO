@@ -35,11 +35,11 @@ def test_goes_eps_maged_and_epead_snapshot(
         save_strategy="netcdf",
     )
 
-    out_path = processed_data_path / "GOES" / "goes15" / "goes15_maged_epead_20170901to20170930_T01s.nc"
+    out_path = processed_data_path / "GOES" / "goes15" / "maged_epead" / "goes15_maged_epead_20170901to20170930_T01s.nc"
     assert out_path.exists(), "File did not get written!"
 
     if renew_solution:
-        solution_path = Path(__file__).parent / "data" / "processed" / "GOES" / "goes15"
+        solution_path = Path(__file__).parent / "data" / "processed" / "GOES" / "goes15" / "maged_epead"
         solution_path.mkdir(parents=True, exist_ok=True)
         shutil.copy(out_path, solution_path)
 

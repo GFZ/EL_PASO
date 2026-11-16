@@ -25,6 +25,8 @@ def rbsp_efw_emfisis_density_combined_strategy(
     satellite: RBSPSatellite,
     mag_field: ep.typing.MagneticFieldLiteral,
     save_strategy: Literal["netcdf", "mat"] = "netcdf",
+    *,
+    legacy_layout: bool = False,
 ) -> ep.SavingStrategy:
     """Saving strategy of the combined RBSP EFW/EMFISIS density recipe.
 
@@ -33,6 +35,7 @@ def rbsp_efw_emfisis_density_combined_strategy(
         satellite (RBSPSatellite): RBSP satellite, "a" or "b".
         mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
         save_strategy (Literal["netcdf", "mat"]): File format of the monthly output files. Defaults to "netcdf".
+        legacy_layout (bool): Deprecated. Set to True to load data saved without instrument folders. Defaults to False.
 
     Returns:
         ep.SavingStrategy: Monthly density saving strategy.
@@ -45,6 +48,7 @@ def rbsp_efw_emfisis_density_combined_strategy(
         instrument="densities_combined",
         mag_field=mag_field,
         file_format=file_format,
+        legacy_layout=legacy_layout,
     )
 
 

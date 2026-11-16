@@ -85,6 +85,7 @@ def test_rbsp_ect_combined_snapshot(
                 processed_data_path
                 / "RBSP"
                 / "rbspa"
+                / "ect_combined"
                 / f"rbspa_ect_combined_{start_date:%Y%m%d}to{end_date:%Y%m%d}_{mag_field}.nc"
             )
             assert out_path.exists()
@@ -108,7 +109,8 @@ def test_rbsp_ect_combined_snapshot(
                 # more output groups stays covered.
                 # get_file_path() needs the strategy's own rounded interval (full-month bounds for
                 # MonthlyRBStrategy), not the raw start_time/end_time, to compute the correct name.
-                dest_dir = Path(__file__).parent / "data" / "processed" / "RBSP" / "rbspa"
+                dest_dir = Path(__file__).parent / "data" / "processed" / "RBSP" / "rbspa" / "ect_combined"
+                dest_dir.mkdir(parents=True, exist_ok=True)
                 interval_start, interval_end = rbsp_proc.saving_strategy.get_time_intervals_to_save(
                     start_time, end_time
                 )[0]

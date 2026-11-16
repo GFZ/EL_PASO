@@ -87,7 +87,15 @@ def test_themis_fft_waves(tmpdir: Path, skip_if_unreachable: Callable[..., None]
         num_cores=4,
     )
 
-    out_path = processed_data_path / "THEMIS" / "tha" / f"tha_fft_{_START_TIME:%Y%m%d}.nc"
+    out_path = (
+        processed_data_path
+        / "THEMIS"
+        / "tha"
+        / "fft"
+        / f"{_START_TIME:%Y}"
+        / f"{_START_TIME:%m}"
+        / f"tha_fft_{_START_TIME:%Y%m%d}.nc"
+    )
     assert out_path.exists(), f"expected output file was not written: {out_path}"
 
     dataset = DataSet(
@@ -117,7 +125,11 @@ def test_themis_scpot_density(tmpdir: Path, skip_if_unreachable: Callable[..., N
     month_start = _START_TIME.replace(day=1)
     month_end = month_start + timedelta(days=30)
     out_path = (
-        processed_data_path / "THEMIS" / "tha" / f"tha_scpot_{month_start:%Y%m%d}to{month_end:%Y%m%d}_{_MAG_FIELD}.nc"
+        processed_data_path
+        / "THEMIS"
+        / "tha"
+        / "scpot"
+        / f"tha_scpot_{month_start:%Y%m%d}to{month_end:%Y%m%d}_{_MAG_FIELD}.nc"
     )
     assert out_path.exists(), f"expected output file was not written: {out_path}"
 

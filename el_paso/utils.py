@@ -983,6 +983,11 @@ def write_cdf_file(file_path: Path, data_dict: DataDict, data_standard: DataStan
         raise RuntimeError(msg) from e
 
 
+def get_year_month_folder(interval_start: datetime) -> Path:
+    """Returns the ``YYYY/MM`` sub-folder for daily files."""
+    return Path(interval_start.strftime("%Y/%m"))
+
+
 def get_monthly_datetime_intervals(start_time: datetime | None, end_time: datetime | None) -> list[TimeInterval]:
     """Splits a time range into a list of full calendar-month intervals.
 

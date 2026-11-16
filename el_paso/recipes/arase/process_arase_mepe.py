@@ -40,6 +40,8 @@ def arase_mepe_h5_strategy(
     base_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     data_standard: ep.typing.DataStandard[ep.typing.StandardName] | None = None,
+    *,
+    legacy_layout: bool = False,
 ) -> ep.SavingStrategy:
     """Monthly HDF5 saving strategy for Arase MEP-e."""
     return ep.saving_strategies.MonthlyRBStrategy(
@@ -50,6 +52,7 @@ def arase_mepe_h5_strategy(
         mag_field,
         data_standard=data_standard or ep.data_standards.GFZStandard(),
         file_format="h5",
+        legacy_layout=legacy_layout,
     )
 
 
@@ -57,6 +60,8 @@ def arase_mepe_netcdf_strategy(
     base_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     data_standard: ep.typing.DataStandard[ep.typing.StandardName] | None = None,
+    *,
+    legacy_layout: bool = False,
 ) -> ep.SavingStrategy:
     """Monthly NetCDF saving strategy for Arase MEP-e."""
     return ep.saving_strategies.MonthlyRBStrategy(
@@ -67,6 +72,7 @@ def arase_mepe_netcdf_strategy(
         mag_field,
         data_standard=data_standard or ep.data_standards.GFZStandard(),
         file_format="nc",
+        legacy_layout=legacy_layout,
     )
 
 
@@ -75,6 +81,8 @@ def arase_mepe_strategy(
     mag_field: ep.typing.MagneticFieldLiteral,
     save_strategy: Literal["gfz", "h5", "netcdf"] = "gfz",
     data_standard: Literal["gfz", "prbem"] = "gfz",
+    *,
+    legacy_layout: bool = False,
 ) -> ep.SavingStrategy:
     """Saving strategy of the Arase MEP-e recipe.
 
@@ -83,6 +91,7 @@ def arase_mepe_strategy(
         mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
         save_strategy (Literal["gfz", "h5", "netcdf"]): Saving strategy of the output files. Defaults to "gfz".
         data_standard (Literal["gfz", "prbem"]): Data standard of the output files. Defaults to "gfz".
+        legacy_layout (bool): Deprecated. Set to True to load data saved without instrument folders. Defaults to False.
 
     Returns:
         ep.SavingStrategy: Saving strategy for the given arguments.
@@ -95,9 +104,13 @@ def arase_mepe_strategy(
         case "gfz":
             return arase_mepe_gfz_strategy(processed_data_path, mag_field, data_standard_instance)
         case "h5":
-            return arase_mepe_h5_strategy(processed_data_path, mag_field, data_standard_instance)
+            return arase_mepe_h5_strategy(
+                processed_data_path, mag_field, data_standard_instance, legacy_layout=legacy_layout
+            )
         case "netcdf":
-            return arase_mepe_netcdf_strategy(processed_data_path, mag_field, data_standard_instance)
+            return arase_mepe_netcdf_strategy(
+                processed_data_path, mag_field, data_standard_instance, legacy_layout=legacy_layout
+            )
 
 
 def process_arase_mepe(
