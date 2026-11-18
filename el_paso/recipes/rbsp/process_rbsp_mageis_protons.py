@@ -218,9 +218,9 @@ def process_rbsp_mageis_protons(
     # Remove non-positive energy channels and the corresponding FPDU entries
     energy_data = variables["Energy"].get_data()
     valid_mask = np.isfinite(energy_data) & (energy_data > 0)  # ty:ignore[unsupported-operator]
-    variables["Energy"]._data = energy_data[valid_mask]
+    variables["Energy"].set_data(energy_data[valid_mask], "same")
     fpdu_data = variables["FPDU"].get_data()
-    variables["FPDU"]._data = fpdu_data[:, :, valid_mask]
+    variables["FPDU"].set_data(fpdu_data[:, :, valid_mask], "same")
 
     time_bin_methods = {
         "Energy": ep.TimeBinMethod.Repeat,  # making energy time dependent
