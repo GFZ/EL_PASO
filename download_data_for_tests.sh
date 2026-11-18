@@ -7,7 +7,7 @@
 set -e
 
 REPO_ID="spsw/EL-PASO-Test-Data"
-REVISION="2700d8513a0ba3faf7f6ae653a79836cf82337ae"   # branch instrument-folder-layout; bump when the data changes
+REVISION="224937c4bbf34576da36260be58d0492e7c859a6"
 OUTPUT_DIR="./tests/system/"
 
 echo "Downloading ${REPO_ID}@${REVISION}..."
