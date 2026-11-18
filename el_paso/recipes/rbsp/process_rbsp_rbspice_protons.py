@@ -199,9 +199,9 @@ def process_rbsp_rbspice_protons(
     energy_data = variables["Energy"].get_data()
     energy_data_0 = energy_data[0]
     valid_mask = np.isfinite(energy_data_0) & (energy_data_0 > 0)
-    variables["Energy"]._data = energy_data_0[valid_mask]
+    variables["Energy"].set_data(energy_data_0[valid_mask], "same")
     fpdu_data = variables["FPDU"].get_data()
-    variables["FPDU"]._data = fpdu_data[:, :, valid_mask]
+    variables["FPDU"].set_data(fpdu_data[:, :, valid_mask], "same")
 
     time_bin_methods = {
         "Energy": ep.TimeBinMethod.Repeat,
@@ -225,9 +225,9 @@ def process_rbsp_rbspice_protons(
     pa_row = pa_data[0, :]
     pa_mask = (pa_row >= 0) & (pa_row <= 90)  # ty:ignore[unsupported-operator]
     T = pa_data.shape[0]
-    variables["Pitch_angle"]._data = np.tile(pa_row[pa_mask], (T, 1))
+    variables["Pitch_angle"].set_data(np.tile(pa_row[pa_mask], (T, 1)), "same")
     fpdu_data = variables["FPDU"].get_data()
-    variables["FPDU"]._data = fpdu_data[:, pa_mask, :]
+    variables["FPDU"].set_data(fpdu_data[:, pa_mask, :], "same")
 
     variables["FPDU"].transpose_data([0, 2, 1])  # making it have dimensions (time, energy, pitch angle)
 

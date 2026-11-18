@@ -21,7 +21,6 @@ ignore = [
     "D102",    # allow undocumented public methods
     "N806",    # allow non-lowercase local variable names in functions (e.g. matrices, physics variables)
     "N803",    # allow non-snake_case argument names
-    "SLF001",  # allow accessing "private" (underscore-prefixed) attributes
     "C901",    # disable the cyclomatic-complexity check on functions
     "PLR0912", # allow functions with many branches
     "PLR0915", # allow functions with many statements
