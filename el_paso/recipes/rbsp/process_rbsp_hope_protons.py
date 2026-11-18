@@ -20,14 +20,16 @@ from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import proces
 
 
 def rbsp_hope_proton_gfz_strategy(
-    base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral, satellite: RBSPSatellite
+    processed_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral, satellite: RBSPSatellite
 ) -> ep.SavingStrategy:
     """Legacy GFZ .mat saving strategy for RBSP HOPE protons."""
-    return ep.saving_strategies.GFZStrategy(Path(base_data_path), "RBSP", "rbsp" + satellite, "hope_protons", mag_field)
+    return ep.saving_strategies.GFZStrategy(
+        Path(processed_data_path), "RBSP", "rbsp" + satellite, "hope_protons", mag_field
+    )
 
 
 def rbsp_hope_proton_netcdf_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     satellite: RBSPSatellite,
     *,
@@ -36,7 +38,7 @@ def rbsp_hope_proton_netcdf_strategy(
 ) -> ep.SavingStrategy:
     """Monthly NetCDF saving strategy for RBSP HOPE protons."""
     return ep.saving_strategies.MonthlyRBStrategy(
-        Path(base_data_path),
+        Path(processed_data_path),
         "RBSP",
         "rbsp" + satellite,
         "hope_protons",

@@ -60,10 +60,12 @@ def arase_xep_strategy(
     )
 
 
-def arase_xep_gfz_strategy(base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral) -> ep.SavingStrategy:
+def arase_xep_gfz_strategy(
+    processed_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral
+) -> ep.SavingStrategy:
     """Legacy GFZ .mat saving strategy for Arase XEP."""
     return ep.saving_strategies.GFZStrategy(
-        Path(base_data_path),
+        Path(processed_data_path),
         "Arase",
         "Arase",
         "XEP",

@@ -28,10 +28,10 @@ SATELLITE_AVAILABILITY = Path(__file__).with_name("eps_maged_epead_availability.
 
 
 def goes_eps_maged_and_epead_gfz_strategy(
-    base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral, satellite: GOESNOPSatellite
+    processed_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral, satellite: GOESNOPSatellite
 ) -> ep.SavingStrategy:
     """Legacy GFZ .mat saving strategy for combined GOES-13/15 EPS MAGED and EPEAD."""
-    return ep.saving_strategies.GFZStrategy(Path(base_data_path), "GOES", satellite, "MAGEDandEPEAD", mag_field)
+    return ep.saving_strategies.GFZStrategy(Path(processed_data_path), "GOES", satellite, "MAGEDandEPEAD", mag_field)
 
 
 class _MonthlyMagedEpeadStrategy(ep.saving_strategies.MonthlyRBStrategy):
@@ -46,7 +46,7 @@ class _MonthlyMagedEpeadStrategy(ep.saving_strategies.MonthlyRBStrategy):
 
 
 def goes_eps_maged_and_epead_netcdf_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     satellite: GOESNOPSatellite,
     *,
@@ -55,7 +55,7 @@ def goes_eps_maged_and_epead_netcdf_strategy(
 ) -> ep.SavingStrategy:
     """Monthly NetCDF saving strategy for combined GOES-13/15 EPS MAGED and EPEAD."""
     return _MonthlyMagedEpeadStrategy(
-        Path(base_data_path),
+        Path(processed_data_path),
         "GOES",
         satellite,
         "MAGED_EPEAD",

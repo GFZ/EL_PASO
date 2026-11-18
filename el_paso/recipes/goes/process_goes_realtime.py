@@ -24,14 +24,16 @@ logger = logging.getLogger(__name__)
 
 
 def goes_realtime_gfz_strategy(
-    base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral, satellite: GOESRealtimeSatellite
+    processed_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral, satellite: GOESRealtimeSatellite
 ) -> ep.SavingStrategy:
     """Legacy GFZ .mat saving strategy for GOES realtime mps-high."""
-    return ep.saving_strategies.GFZStrategy(Path(base_data_path), "GOES", "goes_" + satellite, "mps-high", mag_field)
+    return ep.saving_strategies.GFZStrategy(
+        Path(processed_data_path), "GOES", "goes_" + satellite, "mps-high", mag_field
+    )
 
 
 def goes_realtime_netcdf_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     satellite: GOESRealtimeSatellite,
     *,
@@ -40,7 +42,7 @@ def goes_realtime_netcdf_strategy(
 ) -> ep.SavingStrategy:
     """Monthly NetCDF saving strategy for GOES realtime mps-high."""
     return ep.saving_strategies.MonthlyRBStrategy(
-        Path(base_data_path),
+        Path(processed_data_path),
         "GOES",
         "goes_" + satellite,
         "mps-high",

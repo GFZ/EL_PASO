@@ -28,10 +28,10 @@ from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import proces
 
 
 def arase_xep_realtime_gfz_strategy(
-    base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral
+    processed_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral
 ) -> ep.SavingStrategy:
     """Legacy GFZ .mat saving strategy for Arase XEP."""
-    return ep.saving_strategies.GFZStrategy(Path(base_data_path), "Arase", "Arase", "XEP", mag_field)
+    return ep.saving_strategies.GFZStrategy(Path(processed_data_path), "Arase", "Arase", "XEP", mag_field)
 
 
 def arase_xep_realtime_strategy(

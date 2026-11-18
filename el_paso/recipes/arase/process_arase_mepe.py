@@ -26,18 +26,18 @@ from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import proces
 
 
 def arase_mepe_gfz_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     data_standard: ep.typing.DataStandard[ep.typing.StandardName] | None = None,
 ) -> ep.SavingStrategy:
     """Legacy GFZ .mat saving strategy for Arase MEP-e."""
     return ep.saving_strategies.GFZStrategy(
-        Path(base_data_path), "ARASE", "arase", "mepe", mag_field, data_standard=data_standard
+        Path(processed_data_path), "ARASE", "arase", "mepe", mag_field, data_standard=data_standard
     )
 
 
 def arase_mepe_h5_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     data_standard: ep.typing.DataStandard[ep.typing.StandardName] | None = None,
     *,
@@ -45,7 +45,7 @@ def arase_mepe_h5_strategy(
 ) -> ep.SavingStrategy:
     """Monthly HDF5 saving strategy for Arase MEP-e."""
     return ep.saving_strategies.MonthlyRBStrategy(
-        Path(base_data_path),
+        Path(processed_data_path),
         "Arase",
         "arase",
         "mepe",
@@ -57,7 +57,7 @@ def arase_mepe_h5_strategy(
 
 
 def arase_mepe_netcdf_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     data_standard: ep.typing.DataStandard[ep.typing.StandardName] | None = None,
     *,
@@ -65,7 +65,7 @@ def arase_mepe_netcdf_strategy(
 ) -> ep.SavingStrategy:
     """Monthly NetCDF saving strategy for Arase MEP-e."""
     return ep.saving_strategies.MonthlyRBStrategy(
-        Path(base_data_path),
+        Path(processed_data_path),
         "Arase",
         "arase",
         "mepe",

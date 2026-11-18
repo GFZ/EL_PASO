@@ -25,14 +25,14 @@ logger = logging.getLogger(__name__)
 
 
 def probav_ept_proton_gfz_strategy(
-    base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral
+    processed_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral
 ) -> ep.SavingStrategy:
     """Legacy GFZ .mat saving strategy for PROBA-V EPT protons."""
-    return ep.saving_strategies.GFZStrategy(Path(base_data_path), "PROBAV", "probav", "EPT-proton", mag_field)
+    return ep.saving_strategies.GFZStrategy(Path(processed_data_path), "PROBAV", "probav", "EPT-proton", mag_field)
 
 
 def probav_ept_proton_netcdf_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     *,
     file_format: ep.typing.MFSFormats = ".nc",
@@ -40,7 +40,7 @@ def probav_ept_proton_netcdf_strategy(
 ) -> ep.SavingStrategy:
     """Daily LEO/RB NetCDF saving strategy for PROBA-V EPT protons."""
     return ep.saving_strategies.DailyLEORBStrategy(
-        Path(base_data_path),
+        Path(processed_data_path),
         "PROBAV",
         "probav",
         "EPT-proton",

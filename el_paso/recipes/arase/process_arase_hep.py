@@ -63,14 +63,14 @@ _HEP_SENSORS: dict[HepSensor, _HepSensorConfig] = {
 
 
 def arase_hep_gfz_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     sensor: HepSensor,
     data_standard: ep.typing.DataStandard[ep.typing.StandardName] | None = None,
 ) -> ep.SavingStrategy:
     """Legacy GFZ .mat saving strategy for Arase HEP-L / HEP-H."""
     return ep.saving_strategies.GFZStrategy(
-        Path(base_data_path),
+        Path(processed_data_path),
         "ARASE",
         "arase",
         _HEP_SENSORS[sensor].instrument,
@@ -80,7 +80,7 @@ def arase_hep_gfz_strategy(
 
 
 def arase_hep_h5_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     sensor: HepSensor,
     data_standard: ep.typing.DataStandard[ep.typing.StandardName] | None = None,
@@ -89,7 +89,7 @@ def arase_hep_h5_strategy(
 ) -> ep.SavingStrategy:
     """Monthly HDF5 saving strategy for Arase HEP-L / HEP-H."""
     return ep.saving_strategies.MonthlyRBStrategy(
-        Path(base_data_path),
+        Path(processed_data_path),
         "Arase",
         "arase",
         _HEP_SENSORS[sensor].instrument,
@@ -101,7 +101,7 @@ def arase_hep_h5_strategy(
 
 
 def arase_hep_netcdf_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     sensor: HepSensor,
     data_standard: ep.typing.DataStandard[ep.typing.StandardName] | None = None,
@@ -110,7 +110,7 @@ def arase_hep_netcdf_strategy(
 ) -> ep.SavingStrategy:
     """Monthly NetCDF saving strategy for Arase HEP-L / HEP-H."""
     return ep.saving_strategies.MonthlyRBStrategy(
-        Path(base_data_path),
+        Path(processed_data_path),
         "Arase",
         "arase",
         _HEP_SENSORS[sensor].instrument,

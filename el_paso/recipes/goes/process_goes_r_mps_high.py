@@ -29,14 +29,14 @@ SATELLITE_AVAILABILITY = Path(__file__).with_name("mps_high_availability.toml")
 
 
 def goes_r_mps_high_gfz_strategy(
-    base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral, satellite: GOESRSatellite
+    processed_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral, satellite: GOESRSatellite
 ) -> ep.SavingStrategy:
     """Legacy GFZ .mat saving strategy for GOES-R MPS-HI/MAGED."""
-    return ep.saving_strategies.GFZStrategy(Path(base_data_path), "GOES", satellite, "MAGED", mag_field)
+    return ep.saving_strategies.GFZStrategy(Path(processed_data_path), "GOES", satellite, "MAGED", mag_field)
 
 
 def goes_r_mps_high_netcdf_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     satellite: GOESRSatellite,
     *,
@@ -45,7 +45,7 @@ def goes_r_mps_high_netcdf_strategy(
 ) -> ep.SavingStrategy:
     """Monthly NetCDF saving strategy for GOES-R MPS-HI/MAGED."""
     return ep.saving_strategies.MonthlyRBStrategy(
-        Path(base_data_path),
+        Path(processed_data_path),
         "GOES",
         satellite,
         "MPS_high",
