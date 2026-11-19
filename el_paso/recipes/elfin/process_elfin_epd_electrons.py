@@ -80,7 +80,7 @@ def process_elfin_epd_electrons(
     raw_data_path: str | Path = ".",
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(seconds=1.4),
-    num_cores: int = 32,
+    num_cores: int = 16,
     save_strategy: Literal["gfz", "netcdf"] = "netcdf",
     *,
     skip_existing: bool = True,
@@ -108,7 +108,7 @@ def process_elfin_epd_electrons(
             written to. Defaults to ".".
         bin_cadence (timedelta): Time-binning cadence applied to all variables.
         num_cores (int): Number of CPU cores used for the magnetic field computations.
-            Defaults to 32.
+            Defaults to 16.
         save_strategy (Literal["gfz", "netcdf"]): Which saving strategy/strategies
             to use for writing the processed output. Defaults to "netcdf".
         skip_existing (bool): If True, skip downloading files that already exist on disk.
