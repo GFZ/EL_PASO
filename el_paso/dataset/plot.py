@@ -847,7 +847,7 @@ def plot(
             scatter panels with this coordinate on the y axis, or ``None`` to leave it to the ``along``
             settings of the variables (by default the plot types above).
         colormap (str): Colormap of spectrograms and scatter panels: a colorcet name or else a matplotlib
-            colormap name. Defaults to colorcet's ``rainbow4``.
+            colormap name. Defaults to matplotlib's ``viridis``.
 
     Returns:
         Figure: The figure that contains the panels.

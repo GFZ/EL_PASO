@@ -160,6 +160,7 @@ RECIPES: tuple[RecipeEntry, ...] = (
     ),
     RecipeEntry("themis", "fft-waves", "process_themis_fft_waves", strategy="themis_fft_waves_strategy"),
     RecipeEntry("themis", "scpot-density", "process_themis_scpot_density", strategy="themis_scpot_density_strategy"),
+    RecipeEntry("elfin", "elfin-electrons", "process_elfin_epd_electrons", strategy="elfin_epd_electron_strategy"),
 )
 
 
