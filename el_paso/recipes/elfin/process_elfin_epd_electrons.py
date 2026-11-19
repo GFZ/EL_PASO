@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # SPDX-FileCopyrightText: 2025 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
 # SPDX-FileContributor: Jaskirat Singh
@@ -14,6 +15,7 @@ from astropy import units as u
 
 import el_paso as ep
 from el_paso.processing.magnetic_field_utils import IrbemOptions, LstarQuantity
+from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import process_solar_wind_indices
 
 logging.captureWarnings(capture=True)
 logger = logging.getLogger(__name__)
@@ -21,20 +23,53 @@ logger = logging.getLogger(__name__)
 ELFINSatellites = Literal["ela", "elb"]
 
 
-def elfin_epd_electron_strategy(
-    processed_data_path: str | Path,
+def elfin_epd_electron_gfz_strategy(
+    base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral, satellite: ELFINSatellites
+) -> ep.SavingStrategy:
+    """Legacy GFZ .mat saving strategy for ELFIN EPD electrons."""
+    return ep.saving_strategies.GFZStrategy(Path(base_data_path), "ELFIN", satellite, "EPD", mag_field)
+
+
+def elfin_epd_electron_netcdf_strategy(
+    base_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     satellite: ELFINSatellites,
+    *,
+    file_format: ep.typing.MFSFormats = "nc",
 ) -> ep.SavingStrategy:
     """Daily NetCDF saving strategy for ELFIN EPD electrons."""
     return ep.saving_strategies.DailyLEORBStrategy(
-        base_data_path=Path(processed_data_path),
+        base_data_path=Path(base_data_path),
         mission="ELFIN",
         satellite=satellite,
         instrument="EPD",
         mag_field=mag_field,
         data_standard=ep.data_standards.GFZStandard(),
+        file_format=file_format,
     )
+
+
+def elfin_epd_electron_strategy(
+    processed_data_path: str | Path,
+    mag_field: ep.typing.MagneticFieldLiteral,
+    satellite: ELFINSatellites,
+    save_strategy: Literal["gfz", "netcdf"] = "netcdf",
+) -> ep.SavingStrategy:
+    """Saving strategy of the ELFIN EPD electron recipe.
+
+    Args:
+        processed_data_path (str | Path): Base directory of the processed data.
+        mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
+        satellite (ELFINSatellites): Satellite the data belongs to.
+        save_strategy (Literal["gfz", "netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+
+    Returns:
+        ep.SavingStrategy: Legacy GFZ strategy for "gfz", otherwise a monthly or daily NetCDF strategy.
+    """
+    if save_strategy == "gfz":
+        return elfin_epd_electron_gfz_strategy(processed_data_path, mag_field, satellite)
+
+    return elfin_epd_electron_netcdf_strategy(processed_data_path, mag_field, satellite)
 
 
 def process_elfin_epd_electrons(
@@ -46,8 +81,10 @@ def process_elfin_epd_electrons(
     processed_data_path: str | Path = ".",
     bin_cadence: timedelta = timedelta(seconds=1.4),
     num_cores: int = 32,
+    save_strategy: Literal["gfz", "netcdf"] = "netcdf",
     *,
     skip_existing: bool = True,
+    save_indices_sw: bool = False,
 ) -> None:
     """Process ELFIN EPD electron flux data into the EL-PASO data standard.
 
@@ -72,7 +109,11 @@ def process_elfin_epd_electrons(
         bin_cadence (timedelta): Time-binning cadence applied to all variables.
         num_cores (int): Number of CPU cores used for the magnetic field computations.
             Defaults to 32.
+        save_strategy (Literal["gfz", "netcdf"]): Which saving strategy/strategies
+            to use for writing the processed output. Defaults to "netcdf".
         skip_existing (bool): If True, skip downloading files that already exist on disk.
+        save_indices_sw (bool): If True, also save all solar wind indices and parameters,
+            independent of this recipe's own output. Defaults to False.
     """
     data_path_stem = f"{raw_data_path}/ELFIN/{satellite}/YYYY/MM/"
 
@@ -195,9 +236,7 @@ def process_elfin_epd_electrons(
         overwrite_cache=True,
     )
 
-    #psd_var = ep.processing.compute_phase_space_density(
-    #epd_vars["diff_eflux"], epd_vars["diff_energy"], "electron")
-
+    psd_var = ep.processing.compute_phase_space_density(epd_vars["diff_eflux"], epd_vars["diff_energy"], "electron")
 
     variables_to_save: ep.typing.VariablesDict = {
         "Epoch": binned_time_var,
@@ -205,8 +244,7 @@ def process_elfin_epd_electrons(
         "Energy_FEDU": epd_vars["diff_energy"],
         "Alpha": local_pa_var,
         "Alpha_Eq": magnetic_field_variables["Alpha_Eq_" + mag_field],
-        #"Alpha_LC": magnetic_field_variables["Alpha_LC_" + mag_field],
-        "Alpha_LC": epd_vars["LC_deg"],
+        "Alpha_LC": magnetic_field_variables["Alpha_LC_" + mag_field],
         "Alpha_LC_Eq": magnetic_field_variables["Alpha_LC_Eq_" + mag_field],
         "R_Eq": magnetic_field_variables["R_Eq_" + mag_field],
         "L_m": magnetic_field_variables["L_m_" + mag_field],
@@ -219,12 +257,20 @@ def process_elfin_epd_electrons(
         "Position_geo_alt": geo_R_var,
         "InvK": magnetic_field_variables["InvK_" + mag_field],
         "InvMu": magnetic_field_variables["InvMu_" + mag_field],
-        #"PSD": psd_var,
+        "PSD": psd_var,
     }
 
-    strategy = elfin_epd_electron_strategy(processed_data_path, mag_field, satellite)
+    strategy = elfin_epd_electron_strategy(processed_data_path, mag_field, satellite, save_strategy=save_strategy)
 
     ep.save(variables_to_save, strategy, start_time, end_time, time_var=binned_time_var)
+
+    if save_indices_sw:
+        process_solar_wind_indices(
+            start_time,
+            end_time,
+            processed_data_path=processed_data_path,
+            bin_cadence=bin_cadence,
+        )
 
 
 def _get_state_variables(
@@ -258,9 +304,20 @@ def _get_epd_variables(
 ) -> dict[str, ep.Variable]:
     extraction_infos = [
         ep.ExtractionInfo(name_or_column=f"{satellite}_pef_hs_time", unit=ep.units.tt2000, result_key="time"),
-        ep.ExtractionInfo(name_or_column=f"{satellite}_pef_hs_Epat_nflux", unit=(u.cm**2 * u.s * u.sr * u.keV) ** (-1),result_key="diff_eflux",),
-        ep.ExtractionInfo(name_or_column=f"{satellite}_pef_energies_mean", unit=u.keV, result_key="diff_energy", is_time_dependent=False),
-        ep.ExtractionInfo(name_or_column=f"{satellite}_pef_hs_epa_spec", unit=u.deg, result_key="pitch_angle", is_time_dependent=True),
+        ep.ExtractionInfo(
+            name_or_column=f"{satellite}_pef_hs_Epat_eflux",
+            unit=(u.cm**2 * u.s * u.sr * u.keV) ** (-1),
+            result_key="diff_eflux",
+        ),
+        ep.ExtractionInfo(
+            name_or_column=f"{satellite}_pef_energies_mean",
+            unit=u.keV,
+            result_key="diff_energy",
+            is_time_dependent=False,
+        ),
+        ep.ExtractionInfo(
+            name_or_column=f"{satellite}_pef_hs_epa_spec", unit=u.deg, result_key="pitch_angle", is_time_dependent=True
+        ),
         ep.ExtractionInfo(name_or_column=f"{satellite}_pef_hs_LCdeg", unit=u.deg, result_key="LC_deg"),
     ]
 
