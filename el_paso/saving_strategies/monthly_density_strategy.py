@@ -54,6 +54,8 @@ class MonthlyDensityStrategy(MonthlyRBStrategy):
         instrument: str,
         mag_field: MagneticFieldLiteral,
         data_standard: Optional[DataStandard[StandardName]] = None,
+        *,
+        legacy_layout: bool = False,
     ) -> None:
         """Initializes the monthly density saving strategy.
 
@@ -67,6 +69,8 @@ class MonthlyDensityStrategy(MonthlyRBStrategy):
             data_standard (DataStandard | None, optional):
                 An optional `DataStandard` instance to use for standardizing variables.
                 If `None`, `ep.data_standards.PRBEMStandard` is used by default.
+            legacy_layout (bool): Deprecated. Load data from the old flat ``base/MISSION/satellite/`` layout.
+                Saving always uses the new layout.
         """
         # Resolve the fallback before `super().__init__`, which assigns `self.data_standard`
         # from whatever it is handed.
@@ -79,6 +83,7 @@ class MonthlyDensityStrategy(MonthlyRBStrategy):
             instrument=instrument,
             mag_field=mag_field,
             file_format="nc",
+            legacy_layout=legacy_layout,
             data_standard=data_standard,
         )
 

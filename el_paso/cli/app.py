@@ -510,7 +510,7 @@ def main() -> None:
         mark_run_failed()
         setattr(
             exc,
-            typer.main._typer_developer_exception_attr_name,
+            typer.main._typer_developer_exception_attr_name,  # noqa: SLF001
             DeveloperExceptionConfig(
                 pretty_exceptions_enable=True,
                 pretty_exceptions_show_locals=False,

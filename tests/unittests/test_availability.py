@@ -123,6 +123,36 @@ def test_query_accepts_a_recipe_function() -> None:
 
 @pytest.mark.minimal
 @pytest.mark.basic
+@pytest.mark.parametrize(
+    "recipe_name",
+    ["process_goes_eps_maged_and_epead", "process_goes_r_mps_high"],
+)
+def test_goes_tables_are_valid(recipe_name: str) -> None:
+    check_availability_table(getattr(ep.recipes.goes, recipe_name))
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+@pytest.mark.parametrize(
+    ("day", "expected"),
+    [
+        (date(2014, 11, 8), {"goes13", "goes15"}),
+        (date(2020, 6, 1), {"goes16", "goes17"}),
+        (date(2025, 6, 1), {"goes18", "goes19"}),
+    ],
+)
+def test_goes_tables_give_one_east_and_one_west_satellite(day: date, expected: set[str]) -> None:
+    goes = ep.recipes.goes
+    coverage = {
+        **(ep.satellite_availability(goes.process_goes_eps_maged_and_epead, day, day) or {}),
+        **(ep.satellite_availability(goes.process_goes_r_mps_high, day, day) or {}),
+    }
+
+    assert set(coverage) == expected
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
 def test_recipes_sharing_a_product_share_a_table() -> None:
     lanl = ep.recipes.lanl_geogrid
     april = (date(2017, 4, 1), date(2017, 4, 30))

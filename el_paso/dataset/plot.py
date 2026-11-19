@@ -62,7 +62,7 @@ _COLOR_LIMIT_PERCENTILES = (5.0, 95.0)
 
 _PANEL_HEIGHT_INCHES = 2.5
 
-DEFAULT_COLORMAP = "rainbow4"
+DEFAULT_COLORMAP = "viridis"
 """Colormap of spectrograms and scatter panels: a colorcet name, or else a matplotlib colormap name."""
 
 PANEL_SETTING_NAMES = ("energies", "pitch_angle", "vmin", "vmax", "along")

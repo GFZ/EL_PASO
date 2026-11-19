@@ -29,6 +29,8 @@ def themis_scpot_density_strategy(
     satellite: ThemisProbe,
     mag_field: ep.typing.MagneticFieldLiteral,
     save_strategy: Literal["netcdf"] = "netcdf",
+    *,
+    legacy_layout: bool = False,
 ) -> ep.SavingStrategy:
     """Saving strategy of the THEMIS spacecraft-potential density recipe.
 
@@ -37,6 +39,7 @@ def themis_scpot_density_strategy(
         satellite (ThemisProbe): THEMIS probe the data belongs to.
         mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
         save_strategy (Literal["netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+        legacy_layout (bool): Deprecated. Set to True to load data saved without instrument folders. Defaults to False.
 
     Returns:
         ep.SavingStrategy: Monthly NetCDF density saving strategy.
@@ -48,6 +51,7 @@ def themis_scpot_density_strategy(
         satellite="th" + satellite,
         instrument="SCPOT",
         mag_field=mag_field,
+        legacy_layout=legacy_layout,
     )
 
 

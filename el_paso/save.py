@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import copy
 import logging
 import stat
 from typing import TYPE_CHECKING, Any, get_args
@@ -74,6 +75,11 @@ def save(
         saving_strategy.data_standard.validate(variables_dict)
 
     _warn_about_unsaved_variables(variables_dict, saving_strategy)
+
+    if saving_strategy.legacy_layout:
+        logger.warning("legacy_layout only applies when loading data. Saving to the new folder layout instead.")
+        saving_strategy = copy.copy(saving_strategy)
+        saving_strategy.legacy_layout = False
 
     start_time = enforce_utc_timezone(start_time)
     end_time = enforce_utc_timezone(end_time)

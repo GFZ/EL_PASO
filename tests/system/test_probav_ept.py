@@ -44,7 +44,15 @@ def test_probav_ept(
         apply_correction_factors=apply_correction_factors,
     )
 
-    out_path = processed_data_path / "PROBAV" / "probav" / f"probav_ept_{start_time:%Y%m%d}_T89.nc"
+    out_path = (
+        processed_data_path
+        / "PROBAV"
+        / "probav"
+        / "ept"
+        / f"{start_time:%Y}"
+        / f"{start_time:%m}"
+        / f"probav_ept_{start_time:%Y%m%d}_T89.nc"
+    )
     assert out_path.exists()
 
 

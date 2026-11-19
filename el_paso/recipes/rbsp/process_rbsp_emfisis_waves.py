@@ -28,6 +28,8 @@ def rbsp_emfisis_waves_strategy(
     processed_data_path: str | Path,
     satellite: RBSPSatellite,
     save_strategy: Literal["netcdf"] = "netcdf",
+    *,
+    legacy_layout: bool = False,
 ) -> ep.SavingStrategy:
     """Saving strategy of the RBSP EMFISIS wave recipe.
 
@@ -35,6 +37,7 @@ def rbsp_emfisis_waves_strategy(
         processed_data_path (str | Path): Base directory of the processed data.
         satellite (RBSPSatellite): RBSP satellite, "a" or "b".
         save_strategy (Literal["netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+        legacy_layout (bool): Deprecated. Set to True to load data saved without instrument folders. Defaults to False.
 
     Returns:
         ep.SavingStrategy: Daily NetCDF wave saving strategy following the GFZ data standard.
@@ -46,6 +49,7 @@ def rbsp_emfisis_waves_strategy(
         "rbsp" + satellite,
         "EMFISIS",
         ep.data_standards.GFZStandard(),
+        legacy_layout=legacy_layout,
     )
 
 

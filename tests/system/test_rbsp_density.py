@@ -87,6 +87,7 @@ def test_rbsp_density_without_hiss(
         processed_data_path
         / "RBSP"
         / "rbspa"
+        / "densities_combined"
         / f"rbspa_densities_combined_{month_start:%Y%m%d}to{month_end:%Y%m%d}_{_MAG_FIELD}.{file_format}"
     )
     assert out_path.exists(), f"expected output file was not written: {out_path}"

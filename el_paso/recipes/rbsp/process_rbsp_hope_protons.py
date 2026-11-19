@@ -20,28 +20,32 @@ from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import proces
 
 
 def rbsp_hope_proton_gfz_strategy(
-    base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral, satellite: RBSPSatellite
+    processed_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral, satellite: RBSPSatellite
 ) -> ep.SavingStrategy:
     """Legacy GFZ .mat saving strategy for RBSP HOPE protons."""
-    return ep.saving_strategies.GFZStrategy(Path(base_data_path), "RBSP", "rbsp" + satellite, "hope_protons", mag_field)
+    return ep.saving_strategies.GFZStrategy(
+        Path(processed_data_path), "RBSP", "rbsp" + satellite, "hope_protons", mag_field
+    )
 
 
 def rbsp_hope_proton_netcdf_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     satellite: RBSPSatellite,
     *,
     file_format: ep.typing.MFSFormats = "nc",
+    legacy_layout: bool = False,
 ) -> ep.SavingStrategy:
     """Monthly NetCDF saving strategy for RBSP HOPE protons."""
     return ep.saving_strategies.MonthlyRBStrategy(
-        Path(base_data_path),
+        Path(processed_data_path),
         "RBSP",
         "rbsp" + satellite,
         "hope_protons",
         mag_field,
         data_standard=ep.data_standards.GFZStandard(),
         file_format=file_format,
+        legacy_layout=legacy_layout,
     )
 
 
@@ -50,6 +54,8 @@ def rbsp_hope_proton_strategy(
     mag_field: ep.typing.MagneticFieldLiteral,
     satellite: RBSPSatellite,
     save_strategy: Literal["gfz", "netcdf"] = "netcdf",
+    *,
+    legacy_layout: bool = False,
 ) -> ep.SavingStrategy:
     """Saving strategy of the RBSP HOPE proton recipe.
 
@@ -58,6 +64,7 @@ def rbsp_hope_proton_strategy(
         mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
         satellite (RBSPSatellite): Satellite the data belongs to.
         save_strategy (Literal["gfz", "netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+        legacy_layout (bool): Deprecated. Set to True to load data saved without instrument folders. Defaults to False.
 
     Returns:
         ep.SavingStrategy: Legacy GFZ strategy for "gfz", otherwise a monthly or daily NetCDF strategy.
@@ -65,7 +72,7 @@ def rbsp_hope_proton_strategy(
     if save_strategy == "gfz":
         return rbsp_hope_proton_gfz_strategy(processed_data_path, mag_field, satellite)
 
-    return rbsp_hope_proton_netcdf_strategy(processed_data_path, mag_field, satellite)
+    return rbsp_hope_proton_netcdf_strategy(processed_data_path, mag_field, satellite, legacy_layout=legacy_layout)
 
 
 def process_rbsp_hope_protons(

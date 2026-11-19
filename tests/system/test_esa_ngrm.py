@@ -45,7 +45,9 @@ def test_esa_ngrm(
     start_date = start_time.replace(day=1)
     end_date = end_time.replace(day=30)
 
-    out_path = processed_data_path / "ESA" / "edrs-c" / f"edrs-c_ngrm_{start_date:%Y%m%d}to{end_date:%Y%m%d}_T89.nc"
+    out_path = (
+        processed_data_path / "ESA" / "edrs-c" / "ngrm" / f"edrs-c_ngrm_{start_date:%Y%m%d}to{end_date:%Y%m%d}_T89.nc"
+    )
     assert out_path.exists()
 
 

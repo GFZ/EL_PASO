@@ -109,6 +109,7 @@ def _spectrum_statistics(
     return median, q25, q75
 
 
+@pytest.mark.usefixtures("enable_downloads")
 @pytest.mark.visual
 @pytest.mark.network
 @pytest.mark.parametrize("start_time", _DATES, ids=[f"{date:%Y%m%d}" for date in _DATES])

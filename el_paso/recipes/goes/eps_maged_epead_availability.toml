@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: 2026 GFZ Helmholtz Centre for Geosciences
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# Hand-written: the periods in which each satellite was the operational GOES east or west satellite,
+# not generated from the archive. The archive may hold data outside these periods.
+note = "hand-written operational periods (GOES east/west), not generated from the archive"
+
+[satellites]
+"goes13" = [
+  [2010-04-14, 2017-12-17],
+]
+"goes15" = [
+  [2011-12-06, 2019-02-11],
+]

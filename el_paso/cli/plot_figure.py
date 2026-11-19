@@ -28,7 +28,7 @@ logger = logging.getLogger("el_paso.cli")
 
 # Kept in sync with `el_paso.dataset.plot.DEFAULT_COLORMAP`; that module imports numpy and astropy, which
 # the CLI must not load just to render `--help`.
-DEFAULT_COLORMAP = "rainbow4"
+DEFAULT_COLORMAP = "viridis"
 
 
 _PANEL_HEIGHT_INCHES = 2.0

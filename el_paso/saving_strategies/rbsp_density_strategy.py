@@ -55,6 +55,8 @@ class RBSPDensityStrategy(MonthlyRBStrategy):
         mag_field: MagneticFieldLiteral,
         data_standard: Optional[DataStandard[StandardName]] = None,
         file_format: MFSFormats = "nc",
+        *,
+        legacy_layout: bool = False,
     ) -> None:
         """Initializes the monthly RBSP density saving strategy.
 
@@ -70,6 +72,8 @@ class RBSPDensityStrategy(MonthlyRBStrategy):
                 If `None`, `ep.data_standards.PRBEMStandard` is used by default.
             file_format (MFSFormats): One of ``"nc"``, ``"cdf"``, ``"h5"``, or ``"mat"``.
                 A leading dot is also accepted.
+            legacy_layout (bool): Deprecated. Load data from the old flat ``base/MISSION/satellite/`` layout.
+                Saving always uses the new layout.
         """
         # Resolve the fallback before `super().__init__`, which assigns `self.data_standard`
         # from whatever it is handed.
@@ -82,6 +86,7 @@ class RBSPDensityStrategy(MonthlyRBStrategy):
             instrument=instrument,
             mag_field=mag_field,
             file_format=file_format,
+            legacy_layout=legacy_layout,
             data_standard=data_standard,
         )
 

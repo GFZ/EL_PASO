@@ -76,7 +76,7 @@ class DatasetMetadata:
                 currently_loading = dataset.__dict__.get("_currently_loading", set())
 
                 if name not in currently_loading:
-                    dataset._load_variable(name)
+                    dataset._load_variable(name)  # noqa: SLF001
 
                     if name in self.__dict__:
                         return self.__dict__[name]

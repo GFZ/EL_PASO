@@ -24,28 +24,32 @@ logger = logging.getLogger(__name__)
 
 
 def goes_realtime_gfz_strategy(
-    base_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral, satellite: GOESRealtimeSatellite
+    processed_data_path: str | Path, mag_field: ep.typing.MagneticFieldLiteral, satellite: GOESRealtimeSatellite
 ) -> ep.SavingStrategy:
     """Legacy GFZ .mat saving strategy for GOES realtime mps-high."""
-    return ep.saving_strategies.GFZStrategy(Path(base_data_path), "GOES", "goes_" + satellite, "mps-high", mag_field)
+    return ep.saving_strategies.GFZStrategy(
+        Path(processed_data_path), "GOES", "goes_" + satellite, "mps-high", mag_field
+    )
 
 
 def goes_realtime_netcdf_strategy(
-    base_data_path: str | Path,
+    processed_data_path: str | Path,
     mag_field: ep.typing.MagneticFieldLiteral,
     satellite: GOESRealtimeSatellite,
     *,
     file_format: ep.typing.MFSFormats = ".nc",
+    legacy_layout: bool = False,
 ) -> ep.SavingStrategy:
     """Monthly NetCDF saving strategy for GOES realtime mps-high."""
     return ep.saving_strategies.MonthlyRBStrategy(
-        Path(base_data_path),
+        Path(processed_data_path),
         "GOES",
         "goes_" + satellite,
         "mps-high",
         mag_field,
         data_standard=ep.data_standards.GFZStandard(),
         file_format=file_format,
+        legacy_layout=legacy_layout,
     )
 
 
@@ -71,6 +75,8 @@ def goes_realtime_strategy(
     mag_field: ep.typing.MagneticFieldLiteral,
     satellite: GOESRealtimeSatellite,
     save_strategy: Literal["gfz", "netcdf"] = "netcdf",
+    *,
+    legacy_layout: bool = False,
 ) -> ep.SavingStrategy:
     """Saving strategy of the GOES real-time recipe.
 
@@ -79,6 +85,7 @@ def goes_realtime_strategy(
         mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
         satellite (GOESRealtimeSatellite): Satellite the data belongs to.
         save_strategy (Literal["gfz", "netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
+        legacy_layout (bool): Deprecated. Set to True to load data saved without instrument folders. Defaults to False.
 
     Returns:
         ep.SavingStrategy: Legacy GFZ strategy for "gfz", otherwise a monthly or daily NetCDF strategy.
@@ -86,7 +93,7 @@ def goes_realtime_strategy(
     if save_strategy == "gfz":
         return goes_realtime_gfz_strategy(processed_data_path, mag_field, satellite)
 
-    return goes_realtime_netcdf_strategy(processed_data_path, mag_field, satellite)
+    return goes_realtime_netcdf_strategy(processed_data_path, mag_field, satellite, legacy_layout=legacy_layout)
 
 
 @timed_function("process_goes_real_time")
