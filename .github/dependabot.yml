@@ -25,6 +25,10 @@ updates:
       interval: "cron"
       cronjob: "0 8 * * 1"
       timezone: "Europe/Berlin"
+    labels:
+      - "dependencies"
+      - "python:uv"
+      - "run-basic-tests"
     cooldown:
       default-days: 0
     groups:
