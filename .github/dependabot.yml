@@ -5,26 +5,29 @@
 
 version: 2
 
-multi-ecosystem-groups:
-  dependencies:
+updates:
+  - package-ecosystem: "pre-commit"
+    directory: "/"
     schedule:
       interval: "cron"
       cronjob: "0 8 * * 1"
       timezone: "Europe/Berlin"
-
-updates:
-  - package-ecosystem: "pre-commit"
-    directory: "/"
-    patterns:
-      - "*"
     cooldown:
       default-days: 0
-    multi-ecosystem-group: "dependencies"
+    groups:
+      pre-commit-dependencies:
+        patterns:
+          - "*"
 
   - package-ecosystem: "uv"
     directory: "/"
-    patterns:
-      - "*"
+    schedule:
+      interval: "cron"
+      cronjob: "0 8 * * 1"
+      timezone: "Europe/Berlin"
     cooldown:
       default-days: 0
-    multi-ecosystem-group: "dependencies"
+    groups:
+      uv-dependencies:
+        patterns:
+          - "*"
