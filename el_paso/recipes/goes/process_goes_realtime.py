@@ -67,7 +67,7 @@ GEOCOORDS_DICT: dict[GOESRealtimeSatellite, np.ndarray] = {
 
 def _remove_unit_from_energy_channels(energy_channels: NDArray[np.generic]) -> NDArray[np.int32]:
     """Remove the unit from the energy ranges."""
-    return np.asarray([int(i.replace(" keV", "")) for i in energy_channels if "keV" in i])  # ty:ignore[invalid-return-type]
+    return np.asarray([int(i.replace(" keV", "")) for i in energy_channels if "keV" in i], dtype=np.int32)
 
 
 def goes_realtime_strategy(
