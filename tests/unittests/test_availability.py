@@ -336,6 +336,36 @@ def test_find_days_matches_the_recipe_pattern_and_fetches_each_listing_once() ->
 
 @pytest.mark.minimal
 @pytest.mark.basic
+def test_find_days_counts_every_day_a_multi_day_file_covers() -> None:
+    listings = FakeListings(
+        {
+            "https://archive/": _listing("ns41/"),
+            "https://archive/ns41/": _listing("ns41_200105_v1.10.ascii", "ns41_200112_v1.10.ascii"),
+        }
+    )
+
+    days = find_days(
+        "https://archive/ns41/",
+        r"{satellite}_YYMMDD_v1\.10\.ascii",
+        "ns41",
+        date(2020, 1, 1),
+        date(2020, 1, 14),
+        listings,
+        file_span_days=7,
+    )
+
+    # 5 Jan to 18 Jan, clipped to the last day looked at
+    assert days == {"ns41": {date(2020, 1, 5) + timedelta(days=offset) for offset in range(10)}}
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
+def test_gps_table_is_valid() -> None:
+    check_availability_table(ep.recipes.gps.process_gps_data)
+
+
+@pytest.mark.minimal
+@pytest.mark.basic
 def test_build_table_fills_the_satellite_into_per_satellite_urls(tmp_path: Path) -> None:
     listings = FakeListings(
         {
