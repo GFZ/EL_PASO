@@ -269,6 +269,70 @@ def test_stub_options_are_kebab_case_only(stub_app: typer.Typer) -> None:
     assert not calls
 
 
+def list_recipe(
+    start_time: datetime,
+    end_time: datetime,
+    alpha_eq: list[float] = [90.0],  # noqa: B006
+    num_cores: int = 1,
+) -> None:
+    """Stub recipe with a list parameter.
+
+    Args:
+        start_time (datetime): Start of the range.
+        end_time (datetime): End of the range.
+        alpha_eq (list[float]): Pitch angles.
+        num_cores (int): Core count.
+    """
+    calls.append(locals())
+
+
+TIMES = ["--start-time", "2013-03-16", "--end-time", "2013-03-17"]
+
+
+@pytest.mark.minimal
+@pytest.mark.standard
+@pytest.mark.parametrize(
+    "args",
+    [["--alpha-eq", "10,90"], ["--alpha-eq", "10", "--alpha-eq", "90"], ["--alpha-eq", "10, 90"]],
+)
+def test_list_option_is_comma_separated(args: list[str]) -> None:
+    calls.clear()
+    app = typer.Typer(add_completion=False)
+    app.command()(build_recipe_command(list_recipe))
+
+    result = runner.invoke(app, [*TIMES, *args])
+
+    assert result.exit_code == 0, result.output
+    assert calls[0]["alpha_eq"] == [10.0, 90.0]
+
+
+@pytest.mark.minimal
+@pytest.mark.standard
+def test_list_option_keeps_its_default_and_rejects_bad_values() -> None:
+    calls.clear()
+    app = typer.Typer(add_completion=False)
+    app.command()(build_recipe_command(list_recipe))
+
+    assert runner.invoke(app, TIMES).exit_code == 0
+    assert calls[0]["alpha_eq"] == [90.0]
+    result = runner.invoke(app, [*TIMES, "--alpha-eq", "10,abc"])
+    assert result.exit_code == 2
+    assert "expected comma-separated float" in click.unstyle(result.output)
+
+
+@pytest.mark.minimal
+@pytest.mark.standard
+def test_looped_scalar_option_is_comma_separated() -> None:
+    calls.clear()
+    app = typer.Typer(add_completion=False)
+    app.command()(build_recipe_command(list_recipe, loop_over=["num_cores"]))
+
+    result = runner.invoke(app, [*TIMES, "--num-cores", "2,4"])
+
+    assert result.exit_code == 0, result.output
+    assert [call["num_cores"] for call in calls] == [2, 4]
+
+
 @pytest.mark.minimal
 @pytest.mark.standard
 def test_stub_loops_over_comma_separated_satellite(stub_app: typer.Typer) -> None:

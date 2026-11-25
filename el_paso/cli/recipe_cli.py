@@ -208,6 +208,28 @@ def _comma_separated_choices(choices: Sequence[str]) -> Callable[[list[str] | No
     return callback
 
 
+def _comma_separated_values(item_type: type) -> Callable[[list[str] | None], list[Any] | None]:
+    """Build an option callback that splits comma-separated values and converts each to `item_type`.
+
+    The option may still be repeated, so ``--alpha-eq 10,90`` and ``--alpha-eq 10 --alpha-eq 90`` are equal.
+    """
+
+    def callback(value: list[str] | None) -> list[Any] | None:
+        if value is None:
+            return None
+        items = [part.strip() for text in value for part in str(text).split(",") if part.strip()]
+        if not items:
+            msg = "no value given."
+            raise typer.BadParameter(msg)
+        try:
+            return [item_type(item) for item in items]
+        except ValueError as error:
+            msg = f"expected comma-separated {item_type.__name__} values, got {', '.join(map(repr, items))}."
+            raise typer.BadParameter(msg) from error
+
+    return callback
+
+
 def _is_path_hint(hint: Any) -> bool:  # noqa: ANN401
     """Return True for ``Path``, ``str | Path`` and their optional variants."""
     if hint is Path:
@@ -319,10 +341,15 @@ def _build_parameter_spec(  # noqa: PLR0911
     if get_origin(inner_hint) is list:
         item_hints = get_args(inner_hint)
         if len(item_hints) == 1 and item_hints[0] in (int, float, str):
-            option = typer.Option(*_option_names(name, is_flag=False), help=help_text)
-            # A list parameter already takes several values, so it is repeated rather than looped:
-            # `--alpha-eq 10 --alpha-eq 90` is one call with two pitch angles, not two calls.
-            annotation = Annotated[list[item_hints[0]], option]  # ty: ignore[invalid-type-form]
+            option = typer.Option(
+                *_option_names(name, is_flag=False),
+                help=f"{help_text} Comma-separated for several, e.g. 10,90.".strip(),
+                metavar=f"{item_hints[0].__name__.upper()},...",
+                callback=_comma_separated_values(item_hints[0]),
+            )
+            # A list parameter already takes several values, so they are listed rather than looped:
+            # `--alpha-eq 10,90` is one call with two pitch angles, not two calls.
+            annotation = Annotated[list[str], option]
             return _ParameterSpec(name, annotation, default, None, is_loop=False, is_list=True)
 
         return None
@@ -330,7 +357,13 @@ def _build_parameter_spec(  # noqa: PLR0911
     if inner_hint in (int, float, str):
         option = typer.Option(*_option_names(name, is_flag=False), help=help_text)
         if is_loop:
-            annotation = Annotated[list[inner_hint], option]
+            option = typer.Option(
+                *_option_names(name, is_flag=False),
+                help=f"{help_text} Comma-separated for several.".strip(),
+                metavar=f"{inner_hint.__name__.upper()},...",
+                callback=_comma_separated_values(inner_hint),
+            )
+            annotation = Annotated[list[str], option]
         elif default is None:
             annotation = Annotated[inner_hint | None, option]
         else:
@@ -812,7 +845,10 @@ def _typer_default(spec: _ParameterSpec) -> Any:  # noqa: ANN401
 
     if spec.is_loop:
         values = spec.default if isinstance(spec.default, (list, tuple)) else [spec.default]
-        return list(values)
+        return [str(value) for value in values]
+
+    if spec.is_list and isinstance(spec.default, (list, tuple)):
+        return [str(value) for value in spec.default]
 
     if spec.choice_enum is not None and spec.default is not None:
         return spec.choice_enum(spec.default)

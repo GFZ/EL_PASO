@@ -58,7 +58,8 @@ Not every recipe has every option: the command line mirrors the recipe's
 signature, so a recipe that does no time binning has no `--bin-cadence`. Run
 `--help` on a recipe to see what it actually accepts.
 
-Processing several satellites means giving a comma-separated list (repeating the option works too):
+Processing several satellites means giving a comma-separated list (repeating the option works too).
+The same goes for every other option that takes several values, e.g. `--alpha-eq 10,90`:
 
 ```bash
 el-paso rbsp mageis-electrons \
