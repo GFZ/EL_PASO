@@ -231,12 +231,12 @@ def test_plot_command_rejects_invalid_selection_options(
 @pytest.mark.standard
 @pytest.mark.parametrize(
     ("flag", "coordinate"),
-    [("--along-L-star", "L_star"), ("--along-L-m", "L_m"), ("--along-R-eq", "R_Eq"), (None, None)],
+    [("L_star", "L_star"), ("l_m", "L_m"), ("R_Eq", "R_Eq"), (None, None)],
 )
 def test_plot_command_passes_the_along_option_through(
     requests: list[PlotRequest], flag: str | None, coordinate: str | None
 ) -> None:
-    result = runner.invoke(stub_app(), [*TIME_ARGS, *([flag] if flag else [])])
+    result = runner.invoke(stub_app(), [*TIME_ARGS, *(["--along", flag] if flag else [])])
     assert result.exit_code == 0, result.output
 
     (request,) = requests
@@ -245,13 +245,13 @@ def test_plot_command_passes_the_along_option_through(
 
 @pytest.mark.minimal
 @pytest.mark.standard
-def test_along_options_are_mutually_exclusive(requests: list[PlotRequest]) -> None:
-    result = runner.invoke(stub_app(), [*TIME_ARGS, "--along-L-star", "--along-R-eq"])
+def test_along_rejects_an_unknown_coordinate(requests: list[PlotRequest]) -> None:
+    result = runner.invoke(stub_app(), [*TIME_ARGS, "--along", "L"])
 
     assert result.exit_code == 2, result.output
     output = click.unstyle(result.output)
-    assert "only one of" in output
-    assert "'--along-L-star' / '--along-R-eq'" in output
+    assert "'--along'" in output
+    assert "choose from" in output
     assert not requests
 
 
@@ -284,7 +284,7 @@ def test_variable_option_is_comma_separated(requests: list[PlotRequest]) -> None
 def test_along_options_match_the_along_coordinates() -> None:
     from el_paso.dataset.plot import ALONG_COORDINATES  # noqa: PLC0415
 
-    assert tuple(coordinate for _, coordinate in plot_cli.ALONG_OPTIONS.values()) == ALONG_COORDINATES
+    assert plot_cli.ALONG_CHOICES == ALONG_COORDINATES
 
 
 @pytest.mark.minimal
@@ -1074,7 +1074,9 @@ def test_build_figure_along_l_star_has_one_panel_per_energy_and_satellite(mageis
 def test_plot_along_l_star_writes_the_figure(mageis_data: Path, plot_log: pytest.LogCaptureFixture) -> None:
     output = mageis_data / "along.png"
     result = mageis_plot(
-        mageis_data, "--satellite", "a", "--variable", "FEDU", "--energy", "400", "--along-L-star", *output_args(output)
+        mageis_data,
+        *("--satellite", "a", "--variable", "FEDU", "--energy", "400", "--along", "L_star"),
+        *output_args(output),
     )
 
     assert result.exit_code == 0, result.output
@@ -1087,7 +1089,7 @@ def test_plot_along_l_star_writes_the_figure(mageis_data: Path, plot_log: pytest
 @pytest.mark.standard
 def test_plot_along_a_coordinate_without_data_fails(mageis_data: Path, plot_log: pytest.LogCaptureFixture) -> None:
     output = mageis_data / "along.png"
-    result = mageis_plot(mageis_data, "--satellite", "a", "--variable", "FEDU", "--along-R-eq", *output_args(output))
+    result = mageis_plot(mageis_data, "--satellite", "a", "--variable", "FEDU", "--along", "R_Eq", *output_args(output))
 
     assert result.exit_code == 1, result.output
     assert not output.exists()
@@ -1290,7 +1292,8 @@ def test_exported_script_makes_the_same_figure(
         "B_Eq",
         "--energy",
         "400",
-        "--along-L-star",
+        "--along",
+        "L_star",
         *output_args(figure_path),
         "--export-script",
         str(script),

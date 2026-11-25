@@ -242,7 +242,7 @@ A recipe can define default panels (`PLOT_DEFAULTS`, as RBSP MagEIS does), in wh
 | `--pitch-angle` | Pitch angle in degrees at which to cut (default 90). |
 | `--vmin`, `--vmax` | Colour limits of spectrograms and scatter panels, or y-limits of `--energy` line panels. Default: the 5th and 95th percentile of the data. |
 | `--colormap` | A [colorcet](https://colorcet.holoviz.org) or matplotlib colormap name. Default `rainbow4`. |
-| `--along-L-star`, `--along-L-m`, `--along-R-eq` | Draw each variable as a scatter plot over time with that coordinate on the y axis and the value as colour. At most one of them per call. |
+| `--along` | One of `L_star`, `L_m`, `R_Eq` (case-insensitive). Draw each variable as a scatter plot over time with that coordinate on the y axis and the value as colour. |
 | `--output-dir` | Directory to write the figure to, created if missing. Default: the current directory. |
 | `--filename` | Name of the file; the format follows the suffix (`.png`, `.pdf`, ...). Default: `<recipe>_<satellite>_<start>_<end>.png`. |
 | `--show` | Open the figure in an interactive window instead of only writing a file. |
@@ -255,7 +255,7 @@ el-paso plot rbsp mageis-electrons \
     --start-time 2017-10-15 --end-time 2017-10-16T23:59:59 \
     --processed-data-path ~/ep/processed \
     --variable FEDU --energy 108,470,1575 \
-    --along-L-star --vmin 1 --vmax 1e6 \
+    --along L_star --vmin 1 --vmax 1e6 \
     --output-dir ~/ep/figures --filename fedu_lstar.pdf
 ```
 
