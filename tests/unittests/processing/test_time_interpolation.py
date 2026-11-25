@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_interpolate_max_gap_seconds():
     orig_times = np.asarray([0.0, 2.0, 10.0, 12.0])
     orig_data = np.asarray([0.0, 2.0, 10.0, 12.0])
@@ -49,7 +49,7 @@ def test_interpolate_max_gap_seconds():
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_interpolate_nan_gaps():
     orig_times = np.asarray([0.0, 1.0, 2.0, 3.0])
     orig_data = np.asarray([10.0, np.nan, 30.0, 40.0])
@@ -81,7 +81,7 @@ def test_interpolate_nan_gaps():
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_interpolate_exact_matches_are_protected():
     orig_times = np.asarray([0.0, 10.0, 20.0])
     orig_data = np.asarray([0.0, 100.0, np.nan])

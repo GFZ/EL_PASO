@@ -32,7 +32,7 @@ def sample_tle_file():
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 class TestCalculateGeoCoordsReturn:
     """Test the return values of calculate_geo_coords."""
 
@@ -96,7 +96,7 @@ class TestCalculateGeoCoordsReturn:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_geo_coords_are_earth_fixed(sample_tle_file: str):
     """The TLE path must return Earth-fixed (ITRF) coordinates, like the OMM path, not inertial ones."""
     _, tle_times, coords_var = calculate_geo_coords_from_tle(sample_tle_file)

@@ -18,7 +18,7 @@ def _make_vars(pitch_angles: np.ndarray) -> tuple[ep.Variable, ep.Variable]:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_fold_constant_pitch_angles() -> None:
     pa = np.tile(np.array([[30.0, 60.0, 120.0, 150.0]]), (3, 1))
     flux_var, pa_var = _make_vars(pa)
@@ -30,7 +30,7 @@ def test_fold_constant_pitch_angles() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_fold_constant_pitch_angles_with_nan() -> None:
     pa = np.tile(np.array([[30.0, np.nan, 150.0]]), (3, 1))
     flux_var, pa_var = _make_vars(pa)
@@ -41,7 +41,7 @@ def test_fold_constant_pitch_angles_with_nan() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_fold_raises_for_time_varying_pitch_angles() -> None:
     pa = np.array([[30.0, 60.0, 120.0], [31.0, 60.0, 120.0], [30.0, 60.0, 120.0]])
     flux_var, pa_var = _make_vars(pa)

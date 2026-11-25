@@ -14,7 +14,7 @@ from el_paso.dataset import DataSet
 from el_paso.recipes.rbsp.process_rbsp_emfisis_waves import process_rbsp_emfisis_waves
 
 
-@pytest.mark.basic
+@pytest.mark.standard
 def test_rbsp_emfisis_waves(
     tmpdir: Path,
     monkeypatch: pytest.MonkeyPatch,

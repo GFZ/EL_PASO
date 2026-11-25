@@ -217,10 +217,10 @@ pytest tests
 
 Tests are grouped using pytest markers, defined in `pytest.ini`:
 
-- `basic`: quick tests suitable for fast, everyday verification of the code. This is what CI runs on every push/PR:
+- `standard`: quick tests suitable for fast, everyday verification of the code. This is what CI runs on every push/PR:
 
   ```bash
-  pytest tests -m basic
+  pytest tests -m standard
   ```
 
 - `visual`: tests that produce plots or other visual output which must be checked manually rather than being asserted automatically:

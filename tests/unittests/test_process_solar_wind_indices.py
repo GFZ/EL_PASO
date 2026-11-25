@@ -18,7 +18,7 @@ from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import (
 from el_paso.saving_strategies.solar_wind_indices_strategy import ALL_SW_INDICES
 
 
-@pytest.mark.basic
+@pytest.mark.standard
 def test_strategy_saves_all_sw_indices_regardless_of_mag_field(tmp_path: Path) -> None:
     strategy = solar_wind_indices_strategy(tmp_path)
 
@@ -26,7 +26,7 @@ def test_strategy_saves_all_sw_indices_regardless_of_mag_field(tmp_path: Path) -
     assert set(strategy.output_files[0].names_to_save) == {"Epoch", *ALL_SW_INDICES}
 
 
-@pytest.mark.basic
+@pytest.mark.standard
 def test_recipe_writes_a_monthly_solar_wind_indices_file(tmp_path: Path) -> None:
     start_time = datetime(2013, 1, 1, tzinfo=timezone.utc)
     end_time = datetime(2013, 1, 2, tzinfo=timezone.utc)

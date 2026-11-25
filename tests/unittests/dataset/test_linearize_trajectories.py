@@ -13,7 +13,7 @@ from el_paso.dataset.linearize_trajectories import _linearize_trajectories
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_linearize_trajectories_monotonicity():
     """Verify that the resulting x-axis is strictly increasing even with inbound segments."""
     distance = np.array([0.0, 5.0, 10.0, 7.0, 3.0, 0.0])
@@ -29,7 +29,7 @@ def test_linearize_trajectories_monotonicity():
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_linearize_trajectories_abs_sin():
     """Test with a more complex rectified sine wave."""
     x = np.arange(0, 3 * np.pi, 3 * np.pi / 100)
@@ -46,7 +46,7 @@ def test_linearize_trajectories_abs_sin():
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_linearize_trajectories_with_nans():
     """Ensure the interpolation logic handles NaNs in the input distance."""
     distance = np.array([1.0, np.nan, 3.0, 4.0])
@@ -61,7 +61,7 @@ def test_linearize_trajectories_with_nans():
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_linearize_trajectories_single_point():
     """Edge case: ensure it handles very short trajectories without crashing."""
     distance = np.array([1.0])

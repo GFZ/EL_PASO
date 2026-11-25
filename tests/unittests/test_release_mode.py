@@ -12,7 +12,7 @@ from astropy import units as u
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_release_mode_basic():
 
     var_before = ep.Variable(original_unit=u.km)
@@ -27,7 +27,7 @@ def test_release_mode_basic():
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_release_mode_date_is_utc(monkeypatch: pytest.MonkeyPatch):
     release_mode_mod = importlib.import_module("el_paso.release_mode")
 

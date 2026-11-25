@@ -20,7 +20,8 @@ are filled with :func:`el_paso.utils.fill_str_template_with_time` and matched ag
 listing, as :func:`el_paso.download` does.
 
 Each directory listing is fetched once (e.g. once per year directory), not once per day.
-Consecutive days are merged into intervals, and gaps of up to ``--max-gap-days`` missing days do not
+A file covers the day in its name, or with ``file_span_days`` that many days from it (e.g. 7 for
+weekly files). Consecutive days are merged into intervals, and gaps of up to ``--max-gap-days`` missing days do not
 split an interval, so the table records whether a satellite was populated in a period rather than
 every outage.
 """
@@ -40,6 +41,7 @@ from typing import get_args
 
 import requests
 
+from el_paso.recipes.gps import LANLSatellite
 from el_paso.recipes.poes import POESSatellite
 from el_paso.utils import fill_str_template_with_time
 
@@ -62,6 +64,8 @@ class Product:
         file_name_stem (str): The recipes' file name regex, with time placeholders and a
             ``{satellite}`` field.
         first_day (date): First day to look for files. The last day defaults to today.
+        file_span_days (int): Days of data in one file, counted from the day in its name: 1 for
+            daily files, 7 for weekly ones.
         output (Path): The TOML file to write, which the recipe modules declare as
             ``SATELLITE_AVAILABILITY``.
         satellite_pattern (str): Regex for the ``{satellite}`` field of `file_name_stem`, matching
@@ -77,6 +81,7 @@ class Product:
     output: Path
     satellite_pattern: str = ""
     satellites: tuple[str, ...] = ()
+    file_span_days: int = 1
 
 
 _LANL_GEOGRID_URL = (
@@ -84,6 +89,7 @@ _LANL_GEOGRID_URL = (
 )
 _LANL_GEOGRID_DIR = REPO_ROOT / "el_paso" / "recipes" / "lanl_geogrid"
 _POES_SATELLITES = get_args(POESSatellite)
+_GPS_SATELLITES = get_args(LANLSatellite)
 
 PRODUCTS: dict[str, Product] = {
     "lanl-geogrid-mpa": Product(
@@ -106,6 +112,15 @@ PRODUCTS: dict[str, Product] = {
         satellites=_POES_SATELLITES,
         first_day=date(1998, 1, 1),
         output=REPO_ROOT / "el_paso" / "recipes" / "poes" / "sem2_fluxes_2sec_availability.toml",
+    ),
+    # one file per week, named after its Sunday
+    "lanl-gps-cxd": Product(
+        download_url="https://www.ngdc.noaa.gov/stp/space-weather/satellite-data/satellite-systems/lanl_gps/version_v1.10r2/{satellite}/",
+        file_name_stem=r"{satellite}_YYMMDD_v1\.10\.ascii",
+        satellites=_GPS_SATELLITES,
+        first_day=date(2000, 12, 1),
+        file_span_days=7,
+        output=REPO_ROOT / "el_paso" / "recipes" / "gps" / "cxd_availability.toml",
     ),
 }
 """Products this script can tabulate, by the name given on the command line."""
@@ -173,8 +188,10 @@ def find_days(
     first_day: date,
     last_day: date,
     listings: ListingCache,
+    *,
+    file_span_days: int = 1,
 ) -> dict[str, set[date]]:
-    """Collect the days with a file of the product, per satellite.
+    """Collect the days covered by a file of the product, per satellite.
 
     Args:
         download_url (str): See `Product.download_url`, with ``{satellite}`` filled in if it has one.
@@ -183,9 +200,11 @@ def find_days(
         first_day (date): First day to look at.
         last_day (date): Last day to look at, inclusive.
         listings (ListingCache): Where the directory listings come from.
+        file_span_days (int): See `Product.file_span_days`.
 
     Returns:
-        dict[str, set[date]]: The days with at least one matching file, per satellite.
+        dict[str, set[date]]: The days covered by at least one matching file, per satellite, up to
+        `last_day`.
     """
     satellite_group = f"(?P<satellite>{satellite_pattern})"
     days: dict[str, set[date]] = defaultdict(set)
@@ -197,8 +216,10 @@ def find_days(
         if listing:
             stem = fill_str_template_with_time(file_name_stem, time).replace("{satellite}", satellite_group)
             # the same match as `ep.download`, with the satellite as a group
+            covered = [day + timedelta(days=offset) for offset in range(file_span_days)]
+            covered = [covered_day for covered_day in covered if covered_day <= last_day]
             for match in re.finditer(stem, listing, flags=re.IGNORECASE):
-                days[match["satellite"]].add(day)
+                days[match["satellite"]].update(covered)
         day += timedelta(days=1)
 
     return days
@@ -265,6 +286,7 @@ def build_table(
             first_day or product.first_day,
             last_day or datetime.now(timezone.utc).date(),
             listings,
+            file_span_days=product.file_span_days,
         )
         for satellite, satellite_days in found.items():
             days[satellite] |= satellite_days
@@ -285,9 +307,10 @@ def write_table(product: Product, table: dict[str, list[tuple[date, date]]], *, 
         f"download_url = {json.dumps(product.download_url)}",
         f"max_gap_days = {max_gap_days}",
         f"generated = {today.isoformat()}",
-        "",
-        "[satellites]",
     ]
+    if product.file_span_days != 1:
+        lines.append(f"file_span_days = {product.file_span_days}")
+    lines += ["", "[satellites]"]
     for satellite, intervals in table.items():
         lines.append(f"{json.dumps(satellite)} = [")
         lines.extend(f"  [{first.isoformat()}, {last.isoformat()}]," for first, last in intervals)

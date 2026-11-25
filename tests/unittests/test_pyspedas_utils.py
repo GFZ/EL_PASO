@@ -51,7 +51,7 @@ def spectrogram_tplot_name() -> str:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_build_trange_formats_both_bounds() -> None:
     start_time = datetime(2024, 5, 10, 20, 0, 0, tzinfo=timezone.utc)
     end_time = datetime(2024, 5, 11, 3, 30, 15, tzinfo=timezone.utc)
@@ -60,7 +60,7 @@ def test_build_trange_formats_both_bounds() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_unpack_tplot_returns_times_values_and_bins(spectrogram_tplot_name: str) -> None:
     times, values, bins = unpack_tplot(spectrogram_tplot_name)
 
@@ -71,7 +71,7 @@ def test_unpack_tplot_returns_times_values_and_bins(spectrogram_tplot_name: str)
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_tplot_to_variable_preserves_values_and_unit(spectrogram_tplot_name: str) -> None:
     psd_unit = (u.nT) ** 2 / u.Hz
 
@@ -84,7 +84,7 @@ def test_tplot_to_variable_preserves_values_and_unit(spectrogram_tplot_name: str
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_tplot_to_time_variable_is_posixtime(spectrogram_tplot_name: str) -> None:
     """Tplot stores POSIX seconds, so the time axis must survive the round trip untouched."""
     time_variable = tplot_to_time_variable(spectrogram_tplot_name)
@@ -96,7 +96,7 @@ def test_tplot_to_time_variable_is_posixtime(spectrogram_tplot_name: str) -> Non
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_tplot_to_bin_variable_returns_the_frequency_axis(spectrogram_tplot_name: str) -> None:
     bin_variable = tplot_to_bin_variable(spectrogram_tplot_name, u.Hz)
 
@@ -105,7 +105,7 @@ def test_tplot_to_bin_variable_returns_the_frequency_axis(spectrogram_tplot_name
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_tplot_to_bin_variable_collapses_a_per_record_axis() -> None:
     """Some products repeat the bin centres per record; the grid is fixed, so one row suffices."""
     name = "el_paso_test_repeated_bins"
@@ -125,7 +125,7 @@ def test_tplot_to_bin_variable_collapses_a_per_record_axis() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_tplot_to_bin_variable_rejects_a_variable_without_bins() -> None:
     name = "el_paso_test_no_bins"
     pyspedas.store_data(name, data={"x": np.arange(_N_TIME, dtype=np.float64), "y": np.zeros(_N_TIME)})
@@ -135,7 +135,7 @@ def test_tplot_to_bin_variable_rejects_a_variable_without_bins() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_missing_tplot_variable_raises() -> None:
     """A failed or empty download surfaces as a missing tplot variable, not as silent garbage."""
     with pytest.raises(ValueError, match="not found"):
@@ -143,7 +143,7 @@ def test_missing_tplot_variable_raises() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_set_pyspedas_data_dir_redirects_downloads(tmp_path: Path) -> None:
     """The loaders read CONFIG on each call, which is what makes `raw_data_path` work."""
     original = themis_config.CONFIG["local_data_dir"]
@@ -156,7 +156,7 @@ def test_set_pyspedas_data_dir_redirects_downloads(tmp_path: Path) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_set_pyspedas_data_dir_works_for_other_projects(tmp_path: Path) -> None:
     """The helper is not THEMIS-specific; every pyspedas project shares the CONFIG pattern."""
     from pyspedas.projects.rbsp import config as rbsp_config  # noqa: PLC0415
@@ -171,7 +171,7 @@ def test_set_pyspedas_data_dir_works_for_other_projects(tmp_path: Path) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_set_pyspedas_data_dir_rejects_an_unknown_project(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="no configurable data directory"):
         set_pyspedas_data_dir("not_a_real_mission", tmp_path)
@@ -194,7 +194,7 @@ class _FakeLoader:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_load_with_local_fallback_updates_then_loads_local_files() -> None:
     loader = _FakeLoader()
 
@@ -208,7 +208,7 @@ def test_load_with_local_fallback_updates_then_loads_local_files() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_load_with_local_fallback_loads_local_files_if_update_fails(caplog: pytest.LogCaptureFixture) -> None:
     loader = _FakeLoader(fail_download=True)
 
@@ -220,7 +220,7 @@ def test_load_with_local_fallback_loads_local_files_if_update_fails(caplog: pyte
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_load_with_local_fallback_warns_if_nothing_is_loaded(caplog: pytest.LogCaptureFixture) -> None:
     loaded = load_with_local_fallback(_FakeLoader(loaded=[]), probe="a")
 

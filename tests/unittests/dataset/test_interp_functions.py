@@ -16,7 +16,7 @@ from el_paso.dataset.interp_functions import (
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize(
     ("flux_left", "flux_right", "target", "left", "right", "expected"),
     [
@@ -72,7 +72,7 @@ def _make_arrays() -> tuple[np.ndarray, np.ndarray, np.ndarray]:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_interp_flux_parallel_known_point() -> None:
     flux, energy, alpha = _make_arrays()
     result = _interp_flux_parallel(flux, energy, alpha, targets=[(2.0, 20.0)], it=0)
@@ -81,7 +81,7 @@ def test_interp_flux_parallel_known_point() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_interp_flux_parallel_on_grid_alpha() -> None:
     """Target exactly on a grid alpha value should return the flux at that alpha."""
     flux, energy, alpha = _make_arrays()
@@ -94,7 +94,7 @@ def test_interp_flux_parallel_on_grid_alpha() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_interp_flux_parallel_alpha_below_range_returns_nan() -> None:
     flux, energy, alpha = _make_arrays()
     result = _interp_flux_parallel(flux, energy, alpha, targets=[(2.0, 5.0)], it=0)
@@ -102,7 +102,7 @@ def test_interp_flux_parallel_alpha_below_range_returns_nan() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_interp_flux_parallel_alpha_above_range_returns_nan() -> None:
     flux, energy, alpha = _make_arrays()
     result = _interp_flux_parallel(flux, energy, alpha, targets=[(2.0, 70.0)], it=0)
@@ -110,7 +110,7 @@ def test_interp_flux_parallel_alpha_above_range_returns_nan() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_interp_flux_parallel_nan_flux_returns_nan() -> None:
     flux, energy, alpha = _make_arrays()
     flux_nan = flux.copy()
@@ -120,7 +120,7 @@ def test_interp_flux_parallel_nan_flux_returns_nan() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_interp_flux_parallel_multiple_targets() -> None:
     flux, energy, alpha = _make_arrays()
     targets = [(2.0, 20.0), (2.0, 5.0)]  # first valid, second out-of-range
@@ -133,7 +133,7 @@ def test_interp_flux_parallel_multiple_targets() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_interp_omni_flux_parallel_known_points() -> None:
     energy = np.array([[1.0, 2.0, 3.0, 4.0]])
     flux = np.array([[100.0, 200.0, 300.0, 400.0]])
@@ -144,7 +144,7 @@ def test_interp_omni_flux_parallel_known_points() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_interp_omni_flux_parallel_skips_nan_and_needs_two_points() -> None:
     energy = np.array([[1.0, 2.0, 3.0, 4.0]])
     flux = np.array([[100.0, np.nan, 300.0, 400.0]])
@@ -186,7 +186,7 @@ def _make_dataset(nt: int = 2) -> _FakeDataSet:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_interp_flux_default_is_fedu() -> None:
     ds = _make_dataset()
     result = interp_flux(ds, [2.0], [20.0], target_type="TargetPairs", n_threads=1)  # ty:ignore[invalid-argument-type]
@@ -195,7 +195,7 @@ def test_interp_flux_default_is_fedu() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_interp_flux_omnidirectional() -> None:
     ds = _make_dataset()
     result = interp_flux(ds, [1.5, 3.5], flux_name="FEDO", n_threads=1)  # ty:ignore[invalid-argument-type]
@@ -204,7 +204,7 @@ def test_interp_flux_omnidirectional() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_interp_flux_single_pitch_angle_bin_is_spin_averaged() -> None:
     ds = _make_dataset()
     result = interp_flux(ds, 2.5, flux_name="FPDU", n_threads=1)  # ty:ignore[invalid-argument-type]
@@ -213,7 +213,7 @@ def test_interp_flux_single_pitch_angle_bin_is_spin_averaged() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_interp_flux_omnidirectional_rejects_target_al() -> None:
     ds = _make_dataset()
     with pytest.raises(ValueError, match="target_al"):
@@ -221,7 +221,7 @@ def test_interp_flux_omnidirectional_rejects_target_al() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_interp_flux_directional_requires_target_al() -> None:
     ds = _make_dataset()
     with pytest.raises(ValueError, match="required"):

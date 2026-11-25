@@ -423,7 +423,9 @@ def test_along_rejects_bad_coordinates(synthetic_dataset: DataSet) -> None:
 
 
 @pytest.mark.minimal
-def test_colormap_defaults_to_matplotlib_viridis(synthetic_dataset: DataSet) -> None:
+@pytest.mark.standard
+def test_colormap_defaults_to_viridis(synthetic_dataset: DataSet) -> None:
+    import colorcet as cc  # noqa: PLC0415
 
     figure = synthetic_dataset.plot(["FEDU"])
     mesh = figure.axes[0].collections[0]
@@ -431,7 +433,7 @@ def test_colormap_defaults_to_matplotlib_viridis(synthetic_dataset: DataSet) -> 
 
     figure = synthetic_dataset.plot(["FEDU"], colormap="rainbow4")
     mesh = figure.axes[0].collections[0]
-    assert mesh.get_cmap().name == "rainbow4"
+    assert mesh.get_cmap().name == cc.cm["rainbow4"].name
 
     figure = synthetic_dataset.plot(["B_Eq"], along="L_m", colormap="fire")
     points = figure.axes[0].collections[0]
