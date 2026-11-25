@@ -111,11 +111,11 @@ Tests are split by marker, and CI picks the tier from the trigger:
 | Trigger | Marker run |
 | --- | --- |
 | Every push to a PR | `minimal` |
-| Comment `/run-full-tests` on the PR (adds the `run-basic-tests` label) | `basic` |
+| Comment `/run-standard-tests` on the PR (adds the `run-standard-tests` label) | `standard` |
 | Comment `/run-network-tests` on the PR (adds the `run-network-tests` label) | `network` |
-| Push to `main`, manual dispatch | `basic` (never `network`) |
+| Push to `main`, manual dispatch | `standard` (never `network`) |
 
-Tests that download real data from external servers get `@pytest.mark.network` (usually with `@pytest.mark.usefixtures("enable_downloads")`) instead of `minimal`/`basic`. Only users with write access can trigger the slash commands. Repository secrets (`SPACETRACK_USER`, `ESA_CLIENT_ID`, ...) are not passed to PRs from forks, so network tests that need credentials only work from a branch in `GFZ/EL_PASO`.
+Tests that download real data from external servers get `@pytest.mark.network` (usually with `@pytest.mark.usefixtures("enable_downloads")`) instead of `minimal`/`standard`. Only users with write access can trigger the slash commands. Repository secrets (`SPACETRACK_USER`, `ESA_CLIENT_ID`, ...) are not passed to PRs from forks, so network tests that need credentials only work from a branch in `GFZ/EL_PASO`.
 
 ## Submitting a pull request
 

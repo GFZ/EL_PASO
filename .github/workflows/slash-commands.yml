@@ -33,11 +33,11 @@ jobs:
           gh pr edit "$PR" --add-label run-network-tests
 
 
-  run-basic-tests:
-    if: github.event.issue.pull_request && startsWith(github.event.comment.body, '/run-full-tests')
+  run-standard-tests:
+    if: github.event.issue.pull_request && startsWith(github.event.comment.body, '/run-standard-tests')
     runs-on: ubuntu-latest
     steps:
-      - name: Re-apply the run-basic-tests label
+      - name: Re-apply the run-standard-tests label
         env:
           GH_TOKEN: ${{ secrets.SLASH_COMMAND_PAT }}
           GH_REPO: ${{ github.repository }}
@@ -49,6 +49,6 @@ jobs:
             echo "::error::$COMMENTER has '$perm' permission, write is required"
             exit 1
           fi
-          gh label create run-basic-tests --description "Run the basic tests on this PR" 2>/dev/null || true
-          gh pr edit "$PR" --remove-label run-basic-tests 2>/dev/null || true
-          gh pr edit "$PR" --add-label run-basic-tests
+          gh label create run-standard-tests --description "Run the standard tests on this PR" 2>/dev/null || true
+          gh pr edit "$PR" --remove-label run-standard-tests 2>/dev/null || true
+          gh pr edit "$PR" --add-label run-standard-tests

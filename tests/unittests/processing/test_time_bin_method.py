@@ -9,7 +9,7 @@ from el_paso import TimeBinMethod
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_mean() -> None:
     data = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     result = TimeBinMethod.Mean(data)
@@ -17,7 +17,7 @@ def test_mean() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_mean_drop_percent() -> None:
     data = np.array([10, 6.3, 3, 5.3, 6, 9, 7, 8, 2, 1, 5], dtype=np.float64)
     result = TimeBinMethod.Mean(data, drop_percent=10)

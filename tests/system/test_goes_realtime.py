@@ -15,7 +15,7 @@ from el_paso.recipes.goes import process_goes_real_time
 from el_paso.saving_strategies import MonthlyRBStrategy
 
 
-@pytest.mark.basic
+@pytest.mark.standard
 def test_goes_realtime_snapshot(
     tmpdir: Path,
     *,

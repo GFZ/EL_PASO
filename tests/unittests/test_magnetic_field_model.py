@@ -16,7 +16,7 @@ mag_field_list = ["Dip", "OP77", "T89", "T01s", "TS04"]
 
 @pytest.mark.minimal
 @pytest.mark.parametrize("mag_field", mag_field_list)
-@pytest.mark.basic
+@pytest.mark.standard
 def test_magnetic_field(mag_field: Literal["T89", "OP77", "TS04", "T01s"]):
 
     true_data = {
@@ -65,7 +65,7 @@ def test_magnetic_field(mag_field: Literal["T89", "OP77", "TS04", "T01s"]):
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_mlt_mlt_eq_equal():
 
     start_time = datetime(2024, 5, 10, 16, tzinfo=timezone.utc)
@@ -116,7 +116,7 @@ LOSS_CONE_REQUEST: ep.processing.VariableRequest = [
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_drift_loss_cone_equals_bounce_loss_cone_in_centred_dipole():
     # With no South Atlantic Anomaly, every longitude on a drift shell has the same foot point field, so nothing
     # mirrors lower anywhere else on the drift than it does locally: the two loss cones coincide.
@@ -137,7 +137,7 @@ def test_drift_loss_cone_equals_bounce_loss_cone_in_centred_dipole():
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_drift_loss_cone_in_igrf():
     # Two points under the South Atlantic Anomaly and two well away from it.
     time_var, xgeo_var = _leo_request([(-40, -20), (-33, 10), (55, 100), (-55, 150)])
@@ -171,7 +171,7 @@ def test_drift_loss_cone_in_igrf():
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_lm_keeps_magnitude_of_flagged_values():
     # IRBEM negates Lm when the mirror point is in the loss cone, but the magnitude still names the drift shell,
     # so L_m keeps it instead of turning it into NaN.
@@ -207,7 +207,7 @@ def test_lm_keeps_magnitude_of_flagged_values():
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_loss_cone_uses_weaker_foot_point():
     # A particle is lost if it mirrors below 100 km in either hemisphere, so Alpha_LC is set by the weaker of the two
     # foot point fields. IRBEM's drift_loss_cone computes the same bounce loss cone independently, in Fortran.

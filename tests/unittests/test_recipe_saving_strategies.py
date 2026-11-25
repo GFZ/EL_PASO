@@ -561,7 +561,7 @@ _PRBEM_DEFAULTING_FACTORIES: dict[Callable[..., SavingStrategy], tuple[Any, ...]
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize(
     ("factory", "extra_args", "extra_kwargs", "expected_cls", "expected_attrs"), CASES, ids=CASE_IDS
 )
@@ -590,7 +590,7 @@ def test_strategy_factory_builds_expected_strategy(
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize(
     ("factory", "extra_args"), _PRBEM_DEFAULTING_FACTORIES.items(), ids=lambda f: getattr(f, "__name__", "")
 )
@@ -610,7 +610,7 @@ def test_density_strategies_default_to_prbem_standard(
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize(
     ("factory", "instrument"), [(arase_hep_l_strategy, "hepl"), (arase_hep_h_strategy, "heph")], ids=["hep-l", "hep-h"]
 )
@@ -628,7 +628,7 @@ def test_arase_hep_strategy_follows_save_strategy_and_sensor(
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_arase_xep_strategy_follows_save_strategy(tmp_path: Path) -> None:
     gfz = arase_xep_strategy(tmp_path, "T89", "gfz")
     netcdf = arase_xep_strategy(tmp_path, "T89", "netcdf")
@@ -639,7 +639,7 @@ def test_arase_xep_strategy_follows_save_strategy(tmp_path: Path) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize(
     "data_standard",
     [ep.data_standards.GFZStandard(), ep.data_standards.PRBEMStandard()],
@@ -654,7 +654,7 @@ def test_arase_mepe_data_standard_override_takes_effect(
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_rbsp_emfisis_waves_strategy(tmp_path: Path) -> None:
     strategy = rbsp_emfisis_waves_strategy(tmp_path, "a")
 
@@ -666,7 +666,7 @@ def test_rbsp_emfisis_waves_strategy(tmp_path: Path) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_themis_fft_waves_strategy(tmp_path: Path) -> None:
     strategy = themis_fft_waves_strategy(tmp_path, "a")
 
@@ -678,7 +678,7 @@ def test_themis_fft_waves_strategy(tmp_path: Path) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_every_recipe_strategy_is_exported_from_its_mission_package() -> None:
     """Every `<...>_strategy` factory must be importable as `el_paso.recipes.<mission>.<name>`.
 
@@ -709,7 +709,7 @@ def test_every_recipe_strategy_is_exported_from_its_mission_package() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_goes_eps_maged_and_epead_strategy_saves_integral_channels(tmp_path: Path) -> None:
     """The EPEAD integral channels are saved by the GOES MAGED+EPEAD strategy only, not by the shared monthly one."""
     strategy = goes_eps_maged_and_epead_netcdf_strategy(tmp_path, "T89", "goes15")
@@ -726,7 +726,7 @@ def test_goes_eps_maged_and_epead_strategy_saves_integral_channels(tmp_path: Pat
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize(
     ("factory", "extra_names"),
     [
@@ -757,7 +757,7 @@ _LAYOUT_STRATEGIES = (
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize(
     ("factory", "extra_args", "extra_kwargs", "expected_cls", "expected_attrs"),
     CASES,

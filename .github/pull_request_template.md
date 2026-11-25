@@ -9,7 +9,7 @@ Expand the section below that matches this PR, fill it in, and delete the other 
 ## Checklist
 - [ ] SPDX header present on new/changed files, with yourself as `SPDX-FileContributor`.
 - [ ] `ruff check .` / `ruff format .` and `ty check` pass (or pre-commit ran clean).
-- [ ] Tests added/updated as needed; `pytest -m basic` (and/or `-m visual`) passes locally.
+- [ ] Tests added/updated as needed; `pytest -m standard` (and/or `-m visual`) passes locally.
 - [ ] `README.md` / `CONTRIBUTING.md` updated if this changes install steps, usage, or the processing-script list.
 - [ ] `pre-commit` executed without any failures
 

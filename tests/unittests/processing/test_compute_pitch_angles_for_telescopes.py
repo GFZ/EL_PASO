@@ -11,7 +11,7 @@ from el_paso.processing import compute_pitch_angles_for_telescopes
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_goes_pitch_angles_basic() -> None:
 
     b_brf = np.array(

@@ -16,7 +16,7 @@ from el_paso.recipes.arase import process_arase_mepe
 
 
 @pytest.mark.parametrize("mag_field", ["T89", "TS04"])
-@pytest.mark.basic
+@pytest.mark.standard
 def test_arase_mepe_snapshot(
     mag_field: Literal["T89", "TS04"],
     tmpdir: Path,

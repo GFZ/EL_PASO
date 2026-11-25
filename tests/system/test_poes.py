@@ -14,7 +14,7 @@ from el_paso.dataset import DataSet
 from el_paso.recipes.poes import process_poes_meped_electron, process_poes_ted_electron
 
 
-@pytest.mark.basic
+@pytest.mark.standard
 def test_poes_ted_electron(
     tmpdir: Path,
     *,
@@ -100,7 +100,7 @@ def test_poes_ted_electron(
     poes_proc.assert_equal(poes_true)
 
 
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.minimal
 def test_poes_meped_electron(
     tmpdir: Path,

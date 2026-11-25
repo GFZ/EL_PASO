@@ -11,7 +11,7 @@ from el_paso.dataset.identify_orbits import _identify_orbits
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_identify_orbits_clean_abs_sin():
     """Test orbital identification with a perfect abs(sin) wave."""
     x = np.arange(0, 3 * np.pi, 3 * np.pi / 100)
@@ -48,7 +48,7 @@ def test_identify_orbits_clean_abs_sin():
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_identify_orbits_noisy_all_extrema() -> None:
     np.random.seed(42)  # noqa: NPY002
     x = np.arange(0, 3 * np.pi, 3 * np.pi / 100)

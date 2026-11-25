@@ -17,7 +17,7 @@ rng = np.random.default_rng(1337)
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_save_raises_warning_when_var_is_empty(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
 
     variables_to_save: dict[ep.typing.InternalName, Any] = {
@@ -44,7 +44,7 @@ def test_save_raises_warning_when_var_is_empty(tmp_path: Path, caplog: pytest.Lo
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_time_independent_variable_is_written_to_every_daily_file(tmp_path: Path) -> None:
     """A variable that is not time dependent belongs in full in each interval's file.
 
@@ -107,7 +107,7 @@ def test_time_independent_variable_is_written_to_every_daily_file(tmp_path: Path
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_interval_without_records_is_skipped(tmp_path: Path) -> None:
     """An interval containing no samples is skipped, leaving no file behind.
 
@@ -148,7 +148,7 @@ def test_interval_without_records_is_skipped(tmp_path: Path) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_variable_not_saved_by_strategy_is_warned_about(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """A variable missing from every output file of the strategy is dropped, so `save` warns about it."""
     start_time = datetime(2024, 5, 10, tzinfo=timezone.utc)
@@ -174,7 +174,7 @@ def test_variable_not_saved_by_strategy_is_warned_about(tmp_path: Path, caplog: 
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_alternative_losing_one_of_is_warned_about(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """Of `OneOf("FEDU", "FPDU")` only FEDU is written, so passing FPDU too drops it, and `save` says why."""
     start_time = datetime(2024, 5, 10, tzinfo=timezone.utc)
@@ -205,7 +205,7 @@ def test_alternative_losing_one_of_is_warned_about(tmp_path: Path, caplog: pytes
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_variable_not_in_data_standard_raises_descriptive_error(tmp_path: Path) -> None:
     """A valid internal name that the strategy's data standard does not define is named in the error."""
     start_time = datetime(2024, 5, 10, tzinfo=timezone.utc)
@@ -226,7 +226,7 @@ def test_variable_not_in_data_standard_raises_descriptive_error(tmp_path: Path) 
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("file_format", ["mat", "nc"])
 def test_unresolvable_one_of_dimension_raises_even_without_validation(tmp_path: Path, file_format: str) -> None:
     """PSD needs Energy_FEDU or Energy_FPDU; skipping validation must not let it be saved without either."""
