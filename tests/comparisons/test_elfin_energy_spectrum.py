@@ -3,8 +3,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Visual validation: the perp energy spectrogram of ELFIN EPD electrons processed by EL-PASO should look
-like the one made directly from the raw CDF file.
+"""Visual validation: the perp energy spectrogram in the Fig. 1 of Colin Wilkins et al. (2026)
+(https://doi.org/10.48550/arXiv.2610.18628) of ELFIN EPD Level-2 electrons processed by EL-PASO
+should look like the one made directly from the raw CDF file.
 
 Perp is the mean flux over the pitch-angle bins outside the loss cone and the anti-loss cone.
 """
