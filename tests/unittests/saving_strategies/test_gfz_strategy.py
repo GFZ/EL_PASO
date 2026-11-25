@@ -95,7 +95,7 @@ _STANDARD_META_KEYS = {"unit", "original_cadence_seconds", "source_files", "proc
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("data_standard", [ep.data_standards.PRBEMStandard, ep.data_standards.GFZStandard])
 def test_monthly_rb_strategy_saves_mocked_variables_to_netcdf_with_data_standards(
     tmp_path: Path, data_standard: type[DataStandard]
@@ -225,7 +225,7 @@ def _mock_monthly_variables_for_append() -> dict[InternalName, ep.Variable]:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize(
     "data_standard",
     [

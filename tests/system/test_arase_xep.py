@@ -51,7 +51,7 @@ def _assert_variables_load(dataset: DataSet, internal_names: list[ep.typing.Inte
         assert not np.all(np.isnan(data)), f"{internal_name} is entirely NaN"
 
 
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.minimal
 def test_arase_xep(tmpdir: Path) -> None:
 

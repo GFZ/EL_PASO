@@ -164,7 +164,7 @@ def prbem_dataset(tmp_path: Path) -> DataSet:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 class TestDataSet:  # noqa: D101
     def test_init_datetime_timezone(self, mock_dataset: DataSet):
         """Test timezone handling for input datetimes."""
@@ -401,7 +401,7 @@ class TestDataSet:  # noqa: D101
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("file_format", ["nc", "h5", "cdf", "mat"])
 def test_dataset_equality_rejects_data_saved_with_different_standards(tmp_path: Path, file_format: MFSFormats) -> None:
     variables = _mock_monthly_variables()
@@ -456,7 +456,7 @@ def test_dataset_equality_rejects_data_saved_with_different_standards(tmp_path: 
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("file_format", ["nc", "h5", "cdf", "mat"])
 def test_comparison_loads_all_strategy_variables(tmp_path: Path, file_format: MFSFormats) -> None:
     """After == comparison every standard-name variable must be in get_loaded_variables()."""
@@ -502,7 +502,7 @@ def test_comparison_loads_all_strategy_variables(tmp_path: Path, file_format: MF
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_comparison_without_computed_property_inputs(tmp_path: Path) -> None:
     """Comparison must not fail for strategies lacking MLT/InvMu, the inputs of P and InvV."""
     start_time = datetime(2013, 1, 1, tzinfo=timezone.utc)
@@ -530,7 +530,7 @@ def test_comparison_without_computed_property_inputs(tmp_path: Path) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("file_format", ["nc", "h5", "cdf", "mat"])
 @pytest.mark.parametrize("data_standard", [ep.data_standards.PRBEMStandard, ep.data_standards.GFZStandard])
 def test_dataset_equality_accepts_data_saved_with_different_strategies_but_same_standards(
@@ -588,7 +588,7 @@ def test_dataset_equality_accepts_data_saved_with_different_strategies_but_same_
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_loading_variable_from_missing_file_keeps_loaded_epoch(tmp_path: Path) -> None:
     """A variable whose output file was not written must not blank variables loaded from other files."""
     variables = _mock_monthly_variables()  # no InvMu_obs, so the GFZ real_invmu_and_alpha file is not written
@@ -609,7 +609,7 @@ def test_loading_variable_from_missing_file_keeps_loaded_epoch(tmp_path: Path) -
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_variable_missing_from_standard_is_loaded_with_warning(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -651,7 +651,7 @@ _ECT_END = _ECT_START + timedelta(days=0.4, seconds=-1)
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_dataset_equals_gfz_dataset_on_ect_combined() -> None:
     """DataSet and GFZDataSet loaded from the same file must compare equal."""
     strategy = ep.saving_strategies.MonthlyRBStrategy(
@@ -670,77 +670,77 @@ def test_dataset_equals_gfz_dataset_on_ect_combined() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_gfz_epoch_resolves_to_time(gfz_dataset: DataSet) -> None:
     result = gfz_dataset.get_by_internal_name("Epoch")
     np.testing.assert_array_equal(result, gfz_dataset.time)
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_gfz_fedu_resolves_to_flux(gfz_dataset: DataSet) -> None:
     result = gfz_dataset.get_by_internal_name("FEDU")
     np.testing.assert_array_equal(result, gfz_dataset.Flux)
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_gfz_r_eq_resolves_to_r0(gfz_dataset: DataSet) -> None:
     result = gfz_dataset.get_by_internal_name("R_Eq")
     np.testing.assert_array_equal(result, gfz_dataset.R0)
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_gfz_l_star_resolves_to_lstar(gfz_dataset: DataSet) -> None:
     result = gfz_dataset.get_by_internal_name("L_star")
     np.testing.assert_array_equal(result, gfz_dataset.Lstar)
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_gfz_energy_fedu_resolves_to_energy_channels(gfz_dataset: DataSet) -> None:
     result = gfz_dataset.get_by_internal_name("Energy_FEDU")
     np.testing.assert_array_equal(result, gfz_dataset.energy_channels)
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_gfz_alpha_eq_resolves_to_alpha_eq_model(gfz_dataset: DataSet) -> None:
     result = gfz_dataset.get_by_internal_name("Alpha_Eq")
     np.testing.assert_array_equal(result, gfz_dataset.alpha_eq_model)
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_prbem_epoch_resolves_to_epoch(prbem_dataset: DataSet) -> None:
     result = prbem_dataset.get_by_internal_name("Epoch")
     np.testing.assert_array_equal(result, prbem_dataset.Epoch)
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_prbem_r_eq_resolves_to_r_eq(prbem_dataset: DataSet) -> None:
     result = prbem_dataset.get_by_internal_name("R_Eq")
     np.testing.assert_array_equal(result, prbem_dataset.R_Eq)
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_prbem_l_star_resolves_to_l_star(prbem_dataset: DataSet) -> None:
     result = prbem_dataset.get_by_internal_name("L_star")
     np.testing.assert_array_equal(result, prbem_dataset.L_star)
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_unknown_internal_name_raises(gfz_dataset: DataSet) -> None:
     with pytest.raises(ValueError):  # noqa: PT011
         gfz_dataset.get_by_internal_name("NotAnInternalName")  # ty:ignore[invalid-argument-type]
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_describe_difference_reports_max_absolute_and_relative_difference() -> None:
     reference = np.array([[1.0, 2.0], [1e-4, np.nan]])
     other = np.array([[1.0, 2.5], [2e-4, np.nan]])
@@ -755,7 +755,7 @@ def test_describe_difference_reports_max_absolute_and_relative_difference() -> N
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_describe_difference_reports_nan_mismatches_and_shapes() -> None:
     nan_message = _describe_difference("Lstar", np.array([1.0, np.nan, 3.0]), np.array([1.0, 2.0, 3.0]))
     assert "NaN in only one dataset: 1 elements (first at index (1,): nan vs. 2)" in nan_message
@@ -766,7 +766,7 @@ def test_describe_difference_reports_nan_mismatches_and_shapes() -> None:
     assert _describe_difference("MLT", np.zeros(2), [0.0, 0.0]) == "MLT: different types (ndarray vs. list)"
 
 
-@pytest.mark.basic
+@pytest.mark.standard
 def test_describe_difference_respects_tolerance() -> None:
     reference = np.array([1.0, 0.04012066392])
     other = np.array([1.0, 0.04011394512])  # relative difference of ~1.7e-4
@@ -795,7 +795,7 @@ def _two_month_strategy(tmp_path: Path) -> ep.saving_strategies.MonthlyRBStrateg
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_round_trip_across_month_boundary_keeps_time_dependent_energy(tmp_path: Path) -> None:
     """Saving data over two months and loading it back reproduces the time-dependent energy channels."""
     variables = _two_month_variables()
@@ -814,7 +814,7 @@ def test_round_trip_across_month_boundary_keeps_time_dependent_energy(tmp_path: 
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_file_coverage_reports_missing_month(tmp_path: Path) -> None:
     variables = _two_month_variables()
     strategy = _two_month_strategy(tmp_path)
@@ -839,7 +839,7 @@ def test_file_coverage_reports_missing_month(tmp_path: Path) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_file_coverage_without_any_files(tmp_path: Path) -> None:
     strategy = _two_month_strategy(tmp_path)
     dataset = DataSet(
@@ -853,7 +853,7 @@ def test_file_coverage_without_any_files(tmp_path: Path) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_file_coverage_range_inside_one_file(tmp_path: Path) -> None:
     variables = _two_month_variables()
     strategy = _two_month_strategy(tmp_path)
@@ -875,7 +875,7 @@ def test_file_coverage_range_inside_one_file(tmp_path: Path) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_file_coverage_unknown_name_raises(gfz_dataset: DataSet) -> None:
     with pytest.raises(ValueError, match="not part of the chosen saving strategy"):
         gfz_dataset.get_file_coverage(["NotAVariable"])  # ty:ignore[invalid-argument-type]

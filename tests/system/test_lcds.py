@@ -20,7 +20,7 @@ MAG_FIELDS = [
 ]
 
 
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("mag_field", MAG_FIELDS)
 def test_lcds(
     tmpdir: Path,

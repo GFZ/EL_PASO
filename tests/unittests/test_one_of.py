@@ -16,7 +16,7 @@ from el_paso.saving_strategy import OutputFile
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_resolve_picks_first_present_alternative() -> None:
     assert OneOf("FEDU", "FPDU").resolve({"FPDU", "FEDU"}) == "FEDU"
     assert OneOf("FEDU", "FPDU").resolve({"FPDU"}) == "FPDU"
@@ -24,7 +24,7 @@ def test_resolve_picks_first_present_alternative() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("alternatives", [("FEDU",), ("FEDU", "FEDU")])
 def test_one_of_rejects_fewer_than_two_distinct_alternatives(alternatives: tuple[ep.typing.InternalName, ...]) -> None:
     with pytest.raises(ValueError, match="OneOf"):
@@ -32,7 +32,7 @@ def test_one_of_rejects_fewer_than_two_distinct_alternatives(alternatives: tuple
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_one_of_value_semantics() -> None:
     one_of = OneOf("FEDU", "FPDU")
     assert one_of == OneOf("FEDU", "FPDU")
@@ -47,7 +47,7 @@ def test_one_of_value_semantics() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_helpers_treat_plain_name_as_single_alternative() -> None:
     assert resolve_name("Epoch", {"Epoch"}) == "Epoch"
     assert resolve_name("Epoch", {"FEDU"}) is None
@@ -56,7 +56,7 @@ def test_helpers_treat_plain_name_as_single_alternative() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_helpers_handle_one_of() -> None:
     one_of = OneOf("FEDU", "FPDU")
     assert resolve_name(one_of, {"FPDU"}) == "FPDU"
@@ -65,14 +65,14 @@ def test_helpers_handle_one_of() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_helpers_reject_bare_tuple() -> None:
     with pytest.raises(TypeError, match="OneOf"):
         alternatives_of(("FEDU", "FPDU"))  # ty: ignore[invalid-argument-type]
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_output_file_converts_tuple_with_deprecation_warning() -> None:
     with pytest.deprecated_call(match=r"names_to_save as a tuple is deprecated"):
         output_file = OutputFile("flux", ["Epoch", ("FEDU", "FPDU")])
@@ -80,7 +80,7 @@ def test_output_file_converts_tuple_with_deprecation_warning() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_variable_info_converts_tuple_with_deprecation_warning() -> None:
     with pytest.deprecated_call(match=r"dependencies as a tuple is deprecated"):
         info = VariableInfo("PSD", "", u.dimensionless_unscaled, ["Epoch", ("Energy_FEDU", "Energy_FPDU"), "Alpha"])
@@ -88,7 +88,7 @@ def test_variable_info_converts_tuple_with_deprecation_warning() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_one_of_entries_do_not_warn(recwarn: pytest.WarningsRecorder) -> None:
     OutputFile("flux", ["Epoch", OneOf("FEDU", "FPDU")])
     VariableInfo("PSD", "", u.dimensionless_unscaled, ["Epoch", OneOf("Energy_FEDU", "Energy_FPDU"), "Alpha"])
@@ -96,7 +96,7 @@ def test_one_of_entries_do_not_warn(recwarn: pytest.WarningsRecorder) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_dataclasses_replace_also_converts_tuples() -> None:
     output_file = OutputFile("flux", ["Epoch"])
     with pytest.deprecated_call():
@@ -105,6 +105,6 @@ def test_dataclasses_replace_also_converts_tuples() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_one_of_is_exported_from_typing() -> None:
     assert ep.typing.OneOf is OneOf

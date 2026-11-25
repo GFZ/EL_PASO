@@ -51,7 +51,7 @@ def _normalized_pad_shape(mlt: float, pdyn: float, pa_rad: np.ndarray) -> np.nda
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 class TestPADShapeNoonMLT:
     """Panel (a): 871 keV, 5.3<L<5.5, 11<MLT<13 -> single-peaked distribution,
     peak becomes sharper (narrower) as Pdyn increases.
@@ -86,7 +86,7 @@ class TestPADShapeNoonMLT:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 class TestPADShapeMidnightMLT:
     """Panel (b): 871 keV, 5.3<L<5.5, 23<MLT<01 -> butterfly
     distribution with a local minimum near PA=90 deg.

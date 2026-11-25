@@ -55,7 +55,7 @@ LCDS_LSTAR_REF_T89 = np.array(
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_lcds_runs():
 
     start_time = datetime(2013, 3, 17, 0, tzinfo=timezone.utc)

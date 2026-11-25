@@ -127,7 +127,7 @@ def _multi_satellite_xml(*segments: str) -> str:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_parse_omm_xml_extracts_all_fields() -> None:
     download_omm_mod = importlib.import_module("el_paso.download_omm")
     records = download_omm_mod._parse_omm_xml(_ISS_OMM_XML)
@@ -153,14 +153,14 @@ def test_parse_omm_xml_extracts_all_fields() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_parse_omm_xml_empty_response() -> None:
     download_omm_mod = importlib.import_module("el_paso.download_omm")
     assert download_omm_mod._parse_omm_xml(_EMPTY_OMM_XML) == []
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize(
     ("object_name", "expected"),
     [
@@ -176,7 +176,7 @@ def test_sanitize_object_name(object_name: str, expected: str) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_parse_norad_ids() -> None:
     download_omm_mod = importlib.import_module("el_paso.download_omm")
 
@@ -189,7 +189,7 @@ def test_parse_norad_ids() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_build_gp_history_url_joins_multiple_ids() -> None:
     download_omm_mod = importlib.import_module("el_paso.download_omm")
     url = download_omm_mod._build_gp_history_url([25544, 41859], "format/xml")
@@ -197,7 +197,7 @@ def test_build_gp_history_url_joins_multiple_ids() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_write_omm_csv_matches_canonical_field_set_and_order(tmp_path: Path) -> None:
     download_omm_mod = importlib.import_module("el_paso.download_omm")
 
@@ -224,7 +224,7 @@ def test_write_omm_csv_matches_canonical_field_set_and_order(tmp_path: Path) -> 
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_download_omm_missing_credentials(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.delenv("SPACETRACK_USER", raising=False)
     monkeypatch.delenv("SPACETRACK_PASS", raising=False)
@@ -239,7 +239,7 @@ def test_download_omm_missing_credentials(monkeypatch: pytest.MonkeyPatch, tmp_p
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_download_omm_end_time_before_start_time(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("SPACETRACK_USER", "fake_user")
     monkeypatch.setenv("SPACETRACK_PASS", "fake_pass")
@@ -277,7 +277,7 @@ def _patch_login_returning(monkeypatch: pytest.MonkeyPatch, xml_text: str) -> li
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_download_omm_range_mode_writes_parsed_files_and_discards_xml(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -314,7 +314,7 @@ def test_download_omm_range_mode_writes_parsed_files_and_discards_xml(
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_download_omm_range_mode_multi_satellite_writes_separate_directories(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -344,7 +344,7 @@ def test_download_omm_range_mode_multi_satellite_writes_separate_directories(
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_download_omm_skip_existing_does_not_overwrite_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """skip_existing gates the file *write*; every requested satellite is still queried together."""
     monkeypatch.setenv("SPACETRACK_USER", "fake_user")
@@ -369,7 +369,7 @@ def test_download_omm_skip_existing_does_not_overwrite_file(monkeypatch: pytest.
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_download_omm_instant_mode_multi_satellite(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("SPACETRACK_USER", "fake_user")
     monkeypatch.setenv("SPACETRACK_PASS", "fake_pass")

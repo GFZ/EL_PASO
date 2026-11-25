@@ -15,40 +15,40 @@ def _var() -> ep.Variable:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_validate_raises_for_unknown_variable() -> None:
     with pytest.raises(ValueError, match=r"not part of PRBEMStandard: \['Wave_frequency'\]"):
         ep.data_standards.PRBEMStandard().validate({"Epoch": _var(), "Wave_frequency": _var()})
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_validate_raises_for_missing_dimension() -> None:
     with pytest.raises(ValueError, match=r"'Energy_FEDU' \(required by: FEDU\)"):
         ep.data_standards.GFZStandard().validate({"Epoch": _var(), "Alpha": _var(), "FEDU": _var()})
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_validate_accepts_any_alternative_of_one_of_dependency() -> None:
     ep.data_standards.GFZStandard().validate({"Epoch": _var(), "Alpha": _var(), "Energy_FPDU": _var(), "PSD": _var()})
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_validate_names_all_alternatives_when_none_present() -> None:
     with pytest.raises(ValueError, match=r"'Energy_FEDU or Energy_FPDU' \(required by: PSD\)"):
         ep.data_standards.GFZStandard().validate({"Epoch": _var(), "Alpha": _var(), "PSD": _var()})
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_null_data_standard_accepts_anything() -> None:
     NullDataStandard().validate({"FEDU": _var(), "Wave_frequency": _var()})
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_null_data_standard_leaves_variable_unchanged() -> None:
     variable = _var()
     result = NullDataStandard().standardize_variable(

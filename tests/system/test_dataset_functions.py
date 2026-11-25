@@ -42,31 +42,31 @@ def rbsp_dataset() -> GFZDataSet:
     )
 
 
-@pytest.mark.basic
+@pytest.mark.standard
 def test_get_by_internal_name_epoch_matches_time(rbsp_dataset: GFZDataSet) -> None:
     result = rbsp_dataset.get_by_internal_name("Epoch")
     np.testing.assert_array_equal(result, rbsp_dataset.time)
 
 
-@pytest.mark.basic
+@pytest.mark.standard
 def test_get_by_internal_name_r_eq_matches_r0(rbsp_dataset: GFZDataSet) -> None:
     result = rbsp_dataset.get_by_internal_name("R_Eq")
     np.testing.assert_array_equal(result, rbsp_dataset.R0)
 
 
-@pytest.mark.basic
+@pytest.mark.standard
 def test_get_by_internal_name_l_star_matches_lstar(rbsp_dataset: GFZDataSet) -> None:
     result = rbsp_dataset.get_by_internal_name("L_star")
     np.testing.assert_array_equal(result, rbsp_dataset.Lstar)
 
 
-@pytest.mark.basic
+@pytest.mark.standard
 def test_get_by_internal_name_fedu_matches_flux(rbsp_dataset: GFZDataSet) -> None:
     result = rbsp_dataset.get_by_internal_name("FEDU")
     np.testing.assert_array_equal(result, rbsp_dataset.Flux)
 
 
-@pytest.mark.basic
+@pytest.mark.standard
 def test_identify_orbits_returns_trajectories(rbsp_dataset: GFZDataSet) -> None:
     trajectories = rbsp_dataset.identify_orbits(orbit_type="R", apply_smoothing=False)
 
@@ -75,7 +75,7 @@ def test_identify_orbits_returns_trajectories(rbsp_dataset: GFZDataSet) -> None:
     assert all(isinstance(t, Trajectory) for t in trajectories)
 
 
-@pytest.mark.basic
+@pytest.mark.standard
 def test_identify_orbits_covers_full_time_range(rbsp_dataset: GFZDataSet) -> None:
     trajectories = rbsp_dataset.identify_orbits(orbit_type="R", apply_smoothing=False)
 
@@ -83,7 +83,7 @@ def test_identify_orbits_covers_full_time_range(rbsp_dataset: GFZDataSet) -> Non
     assert trajectories[-1].end == len(rbsp_dataset.R0) - 1
 
 
-@pytest.mark.basic
+@pytest.mark.standard
 def test_identify_orbits_lstar_mode_returns_trajectories(rbsp_dataset: GFZDataSet) -> None:
     trajectories = rbsp_dataset.identify_orbits(orbit_type="L*", apply_smoothing=False)
 
@@ -91,7 +91,7 @@ def test_identify_orbits_lstar_mode_returns_trajectories(rbsp_dataset: GFZDataSe
     assert len(trajectories) > 0
 
 
-@pytest.mark.basic
+@pytest.mark.standard
 def test_linearize_trajectories_returns_correct_shape(rbsp_dataset: GFZDataSet) -> None:
     trajectories = rbsp_dataset.identify_orbits(orbit_type="R", apply_smoothing=False)
     lin_x, bend_time = rbsp_dataset.linearize_trajectories(trajectories, orbit_type="R")
@@ -100,7 +100,7 @@ def test_linearize_trajectories_returns_correct_shape(rbsp_dataset: GFZDataSet) 
     assert len(bend_time) == len(rbsp_dataset.R0)
 
 
-@pytest.mark.basic
+@pytest.mark.standard
 def test_linearize_trajectories_x_axis_monotonic(rbsp_dataset: GFZDataSet) -> None:
     trajectories = rbsp_dataset.identify_orbits(orbit_type="R", apply_smoothing=False)
     lin_x, _ = rbsp_dataset.linearize_trajectories(trajectories, orbit_type="R")

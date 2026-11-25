@@ -78,7 +78,7 @@ def _run_cli(args: list[str]) -> tuple[float, set[str]]:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_import_does_not_load_heavy_packages() -> None:
     """`import el_paso` must not pull in any heavy third-party dependency."""
     code = "import sys\nimport el_paso\nprint(','.join(sorted(sys.modules)))\n"
@@ -93,7 +93,7 @@ def test_import_does_not_load_heavy_packages() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_import_time_stays_within_budget() -> None:
     """`import el_paso` must complete within a small, fixed time budget."""
     _run_in_subprocess("import el_paso")
@@ -110,7 +110,7 @@ def test_import_time_stays_within_budget() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("args", _CHEAP_CLI_ARGS)
 def test_cli_help_does_not_load_heavy_packages(args: list[str]) -> None:
     """Browsing the CLI (root/mission help, ``list``) must not import any recipe."""
@@ -126,7 +126,7 @@ def test_cli_help_does_not_load_heavy_packages(args: list[str]) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("args", _CHEAP_CLI_ARGS)
 def test_cli_help_stays_within_time_budget(args: list[str]) -> None:
     """Browsing the CLI must complete within a small, fixed time budget."""

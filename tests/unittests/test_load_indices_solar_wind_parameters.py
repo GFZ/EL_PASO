@@ -16,7 +16,7 @@ import pytest
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_calculate_w_parameters() -> None:
     start_time = datetime(2015, 3, 17, 0, 0, tzinfo=timezone.utc)
     end_time = start_time + timedelta(days=1)
@@ -33,7 +33,7 @@ def test_calculate_w_parameters() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_fill_sw_controls_gap_filling_for_high_res_omni_params(monkeypatch: pytest.MonkeyPatch) -> None:
     load_sw_module = importlib.import_module("el_paso.load_indices_solar_wind_parameters")
 

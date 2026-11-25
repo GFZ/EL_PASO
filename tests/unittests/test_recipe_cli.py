@@ -57,7 +57,7 @@ def _isolate_default_logs_dir(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize(
     ("text", "expected"),
     [
@@ -75,14 +75,14 @@ def test_parse_cadence(text: str, expected: timedelta) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_parse_cadence_passes_timedelta_through() -> None:
     # Typer re-runs the parser on its own default values, which are already timedeltas.
     assert parse_cadence(timedelta(minutes=5)) == timedelta(minutes=5)
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("text", ["", "min", "5 fortnights", "abc", "5m30s"])
 def test_parse_cadence_rejects_malformed(text: str) -> None:
     with pytest.raises(ValueError, match="Cannot parse cadence"):
@@ -90,7 +90,7 @@ def test_parse_cadence_rejects_malformed(text: str) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize(
     ("value", "expected"),
     [
@@ -107,7 +107,7 @@ def test_format_cadence_round_trips(value: timedelta, expected: str) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize(
     ("text", "expected"),
     [
@@ -121,13 +121,13 @@ def test_parse_datetime(text: str, expected: datetime) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_parse_datetime_enforces_utc() -> None:
     assert parse_datetime(datetime(2013, 3, 16)).tzinfo == timezone.utc  # noqa: DTZ001
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_parse_docstring() -> None:
     docstring = """Do the thing.
 
@@ -154,7 +154,7 @@ def test_parse_docstring() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_parse_docstring_handles_missing_docstring() -> None:
     assert parse_docstring(None) == ("", {})
 
@@ -201,7 +201,7 @@ def stub_app() -> typer.Typer:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_stub_defaults(stub_app: typer.Typer) -> None:
     result = runner.invoke(stub_app, ["--start-time", "2013-03-16", "--end-time", "2013-03-17"])
 
@@ -214,7 +214,7 @@ def test_stub_defaults(stub_app: typer.Typer) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_stub_round_trips_every_supported_type(stub_app: typer.Typer) -> None:
     result = runner.invoke(
         stub_app,
@@ -257,7 +257,7 @@ def test_stub_round_trips_every_supported_type(stub_app: typer.Typer) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_stub_options_are_kebab_case_only(stub_app: typer.Typer) -> None:
     """Options are spelled --bin-cadence; the snake_case spelling is not accepted."""
     result = runner.invoke(
@@ -270,7 +270,7 @@ def test_stub_options_are_kebab_case_only(stub_app: typer.Typer) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_stub_loops_over_repeated_satellite(stub_app: typer.Typer) -> None:
     result = runner.invoke(
         stub_app,
@@ -282,7 +282,7 @@ def test_stub_loops_over_repeated_satellite(stub_app: typer.Typer) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_stub_rejects_invalid_choice(stub_app: typer.Typer) -> None:
     result = runner.invoke(stub_app, ["--start-time", "2020-01-02", "--end-time", "2020-01-03", "--mag-field", "T99"])
 
@@ -291,7 +291,7 @@ def test_stub_rejects_invalid_choice(stub_app: typer.Typer) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_stub_rejects_malformed_cadence(stub_app: typer.Typer) -> None:
     result = runner.invoke(
         stub_app,
@@ -303,7 +303,7 @@ def test_stub_rejects_malformed_cadence(stub_app: typer.Typer) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_dry_run_does_not_call_the_recipe(stub_app: typer.Typer, caplog: pytest.LogCaptureFixture) -> None:
     result = runner.invoke(stub_app, ["--dry-run", "--start-time", "2020-01-02", "--end-time", "2020-01-03"])
 
@@ -313,7 +313,7 @@ def test_dry_run_does_not_call_the_recipe(stub_app: typer.Typer, caplog: pytest.
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_a_real_run_reports_the_settings_it_uses(stub_app: typer.Typer, caplog: pytest.LogCaptureFixture) -> None:
     """A run must not be a black box: it announces the resolved settings first."""
     result = runner.invoke(
@@ -332,7 +332,7 @@ def test_a_real_run_reports_the_settings_it_uses(stub_app: typer.Typer, caplog: 
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_dry_run_says_it_would_run(stub_app: typer.Typer, caplog: pytest.LogCaptureFixture) -> None:
     result = runner.invoke(
         stub_app,
@@ -346,7 +346,7 @@ def test_dry_run_says_it_would_run(stub_app: typer.Typer, caplog: pytest.LogCapt
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_run_report_numbers_each_looped_call(stub_app: typer.Typer, caplog: pytest.LogCaptureFixture) -> None:
     result = runner.invoke(
         stub_app,
@@ -371,7 +371,7 @@ def failing_recipe(start_time: datetime, end_time: datetime) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_failed_recipe_keeps_the_cache(monkeypatch: pytest.MonkeyPatch) -> None:
     """A failing recipe exits via typer.Exit, which bypasses sys.excepthook; the cache must still be kept."""
     import el_paso.cache  # noqa: PLC0415
@@ -387,7 +387,7 @@ def test_failed_recipe_keeps_the_cache(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_stub_satellite_all_runs_every_satellite(stub_app: typer.Typer) -> None:
     result = runner.invoke(stub_app, ["--start-time", "2020-01-02", "--end-time", "2020-01-03", "--satellite", "all"])
 
@@ -396,7 +396,7 @@ def test_stub_satellite_all_runs_every_satellite(stub_app: typer.Typer) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_stub_satellite_all_absorbs_explicit_satellites(stub_app: typer.Typer) -> None:
     result = runner.invoke(
         stub_app,
@@ -408,7 +408,7 @@ def test_stub_satellite_all_absorbs_explicit_satellites(stub_app: typer.Typer) -
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_stub_help_lists_satellite_all(stub_app: typer.Typer) -> None:
     result = runner.invoke(stub_app, ["--help"], env={"COLUMNS": "200"})
 
@@ -433,7 +433,7 @@ def recipe_failing_for_satellite_a(
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_failing_satellite_does_not_stop_the_others(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -467,7 +467,7 @@ def recipe_exiting_after_download(start_time: datetime, end_time: datetime, sate
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_exit_after_download_continues_with_the_next_satellite() -> None:
     calls.clear()
     download_app = typer.Typer(add_completion=False)
@@ -482,7 +482,7 @@ def test_exit_after_download_continues_with_the_next_satellite() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_run_report_hides_credentials(stub_app: typer.Typer, caplog: pytest.LogCaptureFixture) -> None:
     """Credentials must never be echoed to the console or into a job log."""
     result = runner.invoke(
@@ -497,7 +497,7 @@ def test_run_report_hides_credentials(stub_app: typer.Typer, caplog: pytest.LogC
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("name", ["client_secret", "erg_password", "api_token", "my_credential"])
 def test_secret_looking_parameters_are_masked(name: str) -> None:
     assert _format_value(name, "hunter2") == "<hidden>"
@@ -507,7 +507,7 @@ def test_secret_looking_parameters_are_masked(name: str) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_quiet_suppresses_the_run_report(stub_app: typer.Typer, caplog: pytest.LogCaptureFixture) -> None:
     result = runner.invoke(
         stub_app,
@@ -521,7 +521,7 @@ def test_quiet_suppresses_the_run_report(stub_app: typer.Typer, caplog: pytest.L
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_help_uses_docstring_text(stub_app: typer.Typer) -> None:
     result = runner.invoke(stub_app, ["--help"], env={"COLUMNS": "200"})
 
@@ -533,7 +533,7 @@ def test_help_uses_docstring_text(stub_app: typer.Typer) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_required_parameter_without_default_is_rejected() -> None:
     def bad_recipe(strategy: object) -> None:
         """A recipe the command line cannot represent.
@@ -547,7 +547,7 @@ def test_required_parameter_without_default_is_rejected() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("entry", RECIPES, ids=lambda e: f"{e.mission}-{e.command}")
 def test_every_recipe_builds_and_binds(entry: RecipeEntry, caplog: pytest.LogCaptureFixture) -> None:
     """Each recipe's generated command must render and produce a valid call."""
@@ -578,7 +578,7 @@ def test_every_recipe_builds_and_binds(entry: RecipeEntry, caplog: pytest.LogCap
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("entry", RECIPES, ids=lambda e: f"{e.mission}-{e.command}")
 def test_every_recipe_has_the_shared_option_surface(entry: RecipeEntry) -> None:
     """Every recipe must accept the full shared parameter surface enforced by `ep.typing.Recipe`."""
@@ -610,7 +610,7 @@ def test_every_recipe_has_the_shared_option_surface(entry: RecipeEntry) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("entry", RECIPES, ids=lambda e: f"{e.mission}-{e.command}")
 def test_spacecraft_parameter_is_always_named_satellite(entry: RecipeEntry) -> None:
     """No recipe may reintroduce sat_str/satellite_str as a spacecraft parameter name."""
@@ -622,7 +622,7 @@ def test_spacecraft_parameter_is_always_named_satellite(entry: RecipeEntry) -> N
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("entry", RECIPES, ids=lambda e: f"{e.mission}-{e.command}")
 def test_every_recipe_accepts_satellite_all(entry: RecipeEntry) -> None:
     """`--satellite all` must be available for every recipe, so job scripts can use it uniformly."""
@@ -637,7 +637,7 @@ def test_every_recipe_accepts_satellite_all(entry: RecipeEntry) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("entry", RECIPES, ids=lambda e: f"{e.mission}-{e.command}")
 def test_num_cores_default_is_shared_by_every_recipe(entry: RecipeEntry) -> None:
     """Core count is a machine property, not a per-recipe one, so the default is uniform."""
@@ -655,7 +655,7 @@ def test_num_cores_default_is_shared_by_every_recipe(entry: RecipeEntry) -> None
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_the_time_range_is_mandatory_for_every_recipe() -> None:
     """start_time and end_time must be required options, never defaulted."""
     for entry in RECIPES:
@@ -670,7 +670,7 @@ def test_the_time_range_is_mandatory_for_every_recipe() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("entry", RECIPES, ids=lambda e: f"{e.mission}-{e.command}")
 def test_every_recipe_is_exported_from_its_mission_package(entry: RecipeEntry) -> None:
     """A recipe must be importable as el_paso.recipes.<mission>.<function>."""
@@ -686,7 +686,7 @@ def test_every_recipe_is_exported_from_its_mission_package(entry: RecipeEntry) -
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_registry_matches_the_recipe_modules_on_disk() -> None:
     """The el-paso registry must cover every recipe module in the package."""
     recipes_dir = Path(ep.recipes.__file__).parent
@@ -696,7 +696,7 @@ def test_registry_matches_the_recipe_modules_on_disk() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_cli_list() -> None:
     result = invoke_app(["list"], env={"COLUMNS": "200"})
 
@@ -705,7 +705,7 @@ def test_cli_list() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_cli_dispatches_to_a_recipe(caplog: pytest.LogCaptureFixture) -> None:
     result = invoke_app(
         [
@@ -766,7 +766,7 @@ def test_check_strategy_factory_accepts_matching_factory() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_check_strategy_factory_accepts_legacy_layout_that_the_recipe_lacks() -> None:
     def factory(
         processed_data_path: str | Path,
@@ -847,7 +847,7 @@ def availability_app(availability: Any = STUB_AVAILABILITY) -> typer.Typer:  # n
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_satellite_all_runs_only_satellites_with_data(caplog: pytest.LogCaptureFixture) -> None:
     result = runner.invoke(availability_app(), [*JANUARY, "--satellite", "all"], env={"COLUMNS": "200"})
 
@@ -858,7 +858,7 @@ def test_satellite_all_runs_only_satellites_with_data(caplog: pytest.LogCaptureF
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_satellite_all_without_any_data_is_an_error() -> None:
     result = runner.invoke(availability_app(), [*FEBRUARY, "--satellite", "all"], env={"COLUMNS": "200"})
 
@@ -870,7 +870,7 @@ def test_satellite_all_without_any_data_is_an_error() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_explicit_satellite_without_data_runs_with_a_warning(caplog: pytest.LogCaptureFixture) -> None:
     result = runner.invoke(
         availability_app(), [*JANUARY, "--satellite", "a", "--satellite", "b"], env={"COLUMNS": "200"}
@@ -886,7 +886,7 @@ def test_explicit_satellite_without_data_runs_with_a_warning(caplog: pytest.LogC
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize(
     ("start", "end"),
     [
@@ -903,7 +903,7 @@ def test_partial_overlap_counts_as_available(start: str, end: str) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_dry_run_reports_availability_per_satellite(caplog: pytest.LogCaptureFixture) -> None:
     result = runner.invoke(
         availability_app(),
@@ -918,7 +918,7 @@ def test_dry_run_reports_availability_per_satellite(caplog: pytest.LogCaptureFix
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_without_a_table_nothing_is_filtered(caplog: pytest.LogCaptureFixture) -> None:
     result = runner.invoke(availability_app(None), [*FEBRUARY, "--satellite", "all"], env={"COLUMNS": "200"})
 
@@ -928,7 +928,7 @@ def test_without_a_table_nothing_is_filtered(caplog: pytest.LogCaptureFixture) -
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_list_satellites_shows_the_satellites_with_data() -> None:
     result = runner.invoke(
         availability_app(),
@@ -949,7 +949,7 @@ def test_list_satellites_shows_the_satellites_with_data() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_list_satellites_marks_full_coverage() -> None:
     result = runner.invoke(availability_app(), ["--list-satellites", *JANUARY], env={"COLUMNS": "200"})
 
@@ -961,7 +961,7 @@ def test_list_satellites_marks_full_coverage() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_list_satellites_without_data_in_range() -> None:
     result = runner.invoke(availability_app(), ["--list-satellites", *FEBRUARY], env={"COLUMNS": "200"})
 
@@ -971,7 +971,7 @@ def test_list_satellites_without_data_in_range() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_list_satellites_without_a_table_says_availability_is_unknown() -> None:
     result = runner.invoke(availability_app(None), ["--list-satellites", *JANUARY], env={"COLUMNS": "200"})
 
@@ -981,7 +981,7 @@ def test_list_satellites_without_a_table_says_availability_is_unknown() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_list_satellites_is_only_offered_with_a_satellite_choice() -> None:
     no_satellite_app = typer.Typer(add_completion=False)
     no_satellite_app.command()(build_recipe_command(failing_recipe, availability=STUB_AVAILABILITY))
@@ -995,7 +995,7 @@ def test_list_satellites_is_only_offered_with_a_satellite_choice() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_availability_file_is_read_when_the_command_runs(tmp_path: Path) -> None:
     table_file = tmp_path / "availability.toml"
     stub_app = availability_app(table_file)
@@ -1020,7 +1020,7 @@ def test_availability_file_is_read_when_the_command_runs(tmp_path: Path) -> None
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_run_recipe_cli_uses_the_availability_table() -> None:
     calls.clear()
 
@@ -1032,7 +1032,7 @@ def test_run_recipe_cli_uses_the_availability_table() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("entry", RECIPES, ids=lambda e: f"{e.mission}-{e.command}")
 def test_every_declared_availability_table_is_valid(entry: RecipeEntry) -> None:
     if load_availability(entry) is None:
@@ -1043,7 +1043,7 @@ def test_every_declared_availability_table_is_valid(entry: RecipeEntry) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_cli_lists_the_lanl_geogrid_slots_of_april_2017() -> None:
     """The committed LANL table knows the populated slots of April 2017, without network access."""
     result = invoke_app(

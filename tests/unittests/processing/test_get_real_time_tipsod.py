@@ -13,7 +13,7 @@ from astropy import units as u
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_empty_time_bins_are_nan_filled(monkeypatch: pytest.MonkeyPatch) -> None:
     tipsod_mod = importlib.import_module("el_paso.processing.get_real_time_tipsod")
 

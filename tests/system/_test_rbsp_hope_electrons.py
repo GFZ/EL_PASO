@@ -13,7 +13,7 @@ from el_paso.dataset import GFZDataSet
 from el_paso.recipes.rbsp import process_rbsp_hope_electrons
 
 
-@pytest.mark.basic
+@pytest.mark.standard
 def test_rbsp_hope_electrons(
     tmpdir: Path,
     *,

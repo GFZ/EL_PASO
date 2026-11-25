@@ -13,7 +13,7 @@ from el_paso.dataset import GFZDataSet
 from el_paso.recipes.goes import goes_r_mps_high_netcdf_strategy, process_goes_r_mps_high
 
 
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.minimal
 def test_goes_r_mps_high_snapshot(
     tmpdir: Path,

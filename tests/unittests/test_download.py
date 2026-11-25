@@ -113,7 +113,7 @@ def test_request(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.mark.usefixtures("enable_downloads")
-@pytest.mark.basic
+@pytest.mark.standard
 def test_get_next_time_with_callable_cadence() -> None:
     """A callable file_cadence should be invoked with curr_time and its return value used directly."""
     download_mod = importlib.import_module("el_paso.download")
@@ -129,7 +129,7 @@ def test_get_next_time_with_callable_cadence() -> None:
 
 
 @pytest.mark.usefixtures("enable_downloads")
-@pytest.mark.basic
+@pytest.mark.standard
 def test_download_with_callable_cadence(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A callable file_cadence should drive ep.download the same way a built-in literal does."""
     directory_listing = MagicMock()
@@ -172,7 +172,7 @@ def test_download_with_callable_cadence(tmp_path: Path, monkeypatch: pytest.Monk
 
 
 @pytest.mark.usefixtures("enable_downloads")
-@pytest.mark.basic
+@pytest.mark.standard
 def test_download_single_file_cadence_runs_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """file_cadence="single_file" must create exactly one task instead of looping forever."""
     download_mod = importlib.import_module("el_paso.download")
@@ -200,7 +200,7 @@ def test_download_single_file_cadence_runs_once(tmp_path: Path, monkeypatch: pyt
 
 
 @pytest.mark.usefixtures("enable_downloads")
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize(
     ("file_cadence", "start_time", "end_time", "expected_starts"),
     [
@@ -278,7 +278,7 @@ def test_ftp(tmp_path: Path):
 
 
 @pytest.mark.usefixtures("enable_downloads")
-@pytest.mark.basic
+@pytest.mark.standard
 def test_exit_after_download(caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch):
     download_module = importlib.import_module("el_paso.download")
 
@@ -328,7 +328,7 @@ def test_exit_after_download(caplog: pytest.LogCaptureFixture, monkeypatch: pyte
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_skip_download_via_ep_flag(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture):
 
     monkeypatch.setattr(ep, "skip_download", True)
@@ -359,7 +359,7 @@ def test_skip_download_via_ep_flag(monkeypatch: pytest.MonkeyPatch, caplog: pyte
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_skip_download_via_env_var(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture):
 
     monkeypatch.setenv("EL_PASO_SKIP_DOWNLOAD", "True")
@@ -390,7 +390,7 @@ def test_skip_download_via_env_var(monkeypatch: pytest.MonkeyPatch, caplog: pyte
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("value", ["0", "false", "no", "off", ""])
 def test_falsy_env_values_neither_skip_nor_exit(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, value: str
@@ -427,7 +427,7 @@ def test_falsy_env_values_neither_skip_nor_exit(
 
 
 @pytest.mark.usefixtures("enable_downloads")
-@pytest.mark.basic
+@pytest.mark.standard
 def test_skip_existing_false_does_not_overwrite_files_outside_time_range(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -485,7 +485,7 @@ def _calls_function(tree: ast.AST, dotted_name: str) -> bool:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_recipes_with_downloads_call_exit_if_download_only() -> None:
     recipes_dir = Path(ep.__file__).parent / "recipes"
 
@@ -571,7 +571,7 @@ def _run_download(tmp_path: Path, **kwargs: object) -> None:
 
 
 @pytest.mark.usefixtures("enable_downloads")
-@pytest.mark.basic
+@pytest.mark.standard
 def test_request_retries_once_after_connection_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     download_mod = importlib.import_module("el_paso.download")
     calls: list[str] = []
@@ -592,7 +592,7 @@ def test_request_retries_once_after_connection_error(tmp_path: Path, monkeypatch
 
 
 @pytest.mark.usefixtures("enable_downloads")
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("status", [403, 404])
 def test_request_does_not_retry_permanent_errors(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, status: int) -> None:
     download_mod = importlib.import_module("el_paso.download")
@@ -611,7 +611,7 @@ def test_request_does_not_retry_permanent_errors(tmp_path: Path, monkeypatch: py
 
 
 @pytest.mark.usefixtures("enable_downloads")
-@pytest.mark.basic
+@pytest.mark.standard
 def test_request_honors_retry_after(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     download_mod = importlib.import_module("el_paso.download")
     calls: list[str] = []
@@ -630,7 +630,7 @@ def test_request_honors_retry_after(tmp_path: Path, monkeypatch: pytest.MonkeyPa
 
 
 @pytest.mark.usefixtures("enable_downloads")
-@pytest.mark.basic
+@pytest.mark.standard
 def test_persistent_failure_is_retried_in_second_pass_and_reported(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -654,7 +654,7 @@ def test_persistent_failure_is_retried_in_second_pass_and_reported(
 
 
 @pytest.mark.usefixtures("enable_downloads")
-@pytest.mark.basic
+@pytest.mark.standard
 def test_failed_file_succeeds_in_second_pass(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     download_mod = importlib.import_module("el_paso.download")
     calls: list[str] = []
@@ -672,7 +672,7 @@ def test_failed_file_succeeds_in_second_pass(tmp_path: Path, monkeypatch: pytest
 
 
 @pytest.mark.usefixtures("enable_downloads")
-@pytest.mark.basic
+@pytest.mark.standard
 def test_interrupted_stream_leaves_no_partial_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     download_mod = importlib.import_module("el_paso.download")
 
@@ -694,7 +694,7 @@ def test_interrupted_stream_leaves_no_partial_file(tmp_path: Path, monkeypatch: 
 
 
 @pytest.mark.usefixtures("enable_downloads")
-@pytest.mark.basic
+@pytest.mark.standard
 def test_ftp_connect_failure_is_retried(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     download_mod = importlib.import_module("el_paso.download")
     attempts: list[int] = []
@@ -732,7 +732,7 @@ def test_ftp_connect_failure_is_retried(tmp_path: Path, monkeypatch: pytest.Monk
 
 
 @pytest.mark.usefixtures("enable_downloads")
-@pytest.mark.basic
+@pytest.mark.standard
 def test_unsupported_method_raises(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="Unsupported download method"):
         ep.download(
@@ -747,7 +747,7 @@ def test_unsupported_method_raises(tmp_path: Path) -> None:
 
 
 @pytest.mark.usefixtures("enable_downloads")
-@pytest.mark.basic
+@pytest.mark.standard
 def test_esa_swe_failure_is_retried(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     download_mod = importlib.import_module("el_paso.download")
     calls: list[dict] = []
