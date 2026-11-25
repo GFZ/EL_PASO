@@ -271,6 +271,25 @@ def test_stub_options_are_kebab_case_only(stub_app: typer.Typer) -> None:
 
 @pytest.mark.minimal
 @pytest.mark.standard
+def test_stub_loops_over_comma_separated_satellite(stub_app: typer.Typer) -> None:
+    result = runner.invoke(stub_app, ["--start-time", "2013-03-16", "--end-time", "2013-03-17", "--satellite", "a,b"])
+    assert result.exit_code == 0, result.output
+    repeated = runner.invoke(
+        stub_app, ["--start-time", "2013-03-16", "--end-time", "2013-03-17", "--satellite", "a", "--satellite", "b"]
+    )
+    assert click.unstyle(result.output) == click.unstyle(repeated.output)
+
+
+@pytest.mark.minimal
+@pytest.mark.standard
+def test_stub_rejects_an_unknown_comma_separated_satellite(stub_app: typer.Typer) -> None:
+    result = runner.invoke(stub_app, ["--start-time", "2013-03-16", "--end-time", "2013-03-17", "--satellite", "a,zzz"])
+    assert result.exit_code == 2, result.output
+    assert "zzz" in click.unstyle(result.output)
+
+
+@pytest.mark.minimal
+@pytest.mark.standard
 def test_stub_loops_over_repeated_satellite(stub_app: typer.Typer) -> None:
     result = runner.invoke(
         stub_app,
@@ -629,11 +648,11 @@ def test_every_recipe_accepts_satellite_all(entry: RecipeEntry) -> None:
     func, defaults = load_recipe(entry)
     command = build_recipe_command(func, defaults=defaults)
 
-    # Annotated[list[<choice enum>], <option>]
+    # Annotated[list[str], <option>], whose metavar lists the choices
     satellite_annotation = inspect.signature(command).parameters["satellite"].annotation
-    choice_enum = typing.get_args(typing.get_args(satellite_annotation)[0])[0]
+    option = typing.get_args(satellite_annotation)[1]
 
-    assert "all" in [member.value for member in choice_enum]
+    assert "all" in option.metavar.strip("[]").split("|")
 
 
 @pytest.mark.minimal

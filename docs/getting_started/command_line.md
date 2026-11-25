@@ -39,7 +39,7 @@ recipe function's own signature.
 | Option | Meaning |
 | --- | --- |
 | `--start-time`, `--end-time` | Processing time range. Anything `dateutil` understands, e.g. `2013-03-16` or `2013-03-16T23:59:59`. Naive values are read as UTC. |
-| `--satellite` | Which spacecraft to process. Repeat the option to process several in one run, or pass `all` for every spacecraft the recipe supports (only those with data in the time range, if the recipe has an [availability table](#which-satellites-have-data)). |
+| `--satellite` | Which spacecraft to process. Comma-separated to process several in one run, e.g. `a,b` (repeating the option also works), or pass `all` for every spacecraft the recipe supports (only those with data in the time range, if the recipe has an [availability table](#which-satellites-have-data)). |
 | `--list-satellites` | List the satellites with data between `--start-time` and `--end-time`, then exit. Only for recipes with a `--satellite` option. |
 | `--mag-field` | Magnetic field model used for the derived quantities, e.g. `T89`, `T96`, `TS04`. |
 | `--bin-cadence` | Time binning cadence: `10s`, `5min`, `1h`, `2d`. A bare number means seconds. |
@@ -58,12 +58,12 @@ Not every recipe has every option: the command line mirrors the recipe's
 signature, so a recipe that does no time binning has no `--bin-cadence`. Run
 `--help` on a recipe to see what it actually accepts.
 
-Processing several satellites means repeating the option:
+Processing several satellites means giving a comma-separated list (repeating the option works too):
 
 ```bash
 el-paso rbsp mageis-electrons \
     --start-time 2017-10-15 --end-time 2017-10-15T23:59:59 \
-    --satellite a --satellite b --mag-field TS04
+    --satellite a,b --mag-field TS04
 ```
 
 `--satellite all` runs the recipe for every spacecraft it supports, e.g. `goes16` to

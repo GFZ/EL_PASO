@@ -186,6 +186,28 @@ def _make_choice_enum(name: str, members: Sequence[str]) -> type[enum.Enum]:
     return enum.Enum(f"{name}_choices", {member: member for member in members}, type=str)
 
 
+def _comma_separated_choices(choices: Sequence[str]) -> Callable[[list[str] | None], list[str] | None]:
+    """Build an option callback that splits comma-separated values and checks each against `choices`.
+
+    The option may still be repeated, so ``--satellite a,b`` and ``--satellite a --satellite b`` are equal.
+    """
+
+    def callback(value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        items = [part.strip() for text in value for part in text.split(",") if part.strip()]
+        if not items:
+            msg = f"no value given; choose from {', '.join(choices)}."
+            raise typer.BadParameter(msg)
+        invalid = [item for item in items if item not in choices]
+        if invalid:
+            msg = f"invalid choice(s) {', '.join(map(repr, invalid))}; choose from {', '.join(choices)}."
+            raise typer.BadParameter(msg)
+        return items
+
+    return callback
+
+
 def _is_path_hint(hint: Any) -> bool:  # noqa: ANN401
     """Return True for ``Path``, ``str | Path`` and their optional variants."""
     if hint is Path:
@@ -271,9 +293,19 @@ def _build_parameter_spec(  # noqa: PLR0911
             choices = (*choices, ALL_VALUES)
             help_text = f"{help_text} Use '{ALL_VALUES}' for every value: {', '.join(loop_values)}.".strip()
         choice_enum = _make_choice_enum(name, choices)
-        option = typer.Option(*_option_names(name, is_flag=False), help=help_text)
-        # The enum is created at runtime, so the annotation has to be assembled dynamically.
-        annotation = Annotated[list[choice_enum], option] if is_loop else Annotated[choice_enum, option]  # ty:ignore[invalid-type-form]
+        if is_loop:
+            # A looped option takes plain strings, so that `--satellite a,b` can be split before it is checked.
+            option = typer.Option(
+                *_option_names(name, is_flag=False),
+                help=f"{help_text} Comma-separated for several, e.g. a,b.".strip(),
+                metavar=f"[{'|'.join(choices)}]",
+                callback=_comma_separated_choices(choices),
+            )
+            annotation = Annotated[list[str], option]
+        else:
+            option = typer.Option(*_option_names(name, is_flag=False), help=help_text)
+            # The enum is created at runtime, so the annotation has to be assembled dynamically.
+            annotation = Annotated[choice_enum, option]  # ty:ignore[invalid-type-form]
         return _ParameterSpec(name, annotation, default, choice_enum, is_loop=is_loop, loop_values=loop_values)
 
     if _is_path_hint(inner_hint):
@@ -780,8 +812,6 @@ def _typer_default(spec: _ParameterSpec) -> Any:  # noqa: ANN401
 
     if spec.is_loop:
         values = spec.default if isinstance(spec.default, (list, tuple)) else [spec.default]
-        if spec.choice_enum is not None:
-            return [spec.choice_enum(value) for value in values]
         return list(values)
 
     if spec.choice_enum is not None and spec.default is not None:
