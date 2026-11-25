@@ -189,7 +189,7 @@ def test_plot_command_passes_selection_options_through(requests: list[PlotReques
 
     result = runner.invoke(
         stub_app(),
-        [*TIME_ARGS, "--energy", "470", "--energy", "1000", "--pitch-angle", "45", "--vmin", "1", "--vmax", "1e6"],
+        [*TIME_ARGS, "--energy", "470,1000", "--pitch-angle", "45", "--vmin", "1", "--vmax", "1e6"],
     )
     assert result.exit_code == 0, result.output
 
@@ -210,7 +210,8 @@ def test_plot_command_passes_selection_options_through(requests: list[PlotReques
         (["--energy", "abc"], "--energy"),
         (["--energy", "100deg"], "--energy"),
         (["--energy", "100foo"], "--energy"),
-        (["--energy", "470", "--energy", "-1"], "--energy"),
+        (["--energy", "470,-1"], "--energy"),
+        (["--energy", ","], "--energy"),
         (["--pitch-angle", "181"], "--pitch-angle"),
         (["--pitch-angle", "-1"], "--pitch-angle"),
         (["--vmin", "10", "--vmax", "10"], "--vmin"),

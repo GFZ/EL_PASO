@@ -211,8 +211,8 @@ def _plot_parameters() -> list[inspect.Parameter]:
                 typer.Option(
                     "--energy",
                     metavar="ENERGY",
-                    help="Energy to show for variables with an energy dimension (e.g. FEDU), with an optional "
-                    "unit; a bare number is in keV. Repeat for several: --energy 470 --energy 1MeV.",
+                    help="Comma-separated energies to show for variables with an energy dimension (e.g. FEDU), "
+                    "e.g. --energy 470,1575. Bare numbers are in keV; a unit may be added, e.g. 1MeV.",
                 ),
             ],
             None,
@@ -575,9 +575,13 @@ def _parse_plot_options(plot_options: dict[str, Any]) -> dict[str, Any]:
 
     energies = None
     if plot_options["energies"]:
-        values = [_parse_energy(text) for text in plot_options["energies"]]
+        texts = [part for item in plot_options["energies"] for part in item.split(",") if part.strip()]
+        if not texts:
+            msg = "no energy given; use a comma-separated list, e.g. 470,1575."
+            raise typer.BadParameter(msg, param_hint="'--energy'")
+        values = [_parse_energy(text) for text in texts]
         if any(value <= 0 for value in values):
-            msg = f"must be positive, got {', '.join(plot_options['energies'])}."
+            msg = f"must be positive, got {', '.join(texts)}."
             raise typer.BadParameter(msg, param_hint="'--energy'")
         energies = u.Quantity(values, u.keV)
 

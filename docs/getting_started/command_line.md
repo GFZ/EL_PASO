@@ -238,7 +238,7 @@ A recipe can define default panels (`PLOT_DEFAULTS`, as RBSP MagEIS does), in wh
 | Option | Meaning |
 | --- | --- |
 | `--variable` | Internal name of a variable to plot. Repeat for several panels. Any space-weather index or solar wind parameter can be requested too; these are drawn once at the top of the figure, shared by all satellites. A variable missing from the files is an error. |
-| `--energy` | Energy to show for variables with an energy dimension, e.g. `470` (keV) or `1MeV`. Repeat for several; each is drawn as one line, labelled with the matched energy. |
+| `--energy` | Energy to show for variables with an energy dimension, comma-separated, e.g. `470,1575`. Bare numbers are in keV; a unit may be added, e.g. `1MeV`. Each is drawn as one line, labelled with the matched energy. |
 | `--pitch-angle` | Pitch angle in degrees at which to cut (default 90). |
 | `--vmin`, `--vmax` | Colour limits of spectrograms and scatter panels, or y-limits of `--energy` line panels. Default: the 5th and 95th percentile of the data. |
 | `--colormap` | A [colorcet](https://colorcet.holoviz.org) or matplotlib colormap name. Default `rainbow4`. |
@@ -254,7 +254,7 @@ For example, electron flux at three energies against `L_star`, written as a PDF:
 el-paso plot rbsp mageis-electrons \
     --start-time 2017-10-15 --end-time 2017-10-16T23:59:59 \
     --processed-data-path ~/ep/processed \
-    --variable FEDU --energy 108 --energy 470 --energy 1575 \
+    --variable FEDU --energy 108,470,1575 \
     --along-L-star --vmin 1 --vmax 1e6 \
     --output-dir ~/ep/figures --filename fedu_lstar.pdf
 ```
