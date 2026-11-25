@@ -237,7 +237,7 @@ A recipe can define default panels (`PLOT_DEFAULTS`, as RBSP MagEIS does), in wh
 
 | Option | Meaning |
 | --- | --- |
-| `--variable` | Comma-separated internal names of the variables to plot, one panel each, e.g. `FEDU,L_star`. Any space-weather index or solar wind parameter can be requested too; these are drawn once at the top of the figure, shared by all satellites. A variable missing from the files is an error. |
+| `--variable` | Comma-separated internal names of the variables to plot, one panel each, e.g. `FEDU,L_star`. `el-paso plot variables` lists all internal names. Any space-weather index or solar wind parameter can be requested too; these are drawn once at the top of the figure, shared by all satellites. A variable missing from the files is an error. |
 | `--energy` | Energy to show for variables with an energy dimension, comma-separated, e.g. `470,1575`. Bare numbers are in keV; a unit may be added, e.g. `1MeV`. Each is drawn as one line, labelled with the matched energy. |
 | `--pitch-angle` | Pitch angle in degrees at which to cut (default 90). |
 | `--vmin`, `--vmax` | Colour limits of spectrograms and scatter panels, or y-limits of `--energy` line panels. Default: the 5th and 95th percentile of the data. |

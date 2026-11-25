@@ -176,6 +176,36 @@ class PlotRequest:
     availability: dict[str, list[DateInterval]] | None = None
 
 
+def _internal_names() -> tuple[str, ...]:
+    """Every internal variable name of the data standard, in the order of `el_paso.typing.InternalName`."""
+    from typing import get_args  # noqa: PLC0415
+
+    from el_paso.typing import InternalName  # noqa: PLC0415
+
+    return tuple(name for group in get_args(InternalName) for name in get_args(group))
+
+
+def list_variables() -> None:
+    """List the internal variable names that ``--variable`` accepts."""
+    from rich.console import Console  # noqa: PLC0415
+
+    from el_paso.data_standards import GFZStandard  # noqa: PLC0415
+
+    infos = GFZStandard().variable_infos
+    table = Table(title="Internal variable names for --variable")
+    table.add_column("Name", style="bold cyan", no_wrap=True)
+    table.add_column("Kind")
+    table.add_column("Description")
+    for name in sorted(_internal_names(), key=str.lower):
+        info = infos.get(name)
+        table.add_row(
+            name,
+            "space-weather index" if name in INDEX_PANELS else "dataset variable",
+            info.description if info is not None else "",
+        )
+    Console().print(table)
+
+
 def _plot_parameters() -> list[inspect.Parameter]:
     """Options defined by the plot command itself, independent of the recipe."""
     definitions: list[tuple[str, Any, Any]] = [
@@ -198,7 +228,8 @@ def _plot_parameters() -> list[inspect.Parameter]:
                 typer.Option(
                     "--variable",
                     help="Comma-separated internal names of the variables to plot, each in its own panel, "
-                    "e.g. --variable FEDU,L_star. Required unless the recipe defines quick-look panels.",
+                    "e.g. --variable FEDU,L_star. Required unless the recipe defines quick-look panels. "
+                    "Run 'el-paso plot variables' for the list of internal names.",
                 ),
             ],
             None,

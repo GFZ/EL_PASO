@@ -42,7 +42,7 @@ from typer.models import DeveloperExceptionConfig
 import el_paso
 from el_paso.cache import mark_run_failed
 from el_paso.cli.availability import get_availability_source
-from el_paso.cli.plot_cli import build_plot_command
+from el_paso.cli.plot_cli import build_plot_command, list_variables
 from el_paso.cli.recipe_cli import build_recipe_command
 
 if TYPE_CHECKING:
@@ -481,6 +481,8 @@ for _mission in sorted({entry.mission for entry in RECIPES if entry.strategy is 
             no_args_is_help=True,
         )
     )
+
+plot_group.add_command(_to_click_command("variables", list_variables, no_args_is_help=False))
 
 app.add_command(plot_group)
 

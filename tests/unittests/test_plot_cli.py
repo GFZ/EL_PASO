@@ -257,6 +257,20 @@ def test_along_options_are_mutually_exclusive(requests: list[PlotRequest]) -> No
 
 @pytest.mark.minimal
 @pytest.mark.standard
+def test_plot_variables_command_lists_the_internal_names() -> None:
+    from el_paso.cli.plot_cli import _internal_names  # noqa: PLC0415
+
+    result = invoke_app(["plot", "variables"])
+
+    assert result.exit_code == 0, result.output
+    output = click.unstyle(result.output)
+    assert all(name in output for name in _internal_names())
+    assert "space-weather index" in output
+    assert "Planetary Kp geomagnetic index." in output
+
+
+@pytest.mark.minimal
+@pytest.mark.standard
 def test_variable_option_is_comma_separated(requests: list[PlotRequest]) -> None:
     result = runner.invoke(stub_app(), [*TIME_ARGS, "--variable", "FEDU,L_star", "--variable", "B_Eq"])
 
