@@ -19,7 +19,7 @@ rng = np.random.default_rng(1337)
 
 @pytest.mark.minimal
 @pytest.mark.parametrize("file_format", [".mat", ".h5", ".nc", ".cdf"])
-@pytest.mark.basic
+@pytest.mark.standard
 def test_basic_single_file_strategy(tmp_path: Path, file_format: str) -> None:
     variables_to_save: dict[ep.typing.InternalName, Any] = {
         "FEDU": ep.Variable(original_unit=u.dimensionless_unscaled, data=rng.normal((20, 21))),
@@ -40,7 +40,7 @@ def test_basic_single_file_strategy(tmp_path: Path, file_format: str) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_save_raises_for_invalid_value_type(tmp_path: Path) -> None:
     variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
         "FEDU": ep.Variable(original_unit=u.dimensionless_unscaled, data=rng.normal((20, 21))),
@@ -58,7 +58,7 @@ def test_save_raises_for_invalid_value_type(tmp_path: Path) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_save_raises_for_invalid_internal_name(tmp_path: Path) -> None:
     variables_to_save: dict[ep.typing.InternalName, ep.Variable] = {
         "FEDU": ep.Variable(original_unit=u.dimensionless_unscaled, data=rng.normal((20, 21))),
@@ -76,7 +76,7 @@ def test_save_raises_for_invalid_internal_name(tmp_path: Path) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_single_file_strategy_saves_variables_untruncated(tmp_path: Path) -> None:
     from scipy.io import loadmat  # noqa: PLC0415
 

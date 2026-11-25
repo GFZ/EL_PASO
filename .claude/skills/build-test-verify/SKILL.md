@@ -30,11 +30,11 @@ grep -rl "<changed_module_name>" tests/unittests    # e.g. grep -rl "bin_by_time
 
 Recipe changes (`el_paso/recipes/**`, `el_paso/cli/**`) are covered by `tests/unittests/test_recipe_saving_strategies.py` and `tests/unittests/test_recipe_cli.py`. Changes to `el_paso/typing.py` are covered by `tests/unittests/test_typing.py`.
 
-**Use `-m "not visual"`, not `-m basic`, for targeted runs.** `-m basic` silently deselects any test that lacks the marker and still reports a pass, so an unmarked test would look green without running. `-m visual` tests only produce plots for someone to check by eye. Run them only when asked.
+**Use `-m "not visual"`, not `-m standard`, for targeted runs.** `-m standard` silently deselects any test that lacks the marker and still reports a pass, so an unmarked test would look green without running. `-m visual` tests only produce plots for someone to check by eye. Run them only when asked.
 
-**Mark every new test `@pytest.mark.basic`** (the repo's convention is a per-test decorator). CI runs only `-m basic`, so an unmarked test never runs in CI.
+**Mark every new test `@pytest.mark.standard`** (the repo's convention is a per-test decorator). CI runs only `-m standard`, so an unmarked test never runs in CI.
 
-**Tests that download real data get `@pytest.mark.network` instead of `minimal`/`basic`** (plus `enable_downloads`). They are excluded from the regular runs and from `main`; CI runs them only on a PR labelled `run-network-tests` (comment `/run-network-tests`, write access required). Suggest the slash commands to the user, never post them yourself. Secrets are not available to fork PRs, so credential-dependent network tests fail there.
+**Tests that download real data get `@pytest.mark.network` instead of `minimal`/`standard`** (plus `enable_downloads`). They are excluded from the regular runs and from `main`; CI runs them only on a PR labelled `run-network-tests` (comment `/run-network-tests`, write access required). Suggest the slash commands to the user, never post them yourself. Secrets are not available to fork PRs, so credential-dependent network tests fail there.
 
 System tests (`tests/system/test_<mission>.py`) download real mission data, need the Hugging Face reference data (`./download_data_for_tests.sh`), and some need credentials (`CLIENT_ID`/`CLIENT_SECRET`, `SPACETRACK_USER`/`SPACETRACK_PASS`). Run one only when asked. Files prefixed `_test_` are deliberately disabled.
 

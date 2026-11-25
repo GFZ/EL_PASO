@@ -14,7 +14,7 @@ from el_paso.dataset import DataSet
 from el_paso.recipes.dmsp import process_dmsp_ssj_electrons
 
 
-@pytest.mark.basic
+@pytest.mark.standard
 def test_dmsp_ssj(
     tmpdir: Path,
     *,

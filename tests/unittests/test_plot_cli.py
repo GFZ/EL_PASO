@@ -122,7 +122,7 @@ TIME_ARGS = ["--start-time", "2017-10-15", "--end-time", "2017-10-16"]
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_plot_command_takes_the_recipe_defaults(requests: list[PlotRequest]) -> None:
     """Without data options, the factory gets the values a processing run with the same arguments used."""
     result = runner.invoke(stub_app(defaults={"mag_field": "TS04"}), TIME_ARGS)
@@ -151,7 +151,7 @@ def test_plot_command_takes_the_recipe_defaults(requests: list[PlotRequest]) -> 
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_plot_command_passes_plot_options_through(requests: list[PlotRequest]) -> None:
     result = runner.invoke(
         stub_app(plot_defaults={"panels": ["FEDU"]}),
@@ -183,7 +183,7 @@ def test_plot_command_passes_plot_options_through(requests: list[PlotRequest]) -
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_plot_command_passes_selection_options_through(requests: list[PlotRequest]) -> None:
     from astropy import units as u  # noqa: PLC0415
 
@@ -202,7 +202,7 @@ def test_plot_command_passes_selection_options_through(requests: list[PlotReques
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize(
     ("args", "option"),
     [
@@ -227,7 +227,7 @@ def test_plot_command_rejects_invalid_selection_options(
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize(
     ("flag", "coordinate"),
     [("--along-L-star", "L_star"), ("--along-L-m", "L_m"), ("--along-R-eq", "R_Eq"), (None, None)],
@@ -243,7 +243,7 @@ def test_plot_command_passes_the_along_option_through(
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_along_options_are_mutually_exclusive(requests: list[PlotRequest]) -> None:
     result = runner.invoke(stub_app(), [*TIME_ARGS, "--along-L-star", "--along-R-eq"])
 
@@ -255,7 +255,7 @@ def test_along_options_are_mutually_exclusive(requests: list[PlotRequest]) -> No
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_along_options_match_the_along_coordinates() -> None:
     from el_paso.dataset.plot import ALONG_COORDINATES  # noqa: PLC0415
 
@@ -263,7 +263,7 @@ def test_along_options_match_the_along_coordinates() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize(
     ("satellite_args", "expected"),
     [
@@ -284,7 +284,7 @@ def test_plot_command_calls_the_factory_once_per_satellite(
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_plot_command_requires_the_time_range(requests: list[PlotRequest]) -> None:
     result = runner.invoke(stub_app(), [])
     assert result.exit_code != 0
@@ -293,7 +293,7 @@ def test_plot_command_requires_the_time_range(requests: list[PlotRequest]) -> No
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("option", [["--num-cores", "4"], ["--raw-data-path", "raw"]], ids=lambda o: o[0])
 def test_plot_command_rejects_recipe_only_parameters(requests: list[PlotRequest], option: list[str]) -> None:
     result = runner.invoke(stub_app(), [*TIME_ARGS, *option])
@@ -303,7 +303,7 @@ def test_plot_command_rejects_recipe_only_parameters(requests: list[PlotRequest]
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_plot_command_rejects_mismatching_factory() -> None:
     def other_strategy(processed_data_path: str | Path, mag_field: Literal["T89"]) -> ep.SavingStrategy:
         raise NotImplementedError
@@ -313,7 +313,7 @@ def test_plot_command_rejects_mismatching_factory() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_plot_command_rejects_factory_parameters_named_like_plot_options() -> None:
     def recipe(start_time: datetime, end_time: datetime, filename: str = "x") -> None:
         """Process.
@@ -332,7 +332,7 @@ def test_plot_command_rejects_factory_parameters_named_like_plot_options() -> No
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_plot_group_lists_only_recipes_with_a_strategy_factory() -> None:
     result = invoke_app(["plot", "--help"])
     assert result.exit_code == 0, result.output
@@ -352,7 +352,7 @@ def test_plot_group_lists_only_recipes_with_a_strategy_factory() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("entry", PLOTTABLE_RECIPES, ids=lambda e: f"{e.mission}-{e.command}")
 def test_every_recipe_declares_valid_plot_defaults(entry: RecipeEntry) -> None:
     from el_paso.cli.app import load_plot_defaults  # noqa: PLC0415
@@ -363,7 +363,7 @@ def test_every_recipe_declares_valid_plot_defaults(entry: RecipeEntry) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("entry", RECIPES, ids=lambda e: f"{e.mission}-{e.command}")
 def test_every_recipe_is_plottable_and_has_plot_defaults(entry: RecipeEntry) -> None:
     from el_paso.cli.app import load_plot_defaults  # noqa: PLC0415
@@ -373,7 +373,7 @@ def test_every_recipe_is_plottable_and_has_plot_defaults(entry: RecipeEntry) -> 
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("entry", PLOTTABLE_RECIPES, ids=lambda e: f"{e.mission}-{e.command}")
 def test_every_plottable_recipe_builds_a_plot_command(entry: RecipeEntry, requests: list[PlotRequest]) -> None:
     help_result = invoke_app(["plot", entry.mission, entry.command, "--help"])
@@ -401,7 +401,7 @@ def test_every_plottable_recipe_builds_a_plot_command(entry: RecipeEntry, reques
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_mageis_plot_command_exposes_the_factory_options() -> None:
     result = invoke_app(["plot", "rbsp", "mageis-electrons", "--help"])
     assert result.exit_code == 0, result.output
@@ -414,7 +414,7 @@ def test_mageis_plot_command_exposes_the_factory_options() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("option", PROCESSING_ONLY_OPTIONS, ids=lambda o: o[0])
 def test_mageis_plot_command_rejects_processing_only_options(requests: list[PlotRequest], option: list[str]) -> None:
     result = invoke_app(["plot", "rbsp", "mageis-electrons", *TIME_ARGS, *option])
@@ -463,7 +463,7 @@ def mageis_file_path(tmp_path: Path, satellite: str, interval_start: datetime) -
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_dry_run_reports_settings_and_expected_files(tmp_path: Path, plot_log: pytest.LogCaptureFixture) -> None:
     existing = mageis_file_path(tmp_path, "a", datetime(2017, 10, 1, tzinfo=timezone.utc))
     existing.parent.mkdir(parents=True)
@@ -487,7 +487,7 @@ def test_dry_run_reports_settings_and_expected_files(tmp_path: Path, plot_log: p
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_dry_run_is_not_silenced_by_quiet(tmp_path: Path, log_levels: list[int]) -> None:
     result = mageis_dry_run(tmp_path, "--quiet")
     assert result.exit_code == 0, result.output
@@ -495,7 +495,7 @@ def test_dry_run_is_not_silenced_by_quiet(tmp_path: Path, log_levels: list[int])
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_dry_run_fails_for_variables_outside_the_strategy(tmp_path: Path, plot_log: pytest.LogCaptureFixture) -> None:
     result = mageis_dry_run(tmp_path, "--variable", "not_a_variable")
 
@@ -561,7 +561,7 @@ def mageis_plot(tmp_path: Path, *args: str, end_time: datetime = PLOT_END) -> Re
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_partial_coverage_plots_what_exists_and_names_the_gap(
     tmp_path: Path, plot_log: pytest.LogCaptureFixture
 ) -> None:
@@ -584,7 +584,7 @@ def test_partial_coverage_plots_what_exists_and_names_the_gap(
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_no_coverage_fails_with_the_expected_path_and_processing_command(
     tmp_path: Path, plot_log: pytest.LogCaptureFixture
 ) -> None:
@@ -604,7 +604,7 @@ def test_no_coverage_fails_with_the_expected_path_and_processing_command(
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_satellite_without_files_is_left_out(tmp_path: Path, plot_log: pytest.LogCaptureFixture) -> None:
     save_mageis_shaped_data(tmp_path, "a")
     output = tmp_path / "out.png"
@@ -621,7 +621,7 @@ def test_satellite_without_files_is_left_out(tmp_path: Path, plot_log: pytest.Lo
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize(
     ("intervals", "expected"),
     [
@@ -652,7 +652,7 @@ def test_format_intervals(intervals: list[tuple[str, str]], expected: str) -> No
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_processing_command_line_spells_out_every_argument() -> None:
     request = PlotRequest(
         recipe=stub_recipe,
@@ -677,7 +677,7 @@ def test_processing_command_line_spells_out_every_argument() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_processing_command_line_leaves_out_legacy_layout() -> None:
     request = PlotRequest(
         recipe=stub_recipe,
@@ -717,7 +717,7 @@ def pyplot_figures() -> Iterator[None]:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_plot_writes_the_figure_to_output(mageis_data: Path, plot_log: pytest.LogCaptureFixture) -> None:
     output = mageis_data / "quicklook.png"
     result = mageis_plot(
@@ -730,7 +730,7 @@ def test_plot_writes_the_figure_to_output(mageis_data: Path, plot_log: pytest.Lo
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_plot_applies_pitch_angle_and_colour_limits(mageis_data: Path) -> None:
     from astropy import units as u  # noqa: PLC0415
 
@@ -747,7 +747,7 @@ def test_plot_applies_pitch_angle_and_colour_limits(mageis_data: Path) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_plot_with_selection_options_writes_the_figure(mageis_data: Path, plot_log: pytest.LogCaptureFixture) -> None:
     output = mageis_data / "quicklook.png"
     result = mageis_plot(
@@ -781,7 +781,7 @@ def mageis_plot_defaults(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_plot_defaults_make_variable_optional(
     mageis_data: Path, mageis_plot_defaults: dict[str, Any], plot_log: pytest.LogCaptureFixture
 ) -> None:
@@ -796,7 +796,7 @@ def test_plot_defaults_make_variable_optional(
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_mageis_plot_defaults_draw_fedu_along_l_star(
     mageis_data: Path, monkeypatch: pytest.MonkeyPatch, plot_log: pytest.LogCaptureFixture
 ) -> None:
@@ -823,7 +823,7 @@ def test_mageis_plot_defaults_draw_fedu_along_l_star(
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_variable_replaces_the_default_panels(
     mageis_data: Path, mageis_plot_defaults: dict[str, Any], monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -844,7 +844,7 @@ def test_variable_replaces_the_default_panels(
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_cli_flags_override_plot_defaults_which_override_type_defaults(
     mageis_data: Path, mageis_plot_defaults: dict[str, Any], monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -866,7 +866,7 @@ def test_cli_flags_override_plot_defaults_which_override_type_defaults(
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_settings_report_names_recipe_defaults(
     tmp_path: Path, mageis_plot_defaults: dict[str, Any], plot_log: pytest.LogCaptureFixture
 ) -> None:
@@ -887,7 +887,7 @@ def test_settings_report_names_recipe_defaults(
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_cli_flag_conflicting_with_plot_defaults_is_rejected(
     mageis_data: Path, mageis_plot_defaults: dict[str, Any]
 ) -> None:
@@ -902,7 +902,7 @@ def test_cli_flag_conflicting_with_plot_defaults_is_rejected(
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize(
     ("plot_defaults", "error", "match"),
     [
@@ -931,7 +931,7 @@ def test_malformed_plot_defaults_fail_when_the_command_is_built(
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_plot_writes_the_default_file_name(mageis_data: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     workdir = tmp_path / "work"
     workdir.mkdir()
@@ -944,7 +944,7 @@ def test_plot_writes_the_default_file_name(mageis_data: Path, tmp_path: Path, mo
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_plot_requires_variables_without_defaults(mageis_data: Path, mageis_plot_defaults: dict[str, Any]) -> None:
     assert not mageis_plot_defaults  # MagEIS stripped of its PLOT_DEFAULTS
     result = mageis_plot(mageis_data, "--satellite", "a")
@@ -954,7 +954,7 @@ def test_plot_requires_variables_without_defaults(mageis_data: Path, mageis_plot
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.usefixtures("pyplot_figures")
 def test_show_fails_clearly_without_a_display(
     mageis_data: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, plot_log: pytest.LogCaptureFixture
@@ -973,7 +973,7 @@ def test_show_fails_clearly_without_a_display(
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.usefixtures("pyplot_figures")
 @pytest.mark.parametrize("with_output", [False, True], ids=["show-only", "show-and-output"])
 def test_show_opens_a_window_and_writes_only_a_requested_file(
@@ -1009,7 +1009,7 @@ def mageis_dataset(processed_data_path: Path, satellite: str) -> ep.DataSet:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_build_figure_stacks_one_block_per_satellite(mageis_data: Path) -> None:
     import matplotlib.dates as mdates  # noqa: PLC0415
 
@@ -1031,7 +1031,7 @@ def test_build_figure_stacks_one_block_per_satellite(mageis_data: Path) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_build_figure_along_l_star_has_one_panel_per_energy_and_satellite(mageis_data: Path) -> None:
     datasets = [mageis_dataset(mageis_data, satellite) for satellite in ("a", "b")]
 
@@ -1045,7 +1045,7 @@ def test_build_figure_along_l_star_has_one_panel_per_energy_and_satellite(mageis
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_plot_along_l_star_writes_the_figure(mageis_data: Path, plot_log: pytest.LogCaptureFixture) -> None:
     output = mageis_data / "along.png"
     result = mageis_plot(
@@ -1059,7 +1059,7 @@ def test_plot_along_l_star_writes_the_figure(mageis_data: Path, plot_log: pytest
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_plot_along_a_coordinate_without_data_fails(mageis_data: Path, plot_log: pytest.LogCaptureFixture) -> None:
     output = mageis_data / "along.png"
     result = mageis_plot(mageis_data, "--satellite", "a", "--variable", "FEDU", "--along-R-eq", *output_args(output))
@@ -1088,7 +1088,7 @@ def fake_indices(start_time: datetime, end_time: datetime, requested: list[str])
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_build_figure_draws_indices_once_at_the_top(mageis_data: Path) -> None:
     datasets = [mageis_dataset(mageis_data, satellite) for satellite in ("a", "b")]
 
@@ -1103,7 +1103,7 @@ def test_build_figure_draws_indices_once_at_the_top(mageis_data: Path) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_index_panels_match_sw_index() -> None:
     from typing import get_args  # noqa: PLC0415
 
@@ -1113,7 +1113,7 @@ def test_index_panels_match_sw_index() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_build_figure_draws_every_solar_wind_parameter() -> None:
     with patch.object(ep, "load_indices_solar_wind_parameters", side_effect=fake_indices):
         figure = plot_cli.build_figure([], [], PLOT_START, PLOT_END, indices=list(plot_cli.INDEX_PANELS))
@@ -1126,7 +1126,7 @@ def test_build_figure_draws_every_solar_wind_parameter() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_index_download_failure_warns_and_leaves_the_panel_empty(
     mageis_data: Path, plot_log: pytest.LogCaptureFixture
 ) -> None:
@@ -1140,14 +1140,14 @@ def test_index_download_failure_warns_and_leaves_the_panel_empty(
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_split_panels_separates_indices_from_variables() -> None:
     assert plot_cli.split_panels(["FEDU", "Kp", "B_Eq", "Dst"]) == (["Kp", "Dst"], ["FEDU", "B_Eq"])
     assert plot_cli.split_panels(None) == ([], [])
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize(
     ("strategy_kwargs", "start_time", "end_time", "expected"),
     [
@@ -1186,7 +1186,7 @@ def test_default_filename(
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("end_time", ["2017-10-14", "2017-10-15"])
 def test_plot_command_rejects_end_time_not_after_start_time(requests: list[PlotRequest], end_time: str) -> None:
     result = runner.invoke(stub_app(), ["--start-time", "2017-10-15", "--end-time", end_time])
@@ -1207,7 +1207,7 @@ def test_energy_option_accepts_units(text: str, kev: float) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_plot_creates_the_output_dir_and_uses_the_default_filename(
     mageis_data: Path, plot_log: pytest.LogCaptureFixture
 ) -> None:
@@ -1222,7 +1222,7 @@ def test_plot_creates_the_output_dir_and_uses_the_default_filename(
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_plot_filename_must_not_contain_a_directory(requests: list[PlotRequest]) -> None:
     result = invoke_app(["plot", "rbsp", "mageis-electrons", *TIME_ARGS, "--filename", "sub/out.png"])
 
@@ -1231,7 +1231,7 @@ def test_plot_filename_must_not_contain_a_directory(requests: list[PlotRequest])
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_plot_script_values_render_as_python() -> None:
     from el_paso.cli.plot_script import _py  # noqa: PLC0415
 
@@ -1244,7 +1244,7 @@ def test_plot_script_values_render_as_python() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_exported_script_makes_the_same_figure(
     mageis_data: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1286,7 +1286,7 @@ def test_exported_script_makes_the_same_figure(
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_exported_script_leaves_a_panel_empty_when_an_index_cannot_be_loaded(
     mageis_data: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -1332,7 +1332,7 @@ STUB_AVAILABILITY = {
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_plot_satellite_all_plots_only_satellites_with_data(
     requests: list[PlotRequest], caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -1346,7 +1346,7 @@ def test_plot_satellite_all_plots_only_satellites_with_data(
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_plot_satellite_all_without_any_data_is_an_error(requests: list[PlotRequest]) -> None:
     result = runner.invoke(
         stub_app(availability=STUB_AVAILABILITY),
@@ -1360,7 +1360,7 @@ def test_plot_satellite_all_without_any_data_is_an_error(requests: list[PlotRequ
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_plot_explicit_satellite_without_data_is_kept(
     requests: list[PlotRequest], caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -1373,7 +1373,7 @@ def test_plot_explicit_satellite_without_data_is_kept(
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_plot_without_a_table_keeps_every_satellite(requests: list[PlotRequest]) -> None:
     result = runner.invoke(stub_app(), [*TIME_ARGS, "--satellite", "all"])
     assert result.exit_code == 0, result.output
@@ -1384,7 +1384,7 @@ def test_plot_without_a_table_keeps_every_satellite(requests: list[PlotRequest])
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_plot_dry_run_reports_availability_per_satellite(caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.INFO, logger="el_paso.cli")
     request = PlotRequest(

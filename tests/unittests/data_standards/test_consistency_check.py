@@ -19,7 +19,7 @@ PITCH_ANGLE_LEN = 50
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_consistency_correct():
     consistency_check = ConsistencyCheck()
 
@@ -34,7 +34,7 @@ def test_consistency_correct():
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_consistency_time_wrong():
     consistency_check = ConsistencyCheck()
 
@@ -45,7 +45,7 @@ def test_consistency_time_wrong():
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_consistency_energy_wrong():
     consistency_check = ConsistencyCheck()
 
@@ -57,7 +57,7 @@ def test_consistency_energy_wrong():
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_numbers():
     consistency_check = ConsistencyCheck()
 
@@ -69,7 +69,7 @@ def test_numbers():
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_consistency_same_dim_different_size_raises():
     """Second call with the same dimension name but a different size must raise."""
     consistency_check = ConsistencyCheck()
@@ -81,7 +81,7 @@ def test_consistency_same_dim_different_size_raises():
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_data_standard_repr_and_str():
     """DataStandard.__repr__ / __str__ should return a non-empty string without raising."""
     standard = ep.data_standards.GFZStandard()
@@ -110,7 +110,7 @@ def _make_var_info(
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_assert_sorted_ascending_1d_passes() -> None:
     data = np.array([1.0, 2.0, 3.0, 4.0])
     info = _make_var_info(["Epoch"], sorted_along=("Epoch", "ascending"))
@@ -118,7 +118,7 @@ def test_assert_sorted_ascending_1d_passes() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_assert_sorted_ascending_1d_raises() -> None:
     data = np.array([1.0, 3.0, 2.0, 4.0])
     info = _make_var_info(["Epoch"], sorted_along=("Epoch", "ascending"))
@@ -127,7 +127,7 @@ def test_assert_sorted_ascending_1d_raises() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_assert_sorted_descending_1d_passes() -> None:
     data = np.array([4.0, 3.0, 2.0, 1.0])
     info = _make_var_info(["Epoch"], sorted_along=("Epoch", "descending"))
@@ -135,7 +135,7 @@ def test_assert_sorted_descending_1d_passes() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_assert_sorted_descending_1d_raises() -> None:
     data = np.array([4.0, 2.0, 3.0, 1.0])
     info = _make_var_info(["Epoch"], sorted_along=("Epoch", "descending"))
@@ -144,7 +144,7 @@ def test_assert_sorted_descending_1d_raises() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_assert_sorted_ascending_2d_along_second_axis() -> None:
     data = np.array([[10.0, 20.0, 30.0], [5.0, 15.0, 25.0]])
     info = _make_var_info(["Epoch", "Alpha"], sorted_along=("Alpha", "ascending"))
@@ -152,7 +152,7 @@ def test_assert_sorted_ascending_2d_along_second_axis() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_assert_sorted_ascending_2d_along_second_axis_raises() -> None:
     data = np.array([[10.0, 30.0, 20.0], [5.0, 15.0, 25.0]])
     info = _make_var_info(["Epoch", "Alpha"], sorted_along=("Alpha", "ascending"))
@@ -161,7 +161,7 @@ def test_assert_sorted_ascending_2d_along_second_axis_raises() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_assert_sorted_along_first_axis_of_2d() -> None:
     data = np.array([[1.0, 10.0], [2.0, 20.0], [3.0, 30.0]])
     info = _make_var_info(["Epoch", "Alpha"], sorted_along=("Epoch", "ascending"))
@@ -169,7 +169,7 @@ def test_assert_sorted_along_first_axis_of_2d() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_assert_sorted_along_first_axis_of_2d_raises() -> None:
     data = np.array([[2.0, 10.0], [1.0, 20.0], [3.0, 30.0]])
     info = _make_var_info(["Epoch", "Alpha"], sorted_along=("Epoch", "ascending"))
@@ -178,7 +178,7 @@ def test_assert_sorted_along_first_axis_of_2d_raises() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_standardize_variable_checks_sorting() -> None:
     """standardize_variable must raise when sorted_along is violated."""
     standard = ep.data_standards.GFZStandard()

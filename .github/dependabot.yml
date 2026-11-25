@@ -28,7 +28,7 @@ updates:
     labels:
       - "dependencies"
       - "python:uv"
-      - "run-basic-tests"
+      - "run-standard-tests"
     cooldown:
       default-days: 0
     groups:

@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_monthly_omni_flux_rb_strategy_saves_omnidirectional_flux(tmp_path: Path) -> None:
     args = (tmp_path, "Arase", "arase", "xep", "T89")
     standard = ep.data_standards.GFZStandard()
@@ -28,7 +28,7 @@ def test_monthly_omni_flux_rb_strategy_saves_omnidirectional_flux(tmp_path: Path
     assert names_to_save == [*monthly_names, "FEDO", "Energy_FEDO", "Alpha_range"]
 
 
-@pytest.mark.basic
+@pytest.mark.standard
 def test_monthly_omni_flux_rb_strategy_legacy_layout(tmp_path: Path) -> None:
     args = (tmp_path, "Arase", "arase", "xep", "T89")
     standard = ep.data_standards.GFZStandard()

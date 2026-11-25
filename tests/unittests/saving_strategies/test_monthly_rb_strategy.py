@@ -119,7 +119,7 @@ _FORMAT_PARAMS = [
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("data_standard", [ep.data_standards.GFZStandard, ep.data_standards.PRBEMStandard])
 @pytest.mark.parametrize(("output_format", "meta_keys_check"), _FORMAT_PARAMS)
 def test_monthly_rb_strategy_saves_mocked_variables_to_netcdf_with_data_standards(
@@ -262,7 +262,7 @@ def _mock_monthly_variables_for_append() -> dict[InternalName, ep.Variable]:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("data_standard", [ep.data_standards.GFZStandard, ep.data_standards.PRBEMStandard])
 @pytest.mark.parametrize(("output_format", "meta_keys_check"), _FORMAT_PARAMS)
 def test_append_data(
@@ -371,7 +371,7 @@ def test_append_data(
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_save_raises_when_required_dimension_is_missing(
     tmp_path: Path,
 ) -> None:
@@ -408,7 +408,7 @@ def test_save_raises_when_required_dimension_is_missing(
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_save_raises_when_required_dimension_is_missing_tuples(
     tmp_path: Path,
 ) -> None:
@@ -449,7 +449,7 @@ def test_save_raises_when_required_dimension_is_missing_tuples(
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_instrument_folder_and_legacy_layout(tmp_path):
     kwargs = {
         "base_data_path": tmp_path,
@@ -467,7 +467,7 @@ def test_instrument_folder_and_legacy_layout(tmp_path):
     assert legacy.get_file_path_stem() == tmp_path / "GOES" / "goes16"
 
 
-@pytest.mark.basic
+@pytest.mark.standard
 def test_daily_leo_uses_year_month_folder(tmp_path):
     strategy = ep.saving_strategies.DailyLEORBStrategy(
         base_data_path=tmp_path,
@@ -483,7 +483,7 @@ def test_daily_leo_uses_year_month_folder(tmp_path):
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_daily_leo_legacy_layout_has_no_instrument_or_date_folders(tmp_path):
     kwargs = {
         "base_data_path": tmp_path,
@@ -502,7 +502,7 @@ def test_daily_leo_legacy_layout_has_no_instrument_or_date_folders(tmp_path):
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("legacy_layout", [False, True])
 def test_daily_wave_layout(tmp_path, legacy_layout):
     args = (tmp_path, "THEMIS", "tha", "FFT", ep.data_standards.GFZStandard())
@@ -520,7 +520,7 @@ def test_daily_wave_layout(tmp_path, legacy_layout):
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize(
     "strategy_cls", [ep.saving_strategies.MonthlyDensityStrategy, ep.saving_strategies.RBSPDensityStrategy]
 )
@@ -540,7 +540,7 @@ def test_density_strategies_forward_legacy_layout(tmp_path, strategy_cls):
     assert legacy.get_file_path_stem() == tmp_path / "RBSP" / "rbspa"
 
 
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("legacy_layout", [False, True])
 def test_daily_strategy_year_month_folder(tmp_path, legacy_layout):
     kwargs = {
@@ -563,7 +563,7 @@ def test_daily_strategy_year_month_folder(tmp_path, legacy_layout):
     assert ("2013" in path.parts) != legacy_layout
 
 
-@pytest.mark.basic
+@pytest.mark.standard
 def test_save_ignores_legacy_layout_but_dataset_loads_it(tmp_path, caplog):
     kwargs = {
         "base_data_path": tmp_path,

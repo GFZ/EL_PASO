@@ -88,7 +88,7 @@ def _mock_monthly_variables() -> dict[InternalName, ep.Variable]:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("formats", ["nc", "h5", "cdf", "mat"])
 def test_data_org_dataset_loads_saved_monthly_nc_and_rejects_invalid_variable(
     tmp_path: Path, formats: MFSFormats

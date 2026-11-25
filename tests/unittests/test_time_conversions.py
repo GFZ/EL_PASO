@@ -38,7 +38,7 @@ test_data = [
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize(
     ("start_q", "target_unit_1", "target_unit_2"),
     test_data,
@@ -60,7 +60,7 @@ def test_circular_conversion_astropy(start_q: u.Quantity, target_unit_1: u.UnitB
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_j2k_posixtime_roundtrip() -> None:
     j2k_q = u.Quantity(
         REF_DATETIME.timestamp() - datetime(2000, 1, 1, 12, tzinfo=timezone.utc).timestamp(), ep.units.j2k

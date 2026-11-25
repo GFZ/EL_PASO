@@ -50,7 +50,7 @@ class _StubStrategy(SavingStrategy):
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_output_file_defaults() -> None:
     of = OutputFile(name="flux", names_to_save=["FEDU", "Epoch"])
     assert of.name == "flux"
@@ -59,14 +59,14 @@ def test_output_file_defaults() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_output_file_save_incomplete_true() -> None:
     of = OutputFile(name="wave", names_to_save=["FEDU"], save_incomplete=True)
     assert of.save_incomplete is True
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_get_target_variables_skips_optional_output_with_no_content() -> None:
     """An optional output file whose only resolved name is the shared time axis must be skipped.
 
@@ -85,7 +85,7 @@ def test_get_target_variables_skips_optional_output_with_no_content() -> None:
     assert result is None
 
 
-@pytest.mark.basic
+@pytest.mark.standard
 def test_get_target_variables_keeps_optional_output_with_partial_content() -> None:
     strategy = _StubStrategy()
     output_file = OutputFile(name="solar_wind_indices", names_to_save=["Epoch", "Kp", "Dst"], save_incomplete=True)
@@ -101,7 +101,7 @@ def test_get_target_variables_keeps_optional_output_with_partial_content() -> No
     assert result["Dst"].get_data().size == 0
 
 
-@pytest.mark.basic
+@pytest.mark.standard
 def test_get_all_standard_names() -> None:
     strategy = _StubStrategy(
         output_files=[
@@ -116,7 +116,7 @@ def test_get_all_standard_names() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_merge_non_overlapping_appends() -> None:
     strategy = _StubStrategy()
     merged = strategy._merge_and_sort_data(
@@ -127,7 +127,7 @@ def test_merge_non_overlapping_appends() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_merge_duplicate_epoch_replaced_by_new() -> None:
     strategy = _StubStrategy()
     # 2.0 and 3.0 overlap → new values replace old ones
@@ -139,7 +139,7 @@ def test_merge_duplicate_epoch_replaced_by_new() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_merge_result_sorted_ascending() -> None:
     strategy = _StubStrategy()
     # New data lies before existing → result must be sorted
@@ -151,7 +151,7 @@ def test_merge_result_sorted_ascending() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_merge_key_only_in_existing() -> None:
     strategy = _StubStrategy()
     merged = strategy._merge_and_sort_data(
@@ -162,7 +162,7 @@ def test_merge_key_only_in_existing() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_merge_key_only_in_new() -> None:
     strategy = _StubStrategy()
     merged = strategy._merge_and_sort_data(
@@ -174,7 +174,7 @@ def test_merge_key_only_in_new() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_merge_metadata_combined() -> None:
     strategy = _StubStrategy()
     merged = strategy._merge_and_sort_data(
@@ -186,7 +186,7 @@ def test_merge_metadata_combined() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_merge_column_vector_normalized() -> None:
     """A (N, 1) Epoch column vector is treated as 1-D after normalization."""
     strategy = _StubStrategy()
@@ -199,7 +199,7 @@ def test_merge_column_vector_normalized() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_repr_returns_string() -> None:
     strategy = _StubStrategy()
     result = repr(strategy)

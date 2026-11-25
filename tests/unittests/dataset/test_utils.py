@@ -10,7 +10,7 @@ from el_paso.dataset import utils
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_join_var():
     a = np.array([1, 2])
     b = np.array([3, 4])
@@ -19,7 +19,7 @@ def test_join_var():
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_round_seconds():
     dt1 = datetime(2024, 1, 1, 12, 0, 0, 600_000, tzinfo=timezone.utc)
     dt2 = datetime(2024, 1, 1, 12, 0, 0, 300_000, tzinfo=timezone.utc)
@@ -28,7 +28,7 @@ def test_round_seconds():
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_python2matlab_and_matlab2python_roundtrip():
     dt1 = datetime(2024, 4, 16, 15, 30, 0, tzinfo=timezone.utc)
     matlab_time = utils.python2matlab(dt1)
@@ -39,7 +39,7 @@ def test_python2matlab_and_matlab2python_roundtrip():
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_python2matlab_keeps_subsecond_precision():
     whole = datetime(2024, 4, 16, 15, 30, 0, tzinfo=timezone.utc)
     half = datetime(2024, 4, 16, 15, 30, 0, 500_000, tzinfo=timezone.utc)
@@ -47,7 +47,7 @@ def test_python2matlab_keeps_subsecond_precision():
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_matlab2python_iterable():
     dt1 = datetime(2024, 4, 16, 15, 30, 0, tzinfo=timezone.utc)
     matlab_time = utils.python2matlab(dt1)
@@ -57,7 +57,7 @@ def test_matlab2python_iterable():
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_pol2cart_and_cart2pol():
     theta = np.array([0, np.pi / 2, np.pi])
     radius = np.array([1, 1, 1])

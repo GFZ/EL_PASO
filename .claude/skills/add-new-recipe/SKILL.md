@@ -34,7 +34,7 @@ The hook does not check the runtime `lazy.attach` entry, the docs page, or the R
 `hooks/generate_metadata_stubs.py` fires when `el_paso/data_standards/gfz_standard.py`, `prbem_standard.py`, or the generator itself changes. For a recipe it matters only if the recipe also needs a new standardized variable. In that case, follow "Adding a standardized variable" in `.claude/agent-guides/architecture.md`.
 
 ## Tests
-- Add a case for each new strategy factory to the `CASES` list in `tests/unittests/test_recipe_saving_strategies.py`, and mark any new test `@pytest.mark.basic`.
+- Add a case for each new strategy factory to the `CASES` list in `tests/unittests/test_recipe_saving_strategies.py`, and mark any new test `@pytest.mark.standard`.
 - These existing tests then cover the new recipe automatically. Run them:
   ```bash
   .venv/bin/python -m pytest tests/unittests/test_recipe_saving_strategies.py tests/unittests/test_recipe_cli.py -m "not visual" -o log_cli=false

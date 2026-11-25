@@ -13,7 +13,7 @@ from el_paso.dataset import GFZDataSet
 from el_paso.recipes.goes import goes_eps_maged_and_epead_netcdf_strategy, process_goes_eps_maged_and_epead
 
 
-@pytest.mark.basic
+@pytest.mark.standard
 def test_goes_eps_maged_and_epead_snapshot(
     tmpdir: Path,
     *,

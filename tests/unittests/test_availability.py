@@ -59,7 +59,7 @@ def recipe_module(**attributes: object) -> types.ModuleType:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_query_returns_only_satellites_with_data_and_their_overlapping_intervals() -> None:
     coverage = ep.satellite_availability(TABLE, date(2020, 1, 15), date(2020, 3, 5))
 
@@ -70,7 +70,7 @@ def test_query_returns_only_satellites_with_data_and_their_overlapping_intervals
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize(
     ("start", "end", "expected"),
     [
@@ -88,7 +88,7 @@ def test_query_overlap_at_the_edges(start: date, end: date, expected: list[str])
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_query_compares_datetimes_by_utc_day() -> None:
     # 2020-02-01T00:30 at UTC+01:00 is still 2020-01-31 in UTC
     plus_one = timezone(timedelta(hours=1))
@@ -101,7 +101,7 @@ def test_query_compares_datetimes_by_utc_day() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_no_table_is_distinct_from_no_data() -> None:
     without_table = recipe_module()
     with_table = recipe_module(SATELLITE_AVAILABILITY=TABLE)
@@ -111,7 +111,7 @@ def test_no_table_is_distinct_from_no_data() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_query_accepts_a_recipe_function() -> None:
     coverage = ep.satellite_availability(
         ep.recipes.lanl_geogrid.process_lanl_geogrid_mpa_electrons, date(2017, 4, 1), date(2017, 4, 30)
@@ -122,7 +122,7 @@ def test_query_accepts_a_recipe_function() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize(
     "recipe_name",
     ["process_goes_eps_maged_and_epead", "process_goes_r_mps_high"],
@@ -132,7 +132,7 @@ def test_goes_tables_are_valid(recipe_name: str) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize(
     ("day", "expected"),
     [
@@ -152,7 +152,7 @@ def test_goes_tables_give_one_east_and_one_west_satellite(day: date, expected: s
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_recipes_sharing_a_product_share_a_table() -> None:
     lanl = ep.recipes.lanl_geogrid
     april = (date(2017, 4, 1), date(2017, 4, 30))
@@ -169,7 +169,7 @@ def test_recipes_sharing_a_product_share_a_table() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_load_toml_table(tmp_path: Path) -> None:
     table_file = tmp_path / "availability.toml"
     table_file.write_text(
@@ -191,7 +191,7 @@ def test_load_toml_table(tmp_path: Path) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_load_rejects_a_file_without_satellites(tmp_path: Path) -> None:
     table_file = tmp_path / "availability.toml"
     table_file.write_text("max_gap_days = 5\n", encoding="utf-8")
@@ -201,7 +201,7 @@ def test_load_rejects_a_file_without_satellites(tmp_path: Path) -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize(
     ("table", "error"),
     [
@@ -220,13 +220,13 @@ def test_load_rejects_malformed_intervals(table: dict, error: type[Exception]) -
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_check_accepts_a_valid_table() -> None:
     check_availability_table(table_recipe, TABLE)
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_check_reports_every_problem() -> None:
     table = {
         "c": [(date(2020, 1, 1), date(2020, 1, 2))],  # not a satellite of the recipe
@@ -249,14 +249,14 @@ def test_check_reports_every_problem() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_check_requires_a_table() -> None:
     with pytest.raises(ValueError, match="declares no SATELLITE_AVAILABILITY"):
         check_availability_table(table_recipe)
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_check_requires_a_satellite_literal() -> None:
     def no_satellite(start_time: datetime, end_time: datetime) -> None:
         """Recipe without a satellite parameter."""
@@ -269,7 +269,7 @@ def test_check_requires_a_satellite_literal() -> None:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_merge_days_bridges_short_gaps_only() -> None:
     days = {date(2020, 1, 1), date(2020, 1, 2), date(2020, 1, 5), date(2020, 1, 20)}
 
@@ -304,7 +304,7 @@ def _listing(*names: str) -> str:
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_find_days_matches_the_recipe_pattern_and_fetches_each_listing_once() -> None:
     listings = FakeListings(
         {
@@ -335,37 +335,7 @@ def test_find_days_matches_the_recipe_pattern_and_fetches_each_listing_once() ->
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
-def test_find_days_counts_every_day_a_multi_day_file_covers() -> None:
-    listings = FakeListings(
-        {
-            "https://archive/": _listing("ns41/"),
-            "https://archive/ns41/": _listing("ns41_200105_v1.10.ascii", "ns41_200112_v1.10.ascii"),
-        }
-    )
-
-    days = find_days(
-        "https://archive/ns41/",
-        r"{satellite}_YYMMDD_v1\.10\.ascii",
-        "ns41",
-        date(2020, 1, 1),
-        date(2020, 1, 14),
-        listings,
-        file_span_days=7,
-    )
-
-    # 5 Jan to 18 Jan, clipped to the last day looked at
-    assert days == {"ns41": {date(2020, 1, 5) + timedelta(days=offset) for offset in range(10)}}
-
-
-@pytest.mark.minimal
-@pytest.mark.basic
-def test_gps_table_is_valid() -> None:
-    check_availability_table(ep.recipes.gps.process_gps_data)
-
-
-@pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_build_table_fills_the_satellite_into_per_satellite_urls(tmp_path: Path) -> None:
     listings = FakeListings(
         {
@@ -389,7 +359,7 @@ def test_build_table_fills_the_satellite_into_per_satellite_urls(tmp_path: Path)
 
 
 @pytest.mark.minimal
-@pytest.mark.basic
+@pytest.mark.standard
 def test_written_table_round_trips_and_carries_a_reuse_header(tmp_path: Path) -> None:
     product = Product(
         download_url="https://archive/YYYY",

@@ -18,8 +18,8 @@ from el_paso.recipes.rbsp import process_rbsp_ect_combined
 @pytest.mark.parametrize(
     ("mag_field", "save_strategy"),
     [
-        pytest.param("T89", "gfz", marks=(pytest.mark.basic, pytest.mark.minimal)),
-        pytest.param("T89", "netcdf", marks=pytest.mark.basic),
+        pytest.param("T89", "gfz", marks=(pytest.mark.standard, pytest.mark.minimal)),
+        pytest.param("T89", "netcdf", marks=pytest.mark.standard),
     ],
 )
 def test_rbsp_ect_combined_snapshot(

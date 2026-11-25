@@ -13,7 +13,7 @@ from el_paso.dataset import GFZDataSet
 from el_paso.recipes.rbsp import process_rbsp_rept_electrons, rbsp_rept_electron_netcdf_strategy
 
 
-@pytest.mark.basic
+@pytest.mark.standard
 @pytest.mark.parametrize("mag_field", ["T89"])
 def test_rbsp_rept_electrons_snapshot(
     mag_field: Literal["T89", "TS04", "OP77", "T96"],
