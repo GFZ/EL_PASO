@@ -197,9 +197,8 @@ def _plot_parameters() -> list[inspect.Parameter]:
                 list[str] | None,
                 typer.Option(
                     "--variable",
-                    help="Internal name of a variable to plot in its own panel (e.g. FEDU). Repeat for "
-                    "several panels: --variable FEDU --variable L_star. Required unless the recipe defines "
-                    "quick-look panels.",
+                    help="Comma-separated internal names of the variables to plot, each in its own panel, "
+                    "e.g. --variable FEDU,L_star. Required unless the recipe defines quick-look panels.",
                 ),
             ],
             None,
@@ -560,7 +559,7 @@ def _parse_energy(text: str) -> float:
 def _parse_plot_options(plot_options: dict[str, Any]) -> dict[str, Any]:
     """Validate the plot options and resolve them into the corresponding `PlotRequest` fields.
 
-    Checks ``--energy``, ``--pitch-angle``, ``--vmin``, ``--vmax`` and the ``--along-*`` options.
+    Checks ``--variable``, ``--energy``, ``--pitch-angle``, ``--vmin``, ``--vmax`` and the ``--along-*`` options.
 
     Returns:
         dict[str, Any]: The options as `PlotRequest` fields: the energies in keV, the pitch angle in
@@ -596,6 +595,8 @@ def _parse_plot_options(plot_options: dict[str, Any]) -> dict[str, Any]:
         msg = f"only one of {', '.join(flags)} can be given."
         raise typer.BadParameter(msg, param_hint=" / ".join(f"'{flag}'" for flag in flags))
 
+    variables = [part for item in plot_options["variables"] or [] for part in map(str.strip, item.split(",")) if part]
+
     filename = plot_options["filename"]
     if filename is not None and Path(filename).name != filename:
         msg = f"must be a file name without a directory, got {filename!r}. Use --output-dir for the directory."
@@ -604,7 +605,7 @@ def _parse_plot_options(plot_options: dict[str, Any]) -> dict[str, Any]:
     pitch_angle = None if plot_options["pitch_angle"] is None else plot_options["pitch_angle"] * u.deg
     return {
         **{name: value for name, value in plot_options.items() if name not in ALONG_OPTIONS},
-        "variables": list(plot_options["variables"]) if plot_options["variables"] else None,
+        "variables": variables or None,
         "energies": energies,
         "pitch_angle": pitch_angle,
         "along": given[0][1] if given else None,

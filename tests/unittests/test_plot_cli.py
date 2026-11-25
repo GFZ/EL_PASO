@@ -257,6 +257,16 @@ def test_along_options_are_mutually_exclusive(requests: list[PlotRequest]) -> No
 
 @pytest.mark.minimal
 @pytest.mark.standard
+def test_variable_option_is_comma_separated(requests: list[PlotRequest]) -> None:
+    result = runner.invoke(stub_app(), [*TIME_ARGS, "--variable", "FEDU,L_star", "--variable", "B_Eq"])
+
+    assert result.exit_code == 0, result.output
+    (request,) = requests
+    assert request.variables == ["FEDU", "L_star", "B_Eq"]
+
+
+@pytest.mark.minimal
+@pytest.mark.standard
 def test_along_options_match_the_along_coordinates() -> None:
     from el_paso.dataset.plot import ALONG_COORDINATES  # noqa: PLC0415
 
