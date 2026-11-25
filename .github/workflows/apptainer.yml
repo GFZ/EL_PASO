@@ -120,7 +120,7 @@ jobs:
               export SPACETRACK_PASS="$(echo "$SPACETRACK_PASS_B64" | base64 -d)"
               export _TYPER_FORCE_DISABLE_TERMINAL=1
               export EL_PASO_SKIP_DOWNLOAD=1
-              python -m pytest -rf /mnt/tests -m "standard" -c /mnt/pytest.ini --ignore /mnt/tests/unittests/test_release_mode.py --indices_sw_param_data_path tests/system/data/indices_sw_params
+              python -m pytest -rf /mnt/tests -m "standard or minimal" -c /mnt/pytest.ini --ignore /mnt/tests/unittests/test_release_mode.py --indices_sw_param_data_path tests/system/data/indices_sw_params
             '
           rm -f "$ENV_FILE"
 

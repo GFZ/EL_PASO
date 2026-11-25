@@ -105,9 +105,9 @@ jobs:
           _TYPER_FORCE_DISABLE_TERMINAL: "1"
           EL_PASO_SKIP_DOWNLOAD: "1"
           # Pull requests run only the minimal tests, except for the runs started by adding a label:
-          # run-standard-tests runs the standard tests, run-network-tests runs only the network tests (real downloads).
-          # Everything else (push to main, manual dispatch) runs the standard tests. Network tests never run on main.
-          MARKER: ${{ (github.event.action == 'labeled' && github.event.label.name == 'run-network-tests' && 'network') || (github.event_name == 'pull_request' && !(github.event.action == 'labeled' && github.event.label.name == 'run-standard-tests') && 'minimal') || 'standard' }}
+          # run-standard-tests runs the standard and minimal tests, run-network-tests runs only the network tests (real downloads).
+          # Everything else (push to main, manual dispatch) runs the standard and minimal tests. Network tests never run on main.
+          MARKER: ${{ (github.event.action == 'labeled' && github.event.label.name == 'run-network-tests' && 'network') || (github.event_name == 'pull_request' && !(github.event.action == 'labeled' && github.event.label.name == 'run-standard-tests') && 'minimal') || 'standard or minimal' }}
         run: uv run coverage run --source el_paso -m pytest -rf tests -m "$MARKER" --indices_sw_param_data_path tests/system/data/indices_sw_params
 
       - name: Run Coveralls
