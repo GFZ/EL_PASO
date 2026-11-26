@@ -604,6 +604,9 @@ def _merge_time_arguments(kwargs: dict[str, Any], specs: Sequence[_ParameterSpec
                 msg = f"missing the {name.replace('_', ' ')}: give it as {metavar}."
                 raise typer.BadParameter(msg, param_hint=f"'{metavar}'")
             value = defaults[name]
+            if isinstance(value, (str, datetime)):
+                # a default is not parsed by Typer, unlike a value given on the command line
+                value = parse_datetime(value)
         kwargs[name] = value
 
 
