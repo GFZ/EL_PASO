@@ -550,10 +550,7 @@ class _RootGroup(_LazyHelpGroup):
 
         table = _listing_table(
             ("MISSION", "RECIPES"),
-            [
-                (mission, _recipe_names(tuple(entry for entry in RECIPES if entry.mission == mission)))
-                for mission in sorted({entry.mission for entry in RECIPES})
-            ],
+            [(mission, _recipe_names(entries)) for mission, entries in _entries_by_mission().items()],
         )
         examples = Text("\n").join(
             Text(f"  $ el-paso {command}")
@@ -620,78 +617,82 @@ def _recipe_names(entries: tuple[RecipeEntry, ...]) -> str:
     return ", ".join(entry.command for entry in entries)
 
 
-process_group = _UsageGroup(
-    name="process",
-    help="Download and process the data of a recipe. The options are those of the recipe's function.",
-    no_args_is_help=True,
+def _entries_by_mission(*, plottable_only: bool = False) -> dict[str, tuple[RecipeEntry, ...]]:
+    """The registry's recipes per mission, sorted by mission, optionally only those that can be plotted."""
+    entries = [entry for entry in RECIPES if entry.strategy is not None or not plottable_only]
+    return {
+        mission: tuple(entry for entry in entries if entry.mission == mission)
+        for mission in sorted({entry.mission for entry in entries})
+    }
+
+
+def _mission_groups_command(
+    name: str,
+    help_text: str,
+    *,
+    usage_after_recipe: tuple[str, ...],
+    plottable_only: bool = False,
+    **recipe_group_options: Any,  # noqa: ANN401
+) -> _UsageGroup:
+    """Build a command such as ``process`` that takes a mission, then one of its recipes.
+
+    Args:
+        name (str): The command's name.
+        help_text (str): The command's help.
+        usage_after_recipe (tuple[str, ...]): What follows ``RECIPE`` in the usage lines.
+        plottable_only (bool): Only list the recipes that register a strategy factory.
+        **recipe_group_options (Any): Passed on to each mission's `LazyRecipeGroup`, e.g. its
+            ``command_builder``.
+
+    Returns:
+        _UsageGroup: The command, with one lazily built group per mission.
+    """
+    group = _UsageGroup(name=name, help=help_text, no_args_is_help=True)
+    for mission, entries in _entries_by_mission(plottable_only=plottable_only).items():
+        group.add_command(
+            LazyRecipeGroup(
+                usage_pieces=("RECIPE", *usage_after_recipe),
+                entries=entries,
+                name=mission,
+                help=_recipe_names(entries),
+                no_args_is_help=True,
+                **recipe_group_options,
+            )
+        )
+    group.usage_pieces = ("MISSION", "RECIPE", *usage_after_recipe)
+    group.listing = ("Missions", "MISSION", "RECIPES")
+    return group
+
+
+_TIME_RANGE_USAGE = ("[START]", "[END]", "[OPTIONS]")
+
+process_group = _mission_groups_command(
+    "process",
+    "Download and process the data of a recipe. The options are those of the recipe's function.",
+    usage_after_recipe=_TIME_RANGE_USAGE,
 )
 """``el-paso process <mission> <recipe>``: every recipe is listed."""
-
-for _mission in sorted({entry.mission for entry in RECIPES}):
-    process_group.add_command(
-        LazyRecipeGroup(
-            usage_pieces=("RECIPE", "[START]", "[END]", "[OPTIONS]"),
-            entries=tuple(entry for entry in RECIPES if entry.mission == _mission),
-            name=_mission,
-            help=_recipe_names(tuple(entry for entry in RECIPES if entry.mission == _mission)),
-            no_args_is_help=True,
-        )
-    )
-
-process_group.usage_pieces = ("MISSION", "RECIPE", "[START]", "[END]", "[OPTIONS]")
-process_group.listing = ("Missions", "MISSION", "RECIPES")
 app.add_command(process_group)
 
-
-plot_group = _UsageGroup(
-    name="plot",
-    help="Plot data a recipe has already processed. Takes the same arguments as processing.",
-    no_args_is_help=True,
+plot_group = _mission_groups_command(
+    "plot",
+    "Plot data a recipe has already processed. Takes the same arguments as processing.",
+    usage_after_recipe=_TIME_RANGE_USAGE,
+    plottable_only=True,
+    command_builder=_plot_command,
+    summary=_plot_summary,
 )
 """``el-paso plot <mission> <recipe>``: only recipes that register a strategy factory are listed."""
-
-for _mission in sorted({entry.mission for entry in RECIPES if entry.strategy is not None}):
-    plot_group.add_command(
-        LazyRecipeGroup(
-            usage_pieces=("RECIPE", "[START]", "[END]", "[OPTIONS]"),
-            entries=tuple(entry for entry in RECIPES if entry.mission == _mission and entry.strategy is not None),
-            command_builder=_plot_command,
-            summary=_plot_summary,
-            name=_mission,
-            help=_recipe_names(
-                tuple(entry for entry in RECIPES if entry.mission == _mission and entry.strategy is not None)
-            ),
-            no_args_is_help=True,
-        )
-    )
-
-plot_group.usage_pieces = ("MISSION", "RECIPE", "[START]", "[END]", "[OPTIONS]")
-plot_group.listing = ("Missions", "MISSION", "RECIPES")
 app.add_command(plot_group)
 
-
-list_satellites_group = _UsageGroup(
-    name="list-satellites",
-    help="List the satellites of a recipe, with the data coverage from its availability table, if it has one.",
-    no_args_is_help=True,
+list_satellites_group = _mission_groups_command(
+    "list-satellites",
+    "List the satellites of a recipe, with the data coverage from its availability table, if it has one.",
+    usage_after_recipe=(),
+    command_builder=_list_satellites_command,
+    summary=_list_satellites_summary,
 )
 """``el-paso list-satellites <mission> <recipe>``: every recipe is listed."""
-
-for _mission in sorted({entry.mission for entry in RECIPES}):
-    list_satellites_group.add_command(
-        LazyRecipeGroup(
-            usage_pieces=("RECIPE",),
-            entries=tuple(entry for entry in RECIPES if entry.mission == _mission),
-            command_builder=_list_satellites_command,
-            summary=_list_satellites_summary,
-            name=_mission,
-            help=_recipe_names(tuple(entry for entry in RECIPES if entry.mission == _mission)),
-            no_args_is_help=True,
-        )
-    )
-
-list_satellites_group.usage_pieces = ("MISSION", "RECIPE")
-list_satellites_group.listing = ("Missions", "MISSION", "RECIPES")
 app.add_command(list_satellites_group)
 
 
