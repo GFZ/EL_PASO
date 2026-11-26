@@ -34,9 +34,11 @@ _CLI_TIME_BUDGET_SECONDS = 1.5
 _CHEAP_CLI_ARGS = (
     pytest.param(["--help"], id="root_help"),
     pytest.param(["list"], id="list"),
-    pytest.param(["poes", "--help"], id="mission_group_help"),
+    pytest.param(["process", "--help"], id="process_help"),
+    pytest.param(["process", "poes", "--help"], id="process_mission_group_help"),
     pytest.param(["plot", "--help"], id="plot_help"),
     pytest.param(["plot", "rbsp", "--help"], id="plot_mission_group_help"),
+    pytest.param(["list-satellites", "poes", "--help"], id="list_satellites_mission_group_help"),
 )
 
 

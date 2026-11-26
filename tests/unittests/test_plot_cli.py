@@ -184,6 +184,26 @@ def test_plot_command_passes_plot_options_through(requests: list[PlotRequest]) -
 
 @pytest.mark.minimal
 @pytest.mark.standard
+def test_plot_command_takes_the_time_range_as_arguments(requests: list[PlotRequest]) -> None:
+    result = runner.invoke(stub_app(), ["2013-03-16", "2013-03-17"])
+
+    assert result.exit_code == 0, result.output
+    (request,) = requests
+    assert request.start_time == datetime(2013, 3, 16, tzinfo=timezone.utc)
+    assert request.end_time == datetime(2013, 3, 17, tzinfo=timezone.utc)
+
+
+@pytest.mark.minimal
+@pytest.mark.standard
+def test_plot_command_rejects_a_time_range_given_twice(requests: list[PlotRequest]) -> None:
+    result = runner.invoke(stub_app(), ["2013-03-16", "2013-03-17", "--end-time", "2013-03-18"])
+
+    assert result.exit_code == 2, result.output
+    assert not requests
+
+
+@pytest.mark.minimal
+@pytest.mark.standard
 def test_plot_command_passes_selection_options_through(requests: list[PlotRequest]) -> None:
     from astropy import units as u  # noqa: PLC0415
 
@@ -257,10 +277,10 @@ def test_along_rejects_an_unknown_coordinate(requests: list[PlotRequest]) -> Non
 
 @pytest.mark.minimal
 @pytest.mark.standard
-def test_plot_variables_command_lists_the_internal_names() -> None:
+def test_variables_command_lists_the_internal_names() -> None:
     from el_paso.cli.plot_cli import _internal_names  # noqa: PLC0415
 
-    result = invoke_app(["plot", "variables"])
+    result = invoke_app(["variables"])
 
     assert result.exit_code == 0, result.output
     output = click.unstyle(result.output)
@@ -623,7 +643,7 @@ def test_no_coverage_fails_with_the_expected_path_and_processing_command(
     assert (
         "No processed files for rbspa mageis (TS04) between 2017-10-15 and 2017-10-16.\n"
         f"Expected: {expected_path}\n"
-        "To create them: el-paso rbsp mageis-electrons --start-time 2017-10-15 --end-time 2017-10-16 "
+        "To create them: el-paso process rbsp mageis-electrons 2017-10-15 2017-10-16 "
         f"--processed-data-path {tmp_path} --mag-field TS04 --satellite a --save-strategy netcdf"
     ) in plot_log.text
 
@@ -696,7 +716,7 @@ def test_processing_command_line_spells_out_every_argument() -> None:
     kwargs = {"processed_data_path": Path("my data"), "add_b": False, "fit": True, "energies": [1.0, 2.0]}
 
     assert plot_cli.processing_command_line(request, kwargs) == (
-        f"python -m {__name__} --start-time 2017-10-15 --end-time 2017-10-15T12:00:00 "
+        f"python -m {__name__} 2017-10-15 2017-10-15T12:00:00 "
         "--processed-data-path 'my data' --no-add-b --fit --energies 1.0 --energies 2.0"
     )
 

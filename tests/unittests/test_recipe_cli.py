@@ -24,7 +24,12 @@ import typer.testing
 from el_paso.cli._parsing import _format_value, format_cadence, parse_cadence, parse_datetime, parse_docstring
 from el_paso.cli.app import RECIPES, RecipeEntry, app, load_availability, load_recipe, load_strategy_factory
 from el_paso.cli.availability import check_availability_table
-from el_paso.cli.recipe_cli import build_recipe_command, check_strategy_factory, run_recipe_cli
+from el_paso.cli.recipe_cli import (
+    build_list_satellites_command,
+    build_recipe_command,
+    check_strategy_factory,
+    run_recipe_cli,
+)
 from typer.testing import CliRunner, Result
 
 if TYPE_CHECKING:
@@ -198,6 +203,55 @@ def stub_app() -> typer.Typer:
     app = typer.Typer(add_completion=False)
     app.command()(build_recipe_command(stub_recipe))
     return app
+
+
+@pytest.mark.minimal
+@pytest.mark.standard
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["2013-03-16", "2013-03-17"],
+        ["--start-time", "2013-03-16", "--end-time", "2013-03-17"],
+        ["2013-03-16", "--end-time", "2013-03-17"],
+    ],
+)
+def test_time_range_as_arguments_or_options(stub_app: typer.Typer, args: list[str]) -> None:
+    result = runner.invoke(stub_app, args)
+
+    assert result.exit_code == 0, result.output
+    assert calls[0]["start_time"] == datetime(2013, 3, 16, tzinfo=timezone.utc)
+    assert calls[0]["end_time"] == datetime(2013, 3, 17, tzinfo=timezone.utc)
+
+
+@pytest.mark.minimal
+@pytest.mark.standard
+@pytest.mark.parametrize(
+    ("args", "message"),
+    [
+        (["2013-03-16", "2013-03-17", "--start-time", "2013-03-15"], "either as START or with --start-time"),
+        (["2013-03-16", "2013-03-17", "--end-time", "2013-03-18"], "either as END or with --end-time"),
+        (["--start-time", "2013-03-16", "2013-03-17"], "either as START or with --start-time"),
+        (["2013-03-16"], "missing the end time"),
+        (["--end-time", "2013-03-17"], "missing the start time"),
+        ([], "missing the start time"),
+    ],
+)
+def test_time_range_errors(stub_app: typer.Typer, args: list[str], message: str) -> None:
+    result = runner.invoke(stub_app, args)
+
+    assert result.exit_code == 2, result.output
+    assert message in " ".join(click.unstyle(result.output).replace("│", " ").split())
+    assert not calls
+
+
+@pytest.mark.minimal
+@pytest.mark.standard
+def test_time_range_arguments_are_listed_in_the_help(stub_app: typer.Typer) -> None:
+    result = runner.invoke(stub_app, ["--help"])
+
+    output = click.unstyle(result.output)
+    assert "[START] [END]" in output
+    assert "--start-time" in output
 
 
 @pytest.mark.minimal
@@ -789,15 +843,51 @@ def test_cli_list() -> None:
 
 @pytest.mark.minimal
 @pytest.mark.standard
+def test_top_level_commands_are_process_plot_and_list_satellites() -> None:
+    result = invoke_app(["--help"], env={"COLUMNS": "200"})
+
+    output = click.unstyle(result.output)
+    for command in ("process", "plot", "list-satellites", "list", "variables", "omm"):
+        assert f"│ {command} " in output
+    # the missions moved below `process`, so `el-paso poes ...` is gone
+    assert "│ poes " not in output
+    assert invoke_app(["poes", "meped"]).exit_code == 2
+
+
+@pytest.mark.minimal
+@pytest.mark.standard
+def test_list_satellites_without_a_table_runs_without_arguments() -> None:
+    result = invoke_app(["list-satellites", "rbsp", "mageis-electrons"], env={"COLUMNS": "200"})
+
+    assert result.exit_code == 0, result.output
+    assert "2 satellites" in " ".join(click.unstyle(result.output).split())
+    # a recipe with a table still needs the time range
+    assert invoke_app(["list-satellites", "poes", "meped"]).exit_code == 2
+
+
+@pytest.mark.minimal
+@pytest.mark.standard
+@pytest.mark.parametrize("group", ["process", "list-satellites"])
+def test_every_mission_is_below_process_and_list_satellites(group: str) -> None:
+    from el_paso.cli.app import RECIPES  # noqa: PLC0415
+
+    result = invoke_app([group, "--help"], env={"COLUMNS": "200"})
+
+    output = click.unstyle(result.output)
+    for mission in {entry.mission for entry in RECIPES}:
+        assert f"│ {mission} " in output
+
+
+@pytest.mark.minimal
+@pytest.mark.standard
 def test_cli_dispatches_to_a_recipe(caplog: pytest.LogCaptureFixture) -> None:
     result = invoke_app(
         [
+            "process",
             "poes",
             "meped",
             "--dry-run",
-            "--start-time",
             "2013-03-16",
-            "--end-time",
             "2013-03-16T23:59:59",
             "--satellite",
             "noaa15",
@@ -929,6 +1019,14 @@ def availability_app(availability: Any = STUB_AVAILABILITY) -> typer.Typer:  # n
     return built
 
 
+def list_satellites_app(availability: Any = STUB_AVAILABILITY, recipe: Any = None) -> typer.Typer:  # noqa: ANN401
+    """A single-command app that lists the satellites of the stub recipe."""
+    calls.clear()
+    built = typer.Typer(add_completion=False)
+    built.command()(build_list_satellites_command(recipe or stub_recipe, availability=availability))
+    return built
+
+
 @pytest.mark.minimal
 @pytest.mark.standard
 def test_satellite_all_runs_only_satellites_with_data(caplog: pytest.LogCaptureFixture) -> None:
@@ -1013,11 +1111,7 @@ def test_without_a_table_nothing_is_filtered(caplog: pytest.LogCaptureFixture) -
 @pytest.mark.minimal
 @pytest.mark.standard
 def test_list_satellites_shows_the_satellites_with_data() -> None:
-    result = runner.invoke(
-        availability_app(),
-        ["--list-satellites", "--start-time", "2020-01-15", "--end-time", "2020-03-01"],
-        env={"COLUMNS": "200"},
-    )
+    result = runner.invoke(list_satellites_app(), ["2020-01-15", "2020-03-01"], env={"COLUMNS": "200"})
 
     assert result.exit_code == 0, result.output
     assert not calls
@@ -1034,7 +1128,7 @@ def test_list_satellites_shows_the_satellites_with_data() -> None:
 @pytest.mark.minimal
 @pytest.mark.standard
 def test_list_satellites_marks_full_coverage() -> None:
-    result = runner.invoke(availability_app(), ["--list-satellites", *JANUARY], env={"COLUMNS": "200"})
+    result = runner.invoke(list_satellites_app(), JANUARY, env={"COLUMNS": "200"})
 
     assert result.exit_code == 0, result.output
     output = click.unstyle(result.output)
@@ -1046,7 +1140,7 @@ def test_list_satellites_marks_full_coverage() -> None:
 @pytest.mark.minimal
 @pytest.mark.standard
 def test_list_satellites_without_data_in_range() -> None:
-    result = runner.invoke(availability_app(), ["--list-satellites", *FEBRUARY], env={"COLUMNS": "200"})
+    result = runner.invoke(list_satellites_app(), FEBRUARY, env={"COLUMNS": "200"})
 
     assert result.exit_code == 0, result.output
     output = " ".join(click.unstyle(result.output).split())
@@ -1055,26 +1149,47 @@ def test_list_satellites_without_data_in_range() -> None:
 
 @pytest.mark.minimal
 @pytest.mark.standard
-def test_list_satellites_without_a_table_says_availability_is_unknown() -> None:
-    result = runner.invoke(availability_app(None), ["--list-satellites", *JANUARY], env={"COLUMNS": "200"})
+def test_list_satellites_without_a_table_lists_all_satellites() -> None:
+    result = runner.invoke(list_satellites_app(None), JANUARY, env={"COLUMNS": "200"})
 
     assert result.exit_code == 0, result.output
     assert not calls
-    assert "has no availability table" in click.unstyle(result.output)
+    output = click.unstyle(result.output)
+    assert "stub_recipe: 2 satellites" in " ".join(output.split())
+    assert "availability" not in output
+    # the satellites are listed as they are
+    assert [line.strip("│ ") for line in output.splitlines() if line.startswith("│")] == ["a", "b"]
+
+    # the time range is not needed without a table
+    result = runner.invoke(list_satellites_app(None), [], env={"COLUMNS": "200"})
+    assert result.exit_code == 0, result.output
+    assert "2 satellites" in click.unstyle(result.output)
 
 
 @pytest.mark.minimal
 @pytest.mark.standard
-def test_list_satellites_is_only_offered_with_a_satellite_choice() -> None:
-    no_satellite_app = typer.Typer(add_completion=False)
-    no_satellite_app.command()(build_recipe_command(failing_recipe, availability=STUB_AVAILABILITY))
+def test_list_satellites_with_a_table_needs_the_time_range() -> None:
+    result = runner.invoke(list_satellites_app(), [], env={"COLUMNS": "200"})
 
-    result = runner.invoke(no_satellite_app, ["--help"], env={"COLUMNS": "200"})
+    assert result.exit_code == 2, result.output
+    assert "missing the start time" in " ".join(click.unstyle(result.output).split())
 
-    assert result.exit_code == 0, result.output
+
+@pytest.mark.minimal
+@pytest.mark.standard
+def test_list_satellites_needs_a_satellite_choice() -> None:
+    result = runner.invoke(list_satellites_app(recipe=failing_recipe), JANUARY, env={"COLUMNS": "200"})
+
+    assert result.exit_code == 1, result.output
+    assert "has no satellite option" in " ".join(click.unstyle(result.output).split())
+
+
+@pytest.mark.minimal
+@pytest.mark.standard
+def test_recipe_commands_have_no_list_satellites_option() -> None:
+    result = runner.invoke(availability_app(), ["--help"], env={"COLUMNS": "200"})
+
     assert "--list-satellites" not in click.unstyle(result.output)
-    help_with_choice = runner.invoke(availability_app(), ["--help"], env={"COLUMNS": "200"})
-    assert "--list-satellites" in click.unstyle(help_with_choice.output)
 
 
 @pytest.mark.minimal
@@ -1130,15 +1245,7 @@ def test_every_declared_availability_table_is_valid(entry: RecipeEntry) -> None:
 def test_cli_lists_the_lanl_geogrid_slots_of_april_2017() -> None:
     """The committed LANL table knows the populated slots of April 2017, without network access."""
     result = invoke_app(
-        [
-            "lanl-geogrid",
-            "mpa-electrons",
-            "--list-satellites",
-            "--start-time",
-            "2017-04-01",
-            "--end-time",
-            "2017-04-30",
-        ],
+        ["list-satellites", "lanl-geogrid", "mpa-electrons", "2017-04-01", "2017-04-30"],
         env={"COLUMNS": "200"},
     )
 
