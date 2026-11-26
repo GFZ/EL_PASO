@@ -277,10 +277,10 @@ def test_along_rejects_an_unknown_coordinate(requests: list[PlotRequest]) -> Non
 
 @pytest.mark.minimal
 @pytest.mark.standard
-def test_variables_command_lists_the_internal_names() -> None:
+def test_list_variables_command_lists_the_internal_names() -> None:
     from el_paso.cli.plot_cli import _internal_names  # noqa: PLC0415
 
-    result = invoke_app(["variables"])
+    result = invoke_app(["list-variables"])
 
     assert result.exit_code == 0, result.output
     output = click.unstyle(result.output)

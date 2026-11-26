@@ -847,7 +847,7 @@ def test_top_level_commands_are_process_plot_and_list_satellites() -> None:
     result = invoke_app(["--help"], env={"COLUMNS": "200"})
 
     output = click.unstyle(result.output)
-    for command in ("process", "plot", "list-satellites", "list", "variables", "omm"):
+    for command in ("process", "plot", "list-satellites", "list", "list-variables", "omm"):
         assert f"│ {command} " in output
     # the missions moved below `process`, so `el-paso poes ...` is gone
     assert "│ poes " not in output

@@ -224,7 +224,7 @@ def _plot_parameters() -> list[inspect.Parameter]:
                     "--variable",
                     help="Comma-separated internal names of the variables to plot, each in its own panel, "
                     "e.g. --variable FEDU,L_star. Required unless the recipe defines quick-look panels. "
-                    "Run 'el-paso variables' for the list of internal names.",
+                    "Run 'el-paso list-variables' for the list of internal names.",
                 ),
             ],
             None,

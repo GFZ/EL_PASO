@@ -10,7 +10,7 @@ Groups every recipe under :mod:`el_paso.recipes` into one command tree. ``proces
 have one sub-command group per mission, and ``list-satellites`` shows which satellites have data::
 
     el-paso list
-    el-paso variables
+    el-paso list-variables
     el-paso process poes meped 2013-03-16 2013-03-17 --satellite noaa15
     el-paso process rbsp mageis-electrons 2017-10-15 2017-10-16 --mag-field TS04 --bin-cadence 5min
     el-paso plot rbsp mageis-electrons 2017-10-15 2017-10-16 --mag-field TS04
@@ -547,7 +547,7 @@ def list_recipes() -> None:
 
 
 app.add_command(_to_click_command("list", list_recipes, no_args_is_help=False))
-app.add_command(_to_click_command("variables", list_variables, no_args_is_help=False))
+app.add_command(_to_click_command("list-variables", list_variables, no_args_is_help=False))
 
 
 def main() -> None:
