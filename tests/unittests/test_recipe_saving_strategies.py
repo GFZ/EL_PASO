@@ -763,7 +763,7 @@ _LAYOUT_STRATEGIES = (
     CASES,
     ids=[f"{case[0].__name__}-{i}" for i, case in enumerate(CASES)],
 )
-def test_strategy_factory_passes_legacy_layout(
+def test_strategy_factory_uses_instrument_folder(
     tmp_path: Path,
     factory: Callable[..., SavingStrategy],
     extra_args: tuple[Any, ...],
@@ -771,21 +771,10 @@ def test_strategy_factory_passes_legacy_layout(
     expected_cls: type[SavingStrategy],
     expected_attrs: dict[str, Any],
 ) -> None:
-    """Every factory that builds a layout-aware strategy forwards `legacy_layout`, defaulting to False."""
+    """Every factory that builds a layout-aware strategy stores files in an instrument folder."""
     if not issubclass(expected_cls, _LAYOUT_STRATEGIES):
         # GFZ, LCDS and solar wind strategies keep their own fixed paths
-        assert "legacy_layout" not in inspect.signature(factory).parameters
         return
 
-    parameter = inspect.signature(factory).parameters["legacy_layout"]
-    assert parameter.kind is inspect.Parameter.KEYWORD_ONLY
-    assert parameter.default is False
-
-    default = factory(tmp_path, *extra_args, **extra_kwargs)
-    assert default.legacy_layout is False
-    assert default.get_file_path_stem().name == default.instrument.lower()
-
-    with pytest.warns(DeprecationWarning, match="legacy_layout"):
-        legacy = factory(tmp_path, *extra_args, **extra_kwargs, legacy_layout=True)
-    assert legacy.legacy_layout is True
-    assert legacy.get_file_path_stem() == default.get_file_path_stem().parent
+    strategy = factory(tmp_path, *extra_args, **extra_kwargs)
+    assert strategy.get_file_path_stem().name == strategy.instrument.lower()

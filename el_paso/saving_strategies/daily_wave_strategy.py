@@ -44,8 +44,6 @@ class DailyWaveStrategy(SavingStrategy):
         satellite: str,
         instrument: str,
         data_standard: DataStandard[StandardName],
-        *,
-        legacy_layout: bool = False,
     ) -> None:
         """Initialize a monthly file saving strategy.
 
@@ -55,9 +53,6 @@ class DailyWaveStrategy(SavingStrategy):
             satellite (str): Satellite name, used in file path and name generation.
             instrument (str): Instrument name, used in file path and name generation.
             data_standard (DataStandard): Instance of the data standard implementation.
-            legacy_layout (bool): Deprecated. If True, load data from the old flat layout
-                ``base/MISSION/satellite/`` instead of ``base/MISSION/satellite/instrument/YYYY/MM/``.
-                Saving always uses the new layout.
 
         Attributes:
             output_files: List of output file configurations, with variable names
@@ -70,7 +65,6 @@ class DailyWaveStrategy(SavingStrategy):
         self.satellite = satellite
         self.instrument = instrument
         self.data_standard = data_standard
-        self._set_legacy_layout(legacy_layout=legacy_layout)
 
         self.output_files = [
             OutputFile("full", self._get_output_file_entries(), save_incomplete=True),
@@ -130,7 +124,7 @@ class DailyWaveStrategy(SavingStrategy):
         """Generate the daily file path for the configured format."""
         file_name = f"{self.get_file_name_stem()}_{interval_start.strftime('%Y%m%d')}.nc"
 
-        year_month = Path() if self.legacy_layout else get_year_month_folder(interval_start)
+        year_month = get_year_month_folder(interval_start)
         return self.get_file_path_stem() / year_month / file_name
 
     def standardize_variable(

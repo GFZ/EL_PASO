@@ -41,7 +41,6 @@ def goes_r_mps_high_netcdf_strategy(
     satellite: GOESRSatellite,
     *,
     file_format: ep.typing.MFSFormats = "nc",
-    legacy_layout: bool = False,
 ) -> ep.SavingStrategy:
     """Monthly NetCDF saving strategy for GOES-R MPS-HI/MAGED."""
     return ep.saving_strategies.MonthlyRBStrategy(
@@ -52,7 +51,6 @@ def goes_r_mps_high_netcdf_strategy(
         mag_field,
         data_standard=ep.data_standards.GFZStandard(),
         file_format=file_format,
-        legacy_layout=legacy_layout,
     )
 
 
@@ -65,8 +63,6 @@ def goes_r_mps_high_strategy(
     mag_field: ep.typing.MagneticFieldLiteral,
     satellite: GOESRSatellite,
     save_strategy: Literal["gfz", "netcdf"] = "netcdf",
-    *,
-    legacy_layout: bool = False,
 ) -> ep.SavingStrategy:
     """Saving strategy of the GOES-R MPS-HI recipe.
 
@@ -75,7 +71,6 @@ def goes_r_mps_high_strategy(
         mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
         satellite (GOESRSatellite): Satellite the data belongs to.
         save_strategy (Literal["gfz", "netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
-        legacy_layout (bool): Deprecated. Set to True to load data saved without instrument folders. Defaults to False.
 
     Returns:
         ep.SavingStrategy: Legacy GFZ strategy for "gfz", otherwise a monthly or daily NetCDF strategy.
@@ -83,7 +78,7 @@ def goes_r_mps_high_strategy(
     if save_strategy == "gfz":
         return goes_r_mps_high_gfz_strategy(processed_data_path, mag_field, satellite)
 
-    return goes_r_mps_high_netcdf_strategy(processed_data_path, mag_field, satellite, legacy_layout=legacy_layout)
+    return goes_r_mps_high_netcdf_strategy(processed_data_path, mag_field, satellite)
 
 
 def process_goes_r_mps_high(
