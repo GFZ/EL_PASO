@@ -20,7 +20,7 @@ SPDX-License-Identifier: Apache-2.0
 
 Its primary purpose is to prepare and standardize particle data for use in radiation belt modeling.
 
-<img width="1493" height="963" alt="el_paso_recipe" src="https://github.com/user-attachments/assets/876072eb-00a9-44c6-9b83-a404bc49e8e1" />
+<img width="1493" height="963" alt="el_paso_recipe" src="https://github.com/user-attachments/assets/3137090e-9836-4768-a324-cd860c7282be" />
 
 ## Features
 
