@@ -250,14 +250,24 @@ class _ParameterSpec(typing.NamedTuple):
     """The values ``all`` expands to, for looped choice parameters."""
 
 
+SHORT_FLAGS = {"satellite": "-s", "raw_data_path": "-r", "processed_data_path": "-o"}
+"""One-letter aliases of the options that are given on nearly every call."""
+
+DATA_PATH_ENV_VARS = {
+    "raw_data_path": "EL_PASO_RAW_DATA_PATH",
+    "processed_data_path": "EL_PASO_PROCESSED_DATA_PATH",
+}
+"""The environment variables that set the data directories when the option is not given."""
+
+
 def _option_names(name: str, *, is_flag: bool) -> list[str]:
-    """Return the option spelling for a parameter: kebab-case, as is conventional."""
+    """Return the option spelling for a parameter: kebab-case, plus its short flag if it has one."""
     kebab = name.replace("_", "-")
 
     if is_flag:
         return [f"--{kebab}/--no-{kebab}"]
 
-    return [f"--{kebab}"]
+    return [f"--{kebab}", *([SHORT_FLAGS[name]] if name in SHORT_FLAGS else [])]
 
 
 def _build_parameter_spec(  # noqa: PLR0911
@@ -316,7 +326,7 @@ def _build_parameter_spec(  # noqa: PLR0911
         return _ParameterSpec(name, annotation, default, choice_enum, is_loop=is_loop, loop_values=loop_values)
 
     if _is_path_hint(inner_hint):
-        option = typer.Option(*_option_names(name, is_flag=False), help=help_text)
+        option = typer.Option(*_option_names(name, is_flag=False), help=help_text, envvar=DATA_PATH_ENV_VARS.get(name))
         return _ParameterSpec(name, Annotated[Path, option], default, None, is_loop=False)
 
     if inner_hint is bool:
@@ -490,11 +500,10 @@ TIME_PARAMETERS = ("start_time", "end_time")
 """The recipe parameters that also come as the optional positional arguments ``START`` and ``END``."""
 
 _TIME_ARGUMENTS = {
-    "start_time": ("start", "START", "--start-time", "Start of the time range, instead of --start-time."),
-    "end_time": ("end", "END", "--end-time", "End of the time range, instead of --end-time."),
+    "start_time": ("start", "START", "Start of the time range."),
+    "end_time": ("end", "END", "End of the time range."),
 }
-"""For each time parameter: the keyword of its positional argument, the argument's metavar, the option
-that gives the same value, and the argument's help."""
+"""For each time parameter: the keyword of its positional argument, the argument's metavar and its help."""
 
 
 def _has_time_range(specs: Sequence[_ParameterSpec]) -> bool:
@@ -513,36 +522,34 @@ def _time_arguments(specs: Sequence[_ParameterSpec]) -> list[inspect.Parameter]:
             default=None,
             annotation=Annotated[
                 datetime | None,
-                typer.Argument(parser=parse_datetime, metavar=metavar, help=help_text, show_default=False),
+                typer.Argument(
+                    parser=parse_datetime,
+                    metavar=metavar,
+                    help=help_text,
+                    show_default=False,
+                ),
             ],
         )
-        for keyword, metavar, _, help_text in _TIME_ARGUMENTS.values()
+        for keyword, metavar, help_text in _TIME_ARGUMENTS.values()
     ]
 
 
 def _merge_time_arguments(kwargs: dict[str, Any], specs: Sequence[_ParameterSpec]) -> None:
-    """Resolve the time range from the positional arguments, the options and the recipe's defaults.
+    """Set ``start_time`` and ``end_time`` from the positional ``START`` and ``END``, else the recipe's defaults.
 
-    ``START END`` and ``--start-time`` / ``--end-time`` are interchangeable, and may be mixed (e.g.
-    ``START --end-time END``). `kwargs` is modified in place: the positional keywords are removed and
-    ``start_time`` and ``end_time`` set.
+    `kwargs` is modified in place: the positional keywords are removed and ``start_time`` and ``end_time`` set.
 
     Raises:
-        typer.BadParameter: If a bound is given both ways, or neither way and the recipe has no default.
+        typer.BadParameter: If a bound is not given and the recipe has no default for it.
     """
     if not _has_time_range(specs):
         return
     defaults = {spec.name: spec.default for spec in specs}
-    for name, (keyword, metavar, option, _) in _TIME_ARGUMENTS.items():
-        positional = kwargs.pop(keyword, None)
-        given = kwargs.get(name)
-        if positional is not None and given is not None:
-            msg = f"give the {name.replace('_', ' ')} either as {metavar} or with {option}, not both."
-            raise typer.BadParameter(msg, param_hint=f"'{metavar}' / '{option}'")
-        value = positional if positional is not None else given
+    for name, (keyword, metavar, _) in _TIME_ARGUMENTS.items():
+        value = kwargs.pop(keyword, None)
         if value is None:
             if defaults[name] is inspect.Parameter.empty:
-                msg = f"missing the {name.replace('_', ' ')}: give it as {metavar} or with {option}."
+                msg = f"missing the {name.replace('_', ' ')}: give it as {metavar}."
                 raise typer.BadParameter(msg, param_hint=f"'{metavar}'")
             value = defaults[name]
         kwargs[name] = value
@@ -600,6 +607,8 @@ def _spec_parameters(specs: Sequence[_ParameterSpec]) -> list[inspect.Parameter]
                 annotation=spec.annotation,
             )
             for spec in specs
+            # the time range is given as the positional START and END only
+            if not (_has_time_range(specs) and spec.name in TIME_PARAMETERS)
         ),
     ]
 
@@ -715,17 +724,10 @@ def _coverage_text(coverage: dict[str, list[DateInterval]], satellite: str) -> s
     return f"data {'; '.join(format_interval(interval) for interval in intervals)}"
 
 
-def _print_satellite_listing(
-    label: str,
-    satellites: Sequence[str],
-    table: AvailabilityTable | None,
-    start_time: datetime | None,
-    end_time: datetime | None,
-) -> None:
-    """Print the satellites with data in a time range, for ``el-paso list-satellites``.
+def _print_satellite_listing(label: str, satellites: Sequence[str], table: AvailabilityTable | None) -> None:
+    """Print the satellites of a recipe, with the intervals the availability table has data for, if it has one.
 
-    Without a `table` the time range is not needed, and may be ``None``: the satellites are listed
-    as they are, since which of them have data is unknown.
+    Without a `table` the satellites are listed as they are, since which of them have data is unknown.
     """
     from rich.console import Console  # noqa: PLC0415
 
@@ -738,31 +740,15 @@ def _print_satellite_listing(
         console.print(names)
         return
 
-    assert start_time is not None
-    assert end_time is not None
-    time_range = format_time_range(start_time, end_time)
-
-    coverage = overlapping_intervals(table, start_time, end_time)
-    available = [satellite for satellite in satellites if satellite in coverage]
-    if not available:
-        console.print(f"No satellite of {label} has data between {time_range} according to its availability table.")
-        return
-
-    first, last = start_time.date(), end_time.date()
-    table_out = Table(
-        "Satellite",
-        "Range",
-        "Intervals with data",
-        title=f"{label}\n{len(available)} of {len(satellites)} satellites have data between {time_range}",
-        padding=(0, 2, 0, 0),
-    )
+    available = [satellite for satellite in satellites if satellite in table]
+    without_data = [satellite for satellite in satellites if satellite not in table]
+    console.print(f"{label}: {len(available)} of its {len(satellites)} satellites have data, listed below")
+    table_out = Table("Satellite", "Intervals with data", padding=(0, 2, 0, 0))
     for satellite in available:
-        intervals = coverage[satellite]
-        full = any(start <= first and end >= last for start, end in intervals)
-        table_out.add_row(
-            satellite, "full" if full else "partial", "\n".join(format_interval(interval) for interval in intervals)
-        )
+        table_out.add_row(satellite, "\n".join(format_interval(interval) for interval in table[satellite]))
     console.print(table_out)
+    if without_data:
+        console.print(f"No data in the table: {', '.join(without_data)}")
 
 
 def _run_calls(
@@ -890,10 +876,6 @@ def _make_command(
 
 def _typer_default(spec: _ParameterSpec) -> Any:  # noqa: ANN401
     """Convert a recipe default into the form Typer expects for that option."""
-    if spec.name in TIME_PARAMETERS:
-        # given as an option or as START / END, so neither is required by Typer; see `_merge_time_arguments`
-        return None
-
     if spec.default is inspect.Parameter.empty:
         return ...
 
@@ -1012,55 +994,47 @@ def build_list_satellites_command(
     *,
     defaults: dict[str, Any] | None = None,
     availability: AvailabilitySource | None = None,
+    label: str | None = None,
 ) -> Callable[..., None]:
-    """Build the command that lists the satellites of a recipe that have data in a time range.
+    """Build the command that lists the satellites of a recipe.
 
-    The command takes the recipe's time range (``START END``, or ``--start-time`` and ``--end-time``) and
-    prints the satellites that have data in it according to the recipe's availability table, then exits
-    without processing anything. The table is optional. A recipe without one has no use for the time
-    range, so it is optional then and the command lists all the satellites of the recipe.
+    The command takes no arguments. It prints the satellites of the recipe with the intervals the
+    recipe's availability table has data for, then exits without processing anything. The table is
+    optional: without one, the command lists the satellites as they are.
 
     Args:
         func (Recipe): The recipe whose satellites are listed.
         defaults (dict[str, Any] | None): The recipe's CLI defaults, which override the defaults of its
             signature exactly as in the processing command.
         availability (AvailabilitySource | None): The recipe's satellite availability table. It is read
-            when the command runs, not when it is built. Without one, the command says that which
-            satellites have data is unknown.
+            when the command runs, not when it is built.
+        label (str | None): How the recipe is named in the output, e.g. ``poes meped``. Defaults to the
+            recipe's function name.
 
     Returns:
         Callable[..., None]: A callable ready to be registered with ``app.command()``.
     """
-    time_specs, _ = _build_parameter_specs(func, defaults=defaults, names=TIME_PARAMETERS)
     satellite_specs, _ = _build_parameter_specs(func, defaults=defaults, names=(AVAILABILITY_PARAMETER,))
     satellite_spec = next(iter(satellite_specs), None)
     satellite_choices: list[str] = []
     if satellite_spec is not None and satellite_spec.choice_enum is not None:
         satellite_choices = list(satellite_spec.loop_values or [member.value for member in satellite_spec.choice_enum])
 
-    def command(**kwargs: Any) -> None:  # noqa: ANN401
+    def command() -> None:
         if not satellite_choices:
             from rich.console import Console  # noqa: PLC0415
 
             Console().print(f"{_func_name(func)} has no {AVAILABILITY_PARAMETER} option, so there is nothing to list.")
             raise typer.Exit(1)
 
-        if availability is None:
-            # no table to look up, so the time range is not needed: the satellite names are listed
-            _print_satellite_listing(_func_name(func), satellite_choices, None, None, None)
-            return
-
-        _merge_time_arguments(kwargs, time_specs)
         # loaded per invocation, not when the command is built, so that `--help` never reads it
-        table = load_availability_table(availability)
-        _print_satellite_listing(_func_name(func), satellite_choices, table, kwargs["start_time"], kwargs["end_time"])
+        table = load_availability_table(availability) if availability is not None else None
+        _print_satellite_listing(label or _func_name(func), satellite_choices, table)
 
     command.__name__ = f"list_satellites_{_func_name(func)}"
-    _attach_signature(command, _spec_parameters(time_specs))
     command.__doc__ = (
-        "List the satellites that have data between START and END according to the recipe's availability "
-        "table, then exit without processing. A recipe without a table lists all its satellites, and needs "
-        "no START and END."
+        "List the satellites of the recipe, with the intervals the availability table has data for, "
+        "then exit without processing. A recipe without a table lists its satellites only."
     )
     return command
 

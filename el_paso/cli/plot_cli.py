@@ -11,7 +11,7 @@ It never processes or downloads anything; it finds the processed files through t
 factory the recipe registers, so file names are worked out in one place. Its options come from
 three sources:
 
-- shared with processing: ``--start-time``/``--end-time`` (from the recipe signature),
+- shared with processing: ``START END`` and the recipe's own options (from the recipe signature),
   ``-v``/``--quiet`` and ``--dry-run``;
 - the strategy factory's signature, e.g. ``--satellite``, ``--mag-field``,
   ``--processed-data-path``, with the recipe's defaults, so that the same arguments find the
@@ -181,7 +181,7 @@ def _internal_names() -> tuple[str, ...]:
 
 
 def list_variables() -> None:
-    """List the internal variable names that ``--variable`` accepts."""
+    """List the internal variable names that ``--variable`` accepts for plotting."""
     from rich.console import Console  # noqa: PLC0415
 
     from el_paso.data_standards import GFZStandard  # noqa: PLC0415
@@ -499,8 +499,8 @@ def build_plot_command(
         start_time = kwargs.pop("start_time")
         end_time = kwargs.pop("end_time")
         if end_time <= start_time:
-            msg = f"must be after --start-time ({start_time.isoformat()}), got {end_time.isoformat()}."
-            raise typer.BadParameter(msg, param_hint="'--end-time'")
+            msg = f"must be after the start time ({start_time.isoformat()}), got {end_time.isoformat()}."
+            raise typer.BadParameter(msg, param_hint="'END'")
 
         coverage = None
         notices: list[tuple[int, str]] = []

@@ -118,7 +118,7 @@ def stub_app(**kwargs: Any) -> typer.Typer:  # noqa: ANN401
     return built
 
 
-TIME_ARGS = ["--start-time", "2017-10-15", "--end-time", "2017-10-16"]
+TIME_ARGS = ["2017-10-15", "2017-10-16"]
 
 
 @pytest.mark.minimal
@@ -324,7 +324,7 @@ def test_plot_command_calls_the_factory_once_per_satellite(
 def test_plot_command_requires_the_time_range(requests: list[PlotRequest]) -> None:
     result = runner.invoke(stub_app(), [])
     assert result.exit_code != 0
-    assert "--start-time" in click.unstyle(result.output)
+    assert "START" in click.unstyle(result.output)
     assert not requests
 
 
@@ -416,8 +416,6 @@ def test_every_plottable_recipe_builds_a_plot_command(entry: RecipeEntry, reques
     assert help_result.exit_code == 0, help_result.output
     help_text = click.unstyle(help_result.output)
     for option in (
-        "--start-time",
-        "--end-time",
         "--dry-run",
         "--verbose",
         "--quiet",
@@ -473,9 +471,7 @@ def mageis_dry_run(tmp_path: Path, *args: str) -> Result:
             "plot",
             "rbsp",
             "mageis-electrons",
-            "--start-time",
             "2017-10-15",
-            "--end-time",
             "2017-11-02",
             "--mag-field",
             "TS04",
@@ -583,9 +579,7 @@ def mageis_plot(tmp_path: Path, *args: str, end_time: datetime = PLOT_END) -> Re
             "plot",
             "rbsp",
             "mageis-electrons",
-            "--start-time",
             PLOT_START.isoformat(),
-            "--end-time",
             end_time.isoformat(),
             "--mag-field",
             "TS04",
@@ -1227,9 +1221,9 @@ def test_default_filename(
 @pytest.mark.standard
 @pytest.mark.parametrize("end_time", ["2017-10-14", "2017-10-15"])
 def test_plot_command_rejects_end_time_not_after_start_time(requests: list[PlotRequest], end_time: str) -> None:
-    result = runner.invoke(stub_app(), ["--start-time", "2017-10-15", "--end-time", end_time])
+    result = runner.invoke(stub_app(), ["2017-10-15", end_time])
     assert result.exit_code == 2, result.output
-    assert "must be after --start-time" in click.unstyle(result.output)
+    assert "must be after the start time" in click.unstyle(result.output)
     assert not requests
 
 
@@ -1389,7 +1383,7 @@ def test_plot_satellite_all_plots_only_satellites_with_data(
 def test_plot_satellite_all_without_any_data_is_an_error(requests: list[PlotRequest]) -> None:
     result = runner.invoke(
         stub_app(availability=STUB_AVAILABILITY),
-        ["--start-time", "2017-11-05", "--end-time", "2017-11-06", "--satellite", "all"],
+        ["2017-11-05", "2017-11-06", "--satellite", "all"],
         env={"COLUMNS": "200"},
     )
 
