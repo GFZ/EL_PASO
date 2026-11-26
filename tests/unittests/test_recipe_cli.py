@@ -770,7 +770,7 @@ def test_every_recipe_accepts_satellite_all(entry: RecipeEntry) -> None:
     satellite_annotation = inspect.signature(command).parameters["satellite"].annotation
     option = typing.get_args(satellite_annotation)[1]
 
-    assert "all" in option.metavar.strip("[]").split("|")
+    assert "all" in option.metavar.strip("<>").split("|")
 
 
 @pytest.mark.minimal

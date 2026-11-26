@@ -275,7 +275,7 @@ def _build_parameter_spec(  # noqa: PLR0911
         option = typer.Option(
             *_option_names(name, is_flag=False),
             parser=parse_datetime,
-            metavar="TIME",
+            metavar="<time>",
             help=help_text,
             show_default=default.isoformat() if isinstance(default, datetime) else True,
         )
@@ -285,7 +285,7 @@ def _build_parameter_spec(  # noqa: PLR0911
         option = typer.Option(
             *_option_names(name, is_flag=False),
             parser=parse_cadence,
-            metavar="CADENCE",
+            metavar="<cadence>",
             help=help_text,
             show_default=format_cadence(default) if isinstance(default, timedelta) else True,
         )
@@ -298,14 +298,14 @@ def _build_parameter_spec(  # noqa: PLR0911
             # a looped choice also accepts `all`, which runs the recipe once per member
             loop_values = choices
             choices = (*choices, ALL_VALUES)
-            help_text = f"{help_text} Use '{ALL_VALUES}' for every value: {', '.join(loop_values)}.".strip()
+            help_text = f"{help_text} Use '{ALL_VALUES}' for every value.".strip()
         choice_enum = _make_choice_enum(name, choices)
         if is_loop:
             # A looped option takes plain strings, so that `--satellite a,b` can be split before it is checked.
             option = typer.Option(
                 *_option_names(name, is_flag=False),
                 help=f"{help_text} Comma-separated for several, e.g. a,b.".strip(),
-                metavar=f"[{'|'.join(choices)}]",
+                metavar=f"<{'|'.join(choices)}>",
                 callback=_comma_separated_choices(choices),
             )
             annotation = Annotated[list[str], option]
@@ -329,7 +329,7 @@ def _build_parameter_spec(  # noqa: PLR0911
             option = typer.Option(
                 *_option_names(name, is_flag=False),
                 help=f"{help_text} Comma-separated for several, e.g. 10,90.".strip(),
-                metavar=f"{item_hints[0].__name__.upper()},...",
+                metavar=f"<{item_hints[0].__name__}>,...",
                 callback=_comma_separated_values(item_hints[0]),
             )
             # A list parameter already takes several values, so they are listed rather than looped:
@@ -345,7 +345,7 @@ def _build_parameter_spec(  # noqa: PLR0911
             option = typer.Option(
                 *_option_names(name, is_flag=False),
                 help=f"{help_text} Comma-separated for several.".strip(),
-                metavar=f"{inner_hint.__name__.upper()},...",
+                metavar=f"<{inner_hint.__name__}>,...",
                 callback=_comma_separated_values(inner_hint),
             )
             annotation = Annotated[list[str], option]

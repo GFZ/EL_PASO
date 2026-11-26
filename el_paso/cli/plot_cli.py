@@ -235,7 +235,7 @@ def _plot_parameters() -> list[inspect.Parameter]:
                 list[str] | None,
                 typer.Option(
                     "--energy",
-                    metavar="ENERGY",
+                    metavar="<energy>",
                     help="Comma-separated energies to show for variables with an energy dimension (e.g. FEDU), "
                     "e.g. --energy 470,1575. Bare numbers are in keV; a unit may be added, e.g. 1MeV.",
                 ),
@@ -248,7 +248,7 @@ def _plot_parameters() -> list[inspect.Parameter]:
                 float | None,
                 typer.Option(
                     "--pitch-angle",
-                    metavar="DEG",
+                    metavar="<deg>",
                     min=0.0,
                     max=180.0,
                     help="Pitch angle in degrees at which variables with an energy and a pitch-angle "
@@ -292,7 +292,7 @@ def _plot_parameters() -> list[inspect.Parameter]:
                 str | None,
                 typer.Option(
                     "--along",
-                    metavar="|".join(ALONG_CHOICES),
+                    metavar=f"<{'|'.join(ALONG_CHOICES)}>",
                     help="Draw every variable as a scatter plot over time with this coordinate on the y axis "
                     "and the value as colour. Variables with an energy dimension get one panel per --energy, "
                     "or per channel without --energy; pitch angles are cut at --pitch-angle (default 90).",
