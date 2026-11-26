@@ -150,11 +150,12 @@ Installing EL-PASO provides the `el-paso` command, which exposes every recipe
 under a common set of options:
 
 ```bash
-el-paso list                 # show every available recipe
-el-paso poes meped --help    # options for one recipe
+el-paso list-recipes                 # show every available recipe
+el-paso process poes meped --help    # options for one recipe
+el-paso list-satellites poes meped   # satellites of a recipe and their data coverage
 
-el-paso poes meped \
-    --start-time 2013-03-16 --end-time 2013-03-16T23:59:59 \
+el-paso process poes meped \
+    2013-03-16 2013-03-16T23:59:59 \
     --satellite noaa15 --mag-field T89 --bin-cadence 10s \
     --raw-data-path ./raw --processed-data-path ./processed
 ```
@@ -163,13 +164,13 @@ Recipes can equally be run as modules, which is convenient inside job scripts:
 
 ```bash
 python -m el_paso.recipes.poes.process_poes_meped \
-    --start-time 2013-03-16 --end-time 2013-03-16T23:59:59
+    2013-03-16 2013-03-16T23:59:59
 ```
 
 Both forms accept the same options, because both are generated from the recipe
-function's own signature. `--start-time` and `--end-time` are required; the rest
+function's own signature. The start and end time (`START END`) are required; the rest
 have per-recipe defaults. Common options are
-`--satellite` (repeat it to process several, or pass `all`), `--mag-field`, `--bin-cadence`
+`--satellite` (comma-separated to process several, e.g. `a,b`, or pass `all`), `--mag-field`, `--bin-cadence`
 (`10s`, `5min`, `1h`), `--raw-data-path`, `--processed-data-path` and
 `--num-cores`. Add `--dry-run` to print the resolved arguments without
 processing anything, and `--install-completion` to set up shell completion.
@@ -187,7 +188,7 @@ files are located again:
 
 ```bash
 el-paso plot rbsp mageis-electrons \
-    --start-time 2017-10-15 --end-time 2017-10-16T23:59:59 \
+    2017-10-15 2017-10-16T23:59:59 \
     --satellite a --mag-field T89 \
     --processed-data-path ./processed
 ```

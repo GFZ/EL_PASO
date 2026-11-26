@@ -108,6 +108,14 @@ def parse_datetime(value: str | datetime) -> datetime:
     return enforce_utc_timezone(dateutil.parser.parse(value))
 
 
+_INLINE_CODE_RE = re.compile(r"(?::\w+:)?(?P<ticks>`{1,2})(?P<code>[^`]+)(?P=ticks)")
+
+
+def strip_inline_code(text: str) -> str:
+    """Drop the backticks and roles around inline code, which a terminal would show as they are."""
+    return _INLINE_CODE_RE.sub(r"\g<code>", text)
+
+
 def parse_docstring(docstring: str | None) -> tuple[str, dict[str, str]]:
     """Split a Google-style docstring into its summary and its per-argument help texts.
 
@@ -129,7 +137,7 @@ def parse_docstring(docstring: str | None) -> tuple[str, dict[str, str]]:
         if not line.strip():
             break
         summary_lines.append(line.strip())
-    summary = " ".join(summary_lines)
+    summary = strip_inline_code(" ".join(summary_lines))
 
     arg_help: dict[str, str] = {}
     in_args = False
@@ -159,7 +167,9 @@ def parse_docstring(docstring: str | None) -> tuple[str, dict[str, str]]:
 
     # Typer renders the actual default itself, so drop the docstrings' trailing
     # "Defaults to ..." sentence rather than showing it twice.
-    return summary, {name: _DEFAULTS_RE.sub("", " ".join(text.split())).strip() for name, text in arg_help.items()}
+    return summary, {
+        name: strip_inline_code(_DEFAULTS_RE.sub("", " ".join(text.split())).strip()) for name, text in arg_help.items()
+    }
 
 
 def _func_name(func: Recipe) -> str:

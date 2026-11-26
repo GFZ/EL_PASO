@@ -68,7 +68,7 @@ from el_paso.cli.availability import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Callable, Iterable, Sequence
 
     from el_paso.cli.availability import AvailabilitySource, AvailabilityTable, DateInterval
     from el_paso.typing import Recipe
@@ -148,21 +148,6 @@ _UNIVERSAL_OPTIONS: dict[str, tuple[Any, Any]] = {
 _UNIVERSAL_PARAMETER_NAMES = tuple(_UNIVERSAL_OPTIONS)
 """Options every recipe command carries; they are consumed by the command, not the recipe."""
 
-_LIST_SATELLITES_OPTION = inspect.Parameter(
-    "list_satellites",
-    inspect.Parameter.KEYWORD_ONLY,
-    default=False,
-    annotation=Annotated[
-        bool,
-        typer.Option(
-            "--list-satellites",
-            help="List the satellites that have data between --start-time and --end-time according to the "
-            "recipe's availability table, then exit without processing.",
-        ),
-    ],
-)
-"""Option of every recipe command with a ``satellite`` parameter; consumed by the command, not the recipe."""
-
 
 def _literal_choices(hint: Any) -> tuple[str, ...] | None:  # noqa: ANN401
     """Return the string members of a Literal annotation, or None if it is not one."""
@@ -184,6 +169,95 @@ def _make_choice_enum(name: str, members: Sequence[str]) -> type[enum.Enum]:
     before the recipe is called, so recipes keep their ``Literal`` annotations.
     """
     return enum.Enum(f"{name}_choices", {member: member for member in members}, type=str)
+
+
+def split_comma_separated(values: Iterable[Any] | None, *, what: str = "value", example: str = "") -> list[str]:
+    """Split the values of a repeatable, comma-separated option into its items, stripped of spaces.
+
+    ``["a,b", " c"]`` becomes ``["a", "b", "c"]``, so ``--satellite a,b`` and ``--satellite a --satellite b``
+    are equal.
+
+    Args:
+        values (Iterable[Any] | None): The values as given, one per occurrence of the option.
+        what (str): What an item is, for the error message, e.g. ``"energy"``.
+        example (str): An example of a valid value, for the error message, e.g. ``"470,1575"``.
+
+    Returns:
+        list[str]: The items, in the order given; empty if `values` is None or empty.
+
+    Raises:
+        typer.BadParameter: If the option was given, but holds no item, e.g. ``--energy ,``.
+    """
+    values = list(values or [])
+    items = [part.strip() for text in values for part in str(text).split(",") if part.strip()]
+    if values and not items:
+        hint = f", e.g. {example}" if example else ""
+        msg = f"no {what} given; use a comma-separated list{hint}."
+        raise typer.BadParameter(msg)
+    return items
+
+
+def _given_on_command_line(ctx: typer.Context, param: typer.CallbackParam) -> bool:
+    """Whether the user gave an option, rather than it taking its default (or environment) value."""
+    source = ctx.get_parameter_source(param.name) if param.name else None
+    return source is typer._click.core.ParameterSource.COMMANDLINE  # noqa: SLF001
+
+
+def _comma_separated_choices(
+    choices: Sequence[str],
+) -> Callable[[typer.Context, typer.CallbackParam, list[str] | None], list[str] | None]:
+    """Build an option callback that splits comma-separated values and checks each against `choices`."""
+
+    def callback(ctx: typer.Context, param: typer.CallbackParam, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        if not value and not _given_on_command_line(ctx, param):
+            return []  # an empty default
+        items = split_comma_separated(value, example=",".join(choices[:2]))
+        invalid = [item for item in items if item not in choices]
+        if invalid:
+            msg = f"invalid choice(s) {', '.join(map(repr, invalid))}; choose from {', '.join(choices)}."
+            raise typer.BadParameter(msg)
+        return items
+
+    return callback
+
+
+def _comma_separated_values(
+    item_type: type,
+) -> Callable[[typer.Context, typer.CallbackParam, list[str] | None], list[Any] | None]:
+    """Build an option callback that splits comma-separated values and converts each to `item_type`."""
+
+    def callback(ctx: typer.Context, param: typer.CallbackParam, value: list[str] | None) -> list[Any] | None:
+        if value is None:
+            return None
+        if not value and not _given_on_command_line(ctx, param):
+            return []  # an empty default
+        items = split_comma_separated(value)
+        try:
+            return [item_type(item) for item in items]
+        except ValueError as error:
+            msg = f"expected comma-separated {item_type.__name__} values, got {', '.join(map(repr, items))}."
+            raise typer.BadParameter(msg) from error
+
+    return callback
+
+
+def _complete_comma_separated(choices: Sequence[str]) -> Callable[[str], list[str]]:
+    """Build a shell completion for a comma-separated choice option.
+
+    It completes the item after the last comma, and leaves out the items already given, so
+    ``--satellite a,<TAB>`` offers ``a,b``, ``a,c``, and so on.
+    """
+
+    def complete(incomplete: str) -> list[str]:
+        given, _, current = incomplete.rpartition(",")
+        # `all` stands alone, so it is only offered first
+        taken = {*given.split(","), ALL_VALUES} if given else set()
+        prefix = f"{given}," if given else ""
+        return [f"{prefix}{choice}" for choice in choices if choice.startswith(current) and choice not in taken]
+
+    return complete
 
 
 def _is_path_hint(hint: Any) -> bool:  # noqa: ANN401
@@ -219,16 +293,28 @@ class _ParameterSpec(typing.NamedTuple):
     is_list: bool = False
     loop_values: tuple[str, ...] | None = None
     """The values ``all`` expands to, for looped choice parameters."""
+    help: str = ""
+    """The parameter's description, from the docstring or the caller."""
+
+
+SHORT_FLAGS = {"satellite": "-s", "raw_data_path": "-r", "processed_data_path": "-o"}
+"""One-letter aliases of the options that are given on nearly every call."""
+
+DATA_PATH_ENV_VARS = {
+    "raw_data_path": "EL_PASO_RAW_DATA_PATH",
+    "processed_data_path": "EL_PASO_PROCESSED_DATA_PATH",
+}
+"""The environment variables that set the data directories when the option is not given."""
 
 
 def _option_names(name: str, *, is_flag: bool) -> list[str]:
-    """Return the option spelling for a parameter: kebab-case, as is conventional."""
+    """Return the option spelling for a parameter: kebab-case, plus its short flag if it has one."""
     kebab = name.replace("_", "-")
 
     if is_flag:
         return [f"--{kebab}/--no-{kebab}"]
 
-    return [f"--{kebab}"]
+    return [f"--{kebab}", *([SHORT_FLAGS[name]] if name in SHORT_FLAGS else [])]
 
 
 def _build_parameter_spec(  # noqa: PLR0911
@@ -246,7 +332,7 @@ def _build_parameter_spec(  # noqa: PLR0911
         option = typer.Option(
             *_option_names(name, is_flag=False),
             parser=parse_datetime,
-            metavar="TIME",
+            metavar="<time>",
             help=help_text,
             show_default=default.isoformat() if isinstance(default, datetime) else True,
         )
@@ -256,7 +342,7 @@ def _build_parameter_spec(  # noqa: PLR0911
         option = typer.Option(
             *_option_names(name, is_flag=False),
             parser=parse_cadence,
-            metavar="CADENCE",
+            metavar="<cadence>",
             help=help_text,
             show_default=format_cadence(default) if isinstance(default, timedelta) else True,
         )
@@ -269,15 +355,26 @@ def _build_parameter_spec(  # noqa: PLR0911
             # a looped choice also accepts `all`, which runs the recipe once per member
             loop_values = choices
             choices = (*choices, ALL_VALUES)
-            help_text = f"{help_text} Use '{ALL_VALUES}' for every value: {', '.join(loop_values)}.".strip()
+            help_text = f"{help_text} Use '{ALL_VALUES}' for every value.".strip()
         choice_enum = _make_choice_enum(name, choices)
-        option = typer.Option(*_option_names(name, is_flag=False), help=help_text)
-        # The enum is created at runtime, so the annotation has to be assembled dynamically.
-        annotation = Annotated[list[choice_enum], option] if is_loop else Annotated[choice_enum, option]  # ty:ignore[invalid-type-form]
+        if is_loop:
+            # A looped option takes plain strings, so that `--satellite a,b` can be split before it is checked.
+            option = typer.Option(
+                *_option_names(name, is_flag=False),
+                help=f"{help_text} Comma-separated for several, e.g. a,b.".strip(),
+                metavar=f"<{'|'.join(choices)}>",
+                callback=_comma_separated_choices(choices),
+                autocompletion=_complete_comma_separated(choices),
+            )
+            annotation = Annotated[list[str], option]
+        else:
+            option = typer.Option(*_option_names(name, is_flag=False), help=help_text)
+            # The enum is created at runtime, so the annotation has to be assembled dynamically.
+            annotation = Annotated[choice_enum, option]  # ty:ignore[invalid-type-form]
         return _ParameterSpec(name, annotation, default, choice_enum, is_loop=is_loop, loop_values=loop_values)
 
     if _is_path_hint(inner_hint):
-        option = typer.Option(*_option_names(name, is_flag=False), help=help_text)
+        option = typer.Option(*_option_names(name, is_flag=False), help=help_text, envvar=DATA_PATH_ENV_VARS.get(name))
         return _ParameterSpec(name, Annotated[Path, option], default, None, is_loop=False)
 
     if inner_hint is bool:
@@ -287,10 +384,15 @@ def _build_parameter_spec(  # noqa: PLR0911
     if get_origin(inner_hint) is list:
         item_hints = get_args(inner_hint)
         if len(item_hints) == 1 and item_hints[0] in (int, float, str):
-            option = typer.Option(*_option_names(name, is_flag=False), help=help_text)
-            # A list parameter already takes several values, so it is repeated rather than looped:
-            # `--alpha-eq 10 --alpha-eq 90` is one call with two pitch angles, not two calls.
-            annotation = Annotated[list[item_hints[0]], option]  # ty: ignore[invalid-type-form]
+            option = typer.Option(
+                *_option_names(name, is_flag=False),
+                help=f"{help_text} Comma-separated for several, e.g. 10,90.".strip(),
+                metavar=f"<{item_hints[0].__name__}>,...",
+                callback=_comma_separated_values(item_hints[0]),
+            )
+            # A list parameter already takes several values, so they are listed rather than looped:
+            # `--alpha-eq 10,90` is one call with two pitch angles, not two calls.
+            annotation = Annotated[list[str], option]
             return _ParameterSpec(name, annotation, default, None, is_loop=False, is_list=True)
 
         return None
@@ -298,7 +400,13 @@ def _build_parameter_spec(  # noqa: PLR0911
     if inner_hint in (int, float, str):
         option = typer.Option(*_option_names(name, is_flag=False), help=help_text)
         if is_loop:
-            annotation = Annotated[list[inner_hint], option]
+            option = typer.Option(
+                *_option_names(name, is_flag=False),
+                help=f"{help_text} Comma-separated for several.".strip(),
+                metavar=f"<{inner_hint.__name__}>,...",
+                callback=_comma_separated_values(inner_hint),
+            )
+            annotation = Annotated[list[str], option]
         elif default is None:
             annotation = Annotated[inner_hint | None, option]
         else:
@@ -337,8 +445,7 @@ def build_recipe_command(
             :mod:`el_paso.cli.availability`). With it, ``--satellite all`` only runs the satellites
             that have data in the requested time range, explicitly requested satellites without
             data get a warning, and the run report says whether each satellite has data. It is
-            read when the command runs, not when it is built. Every command with a time range and a
-            ``satellite`` choice gets ``--list-satellites``.
+            read when the command runs, not when it is built.
 
     Returns:
         Callable[..., None]: A callable ready to be registered with ``app.command()``.
@@ -418,6 +525,8 @@ def _build_parameter_specs(
             arg_help.get(name, ""),
             is_loop=name in loop_names,
         )
+        if spec is not None:
+            spec = spec._replace(help=arg_help.get(name, ""))
 
         if spec is None:
             if not has_default:
@@ -437,6 +546,70 @@ def _build_parameter_specs(
     return specs, skipped
 
 
+TIME_PARAMETERS = ("start_time", "end_time")
+"""The recipe parameters that also come as the optional positional arguments ``START`` and ``END``."""
+
+_TIME_ARGUMENTS = {
+    "start_time": ("start", "START", "Start of the time range."),
+    "end_time": ("end", "END", "End of the time range."),
+}
+"""For each time parameter: the keyword of its positional argument, the argument's metavar and the
+help used when the function does not describe the parameter."""
+
+
+def _has_time_range(specs: Sequence[_ParameterSpec]) -> bool:
+    """Whether `specs` contain both time parameters, which then also come as positional arguments."""
+    return {spec.name for spec in specs} >= set(TIME_PARAMETERS)
+
+
+def _time_arguments(specs: Sequence[_ParameterSpec]) -> list[inspect.Parameter]:
+    """The optional positional ``START`` and ``END`` arguments, or nothing without a time range in `specs`."""
+    if not _has_time_range(specs):
+        return []
+    descriptions = {spec.name: spec.help for spec in specs}
+    return [
+        inspect.Parameter(
+            keyword,
+            inspect.Parameter.KEYWORD_ONLY,
+            default=None,
+            annotation=Annotated[
+                datetime | None,
+                typer.Argument(
+                    parser=parse_datetime,
+                    metavar=metavar,
+                    help=descriptions[name] or generic_help,
+                    show_default=False,
+                ),
+            ],
+        )
+        for name, (keyword, metavar, generic_help) in _TIME_ARGUMENTS.items()
+    ]
+
+
+def _merge_time_arguments(kwargs: dict[str, Any], specs: Sequence[_ParameterSpec]) -> None:
+    """Set ``start_time`` and ``end_time`` from the positional ``START`` and ``END``, else the recipe's defaults.
+
+    `kwargs` is modified in place: the positional keywords are removed and ``start_time`` and ``end_time`` set.
+
+    Raises:
+        typer.BadParameter: If a bound is not given and the recipe has no default for it.
+    """
+    if not _has_time_range(specs):
+        return
+    defaults = {spec.name: spec.default for spec in specs}
+    for name, (keyword, metavar, _) in _TIME_ARGUMENTS.items():
+        value = kwargs.pop(keyword, None)
+        if value is None:
+            if defaults[name] is inspect.Parameter.empty:
+                msg = f"missing the {name.replace('_', ' ')}: give it as {metavar}."
+                raise typer.BadParameter(msg, param_hint=f"'{metavar}'")
+            value = defaults[name]
+            if isinstance(value, (str, datetime)):
+                # a default is not parsed by Typer, unlike a value given on the command line
+                value = parse_datetime(value)
+        kwargs[name] = value
+
+
 def _restore_parsed_values(kwargs: dict[str, Any], specs: Sequence[_ParameterSpec]) -> set[str]:
     """Convert the values Typer parsed for `specs` back into the types the wrapped function expects.
 
@@ -448,6 +621,7 @@ def _restore_parsed_values(kwargs: dict[str, Any], specs: Sequence[_ParameterSpe
         set[str]: The looped parameters given as ``all``, which were expanded to every choice.
     """
     expanded_all: set[str] = set()
+    _merge_time_arguments(kwargs, specs)
     for spec in specs:
         value = kwargs.get(spec.name)
 
@@ -474,15 +648,23 @@ def _restore_parsed_values(kwargs: dict[str, Any], specs: Sequence[_ParameterSpe
 
 
 def _spec_parameters(specs: Sequence[_ParameterSpec]) -> list[inspect.Parameter]:
-    """Turn option specs into the keyword-only parameters of a synthesised command signature."""
+    """Turn option specs into the keyword-only parameters of a synthesised command signature.
+
+    A time range in `specs` also gets the optional positional arguments ``START`` and ``END``, first.
+    """
     return [
-        inspect.Parameter(
-            spec.name,
-            inspect.Parameter.KEYWORD_ONLY,
-            default=_typer_default(spec),
-            annotation=spec.annotation,
-        )
-        for spec in specs
+        *_time_arguments(specs),
+        *(
+            inspect.Parameter(
+                spec.name,
+                inspect.Parameter.KEYWORD_ONLY,
+                default=_typer_default(spec),
+                annotation=spec.annotation,
+            )
+            for spec in specs
+            # the time range is given as the positional START and END only
+            if not (_has_time_range(specs) and spec.name in TIME_PARAMETERS)
+        ),
     ]
 
 
@@ -597,43 +779,31 @@ def _coverage_text(coverage: dict[str, list[DateInterval]], satellite: str) -> s
     return f"data {'; '.join(format_interval(interval) for interval in intervals)}"
 
 
-def _print_satellite_listing(
-    label: str,
-    satellites: Sequence[str],
-    table: AvailabilityTable | None,
-    start_time: datetime,
-    end_time: datetime,
-) -> None:
-    """Print the satellites with data in a time range, for ``--list-satellites``."""
+def _print_satellite_listing(label: str, satellites: Sequence[str], table: AvailabilityTable | None) -> None:
+    """Print the satellites of a recipe, with the intervals the availability table has data for, if it has one.
+
+    Without a `table` the satellites are listed as they are, since which of them have data is unknown.
+    """
     from rich.console import Console  # noqa: PLC0415
 
     console = Console()
-    time_range = format_time_range(start_time, end_time)
     if table is None:
-        console.print(f"{label} has no availability table: which satellites have data is unknown.")
+        console.print(f"{label}: {len(satellites)} satellites")
+        names = Table("Satellite", padding=(0, 2, 0, 0))
+        for satellite in satellites:
+            names.add_row(satellite)
+        console.print(names)
         return
 
-    coverage = overlapping_intervals(table, start_time, end_time)
-    available = [satellite for satellite in satellites if satellite in coverage]
-    if not available:
-        console.print(f"No satellite of {label} has data between {time_range} according to its availability table.")
-        return
-
-    first, last = start_time.date(), end_time.date()
-    table_out = Table(
-        "Satellite",
-        "Range",
-        "Intervals with data",
-        title=f"{label}\n{len(available)} of {len(satellites)} satellites have data between {time_range}",
-        padding=(0, 2, 0, 0),
-    )
+    available = [satellite for satellite in satellites if satellite in table]
+    without_data = [satellite for satellite in satellites if satellite not in table]
+    console.print(f"{label}: {len(available)} of its {len(satellites)} satellites have data, listed below")
+    table_out = Table("Satellite", "Intervals with data", padding=(0, 2, 0, 0))
     for satellite in available:
-        intervals = coverage[satellite]
-        full = any(start <= first and end >= last for start, end in intervals)
-        table_out.add_row(
-            satellite, "full" if full else "partial", "\n".join(format_interval(interval) for interval in intervals)
-        )
+        table_out.add_row(satellite, "\n".join(format_interval(interval) for interval in table[satellite]))
     console.print(table_out)
+    if without_data:
+        console.print(f"No data in the table: {', '.join(without_data)}")
 
 
 def _run_calls(
@@ -721,16 +891,11 @@ def _make_command(
     """Assemble the wrapper callable and attach the synthesised signature."""
     loop_names = [spec.name for spec in specs if spec.is_loop]
     with_availability = _has_availability_parameters(specs)
-    satellite_spec = next((spec for spec in specs if spec.name == AVAILABILITY_PARAMETER), None)
-    satellite_choices: list[str] = []
-    if with_availability and satellite_spec is not None and satellite_spec.choice_enum is not None:
-        satellite_choices = list(satellite_spec.loop_values or [member.value for member in satellite_spec.choice_enum])
 
     def command(**kwargs: Any) -> None:  # noqa: ANN401
         # The universal options belong to the command, not to the recipe, so they are
         # all removed before the remaining keywords are handed over.
         universal = {name: kwargs.pop(name) for name in _UNIVERSAL_PARAMETER_NAMES if name in kwargs}
-        list_satellites = kwargs.pop(_LIST_SATELLITES_OPTION.name, False)
 
         if universal["skip_download"]:
             ep.skip_download = True
@@ -742,12 +907,6 @@ def _make_command(
 
         # loaded per invocation, not when the command is built, so that `--help` never reads it
         table = load_availability_table(availability) if availability is not None and with_availability else None
-
-        if list_satellites:
-            _print_satellite_listing(
-                _func_name(func), satellite_choices, table, kwargs["start_time"], kwargs["end_time"]
-            )
-            return
 
         notices: list[tuple[int, str]] = []
         coverage = None
@@ -764,10 +923,7 @@ def _make_command(
         _run_calls(func, _expand_loops(kwargs, loop_names), loop_names, universal, notices=notices, coverage=coverage)
 
     command.__name__ = _func_name(func)
-    parameters = [*_spec_parameters(specs), *_universal_parameters()]
-    if with_availability:
-        parameters.append(_LIST_SATELLITES_OPTION)
-    _attach_signature(command, parameters)
+    _attach_signature(command, [*_spec_parameters(specs), *_universal_parameters()])
     command.__doc__ = summary
 
     return command
@@ -780,9 +936,10 @@ def _typer_default(spec: _ParameterSpec) -> Any:  # noqa: ANN401
 
     if spec.is_loop:
         values = spec.default if isinstance(spec.default, (list, tuple)) else [spec.default]
-        if spec.choice_enum is not None:
-            return [spec.choice_enum(value) for value in values]
-        return list(values)
+        return [str(value) for value in values]
+
+    if spec.is_list and isinstance(spec.default, (list, tuple)):
+        return [str(value) for value in spec.default]
 
     if spec.choice_enum is not None and spec.default is not None:
         return spec.choice_enum(spec.default)
@@ -885,6 +1042,56 @@ def check_strategy_factory(
         details = "\n  - ".join(problems)
         msg = f"Strategy factory {_func_name(factory)} does not match recipe {_func_name(recipe)}:\n  - {details}"
         raise TypeError(msg)
+
+
+def build_list_satellites_command(
+    func: Recipe,
+    *,
+    defaults: dict[str, Any] | None = None,
+    availability: AvailabilitySource | None = None,
+    label: str | None = None,
+) -> Callable[..., None]:
+    """Build the command that lists the satellites of a recipe.
+
+    The command takes no arguments. It prints the satellites of the recipe with the intervals the
+    recipe's availability table has data for, then exits without processing anything. The table is
+    optional: without one, the command lists the satellites as they are.
+
+    Args:
+        func (Recipe): The recipe whose satellites are listed.
+        defaults (dict[str, Any] | None): The recipe's CLI defaults, which override the defaults of its
+            signature exactly as in the processing command.
+        availability (AvailabilitySource | None): The recipe's satellite availability table. It is read
+            when the command runs, not when it is built.
+        label (str | None): How the recipe is named in the output, e.g. ``poes meped``. Defaults to the
+            recipe's function name.
+
+    Returns:
+        Callable[..., None]: A callable ready to be registered with ``app.command()``.
+    """
+    satellite_specs, _ = _build_parameter_specs(func, defaults=defaults, names=(AVAILABILITY_PARAMETER,))
+    satellite_spec = next(iter(satellite_specs), None)
+    satellite_choices: list[str] = []
+    if satellite_spec is not None and satellite_spec.choice_enum is not None:
+        satellite_choices = list(satellite_spec.loop_values or [member.value for member in satellite_spec.choice_enum])
+
+    def command() -> None:
+        if not satellite_choices:
+            from rich.console import Console  # noqa: PLC0415
+
+            Console().print(f"{_func_name(func)} has no {AVAILABILITY_PARAMETER} option, so there is nothing to list.")
+            raise typer.Exit(1)
+
+        # loaded per invocation, not when the command is built, so that `--help` never reads it
+        table = load_availability_table(availability) if availability is not None else None
+        _print_satellite_listing(label or _func_name(func), satellite_choices, table)
+
+    command.__name__ = f"list_satellites_{_func_name(func)}"
+    command.__doc__ = (
+        "List the satellites of the recipe, with the intervals the availability table has data for, "
+        "then exit without processing. A recipe without a table lists its satellites only."
+    )
+    return command
 
 
 def run_recipe_cli(
