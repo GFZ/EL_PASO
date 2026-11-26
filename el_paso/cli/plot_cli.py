@@ -68,6 +68,7 @@ from el_paso.cli.recipe_cli import (
     _spec_parameters,
     _universal_parameters,
     check_strategy_factory,
+    split_comma_separated,
 )
 
 if TYPE_CHECKING:
@@ -596,10 +597,11 @@ def _parse_plot_options(plot_options: dict[str, Any]) -> dict[str, Any]:
 
     energies = None
     if plot_options["energies"]:
-        texts = [part for item in plot_options["energies"] for part in item.split(",") if part.strip()]
-        if not texts:
-            msg = "no energy given; use a comma-separated list, e.g. 470,1575."
-            raise typer.BadParameter(msg, param_hint="'--energy'")
+        try:
+            texts = split_comma_separated(plot_options["energies"], what="energy", example="470,1575")
+        except typer.BadParameter as error:
+            error.param_hint = "'--energy'"
+            raise
         values = [_parse_energy(text) for text in texts]
         if any(value <= 0 for value in values):
             msg = f"must be positive, got {', '.join(texts)}."
@@ -618,7 +620,11 @@ def _parse_plot_options(plot_options: dict[str, Any]) -> dict[str, Any]:
             msg = f"{plot_options['along']!r} is not a coordinate; choose from {', '.join(ALONG_CHOICES)}."
             raise typer.BadParameter(msg, param_hint="'--along'")
 
-    variables = [part for item in plot_options["variables"] or [] for part in map(str.strip, item.split(",")) if part]
+    try:
+        variables = split_comma_separated(plot_options["variables"], what="variable", example="FEDU,L_star")
+    except typer.BadParameter as error:
+        error.param_hint = "'--variable'"
+        raise
 
     filename = plot_options["filename"]
     if filename is not None and Path(filename).name != filename:

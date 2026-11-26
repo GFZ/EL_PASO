@@ -68,7 +68,7 @@ from el_paso.cli.availability import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Callable, Iterable, Sequence
 
     from el_paso.cli.availability import AvailabilitySource, AvailabilityTable, DateInterval
     from el_paso.typing import Recipe
@@ -171,19 +171,49 @@ def _make_choice_enum(name: str, members: Sequence[str]) -> type[enum.Enum]:
     return enum.Enum(f"{name}_choices", {member: member for member in members}, type=str)
 
 
-def _comma_separated_choices(choices: Sequence[str]) -> Callable[[list[str] | None], list[str] | None]:
-    """Build an option callback that splits comma-separated values and checks each against `choices`.
+def split_comma_separated(values: Iterable[Any] | None, *, what: str = "value", example: str = "") -> list[str]:
+    """Split the values of a repeatable, comma-separated option into its items, stripped of spaces.
 
-    The option may still be repeated, so ``--satellite a,b`` and ``--satellite a --satellite b`` are equal.
+    ``["a,b", " c"]`` becomes ``["a", "b", "c"]``, so ``--satellite a,b`` and ``--satellite a --satellite b``
+    are equal.
+
+    Args:
+        values (Iterable[Any] | None): The values as given, one per occurrence of the option.
+        what (str): What an item is, for the error message, e.g. ``"energy"``.
+        example (str): An example of a valid value, for the error message, e.g. ``"470,1575"``.
+
+    Returns:
+        list[str]: The items, in the order given; empty if `values` is None or empty.
+
+    Raises:
+        typer.BadParameter: If the option was given, but holds no item, e.g. ``--energy ,``.
     """
+    values = list(values or [])
+    items = [part.strip() for text in values for part in str(text).split(",") if part.strip()]
+    if values and not items:
+        hint = f", e.g. {example}" if example else ""
+        msg = f"no {what} given; use a comma-separated list{hint}."
+        raise typer.BadParameter(msg)
+    return items
 
-    def callback(value: list[str] | None) -> list[str] | None:
+
+def _given_on_command_line(ctx: typer.Context, param: typer.CallbackParam) -> bool:
+    """Whether the user gave an option, rather than it taking its default (or environment) value."""
+    source = ctx.get_parameter_source(param.name) if param.name else None
+    return source is typer._click.core.ParameterSource.COMMANDLINE  # noqa: SLF001
+
+
+def _comma_separated_choices(
+    choices: Sequence[str],
+) -> Callable[[typer.Context, typer.CallbackParam, list[str] | None], list[str] | None]:
+    """Build an option callback that splits comma-separated values and checks each against `choices`."""
+
+    def callback(ctx: typer.Context, param: typer.CallbackParam, value: list[str] | None) -> list[str] | None:
         if value is None:
             return None
-        items = [part.strip() for text in value for part in text.split(",") if part.strip()]
-        if not items:
-            msg = f"no value given; choose from {', '.join(choices)}."
-            raise typer.BadParameter(msg)
+        if not value and not _given_on_command_line(ctx, param):
+            return []  # an empty default
+        items = split_comma_separated(value, example=",".join(choices[:2]))
         invalid = [item for item in items if item not in choices]
         if invalid:
             msg = f"invalid choice(s) {', '.join(map(repr, invalid))}; choose from {', '.join(choices)}."
@@ -193,19 +223,17 @@ def _comma_separated_choices(choices: Sequence[str]) -> Callable[[list[str] | No
     return callback
 
 
-def _comma_separated_values(item_type: type) -> Callable[[list[str] | None], list[Any] | None]:
-    """Build an option callback that splits comma-separated values and converts each to `item_type`.
+def _comma_separated_values(
+    item_type: type,
+) -> Callable[[typer.Context, typer.CallbackParam, list[str] | None], list[Any] | None]:
+    """Build an option callback that splits comma-separated values and converts each to `item_type`."""
 
-    The option may still be repeated, so ``--alpha-eq 10,90`` and ``--alpha-eq 10 --alpha-eq 90`` are equal.
-    """
-
-    def callback(value: list[str] | None) -> list[Any] | None:
+    def callback(ctx: typer.Context, param: typer.CallbackParam, value: list[str] | None) -> list[Any] | None:
         if value is None:
             return None
-        items = [part.strip() for text in value for part in str(text).split(",") if part.strip()]
-        if not items:
-            msg = "no value given."
-            raise typer.BadParameter(msg)
+        if not value and not _given_on_command_line(ctx, param):
+            return []  # an empty default
+        items = split_comma_separated(value)
         try:
             return [item_type(item) for item in items]
         except ValueError as error:
