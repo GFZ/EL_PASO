@@ -40,8 +40,6 @@ def themis_fft_waves_strategy(
     processed_data_path: str | Path,
     satellite: ThemisProbe,
     save_strategy: Literal["netcdf"] = "netcdf",
-    *,
-    legacy_layout: bool = False,
 ) -> ep.SavingStrategy:
     """Saving strategy of the THEMIS FFT wave recipe.
 
@@ -49,7 +47,6 @@ def themis_fft_waves_strategy(
         processed_data_path (str | Path): Base directory of the processed data.
         satellite (ThemisProbe): THEMIS probe the data belongs to.
         save_strategy (Literal["netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
-        legacy_layout (bool): Deprecated. Set to True to load data saved without instrument folders. Defaults to False.
 
     Returns:
         ep.SavingStrategy: Daily NetCDF wave saving strategy following the GFZ data standard.
@@ -61,7 +58,6 @@ def themis_fft_waves_strategy(
         "th" + satellite,
         "FFT",
         ep.data_standards.GFZStandard(),
-        legacy_layout=legacy_layout,
     )
 
 

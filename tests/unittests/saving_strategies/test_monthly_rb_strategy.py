@@ -13,7 +13,6 @@ import el_paso as ep
 import numpy as np
 import pytest
 from astropy import units as u  # type: ignore[reportMissingTypeStubs]
-from el_paso.dataset import DataSet
 from el_paso.dataset.utils import python2matlab
 
 if TYPE_CHECKING:
@@ -450,7 +449,7 @@ def test_save_raises_when_required_dimension_is_missing_tuples(
 
 @pytest.mark.minimal
 @pytest.mark.standard
-def test_instrument_folder_and_legacy_layout(tmp_path):
+def test_instrument_folder(tmp_path):
     kwargs = {
         "base_data_path": tmp_path,
         "mission": "GOES",
@@ -461,10 +460,6 @@ def test_instrument_folder_and_legacy_layout(tmp_path):
     }
     strategy = ep.saving_strategies.MonthlyRBStrategy(**kwargs)
     assert strategy.get_file_path_stem() == tmp_path / "GOES" / "goes16" / "xep"
-
-    with pytest.warns(DeprecationWarning, match="legacy_layout"):
-        legacy = ep.saving_strategies.MonthlyRBStrategy(**kwargs, legacy_layout=True)
-    assert legacy.get_file_path_stem() == tmp_path / "GOES" / "goes16"
 
 
 @pytest.mark.standard
@@ -484,37 +479,12 @@ def test_daily_leo_uses_year_month_folder(tmp_path):
 
 @pytest.mark.minimal
 @pytest.mark.standard
-def test_daily_leo_legacy_layout_has_no_instrument_or_date_folders(tmp_path):
-    kwargs = {
-        "base_data_path": tmp_path,
-        "mission": "POES",
-        "satellite": "noaa15",
-        "instrument": "meped",
-        "mag_field": "T89",
-        "data_standard": ep.data_standards.PRBEMStandard(),
-    }
-    with pytest.warns(DeprecationWarning, match="legacy_layout"):
-        strategy = ep.saving_strategies.DailyLEORBStrategy(**kwargs, legacy_layout=True)
-
-    start = datetime(2013, 5, 4, tzinfo=timezone.utc)
-    path = strategy.get_file_path(start, start, strategy.output_files[0])
-    assert path == tmp_path / "POES" / "noaa15" / "noaa15_meped_20130504_T89.nc"
-
-
-@pytest.mark.minimal
-@pytest.mark.standard
-@pytest.mark.parametrize("legacy_layout", [False, True])
-def test_daily_wave_layout(tmp_path, legacy_layout):
+def test_daily_wave_layout(tmp_path):
     args = (tmp_path, "THEMIS", "tha", "FFT", ep.data_standards.GFZStandard())
     start = datetime(2024, 5, 10, tzinfo=timezone.utc)
 
-    if legacy_layout:
-        with pytest.warns(DeprecationWarning, match="legacy_layout"):
-            strategy = ep.saving_strategies.DailyWaveStrategy(*args, legacy_layout=True)
-        expected_dir = tmp_path / "THEMIS" / "tha"
-    else:
-        strategy = ep.saving_strategies.DailyWaveStrategy(*args)
-        expected_dir = tmp_path / "THEMIS" / "tha" / "fft" / "2024" / "05"
+    strategy = ep.saving_strategies.DailyWaveStrategy(*args)
+    expected_dir = tmp_path / "THEMIS" / "tha" / "fft" / "2024" / "05"
 
     assert strategy.get_file_path(start, start, strategy.output_files[0]) == expected_dir / "tha_fft_20240510.nc"
 
@@ -524,7 +494,7 @@ def test_daily_wave_layout(tmp_path, legacy_layout):
 @pytest.mark.parametrize(
     "strategy_cls", [ep.saving_strategies.MonthlyDensityStrategy, ep.saving_strategies.RBSPDensityStrategy]
 )
-def test_density_strategies_forward_legacy_layout(tmp_path, strategy_cls):
+def test_density_strategies_use_instrument_folder(tmp_path, strategy_cls):
     kwargs = {
         "base_data_path": tmp_path,
         "mission": "RBSP",
@@ -535,14 +505,9 @@ def test_density_strategies_forward_legacy_layout(tmp_path, strategy_cls):
 
     assert strategy_cls(**kwargs).get_file_path_stem() == tmp_path / "RBSP" / "rbspa" / "dens"
 
-    with pytest.warns(DeprecationWarning, match="legacy_layout"):
-        legacy = strategy_cls(**kwargs, legacy_layout=True)
-    assert legacy.get_file_path_stem() == tmp_path / "RBSP" / "rbspa"
-
 
 @pytest.mark.standard
-@pytest.mark.parametrize("legacy_layout", [False, True])
-def test_daily_strategy_year_month_folder(tmp_path, legacy_layout):
+def test_daily_strategy_year_month_folder(tmp_path):
     kwargs = {
         "base_data_path": tmp_path,
         "mission": "POES",
@@ -551,55 +516,9 @@ def test_daily_strategy_year_month_folder(tmp_path, legacy_layout):
         "mag_field": "T89",
         "data_standard": ep.data_standards.PRBEMStandard(),
     }
-    if legacy_layout:
-        with pytest.warns(DeprecationWarning, match="legacy_layout"):
-            strategy = ep.saving_strategies.DailyLEORBStrategy(**kwargs, legacy_layout=True)
-    else:
-        strategy = ep.saving_strategies.DailyLEORBStrategy(**kwargs)
+    strategy = ep.saving_strategies.DailyLEORBStrategy(**kwargs)
 
     assert ep.utils.get_year_month_folder(datetime(2013, 5, 4, tzinfo=timezone.utc)) == Path("2013") / "05"
     start = datetime(2013, 5, 4, tzinfo=timezone.utc)
     path = strategy.get_file_path(start, start, None)
-    assert ("2013" in path.parts) != legacy_layout
-
-
-@pytest.mark.standard
-def test_save_ignores_legacy_layout_but_dataset_loads_it(tmp_path, caplog):
-    kwargs = {
-        "base_data_path": tmp_path,
-        "mission": "GOES",
-        "satellite": "primary",
-        "instrument": "MAGED",
-        "mag_field": "T89",
-        "data_standard": ep.data_standards.GFZStandard(),
-        "file_format": "nc",
-    }
-    variables = _mock_monthly_variables()
-    start_time = datetime(2013, 1, 1, tzinfo=timezone.utc)
-    end_time = datetime(2013, 1, 7, tzinfo=timezone.utc)
-    file_name = "primary_maged_20130101to20130131_T89.nc"
-    new_path = tmp_path / "GOES" / "primary" / "maged" / file_name
-    legacy_path = tmp_path / "GOES" / "primary" / file_name
-
-    with pytest.warns(DeprecationWarning, match="legacy_layout"):
-        legacy_strategy = ep.saving_strategies.MonthlyRBStrategy(**kwargs, legacy_layout=True)
-
-    # saving always writes the new layout, even for a legacy strategy
-    with caplog.at_level("WARNING"):
-        ep.save(variables, legacy_strategy, start_time, end_time, time_var=variables["Epoch"])
-    assert new_path.exists()
-    assert not legacy_path.exists()
-    assert "legacy_layout only applies when loading" in caplog.text
-    assert legacy_strategy.legacy_layout  # the caller's strategy is left untouched
-
-    # a legacy strategy finds data stored in the old flat layout, the default one does not
-    legacy_path.parent.mkdir(parents=True, exist_ok=True)
-    new_path.rename(legacy_path)
-
-    with pytest.warns(DeprecationWarning, match="legacy_layout"):
-        legacy_strategy = ep.saving_strategies.MonthlyRBStrategy(**kwargs, legacy_layout=True)
-    legacy_dataset = DataSet(legacy_strategy, start_time, end_time)
-    assert len(legacy_dataset.time) > 0
-
-    default_dataset = DataSet(ep.saving_strategies.MonthlyRBStrategy(**kwargs), start_time, end_time)
-    assert len(default_dataset.time) == 0
+    assert path.parent == strategy.get_file_path_stem() / "2013" / "05"

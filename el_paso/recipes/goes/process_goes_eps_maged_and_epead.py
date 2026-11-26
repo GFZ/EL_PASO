@@ -51,7 +51,6 @@ def goes_eps_maged_and_epead_netcdf_strategy(
     satellite: GOESNOPSatellite,
     *,
     file_format: ep.typing.MFSFormats = "nc",
-    legacy_layout: bool = False,
 ) -> ep.SavingStrategy:
     """Monthly NetCDF saving strategy for combined GOES-13/15 EPS MAGED and EPEAD."""
     return _MonthlyMagedEpeadStrategy(
@@ -62,7 +61,6 @@ def goes_eps_maged_and_epead_netcdf_strategy(
         mag_field,
         data_standard=ep.data_standards.GFZStandard(),
         file_format=file_format,
-        legacy_layout=legacy_layout,
     )
 
 
@@ -87,8 +85,6 @@ def goes_eps_maged_and_epead_strategy(
     mag_field: ep.typing.MagneticFieldLiteral,
     satellite: GOESNOPSatellite,
     save_strategy: Literal["gfz", "netcdf"] = "netcdf",
-    *,
-    legacy_layout: bool = False,
 ) -> ep.SavingStrategy:
     """Saving strategy of the GOES EPS MAGED and EPEAD recipe.
 
@@ -97,7 +93,6 @@ def goes_eps_maged_and_epead_strategy(
         mag_field (ep.typing.MagneticFieldLiteral): Magnetic field model the data was processed with.
         satellite (GOESNOPSatellite): Satellite the data belongs to.
         save_strategy (Literal["gfz", "netcdf"]): Saving strategy of the output files. Defaults to "netcdf".
-        legacy_layout (bool): Deprecated. Set to True to load data saved without instrument folders. Defaults to False.
 
     Returns:
         ep.SavingStrategy: Legacy GFZ strategy for "gfz", otherwise a monthly or daily NetCDF strategy.
@@ -105,9 +100,7 @@ def goes_eps_maged_and_epead_strategy(
     if save_strategy == "gfz":
         return goes_eps_maged_and_epead_gfz_strategy(processed_data_path, mag_field, satellite)
 
-    return goes_eps_maged_and_epead_netcdf_strategy(
-        processed_data_path, mag_field, satellite, legacy_layout=legacy_layout
-    )
+    return goes_eps_maged_and_epead_netcdf_strategy(processed_data_path, mag_field, satellite)
 
 
 def process_goes_eps_maged_and_epead(

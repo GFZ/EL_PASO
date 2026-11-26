@@ -60,7 +60,7 @@ class DailyLEORBStrategy(ep.typing.MonthlyRBStrategy):
         """Generate the daily file path for the configured format."""
         file_name = f"{self.get_file_name_stem()}_{interval_start.strftime('%Y%m%d')}_{self.mag_field}.nc"
 
-        year_month = Path() if self.legacy_layout else ep.utils.get_year_month_folder(interval_start)
+        year_month = ep.utils.get_year_month_folder(interval_start)
         return self.get_file_path_stem() / year_month / file_name
 
     def get_time_intervals_to_save(
