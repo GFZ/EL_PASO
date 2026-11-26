@@ -243,6 +243,23 @@ def _comma_separated_values(
     return callback
 
 
+def _complete_comma_separated(choices: Sequence[str]) -> Callable[[str], list[str]]:
+    """Build a shell completion for a comma-separated choice option.
+
+    It completes the item after the last comma, and leaves out the items already given, so
+    ``--satellite a,<TAB>`` offers ``a,b``, ``a,c``, and so on.
+    """
+
+    def complete(incomplete: str) -> list[str]:
+        given, _, current = incomplete.rpartition(",")
+        # `all` stands alone, so it is only offered first
+        taken = {*given.split(","), ALL_VALUES} if given else set()
+        prefix = f"{given}," if given else ""
+        return [f"{prefix}{choice}" for choice in choices if choice.startswith(current) and choice not in taken]
+
+    return complete
+
+
 def _is_path_hint(hint: Any) -> bool:  # noqa: ANN401
     """Return True for ``Path``, ``str | Path`` and their optional variants."""
     if hint is Path:
@@ -345,6 +362,7 @@ def _build_parameter_spec(  # noqa: PLR0911
                 help=f"{help_text} Comma-separated for several, e.g. a,b.".strip(),
                 metavar=f"<{'|'.join(choices)}>",
                 callback=_comma_separated_choices(choices),
+                autocompletion=_complete_comma_separated(choices),
             )
             annotation = Annotated[list[str], option]
         else:
