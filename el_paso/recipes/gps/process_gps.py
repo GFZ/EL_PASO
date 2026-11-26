@@ -181,7 +181,7 @@ def process_gps_data(
         start_time (datetime): Start of the time interval to process.
         end_time (datetime): End of the time interval to process.
         satellite (LANLSatellite): The LANL GPS satellite to process. With "all", only the
-            satellites with data in the time range are processed (see --list-satellites).
+            satellites with data in the time range are processed (see `el-paso list-satellites`).
         mag_field (MagneticFieldLiteral): Magnetic field model used for the derived quantities.
         raw_data_path (str | Path): Directory where the raw downloaded data files are stored.
         processed_data_path (str | Path): Directory where the processed output files are saved.

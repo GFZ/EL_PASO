@@ -118,7 +118,7 @@ def stub_app(**kwargs: Any) -> typer.Typer:  # noqa: ANN401
     return built
 
 
-TIME_ARGS = ["--start-time", "2017-10-15", "--end-time", "2017-10-16"]
+TIME_ARGS = ["2017-10-15", "2017-10-16"]
 
 
 @pytest.mark.minimal
@@ -184,12 +184,23 @@ def test_plot_command_passes_plot_options_through(requests: list[PlotRequest]) -
 
 @pytest.mark.minimal
 @pytest.mark.standard
+def test_plot_command_takes_the_time_range_as_arguments(requests: list[PlotRequest]) -> None:
+    result = runner.invoke(stub_app(), ["2013-03-16", "2013-03-17"])
+
+    assert result.exit_code == 0, result.output
+    (request,) = requests
+    assert request.start_time == datetime(2013, 3, 16, tzinfo=timezone.utc)
+    assert request.end_time == datetime(2013, 3, 17, tzinfo=timezone.utc)
+
+
+@pytest.mark.minimal
+@pytest.mark.standard
 def test_plot_command_passes_selection_options_through(requests: list[PlotRequest]) -> None:
     from astropy import units as u  # noqa: PLC0415
 
     result = runner.invoke(
         stub_app(),
-        [*TIME_ARGS, "--energy", "470", "--energy", "1000", "--pitch-angle", "45", "--vmin", "1", "--vmax", "1e6"],
+        [*TIME_ARGS, "--energy", "470,1000", "--pitch-angle", "45", "--vmin", "1", "--vmax", "1e6"],
     )
     assert result.exit_code == 0, result.output
 
@@ -210,7 +221,8 @@ def test_plot_command_passes_selection_options_through(requests: list[PlotReques
         (["--energy", "abc"], "--energy"),
         (["--energy", "100deg"], "--energy"),
         (["--energy", "100foo"], "--energy"),
-        (["--energy", "470", "--energy", "-1"], "--energy"),
+        (["--energy", "470,-1"], "--energy"),
+        (["--energy", ","], "--energy"),
         (["--pitch-angle", "181"], "--pitch-angle"),
         (["--pitch-angle", "-1"], "--pitch-angle"),
         (["--vmin", "10", "--vmax", "10"], "--vmin"),
@@ -230,12 +242,12 @@ def test_plot_command_rejects_invalid_selection_options(
 @pytest.mark.standard
 @pytest.mark.parametrize(
     ("flag", "coordinate"),
-    [("--along-L-star", "L_star"), ("--along-L-m", "L_m"), ("--along-R-eq", "R_Eq"), (None, None)],
+    [("L_star", "L_star"), ("l_m", "L_m"), ("R_Eq", "R_Eq"), (None, None)],
 )
 def test_plot_command_passes_the_along_option_through(
     requests: list[PlotRequest], flag: str | None, coordinate: str | None
 ) -> None:
-    result = runner.invoke(stub_app(), [*TIME_ARGS, *([flag] if flag else [])])
+    result = runner.invoke(stub_app(), [*TIME_ARGS, *(["--along", flag] if flag else [])])
     assert result.exit_code == 0, result.output
 
     (request,) = requests
@@ -244,14 +256,38 @@ def test_plot_command_passes_the_along_option_through(
 
 @pytest.mark.minimal
 @pytest.mark.standard
-def test_along_options_are_mutually_exclusive(requests: list[PlotRequest]) -> None:
-    result = runner.invoke(stub_app(), [*TIME_ARGS, "--along-L-star", "--along-R-eq"])
+def test_along_rejects_an_unknown_coordinate(requests: list[PlotRequest]) -> None:
+    result = runner.invoke(stub_app(), [*TIME_ARGS, "--along", "L"])
 
     assert result.exit_code == 2, result.output
     output = click.unstyle(result.output)
-    assert "only one of" in output
-    assert "'--along-L-star' / '--along-R-eq'" in output
+    assert "'--along'" in output
+    assert "choose from" in output
     assert not requests
+
+
+@pytest.mark.minimal
+@pytest.mark.standard
+def test_list_variables_command_lists_the_internal_names() -> None:
+    from el_paso.cli.plot_cli import _internal_names  # noqa: PLC0415
+
+    result = invoke_app(["list-variables"])
+
+    assert result.exit_code == 0, result.output
+    output = click.unstyle(result.output)
+    assert all(name in output for name in _internal_names())
+    assert "space-weather index" in output
+    assert "Planetary Kp geomagnetic index." in output
+
+
+@pytest.mark.minimal
+@pytest.mark.standard
+def test_variable_option_is_comma_separated(requests: list[PlotRequest]) -> None:
+    result = runner.invoke(stub_app(), [*TIME_ARGS, "--variable", "FEDU,L_star", "--variable", "B_Eq"])
+
+    assert result.exit_code == 0, result.output
+    (request,) = requests
+    assert request.variables == ["FEDU", "L_star", "B_Eq"]
 
 
 @pytest.mark.minimal
@@ -259,7 +295,7 @@ def test_along_options_are_mutually_exclusive(requests: list[PlotRequest]) -> No
 def test_along_options_match_the_along_coordinates() -> None:
     from el_paso.dataset.plot import ALONG_COORDINATES  # noqa: PLC0415
 
-    assert tuple(coordinate for _, coordinate in plot_cli.ALONG_OPTIONS.values()) == ALONG_COORDINATES
+    assert plot_cli.ALONG_CHOICES == ALONG_COORDINATES
 
 
 @pytest.mark.minimal
@@ -288,7 +324,7 @@ def test_plot_command_calls_the_factory_once_per_satellite(
 def test_plot_command_requires_the_time_range(requests: list[PlotRequest]) -> None:
     result = runner.invoke(stub_app(), [])
     assert result.exit_code != 0
-    assert "--start-time" in click.unstyle(result.output)
+    assert "START" in click.unstyle(result.output)
     assert not requests
 
 
@@ -380,8 +416,6 @@ def test_every_plottable_recipe_builds_a_plot_command(entry: RecipeEntry, reques
     assert help_result.exit_code == 0, help_result.output
     help_text = click.unstyle(help_result.output)
     for option in (
-        "--start-time",
-        "--end-time",
         "--dry-run",
         "--verbose",
         "--quiet",
@@ -437,9 +471,7 @@ def mageis_dry_run(tmp_path: Path, *args: str) -> Result:
             "plot",
             "rbsp",
             "mageis-electrons",
-            "--start-time",
             "2017-10-15",
-            "--end-time",
             "2017-11-02",
             "--mag-field",
             "TS04",
@@ -547,9 +579,7 @@ def mageis_plot(tmp_path: Path, *args: str, end_time: datetime = PLOT_END) -> Re
             "plot",
             "rbsp",
             "mageis-electrons",
-            "--start-time",
             PLOT_START.isoformat(),
-            "--end-time",
             end_time.isoformat(),
             "--mag-field",
             "TS04",
@@ -598,7 +628,7 @@ def test_no_coverage_fails_with_the_expected_path_and_processing_command(
     assert (
         "No processed files for rbspa mageis (TS04) between 2017-10-15 and 2017-10-16.\n"
         f"Expected: {expected_path}\n"
-        "To create them: el-paso rbsp mageis-electrons --start-time 2017-10-15 --end-time 2017-10-16 "
+        "To create them: el-paso process rbsp mageis-electrons 2017-10-15 2017-10-16 "
         f"--processed-data-path {tmp_path} --mag-field TS04 --satellite a --save-strategy netcdf"
     ) in plot_log.text
 
@@ -671,7 +701,7 @@ def test_processing_command_line_spells_out_every_argument() -> None:
     kwargs = {"processed_data_path": Path("my data"), "add_b": False, "fit": True, "energies": [1.0, 2.0]}
 
     assert plot_cli.processing_command_line(request, kwargs) == (
-        f"python -m {__name__} --start-time 2017-10-15 --end-time 2017-10-15T12:00:00 "
+        f"python -m {__name__} 2017-10-15 2017-10-15T12:00:00 "
         "--processed-data-path 'my data' --no-add-b --fit --energies 1.0 --energies 2.0"
     )
 
@@ -1026,7 +1056,9 @@ def test_build_figure_along_l_star_has_one_panel_per_energy_and_satellite(mageis
 def test_plot_along_l_star_writes_the_figure(mageis_data: Path, plot_log: pytest.LogCaptureFixture) -> None:
     output = mageis_data / "along.png"
     result = mageis_plot(
-        mageis_data, "--satellite", "a", "--variable", "FEDU", "--energy", "400", "--along-L-star", *output_args(output)
+        mageis_data,
+        *("--satellite", "a", "--variable", "FEDU", "--energy", "400", "--along", "L_star"),
+        *output_args(output),
     )
 
     assert result.exit_code == 0, result.output
@@ -1039,7 +1071,7 @@ def test_plot_along_l_star_writes_the_figure(mageis_data: Path, plot_log: pytest
 @pytest.mark.standard
 def test_plot_along_a_coordinate_without_data_fails(mageis_data: Path, plot_log: pytest.LogCaptureFixture) -> None:
     output = mageis_data / "along.png"
-    result = mageis_plot(mageis_data, "--satellite", "a", "--variable", "FEDU", "--along-R-eq", *output_args(output))
+    result = mageis_plot(mageis_data, "--satellite", "a", "--variable", "FEDU", "--along", "R_Eq", *output_args(output))
 
     assert result.exit_code == 1, result.output
     assert not output.exists()
@@ -1166,9 +1198,9 @@ def test_default_filename(
 @pytest.mark.standard
 @pytest.mark.parametrize("end_time", ["2017-10-14", "2017-10-15"])
 def test_plot_command_rejects_end_time_not_after_start_time(requests: list[PlotRequest], end_time: str) -> None:
-    result = runner.invoke(stub_app(), ["--start-time", "2017-10-15", "--end-time", end_time])
+    result = runner.invoke(stub_app(), ["2017-10-15", end_time])
     assert result.exit_code == 2, result.output
-    assert "must be after --start-time" in click.unstyle(result.output)
+    assert "must be after the start time" in click.unstyle(result.output)
     assert not requests
 
 
@@ -1242,7 +1274,8 @@ def test_exported_script_makes_the_same_figure(
         "B_Eq",
         "--energy",
         "400",
-        "--along-L-star",
+        "--along",
+        "L_star",
         *output_args(figure_path),
         "--export-script",
         str(script),
@@ -1327,7 +1360,7 @@ def test_plot_satellite_all_plots_only_satellites_with_data(
 def test_plot_satellite_all_without_any_data_is_an_error(requests: list[PlotRequest]) -> None:
     result = runner.invoke(
         stub_app(availability=STUB_AVAILABILITY),
-        ["--start-time", "2017-11-05", "--end-time", "2017-11-06", "--satellite", "all"],
+        ["2017-11-05", "2017-11-06", "--satellite", "all"],
         env={"COLUMNS": "200"},
     )
 

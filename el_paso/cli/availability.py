@@ -35,7 +35,7 @@ descriptive metadata::
     ]
 
 The command line uses :func:`satellite_availability` to restrict ``--satellite all`` to satellites
-with data, to warn about explicitly requested satellites without data, and for ``--list-satellites``.
+with data, to warn about explicitly requested satellites without data, and for ``el-paso list-satellites``.
 """
 
 from __future__ import annotations

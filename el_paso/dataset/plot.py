@@ -12,10 +12,9 @@ limits) are layered on top: per-variable settings such as a recipe's ``PLOT_DEFA
 then the keyword arguments of `plot`, which the CLI fills from ``--energy``, ``--pitch-angle``,
 ``--vmin`` and ``--vmax`` (layer 3) and which apply to every panel.
 
-With ``along`` (one of `ALONG_COORDINATES`, from ``--along-L-star``, ``--along-L-m`` or
-``--along-R-eq``), every panel is instead a scatter plot over time with that coordinate on the y axis
-and the variable's value as colour; variables with an energy dimension get one such panel per
-selected energy, or per channel. matplotlib is imported when `plot` is called.
+With ``along`` (one of `ALONG_COORDINATES`, from ``--along``), every panel is instead a scatter plot over
+time with that coordinate on the y axis and the variable's value as colour; variables with an energy dimension
+get one such panel per selected energy, or per channel. matplotlib is imported when `plot` is called.
 """
 
 from __future__ import annotations
