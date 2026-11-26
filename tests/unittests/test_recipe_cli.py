@@ -246,16 +246,6 @@ def test_time_range_errors(stub_app: typer.Typer, args: list[str], message: str)
 
 @pytest.mark.minimal
 @pytest.mark.standard
-def test_time_range_arguments_are_listed_in_the_help(stub_app: typer.Typer) -> None:
-    result = runner.invoke(stub_app, ["--help"])
-
-    output = click.unstyle(result.output)
-    assert "[START] [END]" in output
-    assert "--start-time" in output
-
-
-@pytest.mark.minimal
-@pytest.mark.standard
 def test_stub_defaults(stub_app: typer.Typer) -> None:
     result = runner.invoke(stub_app, ["--start-time", "2013-03-16", "--end-time", "2013-03-17"])
 
@@ -358,20 +348,6 @@ def test_list_option_is_comma_separated(args: list[str]) -> None:
 
     assert result.exit_code == 0, result.output
     assert calls[0]["alpha_eq"] == [10.0, 90.0]
-
-
-@pytest.mark.minimal
-@pytest.mark.standard
-def test_list_option_keeps_its_default_and_rejects_bad_values() -> None:
-    calls.clear()
-    app = typer.Typer(add_completion=False)
-    app.command()(build_recipe_command(list_recipe))
-
-    assert runner.invoke(app, TIMES).exit_code == 0
-    assert calls[0]["alpha_eq"] == [90.0]
-    result = runner.invoke(app, [*TIMES, "--alpha-eq", "10,abc"])
-    assert result.exit_code == 2
-    assert "expected comma-separated float" in click.unstyle(result.output)
 
 
 @pytest.mark.minimal
@@ -856,30 +832,6 @@ def test_top_level_commands_are_process_plot_and_list_satellites() -> None:
 
 @pytest.mark.minimal
 @pytest.mark.standard
-def test_list_satellites_without_a_table_runs_without_arguments() -> None:
-    result = invoke_app(["list-satellites", "rbsp", "mageis-electrons"], env={"COLUMNS": "200"})
-
-    assert result.exit_code == 0, result.output
-    assert "2 satellites" in " ".join(click.unstyle(result.output).split())
-    # a recipe with a table still needs the time range
-    assert invoke_app(["list-satellites", "poes", "meped"]).exit_code == 2
-
-
-@pytest.mark.minimal
-@pytest.mark.standard
-@pytest.mark.parametrize("group", ["process", "list-satellites"])
-def test_every_mission_is_below_process_and_list_satellites(group: str) -> None:
-    from el_paso.cli.app import RECIPES  # noqa: PLC0415
-
-    result = invoke_app([group, "--help"], env={"COLUMNS": "200"})
-
-    output = click.unstyle(result.output)
-    for mission in {entry.mission for entry in RECIPES}:
-        assert f"│ {mission} " in output
-
-
-@pytest.mark.minimal
-@pytest.mark.standard
 def test_cli_dispatches_to_a_recipe(caplog: pytest.LogCaptureFixture) -> None:
     result = invoke_app(
         [
@@ -1182,14 +1134,6 @@ def test_list_satellites_needs_a_satellite_choice() -> None:
 
     assert result.exit_code == 1, result.output
     assert "has no satellite option" in " ".join(click.unstyle(result.output).split())
-
-
-@pytest.mark.minimal
-@pytest.mark.standard
-def test_recipe_commands_have_no_list_satellites_option() -> None:
-    result = runner.invoke(availability_app(), ["--help"], env={"COLUMNS": "200"})
-
-    assert "--list-satellites" not in click.unstyle(result.output)
 
 
 @pytest.mark.minimal

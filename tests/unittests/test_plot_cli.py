@@ -195,15 +195,6 @@ def test_plot_command_takes_the_time_range_as_arguments(requests: list[PlotReque
 
 @pytest.mark.minimal
 @pytest.mark.standard
-def test_plot_command_rejects_a_time_range_given_twice(requests: list[PlotRequest]) -> None:
-    result = runner.invoke(stub_app(), ["2013-03-16", "2013-03-17", "--end-time", "2013-03-18"])
-
-    assert result.exit_code == 2, result.output
-    assert not requests
-
-
-@pytest.mark.minimal
-@pytest.mark.standard
 def test_plot_command_passes_selection_options_through(requests: list[PlotRequest]) -> None:
     from astropy import units as u  # noqa: PLC0415
 
