@@ -45,6 +45,8 @@ Environment variables read by the library:
 |---|---|
 | `EL_PASO_SKIP_DOWNLOAD` | Skip every `ep.download` call. Same as setting `ep.skip_download = True`. |
 | `EL_PASO_EXIT_AFTER_DOWNLOAD` | Exit the process after `ep.download` finishes (useful for download-only runs on HPC). Same as setting `ep.exit_after_download = True`. |
+| `EL_PASO_RAW_DATA_PATH` | Default of the `--raw-data-path` option of the recipe commands. Default `.`. |
+| `EL_PASO_PROCESSED_DATA_PATH` | Default of the `--processed-data-path` option of the recipe commands. Default `.`. |
 | `EL_PASO_MODEL_DATA_PATH` | Where model coefficient data is stored. Default `~/.elpaso`. |
 | `EL_PASO_INDICES_SW_PARAM_DATA_PATH` | Where solar-wind indices/parameters are stored. Default `~/.elpaso`. The test suite's `conftest.py` points it at a temporary directory unless `--indices_sw_param_data_path` is given. |
 | `EL_PASO_USE_MAG_FIELD_CACHE` | Set to `0`/`false`/`no`/`off` to disable the magnetic-field joblib cache. |
