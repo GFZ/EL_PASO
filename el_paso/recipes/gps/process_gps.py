@@ -16,6 +16,10 @@ import el_paso as ep
 from el_paso.recipes.gps import LANLSatellite
 from el_paso.recipes.solar_wind_indices.process_solar_wind_indices import process_solar_wind_indices
 
+# Days with CXD files per satellite (each weekly file counted as its seven days).
+# Regenerate with `python scripts/generate_satellite_availability.py lanl-gps-cxd`.
+SATELLITE_AVAILABILITY = Path(__file__).with_name("cxd_availability.toml")
+
 #  If you add a satellite, add it to BOTH: here, and to the Literal in el_paso/recipes/gps/__init__.py.
 
 SATELLITE_ANCHOR_DATES: dict[LANLSatellite, datetime] = {
@@ -180,7 +184,8 @@ def process_gps_data(
     Args:
         start_time (datetime): Start of the time interval to process.
         end_time (datetime): End of the time interval to process.
-        satellite (LANLSatellite): The LANL GPS satellite to process.
+        satellite (LANLSatellite): The LANL GPS satellite to process. With "all", only the
+            satellites with data in the time range are processed (see --list-satellites).
         mag_field (MagneticFieldLiteral): Magnetic field model used for the derived quantities.
         raw_data_path (str | Path): Directory where the raw downloaded data files are stored.
         processed_data_path (str | Path): Directory where the processed output files are saved.
@@ -387,4 +392,9 @@ PLOT_DEFAULTS = {
 }
 
 if __name__ == "__main__":
-    ep.run_recipe_cli(process_gps_data, strategy=gps_cxd_strategy, plot_defaults=PLOT_DEFAULTS)
+    ep.run_recipe_cli(
+        process_gps_data,
+        strategy=gps_cxd_strategy,
+        plot_defaults=PLOT_DEFAULTS,
+        availability=SATELLITE_AVAILABILITY,
+    )

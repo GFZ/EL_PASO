@@ -53,6 +53,8 @@ Color code: ${\color{#4A8A4F}\textsf{publication ready}}$, ${\color{#E6D753}\tex
     - ${\color{#E67D53}\textsf{SOPA (protons)}}$
     - ${\color{#E67D53}\textsf{MPA (electrons)}}$
     - ${\color{#E67D53}\textsf{MPA (ions)}}$
+- **ELFIN**
+    - ${\color{#4A8A4F}\textsf{EPD (electrons)}}$
 - **ESA**
     - ${\color{#E67D53}\textsf{NGRM satellites}}$
     - ${\color{#E67D53}\textsf{GSSC EMU (electrons and protons)}}$
