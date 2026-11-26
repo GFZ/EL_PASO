@@ -293,6 +293,8 @@ class _ParameterSpec(typing.NamedTuple):
     is_list: bool = False
     loop_values: tuple[str, ...] | None = None
     """The values ``all`` expands to, for looped choice parameters."""
+    help: str = ""
+    """The parameter's description, from the docstring or the caller."""
 
 
 SHORT_FLAGS = {"satellite": "-s", "raw_data_path": "-r", "processed_data_path": "-o"}
@@ -523,6 +525,8 @@ def _build_parameter_specs(
             arg_help.get(name, ""),
             is_loop=name in loop_names,
         )
+        if spec is not None:
+            spec = spec._replace(help=arg_help.get(name, ""))
 
         if spec is None:
             if not has_default:
@@ -549,7 +553,8 @@ _TIME_ARGUMENTS = {
     "start_time": ("start", "START", "Start of the time range."),
     "end_time": ("end", "END", "End of the time range."),
 }
-"""For each time parameter: the keyword of its positional argument, the argument's metavar and its help."""
+"""For each time parameter: the keyword of its positional argument, the argument's metavar and the
+help used when the function does not describe the parameter."""
 
 
 def _has_time_range(specs: Sequence[_ParameterSpec]) -> bool:
@@ -561,6 +566,7 @@ def _time_arguments(specs: Sequence[_ParameterSpec]) -> list[inspect.Parameter]:
     """The optional positional ``START`` and ``END`` arguments, or nothing without a time range in `specs`."""
     if not _has_time_range(specs):
         return []
+    descriptions = {spec.name: spec.help for spec in specs}
     return [
         inspect.Parameter(
             keyword,
@@ -571,12 +577,12 @@ def _time_arguments(specs: Sequence[_ParameterSpec]) -> list[inspect.Parameter]:
                 typer.Argument(
                     parser=parse_datetime,
                     metavar=metavar,
-                    help=help_text,
+                    help=descriptions[name] or generic_help,
                     show_default=False,
                 ),
             ],
         )
-        for keyword, metavar, help_text in _TIME_ARGUMENTS.values()
+        for name, (keyword, metavar, generic_help) in _TIME_ARGUMENTS.items()
     ]
 
 
