@@ -6,7 +6,7 @@
 
 """The ``el-paso plot`` command: quick-look plots of data a recipe has already processed.
 
-``el-paso plot <mission> <recipe>`` takes the same arguments as ``el-paso <mission> <recipe>``.
+``el-paso plot <mission> <recipe>`` takes the same arguments as ``el-paso process <mission> <recipe>``.
 It never processes or downloads anything; it finds the processed files through the strategy
 factory the recipe registers, so file names are worked out in one place. Its options come from
 three sources:
@@ -132,7 +132,7 @@ class PlotRequest:
         dry_run: Only report what would be plotted.
         verbose: Log every file that is loaded.
         plot_defaults: The recipe's ``PLOT_DEFAULTS``.
-        processing_command: The command that runs the recipe, e.g. ``el-paso rbsp mageis-electrons``,
+        processing_command: The command that runs the recipe, e.g. ``el-paso process rbsp mageis-electrons``,
             suggested when processed files are missing. ``None`` for ``python -m <recipe module>``.
         energies: Energies to show for variables with an energy dimension (``--energy``), or
             ``None`` for the defaults.
@@ -224,7 +224,7 @@ def _plot_parameters() -> list[inspect.Parameter]:
                     "--variable",
                     help="Comma-separated internal names of the variables to plot, each in its own panel, "
                     "e.g. --variable FEDU,L_star. Required unless the recipe defines quick-look panels. "
-                    "Run 'el-paso plot variables' for the list of internal names.",
+                    "Run 'el-paso list-variables' for the list of internal names.",
                 ),
             ],
             None,
@@ -235,7 +235,7 @@ def _plot_parameters() -> list[inspect.Parameter]:
                 list[str] | None,
                 typer.Option(
                     "--energy",
-                    metavar="ENERGY",
+                    metavar="<energy>",
                     help="Comma-separated energies to show for variables with an energy dimension (e.g. FEDU), "
                     "e.g. --energy 470,1575. Bare numbers are in keV; a unit may be added, e.g. 1MeV.",
                 ),
@@ -248,7 +248,7 @@ def _plot_parameters() -> list[inspect.Parameter]:
                 float | None,
                 typer.Option(
                     "--pitch-angle",
-                    metavar="DEG",
+                    metavar="<deg>",
                     min=0.0,
                     max=180.0,
                     help="Pitch angle in degrees at which variables with an energy and a pitch-angle "
@@ -292,7 +292,7 @@ def _plot_parameters() -> list[inspect.Parameter]:
                 str | None,
                 typer.Option(
                     "--along",
-                    metavar="|".join(ALONG_CHOICES),
+                    metavar=f"<{'|'.join(ALONG_CHOICES)}>",
                     help="Draw every variable as a scatter plot over time with this coordinate on the y axis "
                     "and the value as colour. Variables with an energy dimension get one panel per --energy, "
                     "or per channel without --energy; pitch angles are cut at --pitch-angle (default 90).",
@@ -452,7 +452,7 @@ def build_plot_command(
         plot_defaults (dict[str, Any] | None): The recipe's ``PLOT_DEFAULTS``, checked with
             :func:`check_plot_defaults`.
         processing_command (str | None): The command that runs the recipe, e.g.
-            ``el-paso rbsp mageis-electrons``, suggested when processed files are missing.
+            ``el-paso process rbsp mageis-electrons``, suggested when processed files are missing.
             Defaults to ``python -m <recipe module>``.
         availability (AvailabilitySource | None): The recipe's satellite availability table. With it,
             ``--satellite all`` only plots the satellites that have data in the time range, exactly as
@@ -882,12 +882,7 @@ def processing_command_line(request: PlotRequest, kwargs: dict[str, Any]) -> str
     import shlex  # noqa: PLC0415
 
     command = request.processing_command or f"python -m {request.recipe.__module__}"
-    arguments = [
-        "--start-time",
-        _format_time_for_cli(request.start_time),
-        "--end-time",
-        _format_time_for_cli(request.end_time),
-    ]
+    arguments = [_format_time_for_cli(request.start_time), _format_time_for_cli(request.end_time)]
     for name, value in kwargs.items():
         if name in FACTORY_ONLY_PARAMETERS:
             continue

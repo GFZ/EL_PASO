@@ -148,21 +148,6 @@ _UNIVERSAL_OPTIONS: dict[str, tuple[Any, Any]] = {
 _UNIVERSAL_PARAMETER_NAMES = tuple(_UNIVERSAL_OPTIONS)
 """Options every recipe command carries; they are consumed by the command, not the recipe."""
 
-_LIST_SATELLITES_OPTION = inspect.Parameter(
-    "list_satellites",
-    inspect.Parameter.KEYWORD_ONLY,
-    default=False,
-    annotation=Annotated[
-        bool,
-        typer.Option(
-            "--list-satellites",
-            help="List the satellites that have data between --start-time and --end-time according to the "
-            "recipe's availability table, then exit without processing.",
-        ),
-    ],
-)
-"""Option of every recipe command with a ``satellite`` parameter; consumed by the command, not the recipe."""
-
 
 def _literal_choices(hint: Any) -> tuple[str, ...] | None:  # noqa: ANN401
     """Return the string members of a Literal annotation, or None if it is not one."""
@@ -290,7 +275,7 @@ def _build_parameter_spec(  # noqa: PLR0911
         option = typer.Option(
             *_option_names(name, is_flag=False),
             parser=parse_datetime,
-            metavar="TIME",
+            metavar="<time>",
             help=help_text,
             show_default=default.isoformat() if isinstance(default, datetime) else True,
         )
@@ -300,7 +285,7 @@ def _build_parameter_spec(  # noqa: PLR0911
         option = typer.Option(
             *_option_names(name, is_flag=False),
             parser=parse_cadence,
-            metavar="CADENCE",
+            metavar="<cadence>",
             help=help_text,
             show_default=format_cadence(default) if isinstance(default, timedelta) else True,
         )
@@ -313,14 +298,14 @@ def _build_parameter_spec(  # noqa: PLR0911
             # a looped choice also accepts `all`, which runs the recipe once per member
             loop_values = choices
             choices = (*choices, ALL_VALUES)
-            help_text = f"{help_text} Use '{ALL_VALUES}' for every value: {', '.join(loop_values)}.".strip()
+            help_text = f"{help_text} Use '{ALL_VALUES}' for every value.".strip()
         choice_enum = _make_choice_enum(name, choices)
         if is_loop:
             # A looped option takes plain strings, so that `--satellite a,b` can be split before it is checked.
             option = typer.Option(
                 *_option_names(name, is_flag=False),
                 help=f"{help_text} Comma-separated for several, e.g. a,b.".strip(),
-                metavar=f"[{'|'.join(choices)}]",
+                metavar=f"<{'|'.join(choices)}>",
                 callback=_comma_separated_choices(choices),
             )
             annotation = Annotated[list[str], option]
@@ -344,7 +329,7 @@ def _build_parameter_spec(  # noqa: PLR0911
             option = typer.Option(
                 *_option_names(name, is_flag=False),
                 help=f"{help_text} Comma-separated for several, e.g. 10,90.".strip(),
-                metavar=f"{item_hints[0].__name__.upper()},...",
+                metavar=f"<{item_hints[0].__name__}>,...",
                 callback=_comma_separated_values(item_hints[0]),
             )
             # A list parameter already takes several values, so they are listed rather than looped:
@@ -360,7 +345,7 @@ def _build_parameter_spec(  # noqa: PLR0911
             option = typer.Option(
                 *_option_names(name, is_flag=False),
                 help=f"{help_text} Comma-separated for several.".strip(),
-                metavar=f"{inner_hint.__name__.upper()},...",
+                metavar=f"<{inner_hint.__name__}>,...",
                 callback=_comma_separated_values(inner_hint),
             )
             annotation = Annotated[list[str], option]
@@ -402,8 +387,7 @@ def build_recipe_command(
             :mod:`el_paso.cli.availability`). With it, ``--satellite all`` only runs the satellites
             that have data in the requested time range, explicitly requested satellites without
             data get a warning, and the run report says whether each satellite has data. It is
-            read when the command runs, not when it is built. Every command with a time range and a
-            ``satellite`` choice gets ``--list-satellites``.
+            read when the command runs, not when it is built.
 
     Returns:
         Callable[..., None]: A callable ready to be registered with ``app.command()``.
@@ -502,6 +486,68 @@ def _build_parameter_specs(
     return specs, skipped
 
 
+TIME_PARAMETERS = ("start_time", "end_time")
+"""The recipe parameters that also come as the optional positional arguments ``START`` and ``END``."""
+
+_TIME_ARGUMENTS = {
+    "start_time": ("start", "START", "--start-time", "Start of the time range, instead of --start-time."),
+    "end_time": ("end", "END", "--end-time", "End of the time range, instead of --end-time."),
+}
+"""For each time parameter: the keyword of its positional argument, the argument's metavar, the option
+that gives the same value, and the argument's help."""
+
+
+def _has_time_range(specs: Sequence[_ParameterSpec]) -> bool:
+    """Whether `specs` contain both time parameters, which then also come as positional arguments."""
+    return {spec.name for spec in specs} >= set(TIME_PARAMETERS)
+
+
+def _time_arguments(specs: Sequence[_ParameterSpec]) -> list[inspect.Parameter]:
+    """The optional positional ``START`` and ``END`` arguments, or nothing without a time range in `specs`."""
+    if not _has_time_range(specs):
+        return []
+    return [
+        inspect.Parameter(
+            keyword,
+            inspect.Parameter.KEYWORD_ONLY,
+            default=None,
+            annotation=Annotated[
+                datetime | None,
+                typer.Argument(parser=parse_datetime, metavar=metavar, help=help_text, show_default=False),
+            ],
+        )
+        for keyword, metavar, _, help_text in _TIME_ARGUMENTS.values()
+    ]
+
+
+def _merge_time_arguments(kwargs: dict[str, Any], specs: Sequence[_ParameterSpec]) -> None:
+    """Resolve the time range from the positional arguments, the options and the recipe's defaults.
+
+    ``START END`` and ``--start-time`` / ``--end-time`` are interchangeable, and may be mixed (e.g.
+    ``START --end-time END``). `kwargs` is modified in place: the positional keywords are removed and
+    ``start_time`` and ``end_time`` set.
+
+    Raises:
+        typer.BadParameter: If a bound is given both ways, or neither way and the recipe has no default.
+    """
+    if not _has_time_range(specs):
+        return
+    defaults = {spec.name: spec.default for spec in specs}
+    for name, (keyword, metavar, option, _) in _TIME_ARGUMENTS.items():
+        positional = kwargs.pop(keyword, None)
+        given = kwargs.get(name)
+        if positional is not None and given is not None:
+            msg = f"give the {name.replace('_', ' ')} either as {metavar} or with {option}, not both."
+            raise typer.BadParameter(msg, param_hint=f"'{metavar}' / '{option}'")
+        value = positional if positional is not None else given
+        if value is None:
+            if defaults[name] is inspect.Parameter.empty:
+                msg = f"missing the {name.replace('_', ' ')}: give it as {metavar} or with {option}."
+                raise typer.BadParameter(msg, param_hint=f"'{metavar}'")
+            value = defaults[name]
+        kwargs[name] = value
+
+
 def _restore_parsed_values(kwargs: dict[str, Any], specs: Sequence[_ParameterSpec]) -> set[str]:
     """Convert the values Typer parsed for `specs` back into the types the wrapped function expects.
 
@@ -513,6 +559,7 @@ def _restore_parsed_values(kwargs: dict[str, Any], specs: Sequence[_ParameterSpe
         set[str]: The looped parameters given as ``all``, which were expanded to every choice.
     """
     expanded_all: set[str] = set()
+    _merge_time_arguments(kwargs, specs)
     for spec in specs:
         value = kwargs.get(spec.name)
 
@@ -539,15 +586,21 @@ def _restore_parsed_values(kwargs: dict[str, Any], specs: Sequence[_ParameterSpe
 
 
 def _spec_parameters(specs: Sequence[_ParameterSpec]) -> list[inspect.Parameter]:
-    """Turn option specs into the keyword-only parameters of a synthesised command signature."""
+    """Turn option specs into the keyword-only parameters of a synthesised command signature.
+
+    A time range in `specs` also gets the optional positional arguments ``START`` and ``END``, first.
+    """
     return [
-        inspect.Parameter(
-            spec.name,
-            inspect.Parameter.KEYWORD_ONLY,
-            default=_typer_default(spec),
-            annotation=spec.annotation,
-        )
-        for spec in specs
+        *_time_arguments(specs),
+        *(
+            inspect.Parameter(
+                spec.name,
+                inspect.Parameter.KEYWORD_ONLY,
+                default=_typer_default(spec),
+                annotation=spec.annotation,
+            )
+            for spec in specs
+        ),
     ]
 
 
@@ -666,17 +719,28 @@ def _print_satellite_listing(
     label: str,
     satellites: Sequence[str],
     table: AvailabilityTable | None,
-    start_time: datetime,
-    end_time: datetime,
+    start_time: datetime | None,
+    end_time: datetime | None,
 ) -> None:
-    """Print the satellites with data in a time range, for ``--list-satellites``."""
+    """Print the satellites with data in a time range, for ``el-paso list-satellites``.
+
+    Without a `table` the time range is not needed, and may be ``None``: the satellites are listed
+    as they are, since which of them have data is unknown.
+    """
     from rich.console import Console  # noqa: PLC0415
 
     console = Console()
-    time_range = format_time_range(start_time, end_time)
     if table is None:
-        console.print(f"{label} has no availability table: which satellites have data is unknown.")
+        console.print(f"{label}: {len(satellites)} satellites")
+        names = Table("Satellite", padding=(0, 2, 0, 0))
+        for satellite in satellites:
+            names.add_row(satellite)
+        console.print(names)
         return
+
+    assert start_time is not None
+    assert end_time is not None
+    time_range = format_time_range(start_time, end_time)
 
     coverage = overlapping_intervals(table, start_time, end_time)
     available = [satellite for satellite in satellites if satellite in coverage]
@@ -786,16 +850,11 @@ def _make_command(
     """Assemble the wrapper callable and attach the synthesised signature."""
     loop_names = [spec.name for spec in specs if spec.is_loop]
     with_availability = _has_availability_parameters(specs)
-    satellite_spec = next((spec for spec in specs if spec.name == AVAILABILITY_PARAMETER), None)
-    satellite_choices: list[str] = []
-    if with_availability and satellite_spec is not None and satellite_spec.choice_enum is not None:
-        satellite_choices = list(satellite_spec.loop_values or [member.value for member in satellite_spec.choice_enum])
 
     def command(**kwargs: Any) -> None:  # noqa: ANN401
         # The universal options belong to the command, not to the recipe, so they are
         # all removed before the remaining keywords are handed over.
         universal = {name: kwargs.pop(name) for name in _UNIVERSAL_PARAMETER_NAMES if name in kwargs}
-        list_satellites = kwargs.pop(_LIST_SATELLITES_OPTION.name, False)
 
         if universal["skip_download"]:
             ep.skip_download = True
@@ -807,12 +866,6 @@ def _make_command(
 
         # loaded per invocation, not when the command is built, so that `--help` never reads it
         table = load_availability_table(availability) if availability is not None and with_availability else None
-
-        if list_satellites:
-            _print_satellite_listing(
-                _func_name(func), satellite_choices, table, kwargs["start_time"], kwargs["end_time"]
-            )
-            return
 
         notices: list[tuple[int, str]] = []
         coverage = None
@@ -829,10 +882,7 @@ def _make_command(
         _run_calls(func, _expand_loops(kwargs, loop_names), loop_names, universal, notices=notices, coverage=coverage)
 
     command.__name__ = _func_name(func)
-    parameters = [*_spec_parameters(specs), *_universal_parameters()]
-    if with_availability:
-        parameters.append(_LIST_SATELLITES_OPTION)
-    _attach_signature(command, parameters)
+    _attach_signature(command, [*_spec_parameters(specs), *_universal_parameters()])
     command.__doc__ = summary
 
     return command
@@ -840,6 +890,10 @@ def _make_command(
 
 def _typer_default(spec: _ParameterSpec) -> Any:  # noqa: ANN401
     """Convert a recipe default into the form Typer expects for that option."""
+    if spec.name in TIME_PARAMETERS:
+        # given as an option or as START / END, so neither is required by Typer; see `_merge_time_arguments`
+        return None
+
     if spec.default is inspect.Parameter.empty:
         return ...
 
@@ -951,6 +1005,64 @@ def check_strategy_factory(
         details = "\n  - ".join(problems)
         msg = f"Strategy factory {_func_name(factory)} does not match recipe {_func_name(recipe)}:\n  - {details}"
         raise TypeError(msg)
+
+
+def build_list_satellites_command(
+    func: Recipe,
+    *,
+    defaults: dict[str, Any] | None = None,
+    availability: AvailabilitySource | None = None,
+) -> Callable[..., None]:
+    """Build the command that lists the satellites of a recipe that have data in a time range.
+
+    The command takes the recipe's time range (``START END``, or ``--start-time`` and ``--end-time``) and
+    prints the satellites that have data in it according to the recipe's availability table, then exits
+    without processing anything. The table is optional. A recipe without one has no use for the time
+    range, so it is optional then and the command lists all the satellites of the recipe.
+
+    Args:
+        func (Recipe): The recipe whose satellites are listed.
+        defaults (dict[str, Any] | None): The recipe's CLI defaults, which override the defaults of its
+            signature exactly as in the processing command.
+        availability (AvailabilitySource | None): The recipe's satellite availability table. It is read
+            when the command runs, not when it is built. Without one, the command says that which
+            satellites have data is unknown.
+
+    Returns:
+        Callable[..., None]: A callable ready to be registered with ``app.command()``.
+    """
+    time_specs, _ = _build_parameter_specs(func, defaults=defaults, names=TIME_PARAMETERS)
+    satellite_specs, _ = _build_parameter_specs(func, defaults=defaults, names=(AVAILABILITY_PARAMETER,))
+    satellite_spec = next(iter(satellite_specs), None)
+    satellite_choices: list[str] = []
+    if satellite_spec is not None and satellite_spec.choice_enum is not None:
+        satellite_choices = list(satellite_spec.loop_values or [member.value for member in satellite_spec.choice_enum])
+
+    def command(**kwargs: Any) -> None:  # noqa: ANN401
+        if not satellite_choices:
+            from rich.console import Console  # noqa: PLC0415
+
+            Console().print(f"{_func_name(func)} has no {AVAILABILITY_PARAMETER} option, so there is nothing to list.")
+            raise typer.Exit(1)
+
+        if availability is None:
+            # no table to look up, so the time range is not needed: the satellite names are listed
+            _print_satellite_listing(_func_name(func), satellite_choices, None, None, None)
+            return
+
+        _merge_time_arguments(kwargs, time_specs)
+        # loaded per invocation, not when the command is built, so that `--help` never reads it
+        table = load_availability_table(availability)
+        _print_satellite_listing(_func_name(func), satellite_choices, table, kwargs["start_time"], kwargs["end_time"])
+
+    command.__name__ = f"list_satellites_{_func_name(func)}"
+    _attach_signature(command, _spec_parameters(time_specs))
+    command.__doc__ = (
+        "List the satellites that have data between START and END according to the recipe's availability "
+        "table, then exit without processing. A recipe without a table lists all its satellites, and needs "
+        "no START and END."
+    )
+    return command
 
 
 def run_recipe_cli(
