@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import importlib
 import inspect
 import logging
@@ -24,6 +25,7 @@ from el_paso.one_of import alternatives_of
 
 if TYPE_CHECKING:
     from pathlib import Path
+    from typing import Self
 
     from numpy.typing import NDArray
 
@@ -160,6 +162,20 @@ class DataSet:
             computed properties ``"P"``, ``"InvV"``, and ``"datetime"``) that
             may be accessed on this dataset.
         metadata (DatasetMetadata): Per-variable metadata collected while loading.
+
+    A dataset can be used directly::
+
+        ds = DataSet(...)
+        ds.load("Flux")
+
+    or as a context manager, which releases the file handles held open by
+    lazily-loaded ``.nc`` variables as soon as the ``with`` block exits::
+
+        with DataSet(...) as ds:
+            ds.load("Flux")
+
+    Both styles are supported. Without ``with`` or an explicit `close()`, the
+    handles are released when the instance is garbage-collected.
     """
 
     _internal_attrs = frozenset(
@@ -174,6 +190,7 @@ class DataSet:
             "_date_list",
             "_loaders",
             "_currently_loading",
+            "_open_resources",
         }
     )
 
@@ -204,6 +221,7 @@ class DataSet:
         self._verbose = verbose
         self._preferred_ext = preferred_extension
         self._currently_loading: set[str] = set()
+        self._open_resources: list[Any] = []
 
         self.saving_strategy = saving_strategy
         self.possible_variables = [
@@ -274,6 +292,54 @@ class DataSet:
 
     def __str__(self) -> str:
         return self.__repr__()
+
+    def __enter__(self) -> Self:
+        """Enter the runtime context, returning this dataset."""
+        return self
+
+    def __exit__(self, *exc_info: object) -> None:
+        """Exit the runtime context, closing any open file handles."""
+        self.close()
+
+    def __del__(self) -> None:
+        """Release open file handles when the dataset is garbage-collected.
+
+        Unlike `close()`, this does not materialize lazy variables: nothing can
+        access them anymore, so reading their data here would be wasted work.
+        """
+        # Never let an error escape __del__ (e.g. during interpreter shutdown).
+        with contextlib.suppress(Exception):
+            self._close_open_resources()
+
+    def close(self) -> None:
+        """Close file handles held open by lazily-loaded variables.
+
+        Every loaded variable stays accessible afterwards: any variable that is still
+        lazily backed by a ``.nc`` file is first read into an in-memory array, so that
+        accessing it later can never transparently reopen the file (which xarray's
+        caching file manager would otherwise do on demand). Safe to call multiple times.
+        """
+        # Scan everything stored on the instance, not just `possible_variables`: variables
+        # found in a file but missing from the data standard are stored here too.
+        for var_name, raw_value in list(self.__dict__.items()):
+            is_lazy = is_xr_variable(raw_value) or (
+                isinstance(raw_value, list) and len(raw_value) > 0 and is_xr_variable(raw_value[0])
+            )
+            if is_lazy:
+                # __getattribute__ resolves lazy values (and chunk lists) to an ndarray.
+                self.__dict__[var_name] = getattr(self, var_name)
+
+        self._close_open_resources()
+
+    def _close_open_resources(self) -> None:
+        """Close every tracked open file resource and forget about it."""
+        open_resources = self.__dict__.get("_open_resources", [])
+        for resource in open_resources:
+            try:
+                resource.close()
+            except Exception:
+                logger.debug(f"Failed to close resource {resource!r}", exc_info=True)
+        open_resources.clear()
 
     def __getattribute__(self, name: str) -> Any:  # noqa: ANN401
         value = super().__getattribute__(name)
@@ -527,6 +593,10 @@ class DataSet:
                                 metadata_key,
                                 metadata_value,
                             )
+                    continue
+
+                if key == "__open_resources__":
+                    self._open_resources.extend(cast("list[Any]", var_arr))
                     continue
 
                 if key != "datetime" and (
