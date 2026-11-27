@@ -95,6 +95,11 @@ def process_lanl_geogrid_sopa_esp_electrons(
 
     Note: SC_RAD is labelled km in the file headers, but holds Earth radii.
 
+    Note: the SOPA and ESP fluxes are labelled per keV in the file headers, but hold values per eV. They
+    join the MPA spectrum (labelled per eV) continuously at ~40-60 keV without rescaling, and only
+    per eV gives typical geosynchronous flux levels. The flux is therefore read as per eV and
+    converted to per keV.
+
     Args:
         start_time (datetime): Start of the time interval to process.
         end_time (datetime): End of the time interval to process.
@@ -137,6 +142,8 @@ def process_lanl_geogrid_sopa_esp_electrons(
     ep.exit_if_download_only()
 
     flux_unit = (u.cm**2 * u.s * u.sr * u.keV) ** (-1)
+    # the files label the SOPA/ESP fluxes per keV, but they hold values per eV (see the docstring)
+    file_flux_unit = (u.cm**2 * u.s * u.sr * u.eV) ** (-1)
 
     extraction_infos = [
         ep.ExtractionInfo(result_key="Date", name_or_column="Date", unit=u.dimensionless_unscaled),
@@ -144,8 +151,8 @@ def process_lanl_geogrid_sopa_esp_electrons(
         ep.ExtractionInfo(result_key="SC_LAT", name_or_column="SC_LAT", unit=u.deg),
         ep.ExtractionInfo(result_key="SC_LON", name_or_column="SC_LON", unit=u.deg),
         ep.ExtractionInfo(result_key="SC_RAD", name_or_column="SC_RAD", unit=ep.units.RE),
-        ep.ExtractionInfo(result_key="Sopa_E_Flux", name_or_column="Sopa_E_Flux", unit=flux_unit),
-        ep.ExtractionInfo(result_key="Esp_E_Flux", name_or_column="Esp_E_Flux", unit=flux_unit),
+        ep.ExtractionInfo(result_key="Sopa_E_Flux", name_or_column="Sopa_E_Flux", unit=file_flux_unit),
+        ep.ExtractionInfo(result_key="Esp_E_Flux", name_or_column="Esp_E_Flux", unit=file_flux_unit),
         ep.ExtractionInfo(
             result_key="Sopa_E_Energy", name_or_column="Sopa_E_Energy", unit=u.keV, is_time_dependent=False
         ),
@@ -177,6 +184,9 @@ def process_lanl_geogrid_sopa_esp_electrons(
             axis=1,
         ),
         original_unit=flux_unit,
+    )
+    variables["FEDU_SA"].metadata.add_processing_note(
+        "Read the SOPA and ESP fluxes as per eV (the file headers label them per keV) and converted them to per keV."
     )
     variables["Energy_FEDU"] = ep.Variable(
         data=np.concatenate((variables["Sopa_E_Energy"].get_data(u.keV), esp_energy[esp_valid_channels])),

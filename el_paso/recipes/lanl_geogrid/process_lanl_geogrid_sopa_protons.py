@@ -94,6 +94,11 @@ def process_lanl_geogrid_sopa_protons(
 
     Note: SC_RAD is labelled km in the file headers, but holds Earth radii.
 
+    Note: the SOPA fluxes are labelled per keV in the file headers, but hold values per eV. They
+    join the MPA spectrum (labelled per eV) continuously at ~40-60 keV without rescaling, and only
+    per eV gives typical geosynchronous flux levels. The flux is therefore read as per eV and
+    converted to per keV.
+
     Args:
         start_time (datetime): Start of the time interval to process.
         end_time (datetime): End of the time interval to process.
@@ -136,6 +141,8 @@ def process_lanl_geogrid_sopa_protons(
     ep.exit_if_download_only()
 
     flux_unit = (u.cm**2 * u.s * u.sr * u.keV) ** (-1)
+    # the files label the SOPA/ESP fluxes per keV, but they hold values per eV (see the docstring)
+    file_flux_unit = (u.cm**2 * u.s * u.sr * u.eV) ** (-1)
 
     extraction_infos = [
         ep.ExtractionInfo(result_key="Date", name_or_column="Date", unit=u.dimensionless_unscaled),
@@ -143,7 +150,7 @@ def process_lanl_geogrid_sopa_protons(
         ep.ExtractionInfo(result_key="SC_LAT", name_or_column="SC_LAT", unit=u.deg),
         ep.ExtractionInfo(result_key="SC_LON", name_or_column="SC_LON", unit=u.deg),
         ep.ExtractionInfo(result_key="SC_RAD", name_or_column="SC_RAD", unit=ep.units.RE),
-        ep.ExtractionInfo(result_key="FPDU_SA", name_or_column="Sopa_P_Flux", unit=flux_unit),
+        ep.ExtractionInfo(result_key="FPDU_SA", name_or_column="Sopa_P_Flux", unit=file_flux_unit),
         ep.ExtractionInfo(
             result_key="Energy_FPDU", name_or_column="Sopa_P_Energy", unit=u.keV, is_time_dependent=False
         ),
@@ -166,6 +173,11 @@ def process_lanl_geogrid_sopa_protons(
     )
     variables["Epoch"] = ep.Variable(
         data=day_start[date_idx] + variables["UTC"].get_data(u.s), original_unit=ep.units.posixtime
+    )
+
+    variables["FPDU_SA"].set_data(variables["FPDU_SA"].get_data(flux_unit), flux_unit)
+    variables["FPDU_SA"].metadata.add_processing_note(
+        "Read the SOPA proton flux as per eV (the file headers label it per keV) and converted it to per keV."
     )
 
     variables["FPDU_SA"].apply_thresholds_on_data(lower_threshold=0)
