@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: 2025 GFZ Helmholtz Centre for Geosciences
 # SPDX-FileContributor: Bernhard Haas
+# SPDX-FileContributor: Sahil Jhawar
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -448,8 +449,11 @@ def load_netcdf_data_lazy(file_path: Path) -> dict[StandardName, Any]:
         prefix included, e.g. ``"group/variable"``) to its data as an xarray
         ``DataArray``, plus a ``"metadata"`` entry mapping each path to a dict
         of known attributes (unit, source_files, processing_notes, description,
-        original_cadence_seconds, standard_name). Returns an empty dict if
-        ``file_path`` does not exist.
+        original_cadence_seconds, standard_name), plus a reserved
+        ``"__open_resources__"`` entry listing the opened ``xr.Dataset`` groups so
+        the caller (e.g. `DataSet`) can close the underlying file handles once it
+        is done with the lazy variables. Returns an empty dict if ``file_path``
+        does not exist.
     """
     if not file_path.exists():
         logger.error(f"File not found: {file_path}")
@@ -459,6 +463,7 @@ def load_netcdf_data_lazy(file_path: Path) -> dict[StandardName, Any]:
 
     loaded_data: dict[StandardName, Any] = {"metadata": {}}
     grouped_datasets = xr.open_groups(file_path)
+    loaded_data["__open_resources__"] = list(grouped_datasets.values())  # ty:ignore[invalid-assignment]
 
     for group_path, ds in grouped_datasets.items():
         prefix = f"{group_path}/" if group_path != "/" else ""

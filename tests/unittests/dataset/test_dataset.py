@@ -18,7 +18,7 @@ import pytest
 from astropy import units as u
 from el_paso.dataset import DataSet, GFZDataSet
 from el_paso.dataset.dataset import _describe_difference
-from el_paso.dataset.utils import python2matlab
+from el_paso.dataset.utils import is_xr_variable, python2matlab
 from el_paso.one_of import alternatives_of
 
 if TYPE_CHECKING:
@@ -399,6 +399,122 @@ class TestDataSet:  # noqa: D101
                 == log_count_after_first_load
             ), "File should not have been loaded again"
 
+    def test_usable_without_context_manager(self, mock_dataset: DataSet):
+        """Direct usage (no `with`, no explicit close()) keeps working unchanged."""
+        mock_dataset.load("Flux")
+
+        assert isinstance(mock_dataset.Flux, np.ndarray)
+        assert mock_dataset.get_satellite_name() == "primary"
+        mock_dataset.close()
+
+    def test_context_manager_closes_open_resources(self, mock_dataset: DataSet):
+        """Exiting a `with` block closes every open lazy file handle."""
+        with mock_dataset as ds:
+            assert ds is mock_dataset
+            ds.load("Flux")
+            if mock_dataset._preferred_ext == "nc":
+                assert ds._open_resources, "Lazy .nc loading should track its open file handles"
+
+        assert mock_dataset._open_resources == []
+
+    def test_context_manager_keeps_loaded_data_accessible_after_exit(self, mock_dataset: DataSet):
+        """Already-loaded variables stay readable after the `with` block exits."""
+        with mock_dataset as ds:
+            ds.load("Flux")
+            loaded_flux = ds.Flux.copy()
+
+        np.testing.assert_array_equal(mock_dataset.Flux, loaded_flux)
+
+    def test_close_is_idempotent(self, mock_dataset: DataSet):
+        """Calling close() multiple times does not raise."""
+        mock_dataset.load("Flux")
+        mock_dataset.close()
+        mock_dataset.close()
+
+        assert mock_dataset._open_resources == []
+
+    def test_close_materializes_still_lazy_variables(self, mock_dataset: DataSet):
+        """After close(), no loaded variable is still backed lazily by the file.
+
+        Loading "Flux" also caches every other variable found in the same file (e.g.
+        "alpha_local") as a lazy `xr.Variable`. Accessing such a variable for the first
+        time after close() would otherwise silently reopen the file through xarray's
+        caching file manager, bypassing `_open_resources` entirely.
+        """
+        mock_dataset.load("Flux")
+        mock_dataset.close()
+
+        raw_dict = object.__getattribute__(mock_dataset, "__dict__")
+        for var_name in mock_dataset.get_loaded_variables():
+            raw_value = raw_dict[var_name]
+            assert not is_xr_variable(raw_value), f"'{var_name}' is still a lazy xr.Variable after close()"
+            assert not (isinstance(raw_value, list) and raw_value and is_xr_variable(raw_value[0])), (
+                f"'{var_name}' is still a list of lazy xr.Variable chunks after close()"
+            )
+
+    def test_overwrite_raises_permission_error_while_dataset_still_open(self, mock_dataset: DataSet):
+        """Rewriting the backing `.nc` file while a dataset still holds it open fails.
+
+        This documents the failure mode `close()` addresses: closing the dataset first
+        releases the file so the write succeeds.
+        """
+        if mock_dataset._preferred_ext != "nc":
+            pytest.skip("File-locking behavior is specific to the .nc backend.")
+
+        mock_dataset.load("Flux")
+
+        overwrite_variables = _mock_monthly_variables()
+        save_kwargs = {
+            "start_time": mock_dataset._start_time,
+            "end_time": mock_dataset._end_time,
+            "time_var": overwrite_variables["Epoch"],
+        }
+
+        with pytest.raises(PermissionError):
+            ep.save(overwrite_variables, mock_dataset.saving_strategy, **save_kwargs)
+
+        mock_dataset.close()
+
+        ep.save(overwrite_variables, mock_dataset.saving_strategy, **save_kwargs)
+
+    def test_overwrite_succeeds_after_close_even_after_accessing_new_variable(self, mock_dataset: DataSet):
+        """Closing, then accessing a cached-but-unread variable, must not reopen the file.
+
+        Before the fix, the first access to "alpha_local" after close() reopened the
+        file outside of close()'s tracking, so overwriting it afterwards failed.
+        """
+        if mock_dataset._preferred_ext != "nc":
+            pytest.skip("Lazy-loading reopen behavior is specific to the .nc backend.")
+
+        mock_dataset.load("Flux")
+        mock_dataset.close()
+
+        _ = mock_dataset.alpha_local  # first-ever access, after close()
+
+        mock_dataset.close()
+
+        overwrite_variables = _mock_monthly_variables()
+        ep.save(
+            overwrite_variables,
+            mock_dataset.saving_strategy,
+            start_time=mock_dataset._start_time,
+            end_time=mock_dataset._end_time,
+            time_var=overwrite_variables["Epoch"],
+        )
+
+    def test_context_manager_propagates_exceptions(self, mock_dataset: DataSet):
+        """Exceptions raised inside a `with` block propagate, after closing."""
+
+        def _load_then_raise() -> None:
+            with mock_dataset as ds:
+                ds.load("Flux")
+                raise ValueError("boom")  # noqa: EM101
+
+        with pytest.raises(ValueError, match="boom"):
+            _load_then_raise()
+
+        assert mock_dataset._open_resources == []
+
 
 @pytest.mark.minimal
 @pytest.mark.standard
@@ -643,6 +759,41 @@ def test_variable_missing_from_standard_is_loaded_with_warning(
 
     with pytest.raises(AttributeError, match="Cannot set attribute"):
         dataset.NEW_UNKNOWN_VAR_2 = 1
+
+
+@pytest.mark.minimal
+@pytest.mark.standard
+def test_close_materializes_variables_missing_from_standard(tmp_path: Path) -> None:
+    """close() also releases lazy variables that are not part of the data standard.
+
+    Such variables are stored on the dataset without being listed in
+    `possible_variables`, so close() must not rely on that list alone. Otherwise the
+    first access after close() reopens the file and blocks overwriting it.
+    """
+    import netCDF4 as nC  # noqa: PLC0415
+
+    variables = _mock_monthly_variables()
+    start_time = datetime(2013, 1, 1, tzinfo=timezone.utc)
+    end_time = datetime(2013, 1, 2, tzinfo=timezone.utc)
+    strategy = ep.saving_strategies.MonthlyRBStrategy(
+        tmp_path, "GOES", "primary", "MAGED", "T89", data_standard=ep.data_standards.GFZStandard(), file_format="nc"
+    )
+    ep.save(variables, strategy, start_time=start_time, end_time=end_time, time_var=variables["Epoch"])
+
+    nc_file = next(tmp_path.rglob("*.nc"))
+    with nC.Dataset(nc_file, "a") as file:
+        time_name = next(iter(file.variables))
+        extra = file.createVariable("NEW_UNKNOWN_VAR", "f8", file.variables[time_name].dimensions)
+        extra[:] = 42.0
+
+    dataset = DataSet(saving_strategy=strategy, start_time=start_time, end_time=end_time, verbose=False)
+    dataset.load("Flux")  # also caches NEW_UNKNOWN_VAR lazily, without reading it
+    dataset.close()
+
+    assert not is_xr_variable(object.__getattribute__(dataset, "__dict__")["NEW_UNKNOWN_VAR"])
+    assert np.all(dataset.NEW_UNKNOWN_VAR == 42.0)
+
+    ep.save(variables, strategy, start_time=start_time, end_time=end_time, time_var=variables["Epoch"])
 
 
 _PROCESSED = pathlib.Path(__file__).parent.parent.parent / "system" / "data" / "processed"
